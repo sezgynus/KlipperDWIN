@@ -1428,7 +1428,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                         self.lcd.save_display_settings(*values)
                         self._display_saved = values
                     self._display_edit = False
-                    self._display_save_message = 'Saved'
+                    self._display_save_message = ''
                 except (OSError, TimeoutError, T5UIC1ProtocolError):
                     self._display_save_message = 'Not saved. Press to retry'
             else:

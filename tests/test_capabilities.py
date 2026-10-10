@@ -558,8 +558,14 @@ class CapabilityMenuTests(unittest.TestCase):
         ssid = 'A' * 32
         result._draw_info_row('Wi-Fi', ssid, 100)
         call = result.lcd.draw_text.call_args.args
-        self.assertEqual(call[-1], ssid)
-        self.assertEqual(call[-3], 64)
+        self.assertEqual(call[-1], ssid[:17])
+        self.assertEqual(call[-3:-1], (120, 100))
+        self.assertEqual(call[2], result.lcd.font8x16)
+        self.assertEqual([label for kind, label, _ in items if kind == 'section'],
+                         ['Machine', 'Host', 'MCU: mcu', 'MCU: mmu', 'Software'])
+        result.pd.system_info['mcus'] = ()
+        self.assertEqual([label for kind, label, _ in result._info_items() if kind == 'section'],
+                         ['Machine', 'Host', 'MCU', 'Software'])
 
     def test_info_encoder_scrolls_and_enter_returns(self):
         result = display(snapshot())

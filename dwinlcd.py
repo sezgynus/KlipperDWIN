@@ -2269,11 +2269,6 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
 
     def _draw_info_row(self, label, value, y):
         self._draw_menu_text(label, 8, y)
-        if label == 'Wi-Fi':
-            text = T5UIC1Display._panel_text(value)[:32]
-            self.lcd.draw_text(False, False, self.lcd.font6x12, self.lcd.Color_White,
-                               self.lcd.Color_Bg_Black, 64, y + 2, text)
-            return
         text = T5UIC1Display._panel_text(value)[:17]
         color = self.lcd.Color_White
         if label == 'Network':
@@ -2319,12 +2314,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             ('section', 'Host', None),
             ('row', 'CPU', 'N/A' if cpu is None else '{:.0f}%'.format(cpu)),
             ('row', 'CPU temp', 'N/A' if temp is None else '{:.1f} C'.format(temp)),
-            ('section', 'Software', None),
-            ('row', 'KlipperDWIN', info.get('klipperdwin', 'Unavailable')),
-            ('row', 'Klipper', self.pd.SHORT_BUILD_VERSION),
-            ('row', 'Moonraker', info.get('moonraker', 'Unavailable')),
-            ('row', 'Mainsail', info.get('mainsail', 'Unavailable')),
-            ('wide', '', 'github.com/sezgynus/KlipperDWIN'),
+
         ]
         mcus = info.get('mcus') or ()
         if not mcus:
@@ -2339,6 +2329,14 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 ('row', 'Load', 'N/A' if load is None else '{:.1f}%'.format(load)),
                 ('row', 'Temp', 'N/A' if temperature is None else '{:.1f} C'.format(temperature)),
             ))
+        items.extend([
+            ('section', 'Software', None),
+            ('row', 'KlipperDWIN', info.get('klipperdwin', 'Unavailable')),
+            ('row', 'Klipper', self.pd.SHORT_BUILD_VERSION),
+            ('row', 'Moonraker', info.get('moonraker', 'Unavailable')),
+            ('row', 'Mainsail', info.get('mainsail', 'Unavailable')),
+            ('wide', '', 'github.com/sezgynus/KlipperDWIN'),
+        ])
         return items
 
     def Draw_Info_Menu(self):

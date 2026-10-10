@@ -207,7 +207,7 @@ Viewer seçimi **profil yüklemez ve aktif mesh’i değiştirmez**. Haritada d�
   <img src="docs/assets/screens/info-mcu-details.png" width="220" alt="MCU ayrıntıları">
 </p>
 
-**Home → Info** ve **Control → Info** aynı encoder ile kaydırılabilir özeti açar: makine boyutları, ağ/IPv4, host CPU yükü/sıcaklığı, kurulu yazılım sürümleri ve her bağlı MCU’nun durumu/yükü. MCU sıcaklığı eşleşen `temperature_mcu` kaynağı gerektirir; alınamayan değerler `N/A` gösterilir. KlipperDWIN, mevcutsa etiket sonrası commit’leri de içeren tam Update Manager Git sürümünü kullanır. Network altında Wi-Fi ağ adı ve RSSI gösterilir; RSSI yanında Strong (güçlü, >= -60 dBm), Medium (orta, >= -70 dBm) veya Poor (kötü) yazılır. Wi-Fi okumaları arka planda çalışır ve Linux `iw` komutunu gerektirir; destek yoksa Unavailable, bağlı ağ yoksa Disconnected gösterilir.
+**Home → Info** ve **Control → Info** aynı encoder ile kaydırılabilir özeti açar: makine boyutları, ağ/IPv4, host CPU yükü/sıcaklığı, kurulu yazılım sürümleri ve her bağlı MCU’nun durumu/yükü. MCU sıcaklığı eşleşen `temperature_mcu` kaynağı gerektirir; alınamayan değerler `N/A` gösterilir. KlipperDWIN, mevcutsa etiket sonrası commit’leri de içeren tam Update Manager Git sürümünü kullanır. Network altında Wi-Fi ağ adı ve RSSI gösterilir; RSSI yanında Strong (güçlü, >= -60 dBm), Medium (orta, >= -70 dBm) veya Poor (kötü) yazılır. Wi-Fi okumaları arka planda çalışır ve Linux `iw` komutunu gerektirir; destek yoksa Unavailable, bağlı ağ yoksa Disconnected gösterilir. Bölüm sırası Machine → Host → tüm MCU’lar → Software şeklindedir. Wi-Fi diğer satırlarla aynı font ve değer hizasını kullanır; uzun ağ adlarının ilk 17 ekran karakteri gösterilir.
 
 ## İsteğe bağlı entegrasyonlar
 

@@ -1,3 +1,4 @@
+from info_qr import PROJECT_URL, draw_project_qr
 from system_info import wifi_signal_text
 import time
 import logging
@@ -2336,7 +2337,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             ('row', 'Klipper', self.pd.SHORT_BUILD_VERSION),
             ('row', 'Moonraker', info.get('moonraker', 'Unavailable')),
             ('row', 'Mainsail', info.get('mainsail', 'Unavailable')),
-            ('qr', 'Scan for project info', 'https://github.com/sezgynus/KlipperDWIN'),
+            ('qr', 'Scan for project info', PROJECT_URL),
         ])
         return items
 
@@ -2350,24 +2351,18 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         # The caption is one row; reserve seven more rows for QR and quiet zone.
         max_scroll = max(0, len(items) + 7 - visible_count)
         self._info_scroll = max(0, min(getattr(self, '_info_scroll', 0), max_scroll))
-        qr_visible = False
         for index, (kind, label, value) in enumerate(items):
             y = 92 + (index - self._info_scroll) * 24
             if kind == 'qr':
                 if y < self.STATUS_Y and y + 192 > 92:
-                    self._draw_menu_text(label, 48, y)
-                    self.lcd.draw_rectangle(1, self.lcd.Color_White, 52, y + 24, 219, y + 191)
-                    self.lcd.draw_qr(64, y + 36, 3, value)
-                    qr_visible = True
+                    if 92 <= y and y + 16 <= self.STATUS_Y:
+                        self._draw_menu_text(label, 48, y)
+                    draw_project_qr(self.lcd, y + 24, bottom=self.STATUS_Y)
             elif 92 <= y < 92 + visible_count * 24:
                 if kind == 'section':
                     self._draw_info_section(label, y)
                 else:
                     self._draw_info_row(label, value, y)
-        if qr_visible:
-            # Native QR has no clip command. Restore the fixed dashboard before
-            # the caller refreshes the display, masking the part below the menu.
-            self.Draw_Status_Area(False)
         if self._info_scroll:
             self._draw_menu_text('^', 256, 76)
         if self._info_scroll < max_scroll:

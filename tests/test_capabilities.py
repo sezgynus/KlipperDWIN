@@ -567,28 +567,30 @@ class CapabilityMenuTests(unittest.TestCase):
         self.assertEqual([label for kind, label, _ in result._info_items() if kind == 'section'],
                          ['Machine', 'Host', 'MCU', 'Software'])
 
-    def test_info_qr_scrolls_one_row_and_dashboard_masks_overflow(self):
+    def test_info_qr_scrolls_one_row_without_native_out_of_screen_commands(self):
         result = display(snapshot())
-        result.pd.refresh_system_info = Mock(return_value=False)
-        result.Draw_Status_Area = Mock()
-        final = len(result._info_items()) - 1
-        result._info_scroll = final - 10
-        result.Draw_Info_Menu()
-        first_y = result.lcd.draw_qr.call_args.args[1]
-        result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CW)
-        result.HMI_Info()
-        self.assertEqual(result._info_scroll, final - 9)
-        self.assertEqual(result.lcd.draw_qr.call_args.args[1], first_y - 24)
-        result.Draw_Status_Area.assert_called_with(False)
-        maximum = len(result._info_items()) + 7 - 11
-        for _ in range(20):
+        draw_qr = Mock()
+        with patch.dict(result.Draw_Info_Menu.__func__.__globals__, {'draw_project_qr': draw_qr}):
+            result.pd.refresh_system_info = Mock(return_value=False)
+            result.Draw_Status_Area = Mock()
+            final = len(result._info_items()) - 1
+            result._info_scroll = final - 10
+            result.Draw_Info_Menu()
+            first_y = draw_qr.call_args.args[1]
+            result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CW)
             result.HMI_Info()
-        self.assertEqual(result._info_scroll, maximum)
-        self.assertEqual(result.lcd.draw_qr.call_args.args,
-                         (64, 200, 3, 'https://github.com/sezgynus/KlipperDWIN'))
-        result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
-        result.HMI_Info()
-        self.assertEqual(result._info_scroll, maximum - 1)
+            self.assertEqual(result._info_scroll, final - 9)
+            self.assertEqual(draw_qr.call_args.args[1], first_y - 24)
+            result.Draw_Status_Area.assert_not_called()
+            result.lcd.draw_qr.assert_not_called()
+            maximum = len(result._info_items()) + 7 - 11
+            for _ in range(20):
+                result.HMI_Info()
+            self.assertEqual(result._info_scroll, maximum)
+            self.assertEqual(draw_qr.call_args.args[1], 188)
+            result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
+            result.HMI_Info()
+            self.assertEqual(result._info_scroll, maximum - 1)
 
     def test_info_encoder_scrolls_and_enter_returns(self):
         result = display(snapshot())

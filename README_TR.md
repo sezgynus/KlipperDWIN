@@ -161,7 +161,7 @@ Tune; baskı hızı, çalışma zamanı Z offset ve mevcut hotend/tabla/fan hede
   <img src="docs/assets/screens/move.png" width="240" alt="Move ve Live Jog">
 </p>
 
-**Prepare → Move**, `gcode_move.position` üzerinden canlı komut koordinatlarını gösterir. Normal düzenleme onayla hedef gönderir; **Live Jog** encoder hareketini anında uygular. Hareket için homing gerekir, eksen sınırlarına uyulur ve baskı/duraklatma sırasında hareket reddedilir. Ekstrüzyon sıcaklık ve yapılandırılmış mesafe sınırlarını kontrol eder. Göreli jog G-code durumunu kaydeder/geri yükler; onaylanmamış geri yükleme yeni hareketi engeller ve **Control → Restore jog state** seçeneğini açar.
+**Prepare → Move**, `gcode_move.position` üzerinden canlı komut koordinatlarını gösterir. Normal düzenleme onayla hedefi sessiz gönderir (bekleme yazısı gösterilmez); **Live Jog** encoder hareketini anında uygular. Hareket için homing gerekir, eksen sınırlarına uyulur ve baskı/duraklatma sırasında hareket reddedilir. Ekstrüzyon sıcaklık ve yapılandırılmış mesafe sınırlarını kontrol eder. Göreli jog G-code durumunu kaydeder/geri yükler; onaylanmamış geri yükleme yeni hareketi engeller ve **Control → Restore jog state** seçeneğini açar.
 
 **Prepare → Screws Tilt Adjust → Calculate**, eksik eksenlere önce homing yaparak `SCREWS_TILT_CALCULATE` çalıştırır. Probe ve `[screws_tilt_adjust]` altında dört ayrı köşe vidası gerektirir.
 

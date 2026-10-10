@@ -1721,7 +1721,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self.pd.HMI_ValueStruct.Move_X_scale
             )
             if not getattr(self, '_live_jog', False):
-                self._action("Jog X", lambda: self.pd.moveAbsolute('X', self.pd.HMI_ValueStruct.Move_X_scale / self.MINUNITMULT, 5000))
+                self._action("Jog X", lambda: self.pd.moveAbsolute('X', self.pd.HMI_ValueStruct.Move_X_scale / self.MINUNITMULT, 5000), silent=True)
             self.lcd.update()
             return
         elif (encoder_diffState == self.ENCODER_DIFF_CW):
@@ -1758,7 +1758,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             )
 
             if not self._live_jog:
-                self._action("Jog Y", lambda: self.pd.moveAbsolute('Y', self.pd.HMI_ValueStruct.Move_Y_scale / self.MINUNITMULT, 5000))
+                self._action("Jog Y", lambda: self.pd.moveAbsolute('Y', self.pd.HMI_ValueStruct.Move_Y_scale / self.MINUNITMULT, 5000), silent=True)
             self.lcd.update()
             return
         elif (encoder_diffState == self.ENCODER_DIFF_CW):
@@ -1794,7 +1794,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self.pd.HMI_ValueStruct.Move_Z_scale
             )
             if not self._live_jog:
-                self._action("Jog Z", lambda: self.pd.moveAbsolute('Z', self.pd.HMI_ValueStruct.Move_Z_scale / self.MINUNITMULT, 600))
+                self._action("Jog Z", lambda: self.pd.moveAbsolute('Z', self.pd.HMI_ValueStruct.Move_Z_scale / self.MINUNITMULT, 600), silent=True)
             self.lcd.update()
             return
         elif (encoder_diffState == self.ENCODER_DIFF_CW):
@@ -1830,7 +1830,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self.MBASE(4), self.pd.HMI_ValueStruct.Move_E_scale
             )
             if not self._live_jog:
-                self._action("Jog E", lambda: self.pd.moveAbsolute('E', self.pd.HMI_ValueStruct.Move_E_scale / self.MINUNITMULT, 300))
+                self._action("Jog E", lambda: self.pd.moveAbsolute('E', self.pd.HMI_ValueStruct.Move_E_scale / self.MINUNITMULT, 300), silent=True)
             self.lcd.update()
             return
         elif (encoder_diffState == self.ENCODER_DIFF_CW):

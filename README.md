@@ -161,7 +161,7 @@ Tune provides print speed, runtime Z offset and available hotend/bed/fan targets
   <img src="docs/assets/screens/move.png" width="240" alt="Move and Live Jog">
 </p>
 
-**Prepare → Move** shows live command-space positions from `gcode_move.position`. Normal editing sends a target when confirmed; **Live Jog** applies encoder movement immediately. Moves require homing, respect travel limits and reject printing/paused states. Extrusion checks temperature and configured distance limits. Relative jogging saves/restores G-code state; an unconfirmed restore blocks further movement and exposes **Control → Restore jog state**.
+**Prepare → Move** shows live command-space positions from `gcode_move.position`. Normal editing sends a target silently when confirmed (no waiting overlay); **Live Jog** applies encoder movement immediately. Moves require homing, respect travel limits and reject printing/paused states. Extrusion checks temperature and configured distance limits. Relative jogging saves/restores G-code state; an unconfirmed restore blocks further movement and exposes **Control → Restore jog state**.
 
 **Prepare → Screws Tilt Adjust → Calculate** runs `SCREWS_TILT_CALCULATE`, homing missing axes first. It requires a probe and four distinct corner screws configured in `[screws_tilt_adjust]`.
 

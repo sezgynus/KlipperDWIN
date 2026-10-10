@@ -101,7 +101,9 @@ Rotate the encoder to navigate, press to select. Display labels remain in Englis
 
 ### Home and menu map
 
-Home has four icons per page. Centered dots below the icons indicate the pages; the active page is filled white and the others have gray outlines. Continuing to rotate moves to the next or previous page; empty slots are skipped. The logo/MMU panel and live dashboard stay fixed. Returning from Home’s MMU or Info preserves the selected icon.
+Home has four icons per page. Centered dots below the icons indicate the pages; the active page is filled white and the others have gray outlines. Continuing to rotate moves to the next or previous page; empty slots are skipped. The logo/MMU panel and live dashboard stay fixed. Returning from Home’s MMU, Display or Info preserves the selected icon.
+
+**Display**, immediately before Info on page two, reserves a menu for LCD settings. It currently contains only **Back**, which returns to the selected Home icon.
 
 | Entry | Destination |
 |---|---|
@@ -112,7 +114,7 @@ Home has four icons per page. Centered dots below the icons indicate the pages; 
 | MMU | Full-screen gates, filament operations, bypass, live status and recovery |
 | Info | Scrollable system information |
 
-With bed mesh, the first page is **Print / Prepare / Control / Leveling** and the second **MMU / Info**. Without bed mesh, MMU takes the fourth slot and Info is on the next page. Optional menu entries appear only when supported.
+With bed mesh, the first page is **Print / Prepare / Control / Leveling** and the second **MMU / Display / Info**. Without bed mesh, MMU takes the fourth slot and Display / Info are on the next page. Optional menu entries appear only when supported.
 
 The dashboard shows available heater temperatures/targets, fan, print-speed factor, flow, runtime Z offset and live XYZ coordinates.
 

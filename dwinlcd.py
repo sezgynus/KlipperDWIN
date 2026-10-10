@@ -130,6 +130,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     MMUMenu = 44
     FilePreview = 45
     PowerConfirm = 46
+    DisplayMenu = 47
 
     MINUNITMULT = 10
 
@@ -1084,6 +1085,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if self.pd.HAS_ONESTEP_LEVELING:
             entries.append(('LEVEL', 'Leveling', self.ICON_Leveling_0, self.ICON_Leveling_1))
         entries.append(('MMU', 'MMU', None, None))
+        entries.append(('DISPLAY', 'Display', None, None))
         entries.append(('INFO', 'Info', self.ICON_Info_0, self.ICON_Info_1))
         return tuple(entries)
 
@@ -1098,7 +1100,12 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             slot = index % 4
             x, y = (17 if slot % 2 == 0 else 145), (130 if slot < 2 else 246)
             active = index == self.select_page.now
-            if key == 'MMU':
+            if key == 'DISPLAY':
+                color = 0x07FF if active else 0x8410
+                self.lcd.draw_rectangle(0, color, x + 28, y + 12, x + 81, y + 51)
+                self.lcd.draw_rectangle(1, color, x + 52, y + 52, x + 57, y + 59)
+                self.lcd.draw_rectangle(1, color, x + 42, y + 60, x + 67, y + 62)
+            elif key == 'MMU':
                 self.Draw_MMU_Home_Icon(x, y, active)
             else:
                 self.lcd.show_icon(self.ICON, selected if active else normal, x, y)
@@ -1149,6 +1156,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self.HMI_Leveling()
             elif key == 'MMU':
                 self.Enter_MMU_Menu()
+            elif key == 'DISPLAY':
+                self.checkkey = self.DisplayMenu
+                self.Draw_Display_Menu()
             elif key == 'INFO':
                 self._info_origin = self.MainMenu
                 self.checkkey = self.Info
@@ -1331,6 +1341,18 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self.Draw_Info_Menu()
 
         self.lcd.update()
+
+    def Draw_Display_Menu(self):
+        self.Clear_Main_Window()
+        self.Draw_Title('Display')
+        self.Draw_Back_First()
+
+    def HMI_Display_Menu(self):
+        if self.get_encoder_state() == self.ENCODER_DIFF_ENTER:
+            self.select_page.set(next(i for i, entry in enumerate(self._home_entries())
+                                      if entry[0] == 'DISPLAY'))
+            self.Goto_MainMenu()
+            self.lcd.update()
 
     def HMI_Info(self):
         event = self.get_encoder_state()
@@ -2947,6 +2969,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.ScrewsTiltMenu: '_screws_selection',
             self.FilePreview: '_preview_choice',
             self.Info: '_info_scroll',
+            self.DisplayMenu: '_display_selection',
         }
         if self.checkkey == self.MMUMenu:
             return (not self.pd.connection_error and getattr(self, '_mmu_selection', 0) == 0
@@ -2984,6 +3007,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.TemperatureID: self.Draw_Temperature_Menu,
             self.Motion: self.Draw_Motion_Menu,
             self.Info: self.Draw_Info_Menu,
+            self.DisplayMenu: self.Draw_Display_Menu,
             self.Tune: self.Draw_Tune_Menu,
             self.MMUMenu: self.Draw_MMU_Menu,
             self.BedMeshMenu: self.Draw_Bed_Mesh_Menu,
@@ -3088,6 +3112,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.HMI_Probe_Wizard()
         elif self.checkkey == self.MotionValue:
             self.HMI_MotionValue()
+        elif self.checkkey == self.DisplayMenu:
+            self.HMI_Display_Menu()
         elif self.checkkey == self.Info:
             self.HMI_Info()
         elif self.checkkey == self.Tune:

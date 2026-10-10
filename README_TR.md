@@ -101,7 +101,9 @@ Gezinmek için encoder’ı çevirin, seçmek için basın. Ekran etiketleri İn
 
 ### Ana ekran ve menü haritası
 
-Ana ekranda sayfa başına dört ikon bulunur. İkonların altındaki ortalanmış noktalar sayfaları gösterir; aktif sayfa dolu beyaz, diğerleri gri çerçeveli boş dairedir. Çevirmeye devam etmek sonraki veya önceki sayfaya geçirir; boş alanlar seçilmez. Logo/MMU paneli ve canlı durum alanı sabit kalır. Ana ekranın MMU veya Info menüsünden dönüşte seçili ikon korunur.
+Ana ekranda sayfa başına dört ikon bulunur. İkonların altındaki ortalanmış noktalar sayfaları gösterir; aktif sayfa dolu beyaz, diğerleri gri çerçeveli boş dairedir. Çevirmeye devam etmek sonraki veya önceki sayfaya geçirir; boş alanlar seçilmez. Logo/MMU paneli ve canlı durum alanı sabit kalır. Ana ekranın MMU, Display veya Info menüsünden dönüşte seçili ikon korunur.
+
+İkinci sayfada Info’nun hemen önündeki **Display**, LCD ayarları için ayrılmış menüdür. Şimdilik yalnızca **Back** içerir; dönüşte ana ekrandaki seçili ikon korunur.
 
 | Giriş | Açılan bölüm |
 |---|---|
@@ -112,7 +114,7 @@ Ana ekranda sayfa başına dört ikon bulunur. İkonların altındaki ortalanmı
 | MMU | Tam ekran kanallar, filament işlemleri, bypass, canlı durum ve kurtarma |
 | Info | Kaydırılabilir sistem bilgileri |
 
-Bed mesh mevcutsa ilk sayfa **Print / Prepare / Control / Leveling**, ikinci sayfa **MMU / Info** olur. Bed mesh yoksa MMU dördüncü alanı alır, Info sonraki sayfada yer alır. İsteğe bağlı menü girişleri yalnızca destekleniyorsa görünür.
+Bed mesh mevcutsa ilk sayfa **Print / Prepare / Control / Leveling**, ikinci sayfa **MMU / Display / Info** olur. Bed mesh yoksa MMU dördüncü alanı alır, Display / Info sonraki sayfada yer alır. İsteğe bağlı menü girişleri yalnızca destekleniyorsa görünür.
 
 Durum alanı mevcut ısıtıcı sıcaklıklarını/hedeflerini, fanı, baskı hızı oranını, akış oranını, çalışma zamanı Z offset’i ve canlı XYZ konumlarını gösterir.
 

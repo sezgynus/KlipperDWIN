@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from threading import Lock
 
+import display_settings
 import lcd_atlas
 import serial
 
@@ -56,6 +57,8 @@ class T5UIC1Display:
     # Keeping this record away from the panel's non-responsive 0x3FFF address
     # also makes the 64-byte verification read unambiguous.
     ATLAS_METADATA_SIZE = 64
+    DISPLAY_SETTINGS_ADDRESS = 0x0100
+    DISPLAY_SETTINGS_SIZE = display_settings.RECORD_SIZE
     ATLAS_METADATA_ADDRESS = 0x0000
     ATLAS_METADATA_MAGIC = b"KDWATLS1"
     ATLAS_METADATA_VERSION = 1
@@ -326,6 +329,17 @@ class T5UIC1Display:
             except T5UIC1TimeoutError:
                 return False
             return payload == b"OK"
+
+    def load_display_settings(self):
+        """Read the dedicated 0x0100..0x010F Data Flash record."""
+        return display_settings.decode(self.read_flash(
+            self.DISPLAY_SETTINGS_ADDRESS, self.DISPLAY_SETTINGS_SIZE))
+
+    def save_display_settings(self, brightness, idle_minutes):
+        record = display_settings.encode(brightness, idle_minutes)
+        self.write_flash(self.DISPLAY_SETTINGS_ADDRESS, record)
+        if self.read_flash(self.DISPLAY_SETTINGS_ADDRESS, len(record)) != record:
+            raise OSError('Display settings verification failed')
 
     def set_backlight(self, brightness):
         self._send(0x30, bytes((self._u8(brightness, "brightness"),)))

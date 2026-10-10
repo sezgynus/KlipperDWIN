@@ -408,3 +408,11 @@ Proje [odwdinc/DWIN_T5UIC1_LCD](https://github.com/odwdinc/DWIN_T5UIC1_LCD) ve [
 Entegrasyonlar [Klipper](https://github.com/Klipper3d/klipper), [Moonraker](https://github.com/Arksine/moonraker), [Mainsail](https://github.com/mainsail-crew/mainsail), [Happy Hare](https://github.com/moggieuk/Happy-Hare) ve [Spoolman](https://github.com/Donkie/Spoolman) kullanır.
 
 **GNU GPL v3.0** lisanslıdır. [LICENSE](LICENSE) dosyasına bakın.
+
+### Display ayarları
+
+Display menüsü **Parlaklık (%0–100)** ve **Boşta kısma (Off veya 1–60 dakika)** seçeneklerini sunar. Düzenlemek için tıklayın, enkoderi çevirin ve kaydetmek için tekrar tıklayın. Parlaklık canlı değişir; enkoder hareketleri flash'a yazmaz. Yalnızca değişen ve onaylanan son değer kaydedilir, ardından okunarak doğrulanır. Kayıt başarısızsa yeniden denemek için düzenleme açık kalır.
+
+Boşta kısma parlaklığı en fazla %10'a indirir. İlk enkoder hareketi veya tıklama menü işlemi yapmadan ayarlanan parlaklığı geri getirir. Off kısmayı kapatır. %0 arka ışığı kapatır; düzenlerken saat yönünde çevirerek tekrar artırabilirsiniz. Ayarlar ekranın güç döngüsünde korunur. Yüzde değeri sürücünün 0–255 aralığına doğrusal eşlenir.
+
+Ayarlar LCD Data Flash içinde sürümlü, CRC korumalı 16 baytlık **0x0100–0x010F** kaydında tutulur. Atlas metadata alanı **0x0000–0x003F** olarak korunur; alanlar çakışmaz. Boş/geçersiz kayıtta varsayılan %100 ve Off'tur. Mevcut 9.ICO güneş (205) ve saat (15) ikonları kullanılır; atlas dosyaları değişmez.

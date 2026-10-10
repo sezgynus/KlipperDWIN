@@ -321,6 +321,9 @@ class DisplayIntegrationTests(unittest.TestCase):
         base = ui.T5UIC1Display
 
         class FakeLCD(base):
+            def load_display_settings(self):
+                return (100, 0)
+
             def __init__(self, port, **kwargs):
                 self.serial = Mock()
                 self.MYSERIAL1 = self.serial

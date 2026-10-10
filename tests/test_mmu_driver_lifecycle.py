@@ -38,6 +38,8 @@ class MMUDriverLifecycleTests(unittest.TestCase):
         old.handshake = Mock(return_value=False)
         v._closed = False
         v._settings = ('/dev/fake',)
+        v._display_values = [100, 0]
+        v._display_saved = (100, 0)
         v._uart_online = True
         v._uart_epoch = 1
         v._next_uart_probe = 0

@@ -373,3 +373,20 @@ partial UART reads, acknowledgements, retries and compatibility rendering. They
 cannot prove rendering behavior on every T5UIC1 kernel or asset revision.
 Boot-time CFG changes and new rendering paths must be verified on the physical
 panel before being made part of normal UI behavior.
+
+### Persistent Display settings
+
+`load_display_settings()` returns `(brightness_percent, idle_minutes)` or `None`
+for a blank/invalid record. `save_display_settings(brightness_percent,
+idle_minutes)` validates bounds, writes the final record and checks an exact
+readback; a mismatch raises `OSError`. The UI calls this only when confirming a
+changed setting, never on encoder movement or idle dim/wake.
+
+| Data Flash range | Owner | Size |
+| --- | --- | --- |
+| `0x0000..0x003F` | Atlas metadata | 64 bytes |
+| `0x0100..0x010F` | Display settings | 16 bytes |
+
+The Display record contains the magic/version `KDWDSPL1`, brightness (0–100),
+idle minutes (0 = Off, otherwise 1–60), two reserved bytes and a CRC32. These
+addresses refer to Data Flash, separate from JPEG Picture Flash slots.

@@ -1,3 +1,4 @@
+import display_settings
 import textwrap
 from software_update import SoftwareUpdate
 from info_qr import PROJECT_URL, draw_project_qr
@@ -19,7 +20,7 @@ from encoder import Encoder
 from gpiozero import Button, Device
 from gpiozero.pins.lgpio import LGPIOFactory
 from printerInterface import PrinterData
-from t5uic1_driver import T5UIC1Display
+from t5uic1_driver import T5UIC1Display, T5UIC1ProtocolError
 from lcd_atlas import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY
 
 def _MAX(lhs, rhs):
@@ -388,6 +389,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self._power_focus = False
         self._power_origin = None
         self._info_scroll = 0
+        self._display_selection = 0
+        self._display_edit = False
+        self._display_save_message = ''
+        if hasattr(self, '_display_saved'):
+            self._display_values = list(self._display_saved)
         self._mmu_canvas_page = None
         self._mmu_edit = None
         self._mmu_confirmation = None
@@ -450,6 +456,19 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 options['startup_progress'] = lambda lcd, value: self._draw_boot_progress(value, lcd)
             self.lcd = T5UIC1Display(self._settings[0], handshake_timeout=1.0,
                                  handshake_attempts=1, **options)
+            if not hasattr(self, '_display_values'):
+                try:
+                    values = self.lcd.load_display_settings()
+                except (OSError, TimeoutError, T5UIC1ProtocolError):
+                    logging.warning('Unable to read display settings', exc_info=True)
+                    values = None
+                if not isinstance(values, tuple) or len(values) != 2:
+                    values = None
+                self._display_values = list(values or (100, 0))
+                self._display_saved = tuple(values or (100, 0))
+            self._display_last_activity = time.monotonic()
+            self._display_dimmed = False
+            self.lcd.set_backlight(display_settings.raw_brightness(self._display_values[0]))
             self._configure_menus()
             self.HMI_Init()
             if getattr(self, '_boot_active', False):
@@ -467,6 +486,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self.Draw_MMU_Menu()
             if getattr(self, 'checkkey', None) == self.FilePreview:
                 self.Draw_File_Preview()
+            if getattr(self, 'checkkey', None) == self.DisplayMenu:
+                self.Draw_Display_Menu()
             self.lcd.update()
             if (self.pd.connection_error and self.checkkey != self.MMUMenu
                     and not getattr(self, '_boot_active', False)):
@@ -530,6 +551,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self._offline = False
         self._panel_backend_epoch = snapshot['epoch']
         self.HMI_StartFrame(False)
+        self._display_last_activity = time.monotonic()
         self.lcd.update()
 
     def _ui_tick(self):
@@ -573,6 +595,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self._file_status_at = time.monotonic() + 2.0
             elif hasattr(self, '_loop'):
                 self._loop.set_interval(2.0)
+            self._display_idle_tick()
             self.EachMomentUpdate()
         except OSError:
             if self.lcd is not None and getattr(self.lcd, '_closed', False):
@@ -969,6 +992,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             direction, count = self.ENCODER_DIFF_ENTER, 1
         else:
             return
+        if self._display_activity():
+            return
         if not self._sync_input_state(event):
             return
         self._encoder_jog_rate = event.rate if event.kind == 'rotate' else 0.0
@@ -1339,17 +1364,79 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
 
         self.lcd.update()
 
+    def _display_activity(self):
+        self._display_last_activity = time.monotonic()
+        if getattr(self, '_display_dimmed', False):
+            self._display_dimmed = False
+            self.lcd.set_backlight(display_settings.raw_brightness(self._display_values[0]))
+            return True  # First interaction wakes without activating a hidden action.
+        return False
+
+    def _display_idle_tick(self):
+        values = getattr(self, '_display_values', None)
+        if (values and values[1] and not getattr(self, '_display_dimmed', False)
+                and time.monotonic() - self._display_last_activity >= values[1] * 60
+                and not getattr(self, '_display_edit', False)):
+            self.lcd.set_backlight(display_settings.raw_brightness(min(values[0], 10)))
+            self._display_dimmed = True
+
     def Draw_Display_Menu(self):
         self.Clear_Main_Window()
         self.Draw_Title('Display')
-        self.Draw_Back_First()
+        selection = getattr(self, '_display_selection', 0)
+        self.Draw_Back_First(selection == 0)
+        values = getattr(self, '_display_values', [100, 0])
+        self.Draw_Menu_Line(1, 205, 'Brightness')
+        self.Draw_Menu_Line(2, 15, 'Idle dim')
+        for row, text in ((1, str(values[0]) + '%'),
+                          (2, str(values[1]) + ' min' if values[1] else 'Off')):
+            editing = getattr(self, '_display_edit', False) and selection == row
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 190, self.MBASE(row) - 3, 255, self.MBASE(row) + 18)
+            self.lcd.draw_text(True, False, self.lcd.font8x16, self.lcd.Color_White,
+                               self.lcd.Select_Color if editing else self.lcd.Color_Bg_Black,
+                               196, self.MBASE(row) - 1, text)
+        if selection:
+            self.Draw_Menu_Cursor(selection)
+        self._draw_menu_text(getattr(self, '_display_save_message', ''), 16, 250)
 
     def HMI_Display_Menu(self):
-        if self.get_encoder_state() == self.ENCODER_DIFF_ENTER:
-            self.select_page.set(next(i for i, entry in enumerate(self._home_entries())
-                                      if entry[0] == 'DISPLAY'))
-            self.Goto_MainMenu()
-            self.lcd.update()
+        event = self.get_encoder_state()
+        selection = getattr(self, '_display_selection', 0)
+        editing = getattr(self, '_display_edit', False)
+        if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
+            delta = 1 if event == self.ENCODER_DIFF_CW else -1
+            if editing:
+                index = selection - 1
+                self._display_values[index] = max(0, min(100 if index == 0 else 60,
+                                                       self._display_values[index] + delta))
+                if index == 0:
+                    self.lcd.set_backlight(display_settings.raw_brightness(self._display_values[0]))
+            else:
+                self._display_selection = max(0, min(2, selection + delta))
+            self._display_save_message = ''
+        elif event == self.ENCODER_DIFF_ENTER:
+            if selection == 0:
+                self.select_page.set(next(i for i, entry in enumerate(self._home_entries())
+                                          if entry[0] == 'DISPLAY'))
+                self.Goto_MainMenu()
+                self.lcd.update()
+                return
+            if editing:
+                try:
+                    values = tuple(self._display_values)
+                    if values != self._display_saved:
+                        self.lcd.save_display_settings(*values)
+                        self._display_saved = values
+                    self._display_edit = False
+                    self._display_save_message = 'Saved'
+                except (OSError, TimeoutError, T5UIC1ProtocolError):
+                    self._display_save_message = 'Not saved. Press to retry'
+            else:
+                self._display_edit = True
+        else:
+            return
+        self.Draw_Display_Menu()
+        self.lcd.update()
 
     def HMI_Info(self):
         event = self.get_encoder_state()

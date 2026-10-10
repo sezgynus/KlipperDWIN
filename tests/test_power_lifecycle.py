@@ -57,6 +57,7 @@ class RelayLifecycleTests(unittest.TestCase):
         v._relay_status = 'off'
         v._poll_panel_power()
         lcd = packets.lcd()
+        lcd.load_display_settings = Mock(return_value=(100, 0))
         lcd.serial.frames.clear()
         lcd._virtual_area_pictures = {}
         lcd._atlas_virtual_areas_loaded = False

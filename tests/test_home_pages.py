@@ -85,8 +85,8 @@ class HomePageTests(unittest.TestCase):
             self.assertGreaterEqual(c.args[3],126)
             self.assertLess(c.args[5],view.STATUS_Y)
         view.Draw_Status_Area.assert_not_called();view.Draw_MMU_Status.assert_not_called()
-        view.lcd.fill_circle.assert_called_once_with(view.lcd.Color_White, 143, 354, 2)
-        view.lcd.draw_circle.assert_called_once_with(view.lcd.Color_White, 129, 354, 2)
+        view.lcd.fill_circle.assert_called_once_with(view.lcd.Color_White, 145, 354, 4)
+        view.lcd.draw_circle.assert_called_once_with(0x8410, 127, 354, 4)
         self.assertNotIn('2/2', [c.args[-1] for c in view.lcd.draw_text.call_args_list])
 
     def test_page_dots_center_and_follow_active_page_with_three_pages(self):
@@ -97,7 +97,7 @@ class HomePageTests(unittest.TestCase):
             view.lcd.reset_mock()
             view.select_page.set(page * 4)
             view._draw_home_page()
-            view.lcd.fill_circle.assert_called_once_with(view.lcd.Color_White, 122 + 14 * page, 354, 2)
+            view.lcd.fill_circle.assert_called_once_with(view.lcd.Color_White, 118 + 18 * page, 354, 4)
             self.assertEqual(view.lcd.draw_circle.call_count, 2)
             for call in view.lcd.fill_circle.call_args_list + view.lcd.draw_circle.call_args_list:
                 _, x, y, radius = call.args

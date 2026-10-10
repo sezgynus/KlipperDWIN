@@ -101,7 +101,7 @@ Rotate the encoder to navigate, press to select. Display labels remain in Englis
 
 ### Home and menu map
 
-Home has four icons per page. Centered dots below the icons indicate the pages; the active page is filled and the others are outlined. Continuing to rotate moves to the next or previous page; empty slots are skipped. The logo/MMU panel and live dashboard stay fixed. Returning from Home’s MMU or Info preserves the selected icon.
+Home has four icons per page. Centered dots below the icons indicate the pages; the active page is filled white and the others have gray outlines. Continuing to rotate moves to the next or previous page; empty slots are skipped. The logo/MMU panel and live dashboard stay fixed. Returning from Home’s MMU or Info preserves the selected icon.
 
 | Entry | Destination |
 |---|---|

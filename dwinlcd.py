@@ -2342,6 +2342,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     def _info_items(self):
         info = self.pd.system_info
         cpu = info.get('host_cpu')
+        ram = info.get('host_ram')
         temp = info.get('host_temp')
         items = [
             ('section', 'Machine', None),
@@ -2352,6 +2353,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             ('row', 'IP', info.get('ip', 'Unavailable')),
             ('section', 'Host', None),
             ('row', 'CPU', 'N/A' if cpu is None else '{:.0f}%'.format(cpu)),
+            ('row', 'RAM', 'N/A' if ram is None else '{:.0f}%'.format(ram)),
             ('row', 'CPU temp', 'N/A' if temp is None else '{:.1f} C'.format(temp)),
 
         ]

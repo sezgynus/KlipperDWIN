@@ -20,7 +20,7 @@ from mmu_control import MMUSession
 from preset_store import PresetStore
 from printer_state import PrinterState
 from printer_capabilities import PrinterCapabilities
-from system_info import host_metrics, network_info, updater_version, wifi_info
+from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
 
 class xyze_t:
     x = 0.0
@@ -231,6 +231,7 @@ class PrinterData:
             'wifi_rssi': None,
             'ip': 'Unavailable',
             'host_cpu': None,
+            'host_ram': None,
             'host_temp': None,
             'mcus': (),
         }
@@ -293,6 +294,7 @@ class PrinterData:
         current['network'] = status
         current['ip'] = address
         cpu, temperature = host_metrics()
+        current['host_ram'] = host_memory_usage()
         current['host_cpu'] = cpu
         current['host_temp'] = temperature
         mcus = []

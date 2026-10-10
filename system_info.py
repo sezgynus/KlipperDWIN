@@ -72,6 +72,23 @@ def host_metrics():
     return cpu, temp
 
 
+def host_memory_usage():
+    """Used RAM percentage, excluding reclaimable cache via MemAvailable."""
+    try:
+        with open('/proc/meminfo', 'r', encoding='ascii') as stream:
+            values = {}
+            for line in stream:
+                key, _, value = line.partition(':')
+                if key in ('MemTotal', 'MemAvailable'):
+                    values[key] = int(value.split()[0])
+        total, available = values['MemTotal'], values['MemAvailable']
+        if total <= 0 or not 0 <= available <= total:
+            return None
+        return (total - available) * 100.0 / total
+    except (OSError, UnicodeError, ValueError, KeyError, IndexError):
+        return None
+
+
 def wifi_info():
     """Read associated Wi-Fi SSID/RSSI with bounded commands (worker only)."""
     try:

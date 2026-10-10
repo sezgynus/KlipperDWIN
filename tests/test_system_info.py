@@ -68,3 +68,20 @@ class SystemInfoTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MemoryTests(unittest.TestCase):
+    def test_ram_uses_available_memory_including_reclaimable_cache(self):
+        from unittest.mock import mock_open
+        with patch('builtins.open', mock_open(read_data='MemTotal: 1000 kB\nMemFree: 100 kB\nMemAvailable: 650 kB\n')):
+            self.assertEqual(system_info.host_memory_usage(), 35.0)
+
+    def test_missing_malformed_or_impossible_memory_is_unavailable(self):
+        from unittest.mock import mock_open
+        for data in ('', 'MemTotal: nope kB\n', 'MemTotal: 0 kB\nMemAvailable: 0 kB\n',
+                     'MemTotal: 100 kB\nMemAvailable: 101 kB\n',
+                     'MemTotal: 100 kB\nMemAvailable: -1 kB\n'):
+            with patch('builtins.open', mock_open(read_data=data)):
+                self.assertIsNone(system_info.host_memory_usage())
+        with patch('builtins.open', side_effect=OSError('missing')):
+            self.assertIsNone(system_info.host_memory_usage())

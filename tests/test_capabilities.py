@@ -536,7 +536,7 @@ class CapabilityMenuTests(unittest.TestCase):
         result.pd.system_info = {
             'klipperdwin': 'v0.4.0-2-g1234abcd', 'moonraker': 'v0.9.3-1-gabcd',
             'mainsail': 'v2.14.0', 'network': 'Online', 'ip': '192.168.1.50',
-            'host_cpu': 37.2, 'host_temp': 48.5,
+            'host_cpu': 37.2, 'host_ram': 35.4, 'host_temp': 48.5,
             'wifi_ssid': 'My WiFi', 'wifi_rssi': -65,
             'mcus': ({'name': 'mcu', 'load': 1.2, 'temperature': 42.5, 'version': 'v1'},
                      {'name': 'mmu', 'load': 0.4, 'temperature': None, 'version': 'v2'}),
@@ -548,6 +548,9 @@ class CapabilityMenuTests(unittest.TestCase):
         self.assertIn(('row', 'Wi-Fi', 'My WiFi'), items)
         self.assertIn(('row', 'RSSI', '-65 dBm (Medium)'), items)
         self.assertIn(('row', 'CPU', '37%'), items)
+        self.assertEqual(items[items.index(('row', 'CPU', '37%')) + 1], ('row', 'RAM', '35%'))
+        result.pd.system_info['host_ram'] = None
+        self.assertIn(('row', 'RAM', 'N/A'), result._info_items())
         self.assertIn(('section', 'MCU: mcu', None), items)
         self.assertIn(('row', 'Load', '1.2%'), items)
         self.assertIn(('row', 'Temp', '42.5 C'), items)
@@ -595,7 +598,7 @@ class CapabilityMenuTests(unittest.TestCase):
     def test_info_scroll_moves_whole_viewport_and_draws_only_exposed_row(self):
         result = display(snapshot())
         result.pd.refresh_system_info = Mock(return_value=False)
-        result._info_scroll = 1
+        result._info_scroll = 2
         result.Draw_Info_Menu()
         result.Clear_Main_Window = Mock()
         result.Draw_Title = Mock()

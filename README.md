@@ -197,7 +197,7 @@ Viewer selection **does not load a profile or change the active mesh**. The map 
   <img src="docs/assets/screens/motion-runtime.png" width="220" alt="Runtime Motion">
 </p>
 
-**Control → Temperature** exposes installed hotend/bed/fan controls. Mainsail preset names and enabled heater targets are discovered through Moonraker’s database and appear dynamically in Prepare and Temperature. LCD preset edits can be saved back to Mainsail. Preset saves run silently in the background; failures remain visible. Applying heats the printer; saving preset settings alone does not. Fan settings are not synchronized as temperature presets. If Mainsail presets are unavailable, an external local JSON store provides a fallback; once available, Mainsail becomes authoritative.
+**Control → Temperature** exposes installed hotend/bed/fan controls. Mainsail preset names and enabled heater targets are discovered through Moonraker’s database and appear dynamically in Prepare and Temperature. LCD preset edits can be saved back to Mainsail. Preset saves run silently in the background; failures remain visible. Applying heats the printer silently, without a waiting overlay; saving preset settings alone does not. Fan settings are not synchronized as temperature presets. If Mainsail presets are unavailable, an external local JSON store provides a fallback; once available, Mainsail becomes authoritative.
 
 **Control → Motion** edits max velocity, max acceleration, square-corner velocity and supported minimum cruise ratio through `SET_VELOCITY_LIMIT`. These are **runtime values** and are not automatically saved to configuration.
 

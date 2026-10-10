@@ -197,7 +197,7 @@ Viewer seçimi **profil yüklemez ve aktif mesh’i değiştirmez**. Haritada d�
   <img src="docs/assets/screens/motion-runtime.png" width="220" alt="Çalışma zamanı Motion">
 </p>
 
-**Control → Temperature**, mevcut hotend/tabla/fan kontrollerini sunar. Mainsail preset adları ve etkin ısıtıcı hedefleri Moonraker veritabanından algılanır; Prepare ve Temperature menülerinde dinamik görünür. LCD’deki preset düzenlemeleri Mainsail’e geri kaydedilebilir. Preset kaydı arka planda sessiz yürür; hatalar gösterilmeye devam eder. Uygulamak yazıcıyı ısıtır; yalnızca preset ayarlarını kaydetmek ısıtmaz. Fan ayarları sıcaklık presetleriyle senkronize edilmez. Mainsail presetleri yoksa harici yerel JSON deposu kullanılır; kullanılabilir olduğunda Mainsail esas alınır.
+**Control → Temperature**, mevcut hotend/tabla/fan kontrollerini sunar. Mainsail preset adları ve etkin ısıtıcı hedefleri Moonraker veritabanından algılanır; Prepare ve Temperature menülerinde dinamik görünür. LCD’deki preset düzenlemeleri Mainsail’e geri kaydedilebilir. Preset kaydı arka planda sessiz yürür; hatalar gösterilmeye devam eder. Uygulamak yazıcıyı bekleme yazısı göstermeden sessizce ısıtır; yalnızca preset ayarlarını kaydetmek ısıtmaz. Fan ayarları sıcaklık presetleriyle senkronize edilmez. Mainsail presetleri yoksa harici yerel JSON deposu kullanılır; kullanılabilir olduğunda Mainsail esas alınır.
 
 **Control → Motion**, `SET_VELOCITY_LIMIT` ile maksimum hız, maksimum ivme, square-corner velocity ve desteklenen minimum cruise ratio değerlerini düzenler. Bunlar **çalışma zamanı değerleridir**; otomatik olarak yapılandırmaya kaydedilmez.
 

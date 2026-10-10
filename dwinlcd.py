@@ -1340,7 +1340,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             elif self.select_prepare.now > 0 and self._menus['prepare'][self.select_prepare.now - 1][0].startswith('PRESET:'):
                 profile = int(self._menus['prepare'][self.select_prepare.now - 1][0].split(':', 1)[1])
                 name = self.pd.material_preset[profile].name
-                self._action('Preheat ' + name, lambda profile=profile: self.pd.preheat_preset(profile))
+                self._action('Preheat ' + name, lambda profile=profile: self.pd.preheat_preset(profile), silent=True)
 
             elif self.select_prepare.now == self.PREPARE_CASE_COOL:  # Cool
                 self._action('Cooldown', self.pd.cooldown)

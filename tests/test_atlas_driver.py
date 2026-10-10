@@ -72,6 +72,27 @@ class AtlasDriverTests(unittest.TestCase):
             if icon_id != lcd_atlas.ICON_DISPLAY and other_area == area:
                 self.assertFalse(x < ox+ow and x+w > ox and y < oy+oh and y+h > oy)
 
+    def test_shipped_atlases_keep_stock_panel_jpeg_component_ids_and_single_jfif(self):
+        from PIL import Image
+        for filename, _ in lcd_atlas.ATLAS_FILES.values():
+            path = Path(lcd_atlas.__file__).parent / filename
+            with Image.open(path) as image:
+                self.assertEqual([component[0] for component in image.layer], [1, 2, 3])
+            data = path.read_bytes()
+            offset, jfif_count = 2, 0
+            while offset < len(data):
+                self.assertEqual(data[offset], 255)
+                marker = data[offset+1]
+                length = int.from_bytes(data[offset+2:offset+4], 'big')
+                if marker == 0xE0 and data[offset+4:offset+9] == b'JFIF\0':
+                    jfif_count += 1
+                if marker == 0xDA:
+                    self.assertEqual(data[offset+4], 3)
+                    self.assertEqual([data[offset+5+i*2] for i in range(3)], [1, 2, 3])
+                    break
+                offset += length + 2
+            self.assertEqual(jfif_count, 1)
+
     def test_manifest_coordinates_match_current_custom_static_icons(self):
         self.assertEqual(lcd_atlas.ICON_MMU_HOME_NORMAL, 0x0100)
         self.assertEqual(lcd_atlas.ICON_MMU_HOME_SELECTED, 0x0101)

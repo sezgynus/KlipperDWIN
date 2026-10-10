@@ -15,6 +15,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import lcd_atlas
 
 
+def panel_jpeg_headers(data):
+    """Keep stock JFIF/component IDs: DWIN expects RGB components 1/2/3."""
+    result = bytearray(data[:2])
+    offset, jfif_seen = 2, False
+    while offset < len(data):
+        if data[offset] != 0xFF:
+            raise ValueError('Invalid JPEG marker')
+        marker = data[offset + 1]
+        length = int.from_bytes(data[offset+2:offset+4], 'big')
+        segment = bytearray(data[offset:offset+2+length])
+        if marker == 0xE0 and segment[4:9] == b'JFIF\0':
+            if jfif_seen:
+                offset += 2 + length
+                continue
+            jfif_seen = True
+        if marker == 0xC0:
+            if segment[9] != 3:
+                raise ValueError('Atlas must have three JPEG components')
+            for index in range(3):
+                segment[10 + index * 3] = index + 1
+        elif marker == 0xDA:
+            if segment[4] != 3:
+                raise ValueError('Atlas must have one interleaved scan')
+            for index in range(3):
+                segment[5 + index * 2] = index + 1
+            result.extend(segment)
+            result.extend(data[offset+2+length:])
+            return bytes(result)
+        result.extend(segment)
+        offset += 2 + length
+    raise ValueError('Missing JPEG scan')
+
+
 def patch(sprite_path, output):
     atlas_path = Path(lcd_atlas.__file__).parent / lcd_atlas.ATLAS_FILES[0][0]
     if Path(output).resolve() == atlas_path.resolve():
@@ -46,6 +79,7 @@ def patch(sprite_path, output):
                     row, col = py // step, px // step
                     target[row:row+source.shape[0], col:col+source.shape[1]] = source
                 candidate.write_dct(str(output))
+                Path(output).write_bytes(panel_jpeg_headers(Path(output).read_bytes()))
                 result = Image.open(output).transpose(Image.Transpose.ROTATE_270).convert('RGB')
                 if all(portrait.crop((ox, oy, ox+w, oy+h)).tobytes() == result.crop((ox, oy, ox+w, oy+h)).tobytes()
                        for ox, oy, w, h in occupied):

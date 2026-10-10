@@ -10,7 +10,7 @@ class DisplaySettingsTests(unittest.TestCase):
         for brightness in (0, 1, 50, 100):
             for minutes in (0, 1, 60):
                 record = settings.encode(brightness, minutes)
-                self.assertEqual(settings.decode(record), (brightness, minutes))
+                self.assertEqual(settings.decode(record), (brightness, minutes, 10))
                 damaged = bytearray(record); damaged[9] ^= 1
                 self.assertIsNone(settings.decode(damaged))
         self.assertIsNone(settings.decode(bytes(16)))
@@ -26,13 +26,13 @@ class DisplaySettingsTests(unittest.TestCase):
         lcd.write_flash.assert_called_once_with(0x100, record)
         self.assertGreaterEqual(lcd.DISPLAY_SETTINGS_ADDRESS,
                                 lcd.ATLAS_METADATA_ADDRESS + lcd.ATLAS_METADATA_SIZE)
-        self.assertEqual(lcd.load_display_settings(), (72, 12))
+        self.assertEqual(lcd.load_display_settings(), (72, 12, 10))
         lcd.read_flash.return_value = bytes(16)
         with self.assertRaises(OSError): lcd.save_display_settings(72, 12)
 
     def view(self):
         view = display(snapshot())
-        view._display_values = [50, 0]; view._display_saved = (50, 0)
+        view._display_values = [50, 0, 10]; view._display_saved = (50, 0, 10)
         view._display_selection = 1; view._display_edit = False
         view.Draw_Display_Menu = Mock(); view.get_encoder_state = Mock()
         return view
@@ -44,11 +44,11 @@ class DisplaySettingsTests(unittest.TestCase):
     def test_live_changes_only_save_final_value_on_click(self):
         view = self.view(); self.step(view, view.ENCODER_DIFF_ENTER)
         for _ in range(7): self.step(view, view.ENCODER_DIFF_CW)
-        self.assertEqual(view._display_values, [57, 0])
+        self.assertEqual(view._display_values, [57, 0, 10])
         self.assertEqual(view.lcd.set_backlight.call_count, 7)
         view.lcd.save_display_settings.assert_not_called()
         self.step(view, view.ENCODER_DIFF_ENTER)
-        view.lcd.save_display_settings.assert_called_once_with(57, 0)
+        view.lcd.save_display_settings.assert_called_once_with(57, 0, 10)
         self.step(view, view.ENCODER_DIFF_ENTER)
         self.step(view, view.ENCODER_DIFF_ENTER)
         self.assertEqual(view.lcd.save_display_settings.call_count, 1)
@@ -62,13 +62,13 @@ class DisplaySettingsTests(unittest.TestCase):
         view.lcd.save_display_settings.side_effect = OSError()
         self.step(view, view.ENCODER_DIFF_ENTER)
         self.assertTrue(view._display_edit)
-        self.assertEqual(view._display_saved, (50, 0))
+        self.assertEqual(view._display_saved, (50, 0, 10))
         view.lcd.save_display_settings.side_effect = None
         self.step(view, view.ENCODER_DIFF_ENTER)
-        self.assertEqual(view._display_saved, (50, 60))
+        self.assertEqual(view._display_saved, (50, 60, 10))
 
     def test_idle_dim_and_wake_never_write_flash(self):
-        view = self.view(); view._display_values = [50, 1]
+        view = self.view(); view._display_values = [50, 1, 10]
         view._display_last_activity = 100
         with patch.object(ui.time, 'monotonic', return_value=159): view._display_idle_tick()
         view.lcd.set_backlight.assert_not_called()
@@ -84,7 +84,7 @@ class DisplaySettingsTests(unittest.TestCase):
         with patch.object(ui.time, 'monotonic', return_value=9999):
             view._display_idle_tick()
             view.lcd.set_backlight.assert_not_called()
-            view._display_values = [3, 1]; view._display_edit = True
+            view._display_values = [3, 1, 10]; view._display_edit = True
             view._display_idle_tick()
             view.lcd.set_backlight.assert_not_called()
             view._display_edit = False; view._display_idle_tick()
@@ -99,3 +99,25 @@ class DisplaySettingsTests(unittest.TestCase):
         self.assertEqual(view._display_values[0], 100)
         view.lcd.set_backlight.assert_called_with(255)
         view.lcd.save_display_settings.assert_not_called()
+
+    def test_legacy_record_preserves_existing_settings(self):
+        import struct, zlib
+        payload = struct.pack('>8sBB2x', b'KDWDSPL1', 72, 15)
+        self.assertEqual(settings.decode(payload + struct.pack('>I', zlib.crc32(payload))),
+                         (72, 15, 10))
+        for dim in (0, 30, 100):
+            self.assertEqual(settings.decode(settings.encode(72, 15, dim)), (72, 15, dim))
+        with self.assertRaises(ValueError): settings.encode(72, 15, 101)
+
+    def test_custom_dim_saves_only_on_exit_and_is_applied_on_idle(self):
+        view = self.view(); view._display_selection = 3
+        self.step(view, view.ENCODER_DIFF_ENTER)
+        for _ in range(20): self.step(view, view.ENCODER_DIFF_CW)
+        self.assertEqual(view._display_values[2], 30)
+        view.lcd.save_display_settings.assert_not_called()
+        self.step(view, view.ENCODER_DIFF_ENTER)
+        view.lcd.save_display_settings.assert_called_once_with(50, 0, 30)
+        self.assertEqual(view._display_save_message, '')
+        view._display_values[1] = 1; view._display_last_activity = 0
+        with patch.object(ui.time, 'monotonic', return_value=60): view._display_idle_tick()
+        view.lcd.set_backlight.assert_called_once_with(77)

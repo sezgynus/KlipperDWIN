@@ -335,8 +335,8 @@ class T5UIC1Display:
         return display_settings.decode(self.read_flash(
             self.DISPLAY_SETTINGS_ADDRESS, self.DISPLAY_SETTINGS_SIZE))
 
-    def save_display_settings(self, brightness, idle_minutes):
-        record = display_settings.encode(brightness, idle_minutes)
+    def save_display_settings(self, brightness, idle_minutes, dim_brightness=10):
+        record = display_settings.encode(brightness, idle_minutes, dim_brightness)
         self.write_flash(self.DISPLAY_SETTINGS_ADDRESS, record)
         if self.read_flash(self.DISPLAY_SETTINGS_ADDRESS, len(record)) != record:
             raise OSError('Display settings verification failed')

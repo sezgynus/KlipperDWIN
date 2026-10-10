@@ -467,10 +467,12 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 except (OSError, TimeoutError, T5UIC1ProtocolError):
                     logging.warning('Unable to read display settings', exc_info=True)
                     values = None
-                if not isinstance(values, tuple) or len(values) != 2:
+                if isinstance(values, tuple) and len(values) == 2:
+                    values = values + (10,)
+                if not isinstance(values, tuple) or len(values) != 3:
                     values = None
-                self._display_values = list(values or (100, 0))
-                self._display_saved = tuple(values or (100, 0))
+                self._display_values = list(values or (100, 0, 10))
+                self._display_saved = tuple(values or (100, 0, 10))
             self._display_last_activity = time.monotonic()
             self._display_dimmed = False
             self.lcd.set_backlight(display_settings.raw_brightness(self._display_values[0]))
@@ -1389,7 +1391,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if (values and values[1] and not getattr(self, '_display_dimmed', False)
                 and time.monotonic() - self._display_last_activity >= values[1] * 60
                 and not getattr(self, '_display_edit', False)):
-            self.lcd.set_backlight(display_settings.raw_brightness(min(values[0], 10)))
+            self.lcd.set_backlight(display_settings.raw_brightness(min(values[0], values[2])))
             self._display_dimmed = True
 
     def Draw_Display_Menu(self):
@@ -1397,11 +1399,13 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.Draw_Title('Display')
         selection = getattr(self, '_display_selection', 0)
         self.Draw_Back_First(selection == 0)
-        values = getattr(self, '_display_values', [100, 0])
+        values = getattr(self, '_display_values', [100, 0, 10])
         self.Draw_Menu_Line(1, 205, 'Brightness')
         self.Draw_Menu_Line(2, 15, 'Idle dim')
+        self.Draw_Menu_Line(3, 205, 'Dim brightness')
         for row, text in ((1, str(values[0]) + '%'),
-                          (2, str(values[1]) + ' min' if values[1] else 'Off')):
+                          (2, str(values[1]) + ' min' if values[1] else 'Off'),
+                          (3, str(values[2]) + '%')):
             editing = getattr(self, '_display_edit', False) and selection == row
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 190, self.MBASE(row) - 3, 255, self.MBASE(row) + 18)
             self.lcd.draw_text(True, False, self.lcd.font8x16, self.lcd.Color_White,
@@ -1419,12 +1423,12 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             delta = 1 if event == self.ENCODER_DIFF_CW else -1
             if editing:
                 index = selection - 1
-                self._display_values[index] = max(0, min(100 if index == 0 else 60,
+                self._display_values[index] = max(0, min(60 if index == 1 else 100,
                                                        self._display_values[index] + delta))
                 if index == 0:
                     self.lcd.set_backlight(display_settings.raw_brightness(self._display_values[0]))
             else:
-                self._display_selection = max(0, min(2, selection + delta))
+                self._display_selection = max(0, min(3, selection + delta))
             self._display_save_message = ''
         elif event == self.ENCODER_DIFF_ENTER:
             if selection == 0:

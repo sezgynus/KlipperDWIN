@@ -376,9 +376,9 @@ panel before being made part of normal UI behavior.
 
 ### Persistent Display settings
 
-`load_display_settings()` returns `(brightness_percent, idle_minutes)` or `None`
+`load_display_settings()` returns `(brightness_percent, idle_minutes, dim_brightness_percent)` or `None`
 for a blank/invalid record. `save_display_settings(brightness_percent,
-idle_minutes)` validates bounds, writes the final record and checks an exact
+idle_minutes, dim_brightness_percent=10)` validates bounds, writes the final record and checks an exact
 readback; a mismatch raises `OSError`. The UI calls this only when confirming a
 changed setting, never on encoder movement or idle dim/wake.
 
@@ -387,6 +387,6 @@ changed setting, never on encoder movement or idle dim/wake.
 | `0x0000..0x003F` | Atlas metadata | 64 bytes |
 | `0x0100..0x010F` | Display settings | 16 bytes |
 
-The Display record contains the magic/version `KDWDSPL1`, brightness (0–100),
-idle minutes (0 = Off, otherwise 1–60), two reserved bytes and a CRC32. These
+The Display record contains the magic/version `KDWDSPL2`, brightness (0–100),
+idle minutes (0 = Off, otherwise 1–60), dim brightness (0–100), one reserved byte and a CRC32. Legacy `KDWDSPL1` records retain brightness/timeout and default dim brightness to 10%, without an automatic flash write. The 16-byte allocation is unchanged. These
 addresses refer to Data Flash, separate from JPEG Picture Flash slots.

@@ -43,3 +43,16 @@ class CompletionTransportTests(unittest.TestCase):
                 with self.assertRaises(MoonrakerError): future.result()
             self.assertFalse(client._completion_requests)
             self.assertFalse(client._pending_requests)
+
+    def test_queue_guard_rechecks_state_before_any_socket_write(self):
+        client = self.make()
+        valid = [True]
+        future = client.request('printer.gcode.script', {'script': 'MMU_UNLOAD'},
+                                guard=lambda: valid[0])
+        valid[0] = False
+        client._drain_outbound()
+        client._socket.send.assert_not_called()
+        with self.assertRaises(MoonrakerError):
+            future.result()
+        self.assertFalse(client._completion_requests)
+        self.assertFalse(client._pending_requests)

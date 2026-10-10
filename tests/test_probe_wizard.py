@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 import unittest
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import probe_wizard
 from test_capabilities import snapshot, printer, display
@@ -17,7 +17,7 @@ def data():
 class ProbeTests(unittest.TestCase):
     def printer(self):
         result = printer(data())
-        result.sendGCode.side_effect = lambda _: Future()
+        result.sendGCode.side_effect = lambda *a, **k: Future()
         return result
 
     def status(self, result, active, pending=None):
@@ -39,7 +39,7 @@ class ProbeTests(unittest.TestCase):
     def test_start_requires_homing_and_never_auto_homes_or_moves_z_zero(self):
         result = self.printer()
         future = result.probe_wizard.start()
-        result.sendGCode.assert_called_once_with('PROBE_CALIBRATE')
+        result.sendGCode.assert_called_once_with('PROBE_CALIBRATE', dispatch_guard=ANY)
         self.assertEqual(result.probe_wizard.phase, 'starting')
         future.set_result('ok')
         result.probe_wizard.update()

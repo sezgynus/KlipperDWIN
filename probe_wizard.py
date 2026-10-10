@@ -1,4 +1,5 @@
 """Explicit manual-probe session; no automatic motion or command replay."""
+from operation_guards import motion_dispatch_guard, config_save_guard
 import math
 import time
 
@@ -33,15 +34,18 @@ class ProbeWizard:
         if self.pending:
             raise ValueError('Wait for the pending probe command')
 
-    def _submit(self, action, script):
-        future = self.printer.sendGCode(script)
+    def _submit(self, action, script, dispatch_guard=None):
+        guard = motion_dispatch_guard(self.printer, owner='probe_wizard',
+                                      manual_active=action in ('step', 'accept', 'abort'), position=action == 'step')
+        future = self.printer.sendGCode(script, dispatch_guard=dispatch_guard or guard)
         self.pending = (action, future, time.monotonic())
         self.message = 'Waiting for ' + action
         return future
 
     def start(self):
         self._guard()
-        if self.printer.bed_mesh.pending or self.printer.screws_tilt.pending:
+        if (self.printer.bed_mesh.pending or self.printer.screws_tilt.pending
+                or getattr(getattr(self.printer, 'mmu_session', None), 'pending', None)):
             raise ValueError('Another calibration is running')
         if self.active():
             raise ValueError('Another manual probe is active')
@@ -80,12 +84,14 @@ class ProbeWizard:
 
     def save(self):
         self._guard()
-        pending = self.printer.state.status['configfile'].get('save_config_pending_items', {})
-        if (self.phase != 'accepted' or self.active() or set(pending) != {self.section}
+        config = self.printer.subscription.snapshot()['status']['configfile']
+        pending = config.get('save_config_pending_items', {})
+        if (self.phase != 'accepted' or self.active() or config.get('save_config_pending') is not True or set(pending) != {self.section}
                 or set(pending[self.section] or {}) != {'z_offset'}
                 or pending[self.section]['z_offset'] != self.accepted_offset):
             raise ValueError('Only the accepted probe offset may be saved')
-        return self._submit('save', 'SAVE_CONFIG')
+        guard = config_save_guard(self.printer, config, 'probe_wizard')
+        return self._submit('save', 'SAVE_CONFIG', dispatch_guard=guard)
 
     def update(self):
         if self.epoch is None:

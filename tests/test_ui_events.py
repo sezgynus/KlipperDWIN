@@ -1,3 +1,4 @@
+from read_fixture import ImmediateReadWorker
 from dataclasses import FrozenInstanceError
 import importlib.util
 from pathlib import Path
@@ -357,7 +358,7 @@ class DisplayIntegrationTests(unittest.TestCase):
         command_client.command_results = Queue()
         with patch.object(backend, 'MoonrakerClient',
                           side_effect=[command_client, telemetry_client]), \
-                patch.object(backend, 'MoonrakerSubscription') as subscription, \
+                patch.object(backend, 'MoonrakerSubscription') as subscription, patch.object(backend, 'ReadWorker', ImmediateReadWorker), \
                 patch.object(ui, 'Encoder', return_value=encoder), \
                 patch.object(ui, 'Button', return_value=button), \
                 patch.object(ui, 'T5UIC1Display', FakeLCD), \

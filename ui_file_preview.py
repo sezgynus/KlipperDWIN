@@ -32,6 +32,7 @@ class FilePreviewMixin:
 
     def _open_file_preview(self, path):
         self._sync_thumbnail_cache()
+        self._preview_validation = False
         self._preview_path = path
         self._preview_epoch = self.pd.state.epoch
         self._preview_choice = 1  # Cancel is the safe initial selection.
@@ -105,6 +106,7 @@ class FilePreviewMixin:
             self._draw_menu_text('No filament data', 8, 226)
 
     def _leave_file_preview(self):
+        self._preview_validation = False
         if hasattr(self, '_loop'):
             self._loop.set_interval(.02)
         self.checkkey = self.SelectFile
@@ -115,6 +117,7 @@ class FilePreviewMixin:
     def _poll_file_preview(self):
         if self.checkkey != self.FilePreview:
             return
+        self._poll_preview_validation()
         if self._preview_epoch != self.pd.state.epoch:
             if self._preview_error != 'Connection changed':
                 self._preview_error = 'Connection changed'
@@ -162,21 +165,34 @@ class FilePreviewMixin:
             if self._preview_choice == 1:
                 self._leave_file_preview()
                 return
-            try:
-                if self.pd.state.epoch != self._preview_epoch:
-                    raise ValueError('Connection changed; select file again')
-                paths = self.pd.GetFiles(refresh=True)
-                if self._preview_path not in paths or self.pd.file_error:
-                    raise ValueError('File unavailable; select again')
-                self._sync_thumbnail_cache()
-                if hasattr(self, '_preview_cache_key') and self._preview_cache_key not in self._thumbnail_cache.valid:
-                    raise ValueError('File changed; select again')
-                future = self.pd.openAndPrintFile(self._preview_path)
-                self._pending_start = (future, self.pd.state.epoch, time.monotonic())
-                self._show_message('Starting print...')
-                if hasattr(self, '_loop'):
-                    self._loop.set_interval(2.0)
-            except ValueError as error:
-                self._show_message(str(error))
-                self._start_error_visible = True
+            if not getattr(self, '_preview_validation', False):
+                self._preview_validation = True
+                self.pd.GetFiles(refresh=True)
+                self._show_message('Checking file...')
+                self._poll_preview_validation()
         self.lcd.update()
+
+    def _poll_preview_validation(self):
+        if not getattr(self, '_preview_validation', False):
+            return
+        try:
+            if self.pd.state.epoch != self._preview_epoch:
+                raise ValueError('Connection changed; select file again')
+            paths = self.pd.GetFiles()
+            if self.pd._files_loading:
+                return
+            self._preview_validation = False
+            if self._preview_path not in paths or self.pd.file_error:
+                raise ValueError('File unavailable; select again')
+            self._sync_thumbnail_cache()
+            if hasattr(self, '_preview_cache_key') and self._preview_cache_key not in self._thumbnail_cache.valid:
+                raise ValueError('File changed; select again')
+            future = self.pd.openAndPrintFile(self._preview_path)
+            self._pending_start = (future, self.pd.state.epoch, time.monotonic())
+            self._show_message('Starting print...')
+            if hasattr(self, '_loop'):
+                self._loop.set_interval(2.0)
+        except ValueError as error:
+            self._preview_validation = False
+            self._show_message(str(error))
+            self._start_error_visible = True

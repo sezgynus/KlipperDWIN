@@ -8,12 +8,15 @@ from urllib.parse import quote
 from collections.abc import Mapping
 from concurrent.futures import Future
 from threading import Lock
+from background_reads import ReadWorker, ReadPending
+from operation_guards import motion_dispatch_guard
 from motion_settings import PARAMETERS, validate as validate_motion
 from moonraker_client import MoonrakerClient, MoonrakerError
 from moonraker_subscription import MoonrakerSubscription
 from probe_wizard import ProbeWizard
 from screws_tilt import ScrewsTiltSession
 from bed_mesh import BedMeshSession
+from mmu_control import MMUSession
 from preset_store import PresetStore
 from printer_state import PrinterState
 from printer_capabilities import PrinterCapabilities
@@ -173,6 +176,12 @@ class PrinterData:
     def __init__(self, API_Key='', URL='http://127.0.0.1:7125', timeout=5.0, settings_path=None,
                  power_device='Printer'):
         self.client = MoonrakerClient(URL, API_Key, timeout)
+        self._read_worker = ReadWorker(timeout)
+        self._read_jobs = {}
+        self._settings_save = None
+        self._files_loading = self._directory_loading = False
+        self._file_retry_at = 0.0
+        self._directory_retry_at = {}
         self.power_device = str(power_device).strip() or 'Printer'
         # Keep read-only Spoolman telemetry off the serialized printer-command
         # transport. A telemetry timeout must never cancel or delay user commands.
@@ -195,6 +204,7 @@ class PrinterData:
         self.live_position = (0.0, 0.0, 0.0)
         self.dashboard_fan_pwm = 0
         self.mmu = None
+        self.mmu_session = MMUSession(self)
         self._spoolman_percentages = {}
         self._spoolman_futures = {}
         self._spoolman_refresh_at = {}
@@ -250,12 +260,31 @@ class PrinterData:
         self.screws_tilt = ScrewsTiltSession(self)
         self.bed_mesh = BedMeshSession(self)
 
+    def _read(self, key, work, stamp=None):
+        if stamp is None:
+            stamp = self.subscription.snapshot().get('epoch', 0) if hasattr(self, 'subscription') else 0
+        job = self._read_jobs.get(key)
+        if job is not None and job[0] != stamp:
+            job[1].cancel()
+            self._read_jobs.pop(key)
+            job = None
+        if job is None:
+            if len(self._read_jobs) >= 32:
+                oldest = next(iter(self._read_jobs))
+                self._read_jobs.pop(oldest)[1].cancel()
+            job = (stamp, self._read_worker.submit(work))
+            self._read_jobs[key] = job
+        if not job[1].done():
+            raise ReadPending()
+        self._read_jobs.pop(key)
+        return job[1].result()
+
     def refresh_system_info(self, force=False):
         """Refresh component versions and host IPv4 without mutating printer state."""
         now = time.monotonic()
         if not force and now < self._system_info_refresh_at:
             return False
-        self._system_info_refresh_at = now + self._system_info_refresh_interval
+
         previous = dict(self.system_info)
         status, address = network_info()
         current = dict(previous)
@@ -313,15 +342,18 @@ class PrinterData:
                              'version': str(value.get('mcu_version') or '')})
             current['mcus'] = tuple(mcus)
         try:
-            response = self.client.get('/machine/update/status')
+            response = self._read('system_info', lambda: self.client.get('/machine/update/status'))
             versions = response.get('result', {}).get('version_info', {})
             if not isinstance(versions, Mapping):
                 raise ValueError('Invalid update-manager status')
             current['klipperdwin'] = updater_version(versions, 'KlipperDWIN', full=True)
             current['moonraker'] = updater_version(versions, 'moonraker', full=True)
             current['mainsail'] = updater_version(versions, 'mainsail')
+        except ReadPending:
+            return False
         except (MoonrakerError, KeyError, TypeError, ValueError) as error:
             logging.debug('Cannot refresh component versions: %s', error)
+        self._system_info_refresh_at = now + self._system_info_refresh_interval
         self.system_info = current
         return current != previous
 
@@ -332,11 +364,13 @@ class PrinterData:
 
     def refresh_mainsail_presets(self, force=False):
         now = time.monotonic()
+        if self._settings_save is not None:
+            return False
         if not force and now < self._preset_refresh_at:
             return False
-        self._preset_refresh_at = now + self._preset_refresh_interval
         try:
-            mainsail = self.client.get('/server/database/item?namespace=mainsail&key=presets.presets')
+            mainsail = self._read('presets', lambda: self.client.get('/server/database/item?namespace=mainsail&key=presets.presets'))
+            self._preset_refresh_at = now + self._preset_refresh_interval
             values = mainsail.get('result', {}).get('value', {})
             if not isinstance(values, Mapping):
                 raise ValueError('Invalid Mainsail preset database')
@@ -361,7 +395,10 @@ class PrinterData:
             self.presets_from_mainsail = True
             self.mainsail_presets_error = None
             return changed
+        except ReadPending:
+            return False
         except (MoonrakerError, KeyError, ValueError, TypeError) as error:
+            self._preset_refresh_at = now + self._preset_refresh_interval
             self.mainsail_presets_error = str(error)
             logging.warning('Cannot refresh Mainsail presets: %s', error)
             return False
@@ -389,6 +426,7 @@ class PrinterData:
 
     def close(self):
         self.subscription.close()
+        self._read_worker.close()
         self.spoolman_client.close()
         self.client.close()
 
@@ -419,7 +457,7 @@ class PrinterData:
     def getREST(self, path):
         return self.client.get(path)
 
-    def postREST(self, path, json, cleanup=None, report_error=True):
+    def postREST(self, path, json, cleanup=None, report_error=True, dispatch_guard=None):
         snapshot = self.subscription.snapshot()
         if (self.connection_error or not self.state.ready or snapshot['state'] != 'ready'
                 or snapshot['epoch'] != self.state.epoch):
@@ -435,7 +473,10 @@ class PrinterData:
             current = self.subscription.snapshot()
             return current['state'] == 'ready' and current['epoch'] == epoch
 
-        return self.client.post(path, json, guard=guard, cleanup=cleanup, report_error=report_error) if cleanup is not None else self.client.post(path, json, guard=guard, report_error=report_error)
+        def operation_guard():
+            return guard() and (dispatch_guard is None or dispatch_guard())
+
+        return self.client.post(path, json, guard=operation_guard, cleanup=cleanup, cleanup_guard=guard, report_error=report_error) if cleanup is not None else self.client.post(path, json, guard=operation_guard, report_error=report_error)
 
     def power_on_if_off(self):
         """Turn on the configured Moonraker power device only when it is off."""
@@ -485,9 +526,9 @@ class PrinterData:
         now = time.monotonic()
         if not force and now < self._file_sort_refresh_at:
             return False
-        self._file_sort_refresh_at = now + 5.0
         try:
-            response = self.client.get('/server/database/item?namespace=mainsail&key=view.gcodefiles')
+            response = self._read('file_sort', lambda: self.client.get('/server/database/item?namespace=mainsail&key=view.gcodefiles'))
+            self._file_sort_refresh_at = now + 5.0
             values = response.get('result', {}).get('value', {})
             if not isinstance(values, Mapping):
                 raise ValueError('Invalid file sort settings')
@@ -496,7 +537,10 @@ class PrinterData:
             if field not in ('filename', 'modified', 'size') or not isinstance(descending, bool):
                 field, descending = 'modified', True
             preference = (field, descending)
+        except ReadPending:
+            return False
         except (MoonrakerError, KeyError, TypeError, ValueError, AttributeError):
+            self._file_sort_refresh_at = now + 5.0
             preference = ('modified', True)
         if preference == self.file_sort:
             return False
@@ -522,8 +566,13 @@ class PrinterData:
     def GetFiles(self, refresh=False):
         self.refresh_file_sort()
         if not self._files_loaded or refresh:
+            if time.monotonic() < self._file_retry_at and not refresh:
+                return tuple(item['path'] for item in self.files)
+            self._files_loaded = False
+            self._files_loading = True
             try:
-                files = self.getREST('/server/files/list')['result']
+                files = self._read('files', lambda: self.getREST('/server/files/list'),
+                                   (self.state.epoch, self.state.file_revision))['result']
                 if not isinstance(files, list) or not all(
                         isinstance(item, dict) and isinstance(item.get('path'), str)
                         and item['path'] for item in files):
@@ -535,21 +584,32 @@ class PrinterData:
                 self._sort_files()
                 self.file_error = None
                 self._files_loaded = True
+                self._files_loading = False
+                self._file_retry_at = 0.0
+            except ReadPending:
+                pass
             except (MoonrakerError, KeyError, TypeError, ValueError) as exc:
                 self.file_error = str(exc)
                 self._files_loaded = False
+                self._files_loading = False
+                self._file_retry_at = time.monotonic() + 5
         return tuple(item['path'] for item in self.files)
 
     def GetDirectory(self, directory=''):
+        self._directory_loading = False
         self.GetFiles()
-        if self.file_error:
+        if self.file_error or self._files_loading:
             return ()
         if directory and any(part in ('', '.', '..') for part in directory.split('/')):
             raise ValueError('Invalid directory path')
         key = (self.state.epoch, self.state.file_revision, directory)
         try:
             if key not in self._directory_cache:
-                response = self.getREST('/server/files/directory?path=' + quote('gcodes/' + directory, safe=''))
+                if time.monotonic() < self._directory_retry_at.get(key, 0):
+                    return ()
+                self._directory_loading = True
+                response = self._read(('directory', directory),
+                    lambda: self.getREST('/server/files/directory?path=' + quote('gcodes/' + directory, safe='')), key)
                 data = response['result']
                 entries = []
                 for group, name_key, is_dir in (('dirs', 'dirname', True), ('files', 'filename', False)):
@@ -566,11 +626,17 @@ class PrinterData:
                 # Keep only the current revision, retaining directories visited in it.
                 self._directory_cache = {k: v for k, v in self._directory_cache.items() if k[:2] == key[:2]}
                 self._directory_cache[key] = entries
+                self._directory_loading = False
+                self._directory_retry_at.pop(key, None)
             entries = list(self._directory_cache[key])
             self._sort_files(entries)
             entries.sort(key=lambda item: not item['isDirectory'])
             return tuple(item['path'] for item in entries)
+        except ReadPending:
+            return ()
         except (MoonrakerError, KeyError, TypeError, ValueError) as error:
+            self._directory_loading = False
+            self._directory_retry_at[key] = time.monotonic() + 5
             self.file_error = str(error)
             self._files_loaded = False
             return ()
@@ -635,6 +701,14 @@ class PrinterData:
 
     def update_variable(self):
         self.check_command_results()
+        if self._settings_save is not None and self._settings_save.done():
+            try:
+                self._settings_save.result()
+                self.settings_error = None
+            except Exception as error:
+                self.settings_error = str(error)
+            self._settings_save = None
+            self._preset_refresh_at = 0.0
         presets_changed = self.refresh_mainsail_presets()
         sort_changed = self.refresh_file_sort() if self._files_loaded else False
         try:
@@ -920,7 +994,9 @@ class PrinterData:
         with self._jog_lock:
             self._jog_restore = restore
         try:
-            future = self.sendGCode(script, cleanup=restore, report_error=False)
+            dispatch_guard = motion_dispatch_guard(self, owner='jog', position=True,
+                                                   extrusion=heater.name if axis == 'E' else None)
+            future = self.sendGCode(script, cleanup=restore, report_error=False, dispatch_guard=dispatch_guard)
         except Exception:
             # Submission failed before sending anything.
             with self._jog_lock:
@@ -995,20 +1071,23 @@ class PrinterData:
             return future
         if self.jog_recovery_required:
             raise ValueError('Restore jog state before sending motion commands')
-        return self.subscription.notify('printer.gcode.script', {'script': gcode})
+        guard = motion_dispatch_guard(self) if gcode.strip() == 'G28' else None
+        return self.subscription.notify('printer.gcode.script', {'script': gcode}, guard=guard)
 
-    def sendGCode(self, gcode, cleanup=None, report_error=True):
+    def sendGCode(self, gcode, cleanup=None, report_error=True, dispatch_guard=None):
         if cleanup is None and self.jog_recovery_required:
             # Heater/fan shutdown and temperature control do not depend on modes.
             allowed = {'TURN_OFF_HEATERS', 'SET_HEATER_TEMPERATURE', 'M106', 'M107'}
             if any(line.strip().split()[0].upper() not in allowed
                    for line in gcode.splitlines() if line.strip()):
                 raise ValueError('Restore jog state before sending motion commands')
+        if dispatch_guard is None and gcode.strip() in ('G28', 'G28 X Y', 'G28 X Y Z', 'M84'):
+            dispatch_guard = motion_dispatch_guard(self)
         if cleanup is not None:
             return self.postREST('/printer/gcode/script', json={'script': gcode},
-                                 cleanup={'script': cleanup}, report_error=report_error)
+                                 cleanup={'script': cleanup}, report_error=report_error, dispatch_guard=dispatch_guard)
         return self.postREST('/printer/gcode/script', json={'script': gcode},
-                             report_error=report_error)
+                             report_error=report_error, dispatch_guard=dispatch_guard)
 
     def disable_all_heaters(self):
         if not self.capabilities.has_heaters:
@@ -1054,33 +1133,25 @@ class PrinterData:
 
     def save_settings(self):
         if self.presets_from_mainsail:
-            try:
-                for preset in self.material_preset:
-                    if not preset.mainsail_id or not isinstance(preset.mainsail_raw, Mapping):
-                        raise ValueError('Mainsail preset metadata is unavailable')
-                    raw = copy.deepcopy(preset.mainsail_raw)
-                    raw['name'] = preset.name
-                    values = raw.setdefault('values', {})
-                    for device, target in (('extruder', preset.hotend_temp),
-                                           ('heater_bed', preset.bed_temp)):
-                        setting = values.get(device)
-                        if isinstance(setting, Mapping):
-                            setting = dict(setting)
-                            setting['value'] = target
-                            values[device] = setting
-                    self.client.post('/server/database/item', {
-                        'namespace': 'mainsail',
-                        'key': 'presets.presets.' + preset.mainsail_id,
-                        'value': raw,
-                    }).result(timeout=self.client.timeout + 1)
-                    preset.mainsail_raw = raw
-                self.settings_error = None
-                self._preset_refresh_at = 0.0
+            if self._settings_save is not None and not self._settings_save.done():
+                return self._settings_save
+            writes = []
+            for preset in self.material_preset:
+                if not preset.mainsail_id or not isinstance(preset.mainsail_raw, Mapping):
+                    raise ValueError('Mainsail preset metadata is unavailable')
+                raw = copy.deepcopy(preset.mainsail_raw)
+                raw['name'] = preset.name
+                values = raw.setdefault('values', {})
+                for device, target in (('extruder', preset.hotend_temp), ('heater_bed', preset.bed_temp)):
+                    if isinstance(values.get(device), Mapping):
+                        values[device] = dict(values[device], value=target)
+                writes.append({'namespace': 'mainsail', 'key': 'presets.presets.' + preset.mainsail_id, 'value': raw})
+            def save():
+                for payload in writes:
+                    self.client.post('/server/database/item', payload).result(timeout=self.client.timeout + 1)
                 return True
-            except (MoonrakerError, KeyError, ValueError, TypeError, TimeoutError) as error:
-                self.settings_error = str(error)
-                logging.error('Cannot save Mainsail presets: %s', error)
-                return False
+            self._settings_save = self._read_worker.submit(save)
+            return self._settings_save
         try:
             self.preset_store.save([vars(preset).copy() for preset in self.material_preset])
         except (OSError, ValueError, TypeError, UnicodeError) as error:

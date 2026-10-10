@@ -1,3 +1,4 @@
+from read_fixture import ImmediateReadWorker
 import json
 from pathlib import Path
 import tempfile
@@ -20,7 +21,7 @@ class PresetTests(unittest.TestCase):
         self.path = Path(self.directory.name) / 'settings' / 'presets.json'
 
     def printer(self):
-        with patch.object(backend, 'MoonrakerClient'), patch.object(backend, 'MoonrakerSubscription'):
+        with patch.object(backend, 'MoonrakerClient'), patch.object(backend, 'MoonrakerSubscription'), patch.object(backend, 'ReadWorker', ImmediateReadWorker):
             return backend.PrinterData(settings_path=self.path)
 
     def test_save_and_restart_preserve_all_values(self):
@@ -86,7 +87,7 @@ class MainsailPresetTests(unittest.TestCase):
         self.path = Path(self.directory.name) / 'settings' / 'presets.json'
 
     def printer(self):
-        with patch.object(backend, 'MoonrakerClient'), patch.object(backend, 'MoonrakerSubscription'):
+        with patch.object(backend, 'MoonrakerClient'), patch.object(backend, 'MoonrakerSubscription'), patch.object(backend, 'ReadWorker', ImmediateReadWorker):
             return backend.PrinterData(settings_path=self.path)
 
     def test_maps_name_and_heaters(self):
@@ -140,7 +141,8 @@ class MainsailPresetTests(unittest.TestCase):
         future = Mock()
         future.result.return_value = {'result':'ok'}
         with patch.object(printer.client, 'post', return_value=future) as post:
-            self.assertTrue(printer.save_settings())
+            printer.client.timeout = 5
+            self.assertTrue(printer.save_settings().result())
         payload = post.call_args.args[1]
         self.assertEqual(payload['key'], 'presets.presets.preset-id')
         self.assertEqual(payload['value']['values']['extruder']['value'], 240)

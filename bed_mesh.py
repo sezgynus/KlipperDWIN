@@ -1,4 +1,5 @@
 """Completion-tracked bed calibration and read-only profile snapshots."""
+from operation_guards import motion_dispatch_guard, config_save_guard
 import copy
 from dataclasses import dataclass
 import math
@@ -85,14 +86,19 @@ class BedMeshSession:
         if motion and (not p.capabilities.probe or p.jog_recovery_required
                 or p.status in ('printing', 'paused', 'pausing')
                 or p.state.status.get('manual_probe', {}).get('is_active')
-                or p.screws_tilt.pending or p.probe_wizard.pending):
+                or p.screws_tilt.pending or p.probe_wizard.pending
+                or getattr(getattr(p, 'mmu_session', None), 'pending', None)):
             raise ValueError('Calibration unavailable; check printer')
 
-    def _submit(self, phase, method, params, message):
+    def _submit(self, phase, method, params, message, dispatch_guard=None):
         self.epoch = self.printer.state.epoch
         self.started = time.monotonic()
         self.phase, self.message = phase, message
-        self.pending = self.printer.subscription.request(method, params)
+        if phase == 'measuring' or dispatch_guard is not None:
+            guard = dispatch_guard or motion_dispatch_guard(self.printer, owner='bed_mesh')
+            self.pending = self.printer.subscription.request(method, params, guard=guard)
+        else:
+            self.pending = self.printer.subscription.request(method, params)
         self.revision += 1
 
     def refresh(self):
@@ -296,7 +302,13 @@ class BedMeshSession:
                 config = status['configfile']
                 if current != self.mesh or profile != self.mesh or not self._owned_pending(config, self.mesh):
                     raise ValueError('Resolve other config changes first')
-                self._submit('saving', 'printer.gcode.script', {'script': 'SAVE_CONFIG'}, 'Saving; Klipper restarts')
+                expected_mesh, name = self.mesh, self.profile_name
+                def verify(live):
+                    return (MeshData.current(live['bed_mesh']) == expected_mesh
+                            and MeshData.profile(name, live['bed_mesh']) == expected_mesh)
+                guard = config_save_guard(p, config, 'bed_mesh', verify)
+                self._submit('saving', 'printer.gcode.script', {'script': 'SAVE_CONFIG'},
+                             'Saving; Klipper restarts', dispatch_guard=guard)
                 return
             elif phase == 'saving':
                 self.phase, self.message = 'saved', 'Save requested; Klipper restarts'

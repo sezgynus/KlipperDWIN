@@ -1,4 +1,5 @@
 """Four-corner screws tilt session using authoritative Klipper RPC results."""
+from operation_guards import motion_dispatch_guard
 import math
 import re
 import time
@@ -50,7 +51,8 @@ class ScrewsTiltSession:
             raise ValueError('Calculation already running')
         if (not p.state.ready or p.connection_error or not p.capabilities.screws_tilt_adjust
                 or not p.capabilities.probe
-                or p.jog_recovery_required or p.bed_mesh.pending):
+                or p.jog_recovery_required or p.bed_mesh.pending
+                or getattr(getattr(p, 'mmu_session', None), 'pending', None)):
             raise ValueError('Screws tilt unavailable; check printer')
         if p.status in ('printing', 'paused', 'pausing'):
             raise ValueError('Calibration unavailable during print')
@@ -73,7 +75,8 @@ class ScrewsTiltSession:
         self.leveled = False
         self.phase, self.message = 'measuring', 'Probing corners...'
         self.started = time.monotonic()
-        self.pending = p.subscription.request('printer.gcode.script', {'script': script})
+        guard = motion_dispatch_guard(p, owner='screws_tilt')
+        self.pending = p.subscription.request('printer.gcode.script', {'script': script}, guard=guard)
 
     def _read_results(self, payload):
         raw = payload['status']['screws_tilt_adjust']['results']

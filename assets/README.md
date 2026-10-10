@@ -30,7 +30,7 @@ for SOFTWARE, and a chip for MCU. Info draws all four through
 Their atlas rectangles are in portrait coordinates; the JPEG remains 480x272.
 The existing stock icon definitions remain available for other screens.
 
-The power icon is registered in Atlas 0 for future UI use and is not currently drawn by any screen.
+The power icon is drawn at `(244, 5)` in screen headers, including every full-screen MMU page. The UI uses `ICON_POWER` through `draw_atlas_icon`; the source rectangle and virtual-area ownership remain driver-managed.
 
 Atlas 1 currently contains no icons and is reserved for future expansion.
 

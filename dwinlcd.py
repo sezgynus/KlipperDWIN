@@ -345,6 +345,13 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.button.when_held = self._button_held
 
     def _uart_failed(self):
+        if (getattr(self, 'checkkey', None) == self.PowerConfirm
+                and getattr(self, '_power_origin', None) == self.MMUMenu):
+            self.checkkey = self.MMUMenu
+            self._power_origin = None
+        if getattr(self, 'checkkey', None) == self.MMUMenu:
+            self._power_focus = False
+            self._mmu_canvas_page = None
         self._uart_online = False
         self._uart_epoch += 1
         self._next_uart_retry = time.monotonic() + 5
@@ -373,11 +380,12 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             elif getattr(self, 'checkkey', None) == self.BedMeshMenu:
                 self.Draw_Bed_Mesh_Menu()
             if getattr(self, 'checkkey', None) == self.MMUMenu:
+                self._mmu_canvas_page = None
                 self.Draw_MMU_Menu()
             if getattr(self, 'checkkey', None) == self.FilePreview:
                 self.Draw_File_Preview()
             self.lcd.update()
-            if self.pd.connection_error:
+            if self.pd.connection_error and self.checkkey != self.MMUMenu:
                 self._show_message('Moonraker unavailable')
             self._uart_online = True
             self._uart_epoch += 1
@@ -394,6 +402,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             # Keep status current while the panel is disconnected.
             self.pd.update_variable()
             self.pd.bed_mesh.update()
+            self.pd.mmu_session.update()
             self._ensure_uart()
             return
         try:
@@ -647,7 +656,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 or (feedback is not None and not (feedback.phase == 'error' and kind == 'press'))):
             return
         snapshot = self.pd.subscription.snapshot()
-        if snapshot['state'] != 'ready':
+        if snapshot['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu:
             return
         if not self._loop.post(InputEvent(kind, value, snapshot['epoch'], getattr(self, '_uart_epoch', 0), accelerated_value, rate)):
             logging.warning('LCD input queue full or closed; input discarded')
@@ -702,6 +711,13 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     def _sync_input_state(self, event):
         previous_epoch = self.pd.state.epoch
         self.pd.update_variable()
+        if self._mmu_power_popup_stale():
+            self._restore_power_origin()
+            self.lcd.update()
+            return False
+        if getattr(self, 'checkkey', None) == self.MMUMenu and not self.pd.state.ready:
+            self._poll_mmu()
+            return True  # Offline MMU navigation remains read-only.
         if (self.pd.connection_error or not self.pd.state.ready
                 or self.pd.state.epoch != event.epoch):
             return False
@@ -799,7 +815,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 or event.ui_epoch != getattr(self, '_uart_epoch', 0)):
             return
         snapshot = self.pd.subscription.snapshot()
-        if (snapshot['state'] != 'ready' or snapshot['epoch'] != event.epoch
+        if ((snapshot['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu) or snapshot['epoch'] != event.epoch
                 or self._closed):
             return
         if event.kind == 'live_jog_flush':
@@ -830,7 +846,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         try:
             for _ in range(count):
                 current = self.pd.subscription.snapshot()
-                if current['state'] != 'ready' or current['epoch'] != event.epoch:
+                if ((current['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu)
+                        or current['epoch'] != event.epoch):
                     break
                 self._encoder_event = direction
                 self._dispatch_input()
@@ -879,6 +896,13 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self._print_error_visible = False
         self.pd.HMI_flag.done_confirm_flag = False
         self.pd.HMI_flag.pause_flag = self.pd.printingIsPaused()
+        if (self.checkkey == self.MMUMenu or
+                (self.checkkey == self.PowerConfirm and getattr(self, '_power_origin', None) == self.MMUMenu)):
+            return
+        mmu = self.pd.mmu_session.state
+        if status == 'paused' and mmu and mmu.locked and mmu.reason:
+            self.Enter_MMU_Menu('recover')
+            return
         if status in ('printing', 'paused', 'pausing'):
             self.Goto_PrintProcess()
         elif status == 'complete':
@@ -980,8 +1004,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self.checkkey = self.Leveling
                 self.HMI_Leveling()
             elif key == 'MMU':
-                self.checkkey = self.MMUMenu
-                self.Draw_MMU_Menu()
+                self.Enter_MMU_Menu()
             elif key == 'INFO':
                 self._info_origin = self.MainMenu
                 self.checkkey = self.Info
@@ -992,7 +1015,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
 
     def _refresh_file_snapshot(self):
         paths = self.pd.GetDirectory(getattr(self, '_file_directory', ''))
-        if self.pd.file_error:
+        if self.pd.file_error or self.pd._files_loading or self.pd._directory_loading:
             return False
         previous = getattr(self, '_file_paths', ())
         selected = (previous[self.select_file.now - 1]
@@ -1585,7 +1608,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         else:
             key = self._menus['preheat'][selection.now - 1][0]
             if key == 'SAVE':
-                self.HMI_AudioFeedback(self.pd.save_settings())
+                future = self.pd.save_settings()
+                if isinstance(future, Future):
+                    self._action('Save presets', lambda: future, on_accept=draw)
+                else:
+                    self.HMI_AudioFeedback(future)
             else:
                 self._open_thermal_editor(key, selection.now, profile)
         self.lcd.update()
@@ -1893,6 +1920,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     # --------------------------------------------------------------#
 
     def Draw_Status_Area(self, with_update):
+        if getattr(self, 'checkkey', None) == self.MMUMenu:
+            return
         # Compact dashboard: temperatures / speed / fan, bed / flow / Z offset,
         # then interpolated live X/Y/Z positions.
         self.lcd.draw_rectangle(
@@ -2406,7 +2435,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if len(entries) == 1:
             self.lcd.draw_text(False, False, self.lcd.font8x16, self.lcd.Color_White,
                                  self.lcd.Color_Bg_Black, 20, self.MBASE(2),
-                                 'File list unavailable' if self.pd.file_error else 'No files')
+                                 'File list unavailable' if self.pd.file_error else 'Loading files...' if self.pd._files_loading or self.pd._directory_loading else 'No files')
 
     def CompletedHoming(self):
         self.pd.HMI_flag.home_flag = False
@@ -2561,6 +2590,12 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 getattr(self, name).reset()
             self.index_prepare = self.index_tune = self.index_control = self.MROWS
             self._offline = True
+        self._poll_mmu()
+        if self.checkkey == self.MMUMenu:
+            self._offline = bool(self.pd.connection_error)
+            if self.last_status != self.pd.status:
+                self._present_print_state()
+            return
         if self._poll_action():
             return
         self._poll_screws_tilt()
@@ -2580,7 +2615,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if self._poll_print_start() or getattr(self, '_start_error_visible', False):
             return
         if self.checkkey == self.SelectFile and (
-                self.pd.state.epoch != getattr(self, '_file_view_epoch', -1)
+                self.pd._files_loading or self.pd._directory_loading
+                or self.pd.state.epoch != getattr(self, '_file_view_epoch', -1)
                 or self.pd.state.file_revision != getattr(self, '_file_view_revision', -1)
                 or self.pd.file_sort_revision != getattr(self, '_file_view_sort_revision', -1)):
             if self._refresh_file_snapshot():
@@ -2687,7 +2723,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.Info: '_info_scroll',
         }
         if self.checkkey == self.MMUMenu:
-            return True
+            return (not self.pd.connection_error and getattr(self, '_mmu_selection', 0) == 0
+                    and getattr(self, '_mmu_edit', None) is None)
         attr = custom.get(self.checkkey)
         return attr is not None and getattr(self, attr, 0) == 0
 
@@ -2709,6 +2746,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self._power_origin = None
         self._power_focus = False
         self.checkkey = origin if origin is not None else self.MainMenu
+        if self.checkkey == self.MMUMenu:
+            # The power popup overwrote the cached full-screen MMU canvas.
+            self._mmu_canvas_page = None
         redraw = {
             self.MainMenu: self.Goto_MainMenu,
             self.SelectFile: self.Draw_Print_File_Menu,
@@ -2731,6 +2771,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._restore_action_screen()
 
     def _handle_power_navigation(self):
+        if self._mmu_power_popup_stale():
+            self._restore_power_origin()
+            return True
         event = self.get_encoder_state()
         if self.checkkey == self.PowerConfirm:
             if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
@@ -2749,6 +2792,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self._draw_power_icon(False, clear=True)
             elif event == self.ENCODER_DIFF_ENTER:
                 self._power_origin = self.checkkey
+                self._power_origin_epoch = self.pd.state.epoch
                 self._power_confirm_yes = True
                 self._power_focus = False
                 self.checkkey = self.PowerConfirm

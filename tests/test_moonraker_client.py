@@ -30,6 +30,58 @@ class TransportTests(unittest.TestCase):
         self.assertFalse(request.has_header('X-api-key'))
         self.assertEqual(opener.open.call_args.kwargs['timeout'], 2)
 
+    def test_json_byte_limit_ignores_absent_or_incorrect_content_length(self):
+        body = json.dumps({'result': 'ç'}).encode('utf-8')
+        for header in (None, '1', '999999999'):
+            for limit in (len(body), len(body) - 1):
+                with self.subTest(header=header, limit=limit):
+                    opener = Mock()
+                    value = response({})
+                    value.headers = {} if header is None else {'Content-Length': header}
+                    value.read.side_effect = lambda size: body[:size]
+                    opener.open.return_value = value
+                    client = self.client(opener, max_json_bytes=limit)
+                    if limit == len(body):
+                        self.assertEqual(client.get('/server/files/list'), {'result': 'ç'})
+                    else:
+                        with self.assertRaisesRegex(MoonrakerError, 'exceeds.*byte limit'):
+                            client.get('/server/files/list')
+                        self.assertFalse(client.connected)
+                        self.assertIsNotNone(client.last_error)
+                    value.read.assert_called_once_with(limit + 1)
+                    value.__exit__.assert_called_once()
+
+    def test_json_limit_requires_positive_integer(self):
+        for limit in (True, 0, -1, 1.5, None, '1024'):
+            with self.assertRaises(ValueError):
+                MoonrakerClient(max_json_bytes=limit)
+
+    def test_oversized_post_discards_queue_without_replay_and_worker_recovers(self):
+        entered, release = Event(), Event()
+        self.addCleanup(release.set)
+        opener = Mock()
+        value = response({})
+        def read(size):
+            entered.set()
+            if not release.wait(2):
+                raise AssertionError('test synchronization timed out')
+            return b'x' * size
+        value.read.side_effect = read
+        opener.open.side_effect = [value, response({'result': 'ok'})]
+        client = self.client(opener, max_json_bytes=32)
+        first = client.post('/printer/gcode/script', {'script': 'G28'})
+        self.assertTrue(entered.wait(1))
+        second = client.post('/printer/gcode/script', {'script': 'G1 Z0'})
+        release.set()
+        with self.assertRaisesRegex(MoonrakerError, 'exceeds'):
+            first.result(2)
+        with self.assertRaisesRegex(MoonrakerError, 'preceding command failure'):
+            second.result(2)
+        self.assertEqual(opener.open.call_count, 1)
+        self.assertTrue(client._worker.is_alive())
+        self.assertEqual(client.post('/printer/print/resume').result(2), {'result': 'ok'})
+        self.assertEqual(opener.open.call_count, 2)
+
     def test_explicit_auth(self):
         opener = Mock()
         opener.open.return_value = response({'result': 'ok'})

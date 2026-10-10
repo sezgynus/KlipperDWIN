@@ -1,6 +1,6 @@
 import unittest
 from concurrent.futures import Future
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from test_capabilities import snapshot, printer, display
 from moonraker_client import MoonrakerError
@@ -28,7 +28,7 @@ def payload():
 class SessionTests(unittest.TestCase):
     def make(self, source=None):
         p = printer(source or data())
-        p.subscription.request.side_effect = lambda *args: Future()
+        p.subscription.request.side_effect = lambda *args, **kwargs: Future()
         return p, p.screws_tilt
 
     def finish(self, session, result=None):
@@ -42,7 +42,7 @@ class SessionTests(unittest.TestCase):
         p, session = self.make()
         for _ in range(2):
             session.start()
-            p.subscription.request.assert_called_with('printer.gcode.script', {'script': 'SCREWS_TILT_CALCULATE'})
+            p.subscription.request.assert_called_with('printer.gcode.script', {'script': 'SCREWS_TILT_CALCULATE'}, guard=ANY)
             session.update()
             self.assertEqual(session.phase, 'measuring')
             self.finish(session)
@@ -58,7 +58,7 @@ class SessionTests(unittest.TestCase):
         source['status']['toolhead']['homed_axes'] = 'xy'
         p, session = self.make(source)
         session.start()
-        p.subscription.request.assert_called_with('printer.gcode.script', {'script': 'G28\nSCREWS_TILT_CALCULATE'})
+        p.subscription.request.assert_called_with('printer.gcode.script', {'script': 'G28\nSCREWS_TILT_CALCULATE'}, guard=ANY)
         with self.assertRaises(ValueError):
             session.start()
         self.assertEqual(p.subscription.request.call_count, 1)
@@ -130,7 +130,7 @@ class ViewTests(unittest.TestCase):
         view.lcd.DWIN_HEIGHT = 480
         view.checkkey = view.Prepare
         view.get_encoder_state = Mock(return_value=view.ENCODER_DIFF_ENTER)
-        view.pd.subscription.request.side_effect = lambda *args: Future()
+        view.pd.subscription.request.side_effect = lambda *args, **kwargs: Future()
         return view
 
     def test_optional_prepare_menu_and_navigation(self):

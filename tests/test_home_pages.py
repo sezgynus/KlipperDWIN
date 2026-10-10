@@ -6,6 +6,8 @@ from test_capabilities import snapshot,display
 class HomePageTests(unittest.TestCase):
     def make(self,mesh=True):
         view=display(snapshot(probe=mesh))
+        view.lcd.DWIN_WIDTH = 272
+        view.lcd.DWIN_HEIGHT = 480
         view.checkkey=view.MainMenu
         view.get_encoder_state=Mock(return_value=view.ENCODER_DIFF_NO)
         return view
@@ -90,23 +92,15 @@ class HomePageTests(unittest.TestCase):
         view._draw_home_page();self.assertEqual(view.select_page.now,4)
         self.assertIn((view.ICON_Info_1,17,130),[c.args[1:] for c in view.lcd.show_icon.call_args_list])
 
-    def test_mmu_placeholder_back_preserves_home_selection(self):
+    def test_mmu_entry_and_back_preserve_home_selection(self):
         for mesh in (True, False):
             view=self.make(mesh)
             index=next(i for i,e in enumerate(view._home_entries()) if e[0]=='MMU')
             view.select_page.set(index)
-            view.Draw_Back_First=Mock();view.Draw_Title=Mock()
             self.step(view,view.ENCODER_DIFF_ENTER)
             self.assertEqual(view.checkkey,view.MMUMenu)
-            view.Draw_Title.assert_called_once_with('MMU')
-            view.Draw_Back_First.assert_called_once_with(True)
-            for event in (view.ENCODER_DIFF_CW,view.ENCODER_DIFF_NO):
-                view.get_encoder_state.return_value=event;view._dispatch_input()
-                self.assertEqual(view.checkkey,view.MMUMenu)
-            view.get_encoder_state.return_value=view.ENCODER_DIFF_CCW;view._dispatch_input()
-            self.assertTrue(view._power_focus)
-            view.get_encoder_state.return_value=view.ENCODER_DIFF_CW;view._dispatch_input()
-            self.assertFalse(view._power_focus)
+            self.assertEqual(view._mmu_page,'home')
+            self.assertEqual(view._mmu_selection,0)
             view.get_encoder_state.return_value=view.ENCODER_DIFF_ENTER
             view._dispatch_input()
             self.assertEqual(view.checkkey,view.MainMenu)

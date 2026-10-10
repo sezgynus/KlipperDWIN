@@ -65,6 +65,33 @@ class FeedbackTests(unittest.TestCase):
         with patch.object(command_feedback.time, 'monotonic', return_value=result.started + 299):
             self.assertEqual(result.update(state), 'accepted')
 
+    def test_expected_state_pending_future_expires_without_late_success(self):
+        for running in (False, True):
+            future = Future()
+            if running:
+                future.set_running_or_notify_cancel()
+            confirmed = Mock(return_value=True)
+            result = CommandFeedback(future, 'Home', 1, confirmed, confirmation_timeout=10)
+            state = PrinterState.from_snapshot(snapshot())
+            with patch.object(command_feedback.time, 'monotonic', return_value=result.started + 11):
+                self.assertEqual(result.update(state), 'error')
+            confirmed.assert_not_called()
+            if running:
+                future.set_result(None)
+            self.assertEqual(result.update(state), 'error')
+
+    def test_confirmation_deadline_rejects_late_result_even_if_state_matches(self):
+        future = Future()
+        future.set_result(None)
+        result = CommandFeedback(future, 'Home', 1, lambda: True, confirmation_timeout=10)
+        with patch.object(command_feedback.time, 'monotonic', return_value=result.started + 11):
+            self.assertEqual(result.update(PrinterState.from_snapshot(snapshot())), 'error')
+
+    def test_confirmation_timeout_requires_finite_positive_value(self):
+        for value in (0, -1, float('nan'), float('inf')):
+            with self.assertRaises(ValueError):
+                CommandFeedback(Future(), 'Home', 1, confirmation_timeout=value)
+
     def display(self):
         result = display(snapshot())
         result.checkkey = result.TemperatureID

@@ -1,7 +1,7 @@
 import copy
 import unittest
 from concurrent.futures import Future
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from test_capabilities import snapshot, printer, display
 from printer_state import PrinterState
@@ -29,7 +29,7 @@ def payload(name='lcd_mesh_1'):
 class MeshTests(unittest.TestCase):
     def make(self, source=None):
         p = printer(source or data())
-        p.subscription.request.side_effect = lambda *a: Future()
+        p.subscription.request.side_effect = lambda *a, **k: Future()
         p.subscription.responses_since.return_value = (0, ())
         return p, p.bed_mesh
 
@@ -48,7 +48,7 @@ class MeshTests(unittest.TestCase):
             self.assertIsNone(session.mesh)
             self.assertEqual(session.profile_name, 'lcd_mesh_2')
             p.subscription.request.assert_called_with('printer.gcode.script',
-                {'script': 'BED_MESH_CALIBRATE PROFILE=lcd_mesh_2 ADAPTIVE=0'})
+                {'script': 'BED_MESH_CALIBRATE PROFILE=lcd_mesh_2 ADAPTIVE=0'}, guard=ANY)
             session.update()
             self.assertEqual(session.phase, 'measuring')
             self.complete(session)
@@ -162,7 +162,7 @@ class MeshTests(unittest.TestCase):
                 self.assertEqual(session.phase,'error')
                 self.assertNotIn({'script':'SAVE_CONFIG'}, [c.args[1] for c in p.subscription.request.call_args_list])
             else:
-                p.subscription.request.assert_called_with('printer.gcode.script', {'script':'SAVE_CONFIG'})
+                p.subscription.request.assert_called_with('printer.gcode.script', {'script':'SAVE_CONFIG'}, guard=ANY)
                 p.connection_error = 'restarting';session.update()
                 self.assertEqual(session.phase,'interrupted')
                 self.assertIn('check after restart',session.message)
@@ -195,7 +195,7 @@ class MeshViewTests(unittest.TestCase):
         view.lcd.DWIN_WIDTH=272;view.lcd.DWIN_HEIGHT=480
         view.checkkey=view.Prepare
         view.get_encoder_state=Mock(return_value=view.ENCODER_DIFF_ENTER)
-        view.pd.subscription.request.side_effect=lambda *a:Future()
+        view.pd.subscription.request.side_effect=lambda *a, **k:Future()
         view.pd.subscription.responses_since.return_value=(0,())
         return view
 
@@ -490,7 +490,7 @@ class MeshMenuTests(unittest.TestCase):
     def test_without_probe_home_menu_still_has_profile_viewer(self):
         source=data();source['objects'].remove('probe')
         view=display(source);view.get_encoder_state=Mock(return_value=view.ENCODER_DIFF_ENTER)
-        view.pd.subscription.request.side_effect=lambda *a:Future()
+        view.pd.subscription.request.side_effect=lambda *a, **k:Future()
         self.assertTrue(view.pd.HAS_ONESTEP_LEVELING)
         view.HMI_Leveling()
         self.assertEqual([e[0] for e in view._mesh_menu_entries()],['BACK','VIEWER'])

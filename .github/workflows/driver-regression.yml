@@ -6,6 +6,7 @@ on:
       - master
       - refactor/t5uic1-complete-driver
       - feature/global-power-button
+      - feature/mmu-menu
 
 permissions:
   contents: read

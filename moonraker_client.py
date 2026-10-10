@@ -21,7 +21,7 @@ class NoRedirects(HTTPRedirectHandler):
 
 class MoonrakerClient:
     def __init__(self, url='http://127.0.0.1:7125', api_key='', timeout=5.0,
-                 queue_size=32, opener=None):
+                 queue_size=32, opener=None, max_json_bytes=8 * 1024 * 1024):
         parts = urlsplit(url)
         if (parts.scheme not in ('http', 'https') or not parts.hostname
                 or parts.username or parts.password or parts.query or parts.fragment):
@@ -30,6 +30,9 @@ class MoonrakerClient:
             raise ValueError('Timeout must be finite and positive')
         if queue_size < 1:
             raise ValueError('Queue size must be positive')
+        if isinstance(max_json_bytes, bool) or not isinstance(max_json_bytes, int) or max_json_bytes < 1:
+            raise ValueError('JSON response limit must be a positive integer')
+        self.max_json_bytes = max_json_bytes
         self.url = url.rstrip('/')
         self.timeout = timeout
         self.headers = {'Content-Type': 'application/json'}
@@ -54,12 +57,17 @@ class MoonrakerClient:
         request = Request(self.url + path, data=data, headers=self.headers, method=method)
         try:
             with self._opener.open(request, timeout=self.timeout) as response:
-                body = json.loads(response.read().decode('utf-8'))
+                raw = response.read(self.max_json_bytes + 1)
+                if len(raw) > self.max_json_bytes:
+                    raise MoonrakerError('Moonraker JSON response exceeds %d byte limit' % self.max_json_bytes)
+                body = json.loads(raw.decode('utf-8'))
             if not isinstance(body, dict) or 'error' in body or 'result' not in body:
                 raise MoonrakerError('Invalid response or Moonraker error')
         except HTTPError as exc:
             error = MoonrakerError('Moonraker HTTP status %s' % exc.code)
-        except (URLError, OSError, ValueError, MoonrakerError):
+        except MoonrakerError as exc:
+            error = exc
+        except (URLError, OSError, ValueError):
             error = MoonrakerError('Moonraker request failed (network or invalid response)')
         else:
             self.connected = True
@@ -88,9 +96,10 @@ class MoonrakerClient:
         except (HTTPError, URLError, OSError) as error:
             raise MoonrakerError('Thumbnail download failed') from error
 
-    def post(self, path, payload=None, guard=None, cleanup=None, report_error=True):
+    def post(self, path, payload=None, guard=None, cleanup=None, report_error=True, cleanup_guard=None):
         future = Future()
         future.cleanup_complete = cleanup is not None
+        future.cleanup_guard = cleanup_guard or guard
         with self._lock:
             if self._stop.is_set():
                 future.set_exception(MoonrakerError('Client is closed'))
@@ -150,7 +159,7 @@ class MoonrakerClient:
                         future.cleanup_complete = True
                     if cleanup is not None and mutated and not self._stop.is_set():
                         try:
-                            if guard is not None and not guard():
+                            if future.cleanup_guard is not None and not future.cleanup_guard():
                                 raise MoonrakerError('Connection changed before jog restore')
                             self.request('POST', path, cleanup)
                             future.cleanup_complete = True

@@ -36,7 +36,7 @@ Uygulama, Ender 3 V2’de kullanılan 4,3 inç paneli ve görsel kaynak düzenin
 | Entegrasyonlar | Düzenlenebilir Mainsail sıcaklık presetleri, Happy Hare kanal görünümü, Spoolman yüzdeleri ve M355 kabin ışığı |
 | Sistem bilgileri | Kaydırılabilir host, yazılım ve MCU bilgileri; encoder ile güç açma/kapatma |
 
-Menüler algılanan yazıcı yeteneklerine göre şekillenir. **MMU menüsü yalnızca Back içeren bir yer tutucudur**; ana ekrandaki Happy Hare görünümü çalışır. Diğer sınırlar [aşağıda](#kapsam-ve-sınırlar) listelenmiştir.
+Menüler algılanan yazıcı yeteneklerine göre şekillenir. **MMU menüsü tam ekran Happy Hare kontrolü, canlı durum ve kurtarma sunar**; ana ekrandaki kanal görünümünün mevcut yerleşimi korunur. Diğer sınırlar [aşağıda](#kapsam-ve-sınırlar) listelenmiştir.
 
 ## Kurulum
 
@@ -109,7 +109,7 @@ Ana ekranda sayfa başına dört ikon bulunur. Çevirmeye devam etmek sonraki ve
 | Prepare | Move, Disable steppers, Home, Runtime Z offset, Screws Tilt Adjust, ön ısıtma ve soğutma |
 | Control | Temperature, Motion, Probe calibration, jog kurtarma, Case Light ve Info |
 | Leveling | Bed Mesh: Bed Mesh Calibrate ve Mesh Viewer |
-| MMU | Yalnızca Back içeren yer tutucu |
+| MMU | Tam ekran kanallar, filament işlemleri, bypass, canlı durum ve kurtarma |
 | Info | Kaydırılabilir sistem bilgileri |
 
 Bed mesh mevcutsa ilk sayfa **Print / Prepare / Control / Leveling**, ikinci sayfa **MMU / Info** olur. Bed mesh yoksa MMU dördüncü alanı alır, Info sonraki sayfada yer alır. İsteğe bağlı menü girişleri yalnızca destekleniyorsa görünür.
@@ -213,9 +213,48 @@ Viewer seçimi **profil yüklemez ve aktif mesh’i değiştirmez**. Haritada d�
 
 ### Happy Hare ve Spoolman
 
-Happy Hare nesneleri mevcutsa ana ekranın logo alanı canlı kanal paneline dönüşür. Kanal/malzeme/renk/makara durumu için `mmu`, ünite adı için `mmu_machine`, çıkış LED renkleri için **`unit0_mmu_exit_leds`** kullanılır. Düşük parlaklıktaki renkler okunabilirlik için normalize edilir; tamamen kapalı LED’ler siyah kalır ve kanal numaraları kontrastlı siyah/beyaz metin kullanır.
+Happy Hare nesneleri mevcutsa ana ekranın logo alanı canlı kanal paneline dönüşür. Kanal/malzeme/renk/makara durumu için `mmu`, ünite adı için `mmu_machine`, çıkış LED renkleri için **`unitN_mmu_exit_leds`** kullanılır. Düşük parlaklıktaki renkler okunabilirlik için normalize edilir; tamamen kapalı LED’ler siyah kalır ve kanal numaraları kontrastlı siyah/beyaz metin kullanır.
 
-Spoolman yüzdeleri tek bir aktif makaradan değil, Moonraker Spoolman proxy’si üzerinden her kanalın `gate_spool_id` değerinden alınır. Spoolman verisinin eksikliği diğer kanal bilgilerini devre dışı bırakmaz. Ayrı MMU menüsü yalnızca Back içerir.
+Spoolman yüzdeleri tek bir aktif makaradan değil, Moonraker Spoolman proxy’si üzerinden her kanalın `gate_spool_id` değerinden alınır. Spoolman verisinin eksikliği diğer kanal bilgilerini devre dışı bırakmaz. **Ana ekran → MMU** ile ayrı tam ekran arayüzü açın. Genel hareket paneli MMU sayfalarında gizlenir; ana ekrana dönünce geri çizilir.
+
+**Çevirerek odağı değiştirin; basarak açın veya kabul edin.** Sol üstteki Back oku seçilebilir. Uzun basış yapılandırılmış yazıcı güç davranışını korur. Kanallarda gezinmek ve detay açmak filament hareketi yaptırmaz.
+
+| MMU sayfası | Kullanılabilir davranış |
+|---|---|
+| Home | Aktif kanalın sayfasında en fazla dört makara, seçili takım/kanal, filament yolu, nozzle sıcaklığı ve altı menü girişi |
+| Gates / kanal detayları | Kaydırılabilir fiziksel kanal listesi; Select only, Load selected, eşlemeli Load/change, Unload, Eject spool, Preload ve Check |
+| Filament / Assign spool | İsim, malzeme, renk, makara kimliği, kalan yüzde, sıcaklık ve mod; taslak kimlik atama veya ayrı atama silme |
+| Tool map | Taslak takım–kanal düzenleyici; bas, çevir, bas ile kabul; Save/Cancel |
+| EndlessSpool (Tool map içinden) | Taslak aç/kapat, gruplar ve kanal üyeliği; malzeme/renk uyumu, Save/Cancel |
+| Bypass | Mevcut MMU kanalını boşaltma, bypass seçimi ve ardından yalnız ekstrüder yükleme/boşaltma |
+| Manage / Recover | Kurtarma, manuel durum editörü, kilit açma/ısıtma ve Resume; bakım/seçenek girişleri |
+| Maintenance / Options | Tüm kanalları kontrol, tek lineer selector için Home, desteklenen Grip/Release, yüklü filamentte gear sync ve sensör durumu |
+| LEDs (Options içinden) | Aktif ünite için aç/kapat, animasyon ve çıkış modları; doğrulanan LED yapılandırması |
+| Units (Options içinden) | Salt okunur ünite/kanal gezintisi; ünitenin ilk global kanalını ayrıca onayla seçme |
+| Status | Gerçek işlem ve varsa Bowden aşama yüzdesi, ayrıştırılmış sensör durumları, gear sync, nozzle sıcaklığı ve işlem sonucu |
+
+Ekrandaki **G1, Happy Hare tarafında `GATE=0`** anlamına gelir; takım numaraları T0'dan başlar. Birden fazla takıma eşlenen makara `T*` gösterir. Load selected mevcut dolu kanalı kullanır; Load/change ilişkili mantıksal takımı seçerek Happy Hare eşlemesini izler. Unload filamenti MMU'da park eder; Eject spool gerçek çıkarmayı açıkça ister ve gerektiğinde aktif kanalı önce boşaltır.
+
+Her işlem hedefini belirten bir onay açar; **ilk odak Cancel üzerindedir**. Gönderim öncesinde durum yeniden kontrol edilir. Eksik, devre dışı, eski veya meşgul MMU verisi işlemleri kilitler. Baskı ve duraklama sırasında normal hareketler kapanır; kurtarmanın ayrı koşulları vardır. Devam eden işlem MMU arayüzü içinde kalır ve LCD'den kalibrasyon başlatılmasını engeller. Komutlar tamamlanması izlenen WebSocket RPC üzerinden gönderilir; ardından gerçek durum sorgulanır. Gönderim onayı fiziksel tamamlanma olarak gösterilmez. Başarısız veya doğrulanamayan sonuçlar kullanıcı onayıyla kapatılır; komutlar otomatik tekrarlanmaz.
+
+Nedeni bildirilen bir MMU hata duraklaması Recover sayfasını doğrudan açar. Fiziksel sorunu düzeltin, otomatik kurtarma veya gerçek durumu bildirme işlemini yapın, gerekiyorsa kilidi açıp ısıtın ve Resume'u ayrıca seçin. Manuel Apply filament yükleyip boşaltmadan durumu bildirir; takım–kanal atamasını da düzeltebilir. Resume için baskının duraklamış, MMU'nun kilitsiz ve filamentin yüklü olması gerekir. Sensörlerde `CLEAR`, `TRIGGERED`, `UNKNOWN/OFF` ve `ABSENT` ayrı gösterilir; Bowden yüzdesi tüm takım değişimini değil ilgili aşamayı anlatır.
+
+Tool map yalnızca baskı/duraklama dışında ve MMU boşta iken düzenlenir. Birden fazla takım aynı kanala eşlenebilir. Save değişen satırları onaylatır, tek `MMU_TTG_MAP MAP=...` komutu gönderir ve gerçek eşlemeyi doğrular; Cancel taslağı siler. Dışarıdan durum değişirse düzenleyiciyi yeniden açmak gerekir.
+
+EndlessSpool aynı boşta ve baskı dışı koşulları kullanır. Enabled değerini bas, çevir, tekrar bas ile düzenleyin. Grubu açıp kanallara basarak üye ekleyin; çıkarılan üye ayrı gruba geçer (son üye korunur). Grup ekranında her kanalın malzeme/rengi ve aynı, karışık veya bilinmeyen veri durumu görünür; fiziksel makara uyumunu doğrulayın. Save tüm aç/kapat ve grup taslağını tek `MMU_ENDLESS_SPOOL ENABLE=... GROUPS=...` komutuyla gönderip iki alanı da doğrular. Üyelerden Back taslağı korur; EndlessSpool ekranındaki Cancel siler.
+
+Filament → Assign spool ID ekranında pozitif sayısal kimliği bas, çevir, bas ile düzenleyip Save ve onayla kaydedin. Clear assignment ayrı onayla atamayı kaldırır; Cancel taslağı siler. Yerel atama yalnız bilinen `off`, `readonly` ve `push` modlarında açılır; `pull` ve bilinmeyen modlarda kilitlidir. Eksiksiz makara kimliği eşlemesi ve bilinen pozitif tam sayı filament sıcaklığı gerekir. Komut mevcut sıcaklığı korur; kimlik başka kanaldan taşınacaksa onayda gösterilir. Gerçek durum doğrulaması, önceki kanalın atamasının kaldırılması dahil tüm kimlik eşlemesini kontrol eder; makara kaydının varlığını veya asenkron Spoolman senkronizasyonunun tamamlandığını doğrulamaz.
+
+Maintenance ve Options, doğrulanan Happy Hare v4 `mmu_machine` ünite bilgisini ve canlı selector durumunu okur. Desteklenmeyen kontroller gizlenir; eksik, meşgul, baskıda veya duraklamış durum işlemleri kilitler. Home yalnız tek ve bilinen lineer selector için açılır; sonrasında seçilecek takım onayda gösterilir. Grip/Release boş filament gerektirir; sürekli tutan ünitelerde Release gizlenir. Gear sync, bilinen aktif ünitede yüklü filament ister; sürekli tutan ünite senkronizasyondan çıkarılamaz. Lineer selector sürüş kontrolleri bilinen home durumu gerektirir. Her komutta Cancel odaklı onay ve canlı sonuç kontrolü vardır. Check all gates global kanal indekslerini kullanır; donanım bilgisi kalibrasyonun tamamlandığını kanıtlamaz. Kurulu komut davranışını gerçek donanımda doğrulayın.
+
+Options ayrıca Cancel odaklı onayla MMU aç/kapat ve tüm MMU motorlarını bırakma sunar. İkisi de baskı/duraklama dışında boş filament gerektirir. Açma Happy Hare durumunu sıfırlar; kapalı MMU bu sayfadan açılabilir. Motor bırakma yalnız bilinen sürücü telemetrisi ve etkin MMU stepper yapılandırmasıyla görünür; `MMU_MOTORS_OFF UNIT=ALL` gönderilip yapılandırılmış tüm MMU sürücülerinin ve gear sync durumunun kapalı olduğu kontrol edilir. Home bilgisi kaybolabilir. Sürücü bayrakları servo enerjisini veya fiziksel hareketi kanıtlamaz.
+
+Options → LEDs yalnız doğrulanmış aktif ünite `mmu_leds <isim>` telemetrisiyle görünür. Aç/kapat, animasyon ve çıkış modları (`off`, `gate_status`, `filament_color`, `slicer_color`) üniteye özel `MMU_LED UNIT=...` komutuyla gönderilip gerçek LED nesnesi sorgulanır. Raporlanan yapılandırma fiziksel LED çıktısını kanıtlamaz. Desteklenmeyen veya bilinmeyen durum kontrolleri kilitler; özel efektler ve entry/status/logo düzenleme web arayüzünde kalır.
+
+Options → Units yalnız doğrulanmış çoklu ünite kanal dağılımında görünür. Ünitelerde ve kanallarda gezinmek komut göndermez; kanal numaraları global kalır. Select this unit ünitenin ilk kanalı için `MMU_SELECT GATE=...` onayı açar; selector home veya hareket yapabilir ve baskı/duraklama dışında boş filament gerektirir. Sonuçta sorgulanan aktif ünite ve kanal birlikte doğrulanır. Tek üniteli kurulumlarda bu tarayıcı gösterilmez.
+
+Bu kontrol uygulaması [MMU tasarımını](https://github.com/sezgynus/KlipperDWIN/tree/docs/mmu-menu-demo/docs/mmu-menu-demo) esas alır. Kalibrasyon ve ileri LED yapılandırması için web arayüzünü kullanın. Gerçek komut davranışı kurulu Happy Hare sürümüne ve yapılandırmasına bağlıdır; eksik telemetri ilgili işlemi kilitli bırakır.
+
 
 ### Case Light
 
@@ -289,7 +328,7 @@ sudo systemctl restart KlipperDWIN.service
 ## Kapsam ve sınırlar
 
 - Arayüz uyumlu 272×480 DWIN T5UIC1 kaynaklarını hedefler; diğer ekran aileleri ayrıca doğrulanmalıdır.
-- MMU kontrol işlemleri uygulanmadı. Dinamik çoklu ünite/LED kaynağı algılama planlanıyor; ana ekran `unit0_mmu_exit_leds` kullanır.
+- MMU kalibrasyonu ve ileri LED efektleri web arayüzünde kalır. Çoklu ünite Home için ünite başına canlı home telemetrisi gerekir; bu işlem sunulmaz. Kanallar Happy Hare global indekslerini kullanır; mevcut ana ekran kanal/LED yerleşimi korunur.
 - Önizleme en fazla dört kullanılan tool gösterir; tool başına uzunluk, marka adı ve fiziksel kanal eşlemesi gösterilmez.
 - SRAM önbelleği geçicidir ve 32 KiB ile sınırlıdır; yeniden bağlantı/başlatma sonrası yeniden kurulur.
 - Screws Tilt dört ayrı köşe gerektirir; sabit 0,05 mm en yüksek/en düşük nokta farkı başarı eşiği kullanır.
@@ -319,7 +358,21 @@ Bağlantı epoch’ları eski girdileri ve kuyruktaki komutları reddeder. Başa
 | `t5uic1_driver.py`, `encoder.py`, `ui_events.py` | Tam T5UIC1 protokol sürücüsü, GPIO girdileri ve olay döngüsü |
 | `preset_store.py`, `motion_settings.py`, `system_info.py` | Preset kaydı, çalışma zamanı sınırları ve sistem telemetrisi |
 
+Hareket ve kalibrasyon komutları gönderilirken canlı baskı, home ve oturum durumu yeniden kontrol edilir; eski jog konumu reddedilir. Hareket hatasından sonra MOVE=0 temizliğinin çalışabilmesi için jog geri yükleme ayrı bağlantı kontrolü kullanır.
+
+SAVE_CONFIG gönderiminde onaylanan pending ayarların tam kümesi ve değerleri yeniden doğrulanır; mesh kaydında ölçülen current/profile verisi de kontrol edilir. Diğer istemcilerden gözlenen değişiklikler kaydı geçersiz kılar. Bu istemci kontrolü tüm Moonraker istemcilerini kapsayan atomik kilit değildir.
+
+Preset, dosya listesi, klasör, sıralama ve Info HTTP okumaları sınırlı bir arka plan kuyruğunda çalışır; beklerken arayüz kullanılabilir. Baskı onayı dosyayı asenkron doğrular; İptal veya bağlantı değişimi bekleyen doğrulamanın baskı başlatmasını engeller. Mainsail preset yazımları da asenkron tamamlanır ve hatalar ekranda gösterilir.
+
+Komut geri bildirimi, taşıma Future sonucu gelmese de süre sınırına tabidir. Süresi dolan işlem geç gelen sonuçla başarılı sayılmaz; tekrar denemeden önce yazıcı durumunu kontrol edin.
+
+MMU kontrolleri, isteğe bağlı ana ekran RGB verisinden bağımsız olarak doğrulanmış canlı kontrol durumunu kullanır. Eksik veya bozuk gate renkleri ana ekran şeridini gizleyebilir; geçerli menü işlemlerini kapatmaz. Baskı, meşguliyet, fiziksel durum ve gönderim kontrolleri uygulanmaya devam eder.
+
+HTTP JSON yanıtları, dosya listesi, metadata ve komut sonuçları dahil varsayılan olarak 8 MiB ile sınırlıdır. Entegrasyonlar `MoonrakerClient(max_json_bytes=...)` ile pozitif tamsayı byte sınırı belirleyebilir. Okuyucu Content-Length bilgisinden bağımsız sınır uygular; büyük yanıtlar hata verir ve komutlar otomatik tekrarlanmaz.
+
 T5UIC1 LCD'nin donanım yapılandırması, firmware/görsel kaynakları, bellek düzeni ve çalışma zamanı protokolü [`docs/t5uic1-reference.md`](docs/t5uic1-reference.md) içinde birlikte belgelenmiştir.
+
+MMU tam ekran sayfaları tam T5UIC1 sürücüsünü kullanır; başlığın sağ üstü yönetilen güç ikonuna ayrılmıştır. MMU Back seçiliyken bir adım daha saat yönünün tersine dönüş güç ikonuna odaklanır; saat yönünde dönüş Back’e döner. Güç popup’ında No seçmek, taslak ve seçim dahil MMU sayfasını tamamen geri çizer. Özel statik ikonlar master atlas tablosunu kullanır; MMU canlı gate/filament grafikleri dinamik kalır. Panel kaybı veya bağlantı dönemi değişimi açık MMU güç popup’ını kapatma komutu göndermeden iptal eder. Ayrıntılar [sürücü entegrasyon kaydında](docs/mmu-driver-integration.md).
 
 ### Regresyon testleri
 

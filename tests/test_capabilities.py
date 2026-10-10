@@ -1,3 +1,4 @@
+from read_fixture import ImmediateReadWorker
 import copy
 from concurrent.futures import Future
 import tempfile
@@ -49,7 +50,7 @@ def snapshot(hotend=True, bed=True, fan=True, probe=False, multiple=False):
 
 
 def printer(data):
-    with patch.object(backend, 'MoonrakerClient'), patch.object(backend, 'MoonrakerSubscription'):
+    with patch.object(backend, 'MoonrakerClient'), patch.object(backend, 'MoonrakerSubscription'), patch.object(backend, 'ReadWorker', ImmediateReadWorker):
         result = backend.PrinterData(settings_path=tempfile.mktemp(prefix='dwin-test-', suffix='.json'))
     result.check_command_results = Mock()
     result.subscription.snapshot.return_value = data
@@ -119,7 +120,7 @@ class CapabilityTests(unittest.TestCase):
 
     def test_printer_data_initializes_mmu_before_first_status_update(self):
         with patch.object(backend, 'MoonrakerClient'), \
-                patch.object(backend, 'MoonrakerSubscription'):
+                patch.object(backend, 'MoonrakerSubscription'), patch.object(backend, 'ReadWorker', ImmediateReadWorker):
             result = backend.PrinterData(
                 settings_path=tempfile.mktemp(prefix='dwin-test-', suffix='.json'))
         self.assertIsNone(result.mmu)
@@ -129,7 +130,7 @@ class CapabilityTests(unittest.TestCase):
         telemetry_client = Mock()
         with patch.object(backend, 'MoonrakerClient',
                           side_effect=[command_client, telemetry_client]), \
-                patch.object(backend, 'MoonrakerSubscription'):
+                patch.object(backend, 'MoonrakerSubscription'), patch.object(backend, 'ReadWorker', ImmediateReadWorker):
             result = backend.PrinterData(
                 settings_path=tempfile.mktemp(prefix='dwin-test-', suffix='.json'))
         result._poll_spoolman_percentages((123,))

@@ -416,3 +416,5 @@ Display menüsü **Parlaklık (%0–100)** ve **Boşta kısma (Off veya 1–60 d
 Boşta kısma parlaklığı en fazla %10'a indirir. İlk enkoder hareketi veya tıklama menü işlemi yapmadan ayarlanan parlaklığı geri getirir. Off kısmayı kapatır. %0 arka ışığı kapatır; düzenlerken saat yönünde çevirerek tekrar artırabilirsiniz. Ayarlar ekranın güç döngüsünde korunur. Yüzde değeri sürücünün 0–255 aralığına doğrusal eşlenir.
 
 Ayarlar LCD Data Flash içinde sürümlü, CRC korumalı 16 baytlık **0x0100–0x010F** kaydında tutulur. Atlas metadata alanı **0x0000–0x003F** olarak korunur; alanlar çakışmaz. Boş/geçersiz kayıtta varsayılan %100 ve Off'tur. Mevcut 9.ICO güneş (205) ve saat (15) ikonları kullanılır; atlas dosyaları değişmez.
+
+Case light parlaklığı enkoderi canlı ve sessiz takip eder. Düzenlerken UI seçtiğiniz yüzdeyi gösterir; gelen M355 yanıtları düzenleme değerini değiştirmez. Tıklayıp çıkınca son parlaklık komutu tamamlandıktan sonra M355 ile gerçek değer okunur. Hızlı çevirmelerde sırada yalnızca en son değer tutulur. Case Light menüsü parlaklık düzenlemesi dışında M355 sorgulayarak dışarıdan yapılan değişiklikleri gösterir.

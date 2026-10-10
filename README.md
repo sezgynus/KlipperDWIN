@@ -414,3 +414,5 @@ The Display menu provides **Brightness (0–100%)** and **Idle dim (Off or 1–6
 Idle dim reduces brightness to at most 10%; the first encoder turn or press restores the configured brightness without activating a menu action. Off disables dimming. A 0% setting turns the backlight off; while editing, turn clockwise to raise it again. Settings survive panel power cycles. Brightness maps linearly to the driver's 0–255 range.
 
 Display settings use a versioned, CRC-protected 16-byte LCD Data Flash record at **0x0100–0x010F**. Atlas metadata retains **0x0000–0x003F**; neither region overlaps. Invalid/blank settings default to 100% and Off. The menu uses existing 9.ICO sun (205) and clock (15) icons; atlas assets are unchanged.
+
+Case-light brightness follows encoder changes live and silently. While editing, the UI keeps your selected percentage; incoming M355 responses cannot replace the draft. Confirming exits the editor and reads the real value with M355 after the last brightness command completes. Rapid input retains only the latest pending value. The Case Light menu polls M355 outside the brightness editor to reflect external changes.

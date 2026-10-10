@@ -389,6 +389,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self._power_focus = False
         self._power_origin = None
         self._info_scroll = 0
+        self._case_light_live_pending = None
+        self._case_light_live_refresh = False
+        self._case_light_live_epoch = None
+        self._case_light_live_future = None
+        self._case_light_query_pending = False
         self._display_selection = 0
         self._display_edit = False
         self._display_save_message = ''
@@ -981,6 +986,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         snapshot = self.pd.subscription.snapshot()
         if ((snapshot['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu) or snapshot['epoch'] != event.epoch
                 or self._closed):
+            return
+        if event.kind == 'case_light_flush':
+            self._poll_case_light_live()
             return
         if event.kind == 'live_jog_flush':
             self._flush_live_jog()
@@ -2911,6 +2919,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     # --------------------------------------------------------------#
 
     def EachMomentUpdate(self):
+        self._poll_case_light_live()
         self._poll_case_light_query()
         # variable update
         update = self.pd.update_variable()

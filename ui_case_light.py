@@ -1,5 +1,11 @@
 """Case-light screen rendering and interaction mixin."""
 
+import logging
+import time
+from concurrent.futures import Future
+from ui_events import InputEvent
+
+
 class CaseLightMixin:
     def Draw_Case_Light_Menu(self):
         self.Clear_Main_Window()
@@ -43,6 +49,56 @@ class CaseLightMixin:
         self._case_light_query_pending = True
         self.pd.query_case_light()
 
+    def _poll_case_light_live(self):
+        future = getattr(self, '_case_light_live_future', None)
+        epoch = getattr(self, '_case_light_live_epoch', None)
+        if epoch is not None and epoch != (self.pd.subscription.snapshot()['epoch'],
+                                           getattr(self, '_uart_epoch', 0)):
+            if isinstance(future, Future):
+                future.cancel()
+            self._case_light_live_future = None
+            self._case_light_live_pending = None
+            self._case_light_live_refresh = False
+            self._case_light_live_epoch = None
+            return
+        if isinstance(future, Future):
+            if not future.done():
+                return
+            if future.cancelled() or future.exception():
+                logging.warning('Case light brightness command failed')
+            self._case_light_live_future = None
+        target = getattr(self, '_case_light_live_pending', None)
+        if target is not None:
+            self._case_light_live_pending = None
+            epoch = (self.pd.subscription.snapshot()['epoch'], getattr(self, '_uart_epoch', 0))
+            self._case_light_live_epoch = epoch
+            try:
+                future = self.pd.sendGCode('M355 P{}'.format(int(round(target * 255.0 / 100.0))),
+                                           report_error=False)
+            except ValueError:
+                logging.warning('Case light brightness unavailable', exc_info=True)
+                future = None
+            if isinstance(future, Future):
+                self._case_light_live_future = future
+                loop = getattr(self, '_loop', None)
+                if loop is not None:
+                    future.add_done_callback(lambda _done: loop.post(
+                        InputEvent('case_light_flush', 0, epoch[0], epoch[1])))
+                if not future.done():
+                    return
+                self._case_light_live_future = None
+        if getattr(self, '_case_light_live_refresh', False):
+            self._case_light_live_refresh = False
+            self._case_light_query_pending = True
+            self.pd.query_case_light(report_error=False)
+            self._case_light_next_query = time.monotonic() + 2
+        elif (self.checkkey == self.CaseLight
+                and not getattr(self, '_case_light_query_pending', False)
+                and time.monotonic() >= getattr(self, '_case_light_next_query', 0)):
+            self._case_light_query_pending = True
+            self.pd.query_case_light(report_error=False)
+            self._case_light_next_query = time.monotonic() + 2
+
     def HMI_Case_Light(self):
         event = self.get_encoder_state()
         if event == self.ENCODER_DIFF_CW:
@@ -73,18 +129,20 @@ class CaseLightMixin:
     def HMI_Case_Light_Brightness(self):
         event = self.get_encoder_state()
         if event == self.ENCODER_DIFF_ENTER:
-            target = self._case_light_brightness_target
-            raw_brightness = int(round(target * 255.0 / 100.0))
             self.checkkey = self.CaseLight
-            self._action(
-                "Case light brightness",
-                lambda: self.pd.sendGCode('M355 P{}'.format(raw_brightness)),
-                on_accept=self._refresh_case_light_state)
+            # Keep the last handwheel value until a fresh M355 response arrives.
+            self._case_light_brightness = self._case_light_brightness_target
+            self._case_light_live_refresh = True
+            self.Draw_Case_Light_Menu()
+            self._poll_case_light_live()
         elif event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
             delta = self._encoder_move_value if event == self.ENCODER_DIFF_CW else -self._encoder_move_value
-            self._case_light_brightness_target = max(0, min(100, self._case_light_brightness_target + delta))
+            previous = self._case_light_brightness_target
+            self._case_light_brightness_target = max(0, min(100, previous + delta))
             self.lcd.draw_integer_text(True, True, 0, self.lcd.font8x16,
                                    self.lcd.Color_White, self.lcd.Select_Color,
                                    3, 208, self.MBASE(2), self._case_light_brightness_target)
+            if previous != self._case_light_brightness_target:
+                self._case_light_live_pending = self._case_light_brightness_target
+                self._poll_case_light_live()
         self.lcd.update()
-

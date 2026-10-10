@@ -85,7 +85,30 @@ class HomePageTests(unittest.TestCase):
             self.assertGreaterEqual(c.args[3],126)
             self.assertLess(c.args[5],view.STATUS_Y)
         view.Draw_Status_Area.assert_not_called();view.Draw_MMU_Status.assert_not_called()
-        self.assertIn('2/2',[c.args[-1] for c in view.lcd.draw_text.call_args_list])
+        view.lcd.fill_circle.assert_called_once_with(view.lcd.Color_White, 143, 354, 2)
+        view.lcd.draw_circle.assert_called_once_with(view.lcd.Color_White, 129, 354, 2)
+        self.assertNotIn('2/2', [c.args[-1] for c in view.lcd.draw_text.call_args_list])
+
+    def test_page_dots_center_and_follow_active_page_with_three_pages(self):
+        view = self.make()
+        entries = view._home_entries() * 2
+        view._home_entries = Mock(return_value=entries)
+        for page in range(3):
+            view.lcd.reset_mock()
+            view.select_page.set(page * 4)
+            view._draw_home_page()
+            view.lcd.fill_circle.assert_called_once_with(view.lcd.Color_White, 122 + 14 * page, 354, 2)
+            self.assertEqual(view.lcd.draw_circle.call_count, 2)
+            for call in view.lcd.fill_circle.call_args_list + view.lcd.draw_circle.call_args_list:
+                _, x, y, radius = call.args
+                self.assertGreater(y - radius, 345)
+                self.assertLess(y + radius, view.STATUS_Y)
+                self.assertTrue(0 <= x - radius < x + radius < 272)
+        view._home_entries = Mock(return_value=entries[:4])
+        view.lcd.reset_mock()
+        view._draw_home_page()
+        view.lcd.draw_circle.assert_not_called()
+        view.lcd.fill_circle.assert_not_called()
 
     def test_capability_removal_clamps_cursor_to_existing_info(self):
         view=self.make();view.select_page.set(5);view.pd.HAS_ONESTEP_LEVELING=False

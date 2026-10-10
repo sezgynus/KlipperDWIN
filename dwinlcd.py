@@ -1107,8 +1107,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._draw_menu_text(label, x+(109-len(label)*8)//2, y+71)
         pages = (len(entries)+3)//4
         if pages > 1:
-            self.lcd.draw_text(False, False, self.lcd.font6x12, self.lcd.Color_White,
-                                 self.lcd.Color_Bg_Black, 127, 347, str(page+1)+'/'+str(pages))
+            spacing = min(14, 256 // pages)
+            first_x = 136 - (pages - 1) * spacing // 2
+            for number in range(pages):
+                draw = self.lcd.fill_circle if number == page else self.lcd.draw_circle
+                draw(self.lcd.Color_White, first_x + number * spacing, 354, 2)
 
     def HMI_MainMenu(self):
         event = self.get_encoder_state()

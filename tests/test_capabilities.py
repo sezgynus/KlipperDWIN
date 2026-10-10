@@ -587,10 +587,45 @@ class CapabilityMenuTests(unittest.TestCase):
             for _ in range(20):
                 result.HMI_Info()
             self.assertEqual(result._info_scroll, maximum)
-            self.assertEqual(draw_qr.call_args.args[1], 116)
+            self.assertEqual(draw_qr.call_args.args[1], 188)
             result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
             result.HMI_Info()
             self.assertEqual(result._info_scroll, maximum - 1)
+
+    def test_info_scroll_moves_whole_viewport_and_draws_only_exposed_row(self):
+        result = display(snapshot())
+        result.pd.refresh_system_info = Mock(return_value=False)
+        result._info_scroll = 1
+        result.Draw_Info_Menu()
+        result.Clear_Main_Window = Mock()
+        result.Draw_Title = Mock()
+        result.lcd.reset_mock()
+        result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CW)
+        result.HMI_Info()
+        result.lcd.move_area.assert_called_once_with(1, result.DWIN_SCROLL_UP, 24,
+                                                   result.lcd.Color_Bg_Black, 0, 90, 271, 355)
+        result.Clear_Main_Window.assert_not_called()
+        result.Draw_Title.assert_not_called()
+        rows = [call.args for call in result.lcd.draw_text.call_args_list
+                if call.args[-3] in (8, 120)]
+        self.assertEqual(len(rows), 2)
+        result.lcd.reset_mock()
+        result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
+        result.HMI_Info()
+        result.lcd.move_area.assert_called_once_with(1, result.DWIN_SCROLL_DOWN, 24,
+                                                   result.lcd.Color_Bg_Black, 0, 90, 271, 355)
+
+    def test_info_changed_content_or_screen_forces_full_redraw(self):
+        result = display(snapshot())
+        result.pd.refresh_system_info = Mock(return_value=False)
+        result.Draw_Info_Menu()
+        result._info_scroll = 1
+        result.pd.system_info['network'] = 'Offline'
+        result.lcd.reset_mock()
+        result.Draw_Info_Menu()
+        result.lcd.move_area.assert_not_called()
+        result.Clear_Main_Window()
+        self.assertIsNone(result._info_render_scroll)
 
     def test_info_update_feedback_is_centered_colored_and_not_repeated_while_busy(self):
         result = display(snapshot())

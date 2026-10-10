@@ -1337,9 +1337,13 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         current = getattr(self, '_info_scroll', 0)
         if event == self.ENCODER_DIFF_CW:
             self._info_scroll = min(max_scroll, current + 1)
+            if self._info_scroll == current:
+                return
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_CCW:
             self._info_scroll = max(0, current - 1)
+            if self._info_scroll == current:
+                return
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_ENTER:
             if items and items[-1][0] == 'update' and current == max_scroll:
@@ -2375,33 +2379,61 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
 
     def Draw_Info_Menu(self):
         self.pd.refresh_system_info()
-        self.Clear_Main_Window()
-        self.Draw_Title('Info')
         items = self._info_items()
-        visible_count = 11
-        # Reserve nine rows for the QR, quiet zone and two-line result message.
-        max_scroll = max(0, len(items) + 9 - visible_count)
+        max_scroll = max(0, len(items) + 9 - 11)
         self._info_scroll = max(0, min(getattr(self, '_info_scroll', 0), max_scroll))
-        self.Draw_Back_First(self._info_scroll < max_scroll)
-        ordered = sorted(enumerate(items), key=lambda entry: entry[1][0] != 'qr')
-        for index, (kind, label, value) in ordered:
+        previous = getattr(self, '_info_render_scroll', None)
+        delta = self._info_scroll - previous if previous is not None else 0
+        incremental = (abs(delta) == 1 and
+                       getattr(self, '_info_render_items', None) == items)
+        band = (332, 356) if delta > 0 else (90, 114)
+        if incremental:
+            self.lcd.move_area(1, self.DWIN_SCROLL_UP if delta > 0 else self.DWIN_SCROLL_DOWN,
+                               24, self.lcd.Color_Bg_Black, 0, 90, 271, 355)
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 0, 90, 255, 91)
+            # Scroll indicators belong to the fixed frame, not the moving list.
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 256, 92, 271, 359)
+            if (previous == max_scroll) != (self._info_scroll == max_scroll):
+                self.Erase_Menu_Cursor(0)
+                if self._info_scroll < max_scroll:
+                    self.Draw_Menu_Cursor(0)
+        else:
+            self.Clear_Main_Window()
+            self.Draw_Title('Info')
+            self.Draw_Back_First(self._info_scroll < max_scroll)
+        qr_repair = False
+        for index, (kind, label, value) in enumerate(items):
+            if kind != 'qr':
+                continue
+            y = 92 + (index - self._info_scroll) * 24
+            qr_top = y + 24
+            qr_repair = (not incremental or
+                         (qr_top < band[1] and qr_top + 168 > band[0]))
+            if qr_repair:
+                draw_project_qr(self.lcd, qr_top, bottom=356)
+            # Native QR repair temporarily uses the centre of the menu; restore
+            # all visible text afterwards. Otherwise only the exposed row is drawn.
+        for index, (kind, label, value) in enumerate(items):
             y = 92 + (index + (9 if kind == 'update' else 0) - self._info_scroll) * 24
+            if not 92 <= y < 356:
+                continue
+            if incremental and not qr_repair and kind != 'update' and not (band[0] <= y < band[1] or (kind == 'section' and y == 92)):
+                continue
             if kind == 'qr':
-                if y < self.STATUS_Y and y + 192 > 92:
-                    draw_project_qr(self.lcd, y + 24, bottom=self.STATUS_Y)
-                    if 92 <= y and y + 16 <= self.STATUS_Y:
-                        self._draw_menu_text(label, 48, y)
-            elif 92 <= y < 92 + visible_count * 24:
-                if kind == 'update':
-                    self._draw_info_update_button(y, self._info_scroll == max_scroll)
-                elif kind == 'section':
-                    self._draw_info_section(label, y)
-                else:
-                    self._draw_info_row(label, value, y)
+                self._draw_menu_text(label, 48, y)
+            elif kind == 'update':
+                self._draw_info_update_button(y, self._info_scroll == max_scroll)
+            elif kind == 'section':
+                self._draw_info_section(label, y)
+            else:
+                self._draw_info_row(label, value, y)
+        self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 256, 76, 271, 89)
         if self._info_scroll:
             self._draw_menu_text('^', 256, 76)
         if self._info_scroll < max_scroll:
             self._draw_menu_text('v', 256, 328)
+        self._info_render_scroll = self._info_scroll
+        self._info_render_items = items
 
     def Draw_Tune_Menu(self):
         self._draw_capability_menu('tune', self.select_tune, self.index_tune)
@@ -2517,12 +2549,14 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     # --------------------------------------------------------------#
 
     def Clear_Title_Bar(self):
+        self._info_render_scroll = None
         self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Blue, 0, 0, self.lcd.DWIN_WIDTH, 30)
 
     def Clear_Menu_Area(self):
         self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 0, 31, self.lcd.DWIN_WIDTH, self.STATUS_Y)
 
     def Clear_Main_Window(self):
+        self._info_render_scroll = None
         self.Clear_Title_Bar()
         self.Clear_Menu_Area()
 

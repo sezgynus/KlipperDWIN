@@ -35,13 +35,18 @@ printer connection or moving hardware. Preset writes use temporary directories.
 | Probe calibration | Session ownership, start/manual-state confirmation, serialized TESTZ, accept/abort, exact pending-offset save guards and reconnect without replay |
 | Screws Tilt | Four-corner geometry, homing/print guards, fresh and identical repeated results, largest-turn instruction, tolerance/colors, rollover, failures and label bounds |
 | Bed Mesh | Completion and fresh query, probe sample deduplication, profile viewing without LOAD, exact pending-profile save guards, explicit stop/restart confirmation and map bounds |
-| System/integrations | Host/software/MCU information, Happy Hare/Spoolman data, light state, configured encoder power-on, guarded power-off and global confirmation navigation |
+| System/integrations | Host/Wi-Fi/RAM/MCU data, Happy Hare/Spoolman, scoped PWM case light, relay power lifecycle and guarded shutdown |
+| Persistent display | Live brightness, idle dim and wake-on-input, CRC-protected Flash settings and legacy migration |
+| Updates | Scoped Moonraker update/check, dirty/invalid repository recovery and confirmation |
+| Silent feedback | Preset saves, jog, preheat, cooldown and motion limits without success waiting overlays, preserving failure reporting |
 | UART/display | Full T5UIC1 opcode framing, handshake/ACK fragmentation, RX parsing, SRAM/Data Flash read-write, Picture Flash, managed atlas ownership, panel-reset heartbeat/reconnect recovery, numeric/text bounds, RGB565, asset coordinates and compatibility rendering |
 
 Failure/epoch tests verify that uncertain actions are not replayed. Acceptance of
 a transport request is tested separately from the expected printer-state change.
 Rendering fixtures validate generated packets and coordinates; they cannot prove
 that an arbitrary physical panel will render those packets correctly.
+
+Software regressions do not establish physical encoder latency, UART rendering rate, relay wiring, screen appearance or Flash endurance. Verify those on the intended hardware.
 
 ## Physical validation
 

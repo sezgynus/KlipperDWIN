@@ -1,6 +1,9 @@
 name: Driver Branch Regression
 
 on:
+  pull_request:
+    branches:
+      - master
   push:
     branches:
       - master

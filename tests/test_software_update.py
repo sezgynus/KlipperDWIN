@@ -133,13 +133,13 @@ class UpdateTests(unittest.TestCase):
 
     @patch('software_update.MoonrakerClient')
     def test_recovery_rechecks_dirty_state_and_rejects_other_updater(self, factory):
-        for mode in ('clean', 'invalid', 'wrong_name', 'printing', 'paused'):
+        for mode in ('clean', 'missing', 'wrong_name', 'printing', 'paused'):
             updater, client, item, state = self.make()
             factory.return_value = client
             item['is_dirty'] = True
             updater.start(); updater.poll(); updater.start()
             if mode == 'clean': item['is_dirty'] = False
-            if mode == 'invalid': item['is_valid'] = False
+            if mode == 'missing': client.get.return_value = {'result': {'version_info': {}}}
             if mode == 'wrong_name': updater.name = 'moonraker'
             if mode in ('printing', 'paused'): state['status']['print_stats']['state'] = mode
             client.request.reset_mock()
@@ -159,3 +159,26 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(updater.message, 'Recovery unconfirmed; check Mainsail')
         client.request.assert_called_once_with('POST', '/machine/update/recover',
                                                {'name': 'KlipperDWIN', 'hard': False})
+
+    @patch('software_update.MoonrakerClient')
+    def test_invalid_clean_repo_offers_and_performs_confirmed_soft_recovery(self, factory):
+        updater, client, item, _ = self.make()
+        factory.return_value = client
+        item['is_valid'] = False
+        self.assertFalse(item['is_dirty'])
+        updater.start(); updater.poll()
+        self.assertEqual(updater.label, 'Soft recovery')
+        updater.start()
+        self.assertEqual(updater.label, 'Confirm recovery')
+        client.request.reset_mock()
+        def request(method, path, params):
+            if path == '/machine/update/recover':
+                self.assertEqual(params, {'name': 'KlipperDWIN', 'hard': False})
+                item['is_valid'] = True
+                return {'result': 'ok'}
+            return {'result': {'version_info': {'KlipperDWIN': item}}}
+        client.request.side_effect = request
+        updater.start(); updater.poll()
+        self.assertEqual(updater.phase, 'available')
+        client.request.assert_any_call('POST', '/machine/update/recover',
+                                       {'name': 'KlipperDWIN', 'hard': False})

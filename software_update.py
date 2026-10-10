@@ -53,7 +53,7 @@ class SoftwareUpdate:
                 if recover:
                     versions = client.get('/machine/update/status')['result']['version_info']
                     item = versions.get(name, {})
-                    if not name or name.casefold() != 'klipperdwin' or not item.get('is_valid', False) or not item.get('is_dirty', False):
+                    if not name or name.casefold() != 'klipperdwin' or not item or (item.get('is_valid', False) and not item.get('is_dirty', False)):
                         raise ValueError('Check updates again')
                     client.request('POST', '/machine/update/recover', {'name': name, 'hard': False})
                     refreshed = client.request('POST', '/machine/update/refresh', {'name': name})
@@ -75,9 +75,7 @@ class SoftwareUpdate:
                     raise ValueError('Updater not configured')
                 refreshed = client.request('POST', '/machine/update/refresh', {'name': name_found})
                 item = refreshed['result']['version_info'][name_found]
-                if not item.get('is_valid', False):
-                    raise ValueError('Updater invalid')
-                if item.get('is_dirty', False):
+                if not item.get('is_valid', False) or item.get('is_dirty', False):
                     return name_found, 'dirty'
                 return name_found, self.available(item)
             finally:
@@ -89,7 +87,7 @@ class SoftwareUpdate:
 
     def cancel_confirmation(self):
         if self.phase == 'confirm_recovery':
-            self.phase, self.message = 'dirty', 'Local changes detected'
+            self.phase, self.message = 'dirty', 'Repo invalid or modified'
         self.confirm_epoch = None
 
     @staticmethod
@@ -105,7 +103,7 @@ class SoftwareUpdate:
         try:
             self.name, available = future.result()
             if available == 'dirty':
-                self.phase, self.message = 'dirty', 'Local changes detected'
+                self.phase, self.message = 'dirty', 'Repo invalid or modified'
             elif available is None:
                 self.phase, self.message = 'restarting', 'Restarting KlipperDWIN'
             elif available:

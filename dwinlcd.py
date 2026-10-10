@@ -2087,7 +2087,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.checkkey = self.Motion
             self.select_motion.reset()
         elif event == self.ENCODER_DIFF_ENTER:
-            self._action("Motion limit", lambda: self.pd.set_motion_limit(self._motion_field, self._motion_target))
+            self._action("Motion limit", lambda: self.pd.set_motion_limit(self._motion_field, self._motion_target), silent=True)
             self.checkkey = self.Motion
         elif event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
             step = setting[3]

@@ -1,73 +1,17 @@
-"""Precomputed project QR (byte mode, ECC M, four-module quiet zone).
-
-Generated with qrcode; no QR package is required on the Raspberry Pi.
-Only visible rectangles are sent to the panel, avoiding out-of-screen QR wrapping.
+"""Project QR uses native rendering and bounded display-area translation.
 """
 
 PROJECT_URL = 'https://github.com/sezgynus/KlipperDWIN'
-PROJECT_QR = (
-    '0000000000000000000000000000000000000',
-    '0000000000000000000000000000000000000',
-    '0000000000000000000000000000000000000',
-    '0000000000000000000000000000000000000',
-    '0000111111101001101110111011111110000',
-    '0000100000101100010000101010000010000',
-    '0000101110100011011000100010111010000',
-    '0000101110101000101101011010111010000',
-    '0000101110100011011010110010111010000',
-    '0000100000100000110010011010000010000',
-    '0000111111101010101010101011111110000',
-    '0000000000001110000101100000000000000',
-    '0000101101110011011001110010010110000',
-    '0000111111000011010011111011100010000',
-    '0000101110100110110010100101001100000',
-    '0000111011001001110000000110100010000',
-    '0000110100110111100101001000011000000',
-    '0000100100001010111111110010001110000',
-    '0000011010111011101010111010001110000',
-    '0000001101000110110100011111100100000',
-    '0000010000101010000010111000110100000',
-    '0000011111011111110100100001011100000',
-    '0000100000100000000101101011101000000',
-    '0000001111010110100001100011101000000',
-    '0000011101101101010001001111111000000',
-    '0000000000001100011011101000111110000',
-    '0000111111101000110010111010110100000',
-    '0000100000101101000010101000110100000',
-    '0000101110100110101000001111101000000',
-    '0000101110101000011110010101110010000',
-    '0000101110101001001011001001001010000',
-    '0000100000100010011110001101010100000',
-    '0000111111101010000100111110000100000',
-    '0000000000000000000000000000000000000',
-    '0000000000000000000000000000000000000',
-    '0000000000000000000000000000000000000',
-    '0000000000000000000000000000000000000',
-)
-
-
 def draw_project_qr(lcd, y, top=92, bottom=360):
-    """Draw the QR with four-pixel modules, clipped to [top, bottom)."""
-    scale = 4
-    size = len(PROJECT_QR) * scale
-    x = (lcd.DWIN_WIDTH - size) // 2
-    first, last = max(top, y), min(bottom, y + size)
-    if first >= last:
+    """Render QR safely, then translate inside the menu with native area move."""
+    # Native QR must be fully on-screen. Its reserved 168px box stays inside
+    # the menu before translating; move mode 1 fills exposed pixels (no wrap).
+    if y >= bottom or y + 168 <= top:
         return
-    lcd.draw_rectangle(1, lcd.Color_White, x, first, x + size - 1, last - 1)
-    for index, row in enumerate(PROJECT_QR):
-        row_top = max(top, y + index * scale)
-        row_bottom = min(bottom, y + (index + 1) * scale)
-        if row_top >= row_bottom:
-            continue
-        column = 0
-        while column < len(row):
-            if row[column] == '0':
-                column += 1
-                continue
-            end = column + 1
-            while end < len(row) and row[end] == '1':
-                end += 1
-            lcd.draw_rectangle(1, 0x0000, x + column * scale, row_top,
-                               x + end * scale - 1, row_bottom - 1)
-            column = end
+    anchor = top
+    lcd.draw_rectangle(1, lcd.Color_White, 52, anchor, 219, anchor + 167)
+    lcd.draw_qr(64, anchor + 12, 3, PROJECT_URL)
+    distance = y - anchor
+    if distance:
+        lcd.move_area(1, 3 if distance > 0 else 2, abs(distance),
+                      lcd.Color_Bg_Black, 52, top, 219, bottom - 1)

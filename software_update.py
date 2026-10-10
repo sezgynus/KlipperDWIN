@@ -1,0 +1,85 @@
+"""User-requested, asynchronous updates scoped to the KlipperDWIN updater."""
+from moonraker_client import MoonrakerClient
+
+
+class SoftwareUpdate:
+    def __init__(self, printer):
+        self.printer = printer
+        self.future = None
+        self.phase = 'idle'
+        self.message = ''
+        self.name = None
+
+    @property
+    def label(self):
+        return {'checking': 'Checking...', 'available': 'Update',
+                'updating': 'Updating...', 'restarting': 'Restarting...'}.get(
+                    self.phase, 'Check for updates')
+
+    def start(self):
+        if self.future is not None or self.phase == 'restarting':
+            return
+        printer = self.printer
+        snapshot = printer.subscription.snapshot()
+        if snapshot.get('state') != 'ready' or snapshot.get('status', {}).get('print_stats', {}).get('state') in ('printing', 'paused'):
+            self.message = 'Printer must be idle'
+            return
+        upgrade = self.phase == 'available'
+        epoch = snapshot.get('epoch')
+        name = self.name
+
+        def work():
+            # Update calls may take much longer than normal UI telemetry reads.
+            client = MoonrakerClient(printer.client.url,
+                                    printer.client.headers.get('X-Api-Key', ''), timeout=120)
+            try:
+                current = printer.subscription.snapshot()
+                if current.get('state') != 'ready' or current.get('epoch') != epoch or current.get('status', {}).get('print_stats', {}).get('state') in ('printing', 'paused'):
+                    raise ValueError('Printer state changed')
+                if upgrade:
+                    # Re-check validity and revision before installing a previously checked update.
+                    versions = client.get('/machine/update/status')['result']['version_info']
+                    item = versions.get(name, {})
+                    if not self.available(item):
+                        raise ValueError('Check updates again')
+                    client.request('POST', '/machine/update/client', {'name': name})
+                    return name, None
+                versions = client.get('/machine/update/status')['result']['version_info']
+                name_found = next((key for key in versions if key.casefold() == 'klipperdwin'), None)
+                if name_found is None:
+                    raise ValueError('Updater not configured')
+                refreshed = client.request('POST', '/machine/update/refresh', {'name': name_found})
+                item = refreshed['result']['version_info'][name_found]
+                if not item.get('is_valid', False) or item.get('is_dirty', False):
+                    raise ValueError('Updater invalid or dirty')
+                return name_found, self.available(item)
+            finally:
+                client.close()
+
+        self.phase = 'updating' if upgrade else 'checking'
+        self.message = 'Please wait...'
+        self.future = printer._read_worker.submit(work)
+
+    @staticmethod
+    def available(item):
+        return (item.get('is_valid', False) and not item.get('is_dirty', False)
+                and bool(item.get('current_hash')) and bool(item.get('remote_hash'))
+                and item['current_hash'] != item['remote_hash'])
+
+    def poll(self):
+        if self.future is None or not self.future.done():
+            return False
+        future, self.future = self.future, None
+        try:
+            self.name, available = future.result()
+            if available is None:
+                self.phase, self.message = 'restarting', 'Restarting KlipperDWIN'
+            elif available:
+                self.phase, self.message = 'available', 'Update available'
+            else:
+                self.phase, self.message = 'current', 'Up to date'
+        except Exception as error:
+            upgrading = self.phase == 'updating'
+            self.phase = 'error'
+            self.message = ('Update unconfirmed; check Mainsail' if upgrading else str(error))
+        return True

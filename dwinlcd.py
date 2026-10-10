@@ -1,3 +1,4 @@
+from software_update import SoftwareUpdate
 from info_qr import PROJECT_URL, draw_project_qr
 from system_info import wifi_signal_text
 import time
@@ -1331,7 +1332,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if event == self.ENCODER_DIFF_NO:
             return
         items = self._info_items()
-        max_scroll = max(0, len(items) + 7 - 11)
+        max_scroll = max(0, len(items) + 8 - 11)
         current = getattr(self, '_info_scroll', 0)
         if event == self.ENCODER_DIFF_CW:
             self._info_scroll = min(max_scroll, current + 1)
@@ -1340,6 +1341,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._info_scroll = max(0, current - 1)
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_ENTER:
+            if items and items[-1][0] == 'update' and current == max_scroll:
+                self._software_updater().start()
+                self.Draw_Info_Menu()
+                self.lcd.update()
+                return
             self._info_scroll = 0
             if getattr(self, '_info_origin', self.MainMenu) == self.Control:
                 self.checkkey = self.Control
@@ -2302,6 +2308,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                              self.lcd.Color_Bg_Black, 40, y, key)
         self.lcd.draw_rectangle(1, color, 40, y + 21, 255, y + 22)
 
+    def _software_updater(self):
+        if not hasattr(self, '_software_update'):
+            self._software_update = SoftwareUpdate(self.pd)
+        return self._software_update
+
     def _info_items(self):
         info = self.pd.system_info
         cpu = info.get('host_cpu')
@@ -2338,6 +2349,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             ('row', 'Moonraker', info.get('moonraker', 'Unavailable')),
             ('row', 'Mainsail', info.get('mainsail', 'Unavailable')),
             ('qr', 'Scan for project info', PROJECT_URL),
+            ('update', '', None),
         ])
         return items
 
@@ -2345,21 +2357,32 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.pd.refresh_system_info()
         self.Clear_Main_Window()
         self.Draw_Title('Info')
-        self.Draw_Back_First()
         items = self._info_items()
         visible_count = 11
-        # The caption is one row; reserve seven more rows for QR and quiet zone.
-        max_scroll = max(0, len(items) + 7 - visible_count)
+        # Reserve eight rows for the QR, quiet zone and result message.
+        max_scroll = max(0, len(items) + 8 - visible_count)
         self._info_scroll = max(0, min(getattr(self, '_info_scroll', 0), max_scroll))
-        for index, (kind, label, value) in enumerate(items):
-            y = 92 + (index - self._info_scroll) * 24
+        self.Draw_Back_First(self._info_scroll < max_scroll)
+        ordered = sorted(enumerate(items), key=lambda entry: entry[1][0] != 'qr')
+        for index, (kind, label, value) in ordered:
+            y = 92 + (index + (8 if kind == 'update' else 0) - self._info_scroll) * 24
             if kind == 'qr':
                 if y < self.STATUS_Y and y + 192 > 92:
+                    draw_project_qr(self.lcd, y + 24, bottom=self.STATUS_Y)
                     if 92 <= y and y + 16 <= self.STATUS_Y:
                         self._draw_menu_text(label, 48, y)
-                    draw_project_qr(self.lcd, y + 24, bottom=self.STATUS_Y)
             elif 92 <= y < 92 + visible_count * 24:
-                if kind == 'section':
+                if kind == 'update':
+                    updater = self._software_updater()
+                    selected = self._info_scroll == max_scroll
+                    color = self.lcd.Select_Color if selected else self.lcd.Color_Bg_Black
+                    self.lcd.draw_rectangle(1, color, 32, y - 2, 239, y + 19)
+                    self._draw_menu_text(updater.label, 56, y)
+                    if updater.message:
+                        self.lcd.draw_text(False, False, self.lcd.font6x12,
+                                           self.lcd.Color_White, self.lcd.Color_Bg_Black,
+                                           24, y - 16, updater.message[:37])
+                elif kind == 'section':
                     self._draw_info_section(label, y)
                 else:
                     self._draw_info_row(label, value, y)
@@ -2755,7 +2778,10 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._offline = True
             return
         self.pd.probe_wizard.update()
-        if self.checkkey == self.Info and self.pd.refresh_system_info():
+        info_update = False
+        if self.checkkey == self.Info:
+            info_update = self._software_updater().poll()
+        if self.checkkey == self.Info and (self.pd.refresh_system_info() or info_update):
             self.Draw_Info_Menu()
             self.lcd.update()
         if self._poll_print_start() or getattr(self, '_start_error_visible', False):

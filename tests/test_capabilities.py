@@ -573,7 +573,7 @@ class CapabilityMenuTests(unittest.TestCase):
         with patch.dict(result.Draw_Info_Menu.__func__.__globals__, {'draw_project_qr': draw_qr}):
             result.pd.refresh_system_info = Mock(return_value=False)
             result.Draw_Status_Area = Mock()
-            final = len(result._info_items()) - 1
+            final = len(result._info_items()) - 2
             result._info_scroll = final - 10
             result.Draw_Info_Menu()
             first_y = draw_qr.call_args.args[1]
@@ -583,14 +583,30 @@ class CapabilityMenuTests(unittest.TestCase):
             self.assertEqual(draw_qr.call_args.args[1], first_y - 24)
             result.Draw_Status_Area.assert_not_called()
             result.lcd.draw_qr.assert_not_called()
-            maximum = len(result._info_items()) + 7 - 11
+            maximum = len(result._info_items()) + 8 - 11
             for _ in range(20):
                 result.HMI_Info()
             self.assertEqual(result._info_scroll, maximum)
-            self.assertEqual(draw_qr.call_args.args[1], 188)
+            self.assertEqual(draw_qr.call_args.args[1], 140)
             result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
             result.HMI_Info()
             self.assertEqual(result._info_scroll, maximum - 1)
+
+    def test_info_update_button_enter_starts_only_at_list_end(self):
+        result = display(snapshot())
+        result._software_update = Mock(label='Check for updates', message='')
+        result.Draw_Info_Menu = Mock()
+        result._info_scroll = len(result._info_items()) + 8 - 11
+        result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_ENTER)
+        result.HMI_Info()
+        result._software_update.start.assert_called_once_with()
+        result.Draw_Info_Menu.assert_called_once_with()
+        result._software_update.start.reset_mock()
+        result._info_scroll = 0
+        result.Goto_MainMenu = Mock()
+        result.HMI_Info()
+        result._software_update.start.assert_not_called()
+        result.Goto_MainMenu.assert_called_once_with()
 
     def test_info_encoder_scrolls_and_enter_returns(self):
         result = display(snapshot())

@@ -39,14 +39,16 @@ The runtime driver stores Atlas 0 in Picture Flash ID 14 and Atlas 1 in Picture
 Flash ID 15. Each JPEG must fit inside the T5UIC1 32 KiB SRAM transfer limit.
 
 
+The splash occupies Picture Flash slot 0, separate from the custom icon atlases in slots 14 and 15. At runtime the driver preserves it during Atlas 0 loading and draws staged startup progress.
+
 ## Boot splash artwork
 
-`klipperdwin_bootsplash.jpg` is the selected cyan/black KlipperDWIN design, rotated 90° counterclockwise for the panel’s physical 480×272 JPEG orientation. It is a baseline RGB JPEG below the 32 KiB UART SRAM limit. The center remains clear for the runtime progress bar. Intended Picture Flash slot: 0. This commit stores artwork only; it does not register it as an atlas or upload/replace the panel’s existing boot image.
+`klipperdwin_bootsplash.jpg` is the selected cyan/black KlipperDWIN design, rotated 90° counterclockwise for the panel’s physical 480×272 JPEG orientation. It is a baseline RGB JPEG below the 32 KiB UART SRAM limit. The center remains clear for the runtime progress bar. Intended Picture Flash slot: 0. The repository supplies this artwork; the installer does not upload or replace the panel's slot-0 Picture Flash JPEG. Provision the splash on the panel separately.
 
 ## Display settings icon
 
 `display-settings.png` is the 52×64 transparent sprite of the physical DWIN enclosure, encoder and settings gear. Atlas 0 contains it at portrait `(0, 48)`; Home centers it at `(x + 29, y + 4)` above the Display caption. Normal and selected states share the sprite and use the existing selection border.
 
-All eight previous atlas rectangles and their decoded RGB pixels are unchanged. The JPEG was patched in free 16-pixel-aligned blocks with matching quantization tables instead of re-encoding the existing artwork. `tools/patch_atlas_icon.py` can add sprites to a separate output file using build-only `jpeglib`, numpy and Pillow; these are not new runtime dependencies. It finds the first free block rectangle, verifies every registered old icon pixel, and checks the 32 KiB transfer limit. Atlas 1 remains reserved.
+Existing atlas rectangles and decoded RGB pixels must remain unchanged when adding new sprites. The JPEG was patched in free 16-pixel-aligned blocks with matching quantization tables instead of re-encoding the existing artwork. `tools/patch_atlas_icon.py` can add sprites to a separate output file using build-only `jpeglib`, numpy and Pillow; these are not new runtime dependencies. It finds the first free block rectangle, verifies every registered old icon pixel, and checks the 32 KiB transfer limit. Atlas 1 remains reserved.
 
 JPEG exports must retain the stock panel format: one JFIF APP0 header, baseline SOF0 and interleaved SOS with component IDs **1/2/3**. The atlas patch tool normalizes these headers after coefficient writing; desktop decoding alone is not sufficient to establish panel compatibility.

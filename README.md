@@ -8,7 +8,7 @@ Browse files, inspect a print before starting it, adjust your printer and calibr
   <a href="README.md">English</a> · <a href="README_TR.md">Türkçe</a>
 </p>
 <p align="center">
-  <a href="https://github.com/sezgynus/KlipperDWIN/tree/v1.0.0"><img alt="v1.0.0" src="https://img.shields.io/badge/version-v1.0.0-0969da"></a>
+  <a href="https://github.com/sezgynus/KlipperDWIN/tree/v1.0.0"><img alt="Tagged release v1.0.0" src="https://img.shields.io/badge/tag-v1.0.0-0969da"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776ab?logo=python&logoColor=white">
   <img alt="Klipper / Moonraker" src="https://img.shields.io/badge/Klipper-Moonraker-7d3cff">
   <a href="LICENSE"><img alt="GPL-3.0" src="https://img.shields.io/badge/License-GPL--3.0-blue"></a>
@@ -24,9 +24,11 @@ KlipperDWIN runs on a Raspberry Pi or compatible Linux SBC. It connects to the *
 
 The application targets the 4.3-inch panel and asset layout used by the Ender 3 V2. Other panel families and asset packages are not interchangeable; see [LCD compatibility](docs/lcd-assets.md).
 
+**Version scope:** `v1.0.0` is a historical tagged release. This guide also documents later changes on `master`.
+
 ## Features
 
-| Workflow | Available in v1.0.0 |
+| Workflow | Current `master` features |
 |---|---|
 | Find and start a print | Nested folders, Mainsail sorting, JPEG preview, print metadata and Print/Cancel confirmation |
 | Fast previews | First-five thumbnail preloading and a volatile LCD SRAM cache |
@@ -34,7 +36,8 @@ The application targets the 4.3-inch panel and asset layout used by the Ender 3 
 | Adjust the printer | Homing, Move/Live Jog, heater/fan targets, runtime Z offset and motion limits |
 | Calibrate the bed | Four-corner Screws Tilt Adjust, Bed Mesh Calibrate, saved Mesh Viewer and Probe calibration |
 | Use integrations | Editable Mainsail temperature presets, Happy Hare gate visualization, Spoolman percentages and PWM case light |
-| Inspect the system | Scrollable host, software and MCU information; encoder power on/off |
+| System and updates | Host/Wi-Fi/RAM/MCU information, QR, updates and recovery |
+| Display and power | Persistent brightness/idle dimming, staged boot and relay power control |
 
 Menus adapt to detected printer capabilities. The **MMU menu provides full-screen Happy Hare control, live status and recovery**; its Home-screen gate visualization keeps the existing layout. Remaining limitations are listed [below](#scope-and-limitations).
 
@@ -103,7 +106,7 @@ Rotate the encoder to navigate, press to select. Display labels remain in Englis
 
 Home has four icons per page. Centered dots below the icons indicate the pages; the active page is filled white and the others have gray outlines. Continuing to rotate moves to the next or previous page; empty slots are skipped. The logo/MMU panel and live dashboard stay fixed. Returning from Home’s MMU, Display or Info preserves the selected icon.
 
-**Display**, immediately before Info on page two, reserves a menu for LCD settings. Its dedicated icon depicts the DWIN enclosure, encoder and settings gear; it is copied from managed Atlas 0 at 52×64 pixels. It currently contains only **Back**, which returns to the selected Home icon.
+**Display**, immediately before Info on page two, offers **Brightness**, **Idle dim** and **Dim brightness**. Its icon uses managed Atlas 0 and the Home selection is preserved on return.
 
 | Entry | Destination |
 |---|---|
@@ -112,11 +115,20 @@ Home has four icons per page. Centered dots below the icons indicate the pages; 
 | Control | Temperature, Motion, Probe calibration, jog recovery, Case Light and Info |
 | Leveling | Bed Mesh: Bed Mesh Calibrate and Mesh Viewer |
 | MMU | Full-screen gates, filament operations, bypass, live status and recovery |
+| Display | Persistent backlight brightness and idle dimming |
 | Info | Scrollable system information |
 
 With bed mesh, the first page is **Print / Prepare / Control / Leveling** and the second **MMU / Display / Info**. Without bed mesh, MMU takes the fourth slot and Display / Info are on the next page. Optional menu entries appear only when supported.
 
 The dashboard shows available heater temperatures/targets, fan, print-speed factor, flow, runtime Z offset and live XYZ coordinates.
+
+### Display settings
+
+The Display menu provides **Brightness (0–100%)** and **Idle dim (Off or 1–60 minutes)**, and **Dim brightness (0–100%)**. Press to edit, turn the encoder, then press again to save. Brightness changes live; encoder movements never write flash. Only a changed, confirmed final value is written and read back for verification. A save failure remains in edit mode so you can retry.
+
+Idle dim uses your configured Dim brightness, capped at the normal brightness; the first encoder turn or press restores the configured brightness without activating a menu action. Off disables dimming. A 0% setting turns the backlight off; while editing, turn clockwise to raise it again. Settings survive panel power cycles. Brightness maps linearly to the driver's 0–255 range.
+
+Display settings use a versioned, CRC-protected 16-byte LCD Data Flash record at **0x0100–0x010F**. Atlas metadata retains **0x0000–0x003F**; neither region overlaps. Invalid/blank settings default to 100%, Off, and 10% dim brightness. Existing records preserve brightness and timeout and use 10% until you change the dim level. The menu uses existing 9.ICO sun (205) and clock (15) icons; atlas assets are unchanged.
 
 ### Files and sorting
 
@@ -199,7 +211,7 @@ Viewer selection **does not load a profile or change the active mesh**. The map 
 
 **Control → Temperature** exposes installed hotend/bed/fan controls. Mainsail preset names and enabled heater targets are discovered through Moonraker’s database and appear dynamically in Prepare and Temperature. LCD preset edits can be saved back to Mainsail. Preset saves run silently in the background; failures remain visible. Applying heats the printer silently, without a waiting overlay; saving preset settings alone does not. Fan settings are not synchronized as temperature presets. If Mainsail presets are unavailable, an external local JSON store provides a fallback; once available, Mainsail becomes authoritative.
 
-**Control → Motion** edits max velocity, max acceleration, square-corner velocity and supported minimum cruise ratio through `SET_VELOCITY_LIMIT`. These are **runtime values** and are not automatically saved to configuration.
+**Control → Motion** edits max velocity, max acceleration, square-corner velocity and supported minimum cruise ratio through `SET_VELOCITY_LIMIT`. These are **runtime values** and are not automatically saved to configuration. Confirmed changes avoid a waiting overlay; errors remain visible.
 
 ### Info
 
@@ -209,11 +221,29 @@ Viewer selection **does not load a profile or change the active mesh**. The map 
   <img src="docs/assets/screens/info-mcu-details.png" width="220" alt="MCU details">
 </p>
 
-**Home → Info** and **Control → Info** open the same encoder-scrollable overview: machine dimensions, network/IPv4, host CPU load, RAM usage and CPU temperature, installed software versions and each connected MCU’s state/load. MCU temperature requires a matching `temperature_mcu` source; unavailable values show `N/A`. KlipperDWIN uses the full Update Manager Git version when available, including commits after a tag. Wi-Fi SSID and RSSI are shown beside Network; RSSI includes Strong (>= -60 dBm), Medium (>= -70 dBm) or Poor. Wi-Fi reads run in the background and require the Linux `iw` command; missing support shows Unavailable, no association shows Disconnected. Sections are ordered Machine → Host → all MCUs → Software. Wi-Fi uses the same font and value alignment as other rows; long SSIDs are limited to 17 display characters. The final “Scan for project info” caption and GitHub QR code scroll naturally with the list, one row per encoder step; the dashboard stays fixed. The project QR uses the native DWIN QR command at a safe position and translates it within the menu with an area-move command. Below it, scroll to select **Check for updates** and press the encoder to refresh only the configured KlipperDWIN updater. If an update is available, the button becomes **Update**; press again to install KlipperDWIN and let Moonraker restart its service. The printer must be idle; a missing updater reports an error, while dirty or invalid repositories offer soft recovery. Checks and updates run in the background; an unconfirmed update requires checking Mainsail before retrying. Update results are centered in the normal font: green for up to date, yellow for available updates, red for errors. Pending operations show their state only in the button. Info scrolling moves the menu by 24 pixels and draws the exposed row; newly revealed QR pixels use native QR repair. Changed content or a screen transition triggers a full redraw.
+**Home → Info** and **Control → Info** open the same encoder-scrollable overview: machine dimensions, network/IPv4, host CPU load, RAM usage and CPU temperature, installed software versions and each connected MCU’s state/load. MCU temperature requires a matching `temperature_mcu` source; unavailable values show `N/A`. KlipperDWIN uses the full Update Manager Git version when available, including commits after a tag. Wi-Fi SSID and RSSI are shown beside Network; RSSI includes Strong (>= -60 dBm), Medium (>= -70 dBm) or Poor. Wi-Fi reads run in the background and require the Linux `iw` command; missing support shows Unavailable, no association shows Disconnected. Sections are ordered Machine → Host → all MCUs → Software. Wi-Fi uses the same font and value alignment as other rows; long SSIDs are limited to 17 display characters. 
+
+**QR and navigation.** The final “Scan for project info” caption and GitHub QR code scroll naturally with the list, one row per encoder step; the dashboard stays fixed. The project QR uses the native DWIN QR command at a safe position and translates it within the menu with an area-move command. 
+
+**Software updates.** Below it, scroll to select **Check for updates** and press the encoder to refresh only the configured KlipperDWIN updater. If an update is available, the button becomes **Update**; press again to install KlipperDWIN and let Moonraker restart its service. The printer must be idle; a missing updater reports an error, while dirty or invalid repositories offer soft recovery. Checks and updates run in the background; an unconfirmed update requires checking Mainsail before retrying. Update results are centered in the normal font: green for up to date, yellow for available updates, red for errors. Pending operations show their state only in the button. Info scrolling moves the menu by 24 pixels and draws the exposed row; newly revealed QR pixels use native QR repair. Changed content or a screen transition triggers a full redraw.
 
 RAM is the used percentage from Linux `MemTotal - MemAvailable`, so reclaimable cache counts as available; no extra package is needed.
 
-If KlipperDWIN is dirty or invalid, the button offers **Soft recovery**. Press once to see the warning that local changes will be discarded, then press **Confirm recovery** to call Moonraker recovery for KlipperDWIN only (`hard: false`). Rotating cancels confirmation. Recovery runs in the background while the printer is idle; status is refreshed afterwards, without automatically installing an update. Unconfirmed results require checking Mainsail before retrying.
+**Confirmed recovery.** If KlipperDWIN is dirty or invalid, the button offers **Soft recovery**. Press once to see the warning that local changes will be discarded, then press **Confirm recovery** to call Moonraker recovery for KlipperDWIN only (`hard: false`). Rotating cancels confirmation. Recovery runs in the background while the printer is idle; status is refreshed afterwards, without automatically installing an update. Unconfirmed results require checking Mainsail before retrying.
+
+### Startup splash
+
+The DWIN panel displays its own Picture Flash slot-0 boot JPEG. While starting, KlipperDWIN draws a horizontal progress bar at y=290–309, below the artwork’s PRINTER DISPLAY label, with the current operation at y=322: preparing display assets (40%), waiting for the printer (70%), reading printer status (80%), preparing menus (90%), and starting the interface (100%). The bar reflects completed stages rather than elapsed time; it stays at its current stage while waiting. No menu, dashboard or “Moonraker unavailable” text is drawn during boot. A complete normal screen replaces the splash only when all prerequisites are ready. Encoder menu input is ignored during this wait; long-press power-on remains available.
+
+At connection time the driver caches the slot-0 splash in area 1, loads the atlas into area 0 with display-and-cache command `0x22`, then copies the splash pixels back from area 1 before sending any display refresh. This leaves the splash visible and atlas icons resident in area 0. If an area-1 atlas is active, it is loaded after the splash copy. Atlas slot IDs, coordinates and driver ownership are unchanged. If startup cannot finish, inspect the service log; the splash remains on screen.
+
+### Encoder power control
+
+The Raspberry Pi may stay powered while the configured relay cuts power to both the printer MCU and DWIN panel. KlipperDWIN observes the relay independently of Klipper readiness. A power cycle clears menu focus and pending confirmations, starts Home on its first page, and opens a new panel connection to reload volatile atlas areas from Picture Flash. Existing printer commands are never replayed. Power notifications retain short off/on events between UI ticks; Klipper recovery also forces a fresh panel session if a cycle occurred while the status connection was unavailable. A failed power-status read is treated as unknown, not as an off command.
+
+A Moonraker power device can be switched on by holding the encoder button, even while Klipper or LCD UART is offline. Configure the device name and hold duration with `./configure.sh`. Defaults are `Printer` and **2 seconds**; `0` ms requests power-on immediately on press.
+
+Every menu exposes the same power icon at the top-right. From the first menu item, rotate the encoder counter-clockwise to focus the icon; rotate clockwise to return to the menu. Pressing the focused icon opens a **Turn off printer?** confirmation with **Yes selected by default**. Confirming Yes switches off the configured Moonraker power device only when its reported state is `on`; No returns to the originating menu.
 
 ## Optional integrations
 
@@ -241,15 +271,23 @@ Spoolman percentages come from each gate’s `gate_spool_id` through Moonraker�
 
 The LCD shows **G1 for Happy Hare `GATE=0`**; tools retain T0-based numbering. A spool mapped to several tools shows `T*`. Load selected uses the current available gate; Load/change chooses an associated logical tool and follows Happy Hare's mapping. Unload parks filament in the MMU; Eject spool explicitly requests removal, including unloading the active gate first when necessary.
 
+#### Operation safety and result verification
+
 Every operation opens a target-specific confirmation with **Cancel initially selected**. State is checked again before dispatch. Missing, disabled, stale or busy MMU state locks operations. Routine movement is disabled during printing and pauses; recovery has its own guards. A running operation remains inside the MMU interface and blocks LCD calibration starts. Commands use completion-tracked WebSocket RPC followed by an actual-state query; a dispatch acknowledgment is never shown as physical completion. Failed or unconfirmed operations require acknowledgment and are never automatically replayed.
 
+#### Filament state and recovery
+
 An MMU error pause with a reported reason opens Recover directly. Fix the physical problem, recover or report the actual state, unlock/reheat if needed, then choose Resume separately. Manual Apply reports state without loading/unloading filament; it may also correct the tool-to-gate assignment. Resume requires a paused print, unlocked MMU and loaded filament. Sensor `CLEAR`, `TRIGGERED`, `UNKNOWN/OFF` and `ABSENT` are distinct; Bowden percentage describes that stage rather than the whole tool change.
+
+#### Tool mapping, EndlessSpool and spool IDs
 
 Tool map edits are available only outside printing/pauses while the MMU is idle. Several tools may share one gate. Save confirms the changed rows, sends one bulk `MMU_TTG_MAP MAP=...` command and verifies the actual mapping; Cancel discards the draft. External state changes lock the draft until reopened.
 
 EndlessSpool uses the same idle, off-print guards. Edit the Enabled value by pressing, rotating and pressing again. Open a group and press gates to add them; removing a member gives it a separate group (the final member stays). Group pages show each gate’s material/color and report matching, mixed or unknown metadata; verify physical spool compatibility. Save sends the complete enable/group draft in one `MMU_ENDLESS_SPOOL ENABLE=... GROUPS=...` command and verifies both fields. Back from members retains the draft; Cancel from EndlessSpool discards it.
 
 Filament → Assign spool ID edits a positive numeric ID using press, rotate, press, then Save and confirmation. Clear assignment has its own confirmation; Cancel discards the draft. Local assignments are allowed in known `off`, `readonly` and `push` modes; `pull` and unknown modes stay locked. A complete spool-ID map and known positive integer filament temperature are required. The command preserves that temperature, and confirmation warns when the ID will move off another gate. Actual-state verification checks the entire assignment map, including duplicate removal; it does not validate that a spool record exists or that asynchronous Spoolman synchronization finished.
+
+#### Maintenance, LEDs and multiple units
 
 Maintenance and Options read validated Happy Hare v4 `mmu_machine` unit metadata and live selector state. Unsupported controls are hidden; missing, busy, printing or paused state locks actions. Home is offered only for one known linear selector and confirms the tool selected afterwards. Grip/Release require unloaded filament; release is hidden for always-gripped units. Gear sync requires loaded filament on a known active unit; always-gripped units cannot unsync. Linear-selector drive controls require a known homed state. Each command has a Cancel-first confirmation and live postcondition checks. Check all gates uses global gate indices; metadata remains a capability declaration, not proof of calibration. Verify installed command behavior on hardware.
 
@@ -259,7 +297,7 @@ Options → LEDs appears only with validated active-unit `mmu_leds <name>` telem
 
 Options → Units appears only for a validated multi-unit gate partition. Browsing units and their gates sends no command and preserves global gate numbers. Select this unit confirms `MMU_SELECT GATE=...` for that unit’s first gate; it may home or move the selector and requires unloaded filament outside printing/pauses. Completion checks both the queried active unit and gate. Single-unit installations omit this browser.
 
-This control implementation follows the [MMU design](https://github.com/sezgynus/KlipperDWIN/tree/docs/mmu-menu-demo/docs/mmu-menu-demo). Use the web UI for calibration and advanced LED configuration. Actual command behavior depends on the installed Happy Hare version and configuration; incomplete telemetry leaves the corresponding action locked.
+See the [driver integration record](docs/mmu-driver-integration.md) for the MMU integration. Use the web UI for calibration and advanced LED configuration. Actual command behavior depends on the installed Happy Hare version and configuration; incomplete telemetry leaves the corresponding action locked.
 
 
 ### Case Light
@@ -278,20 +316,6 @@ cycle_time: 0.01
 ```
 
 The menu subscribes to `output_pin case_light.value` only while open, including the brightness editor. Values come from structured Klipper status notifications; there are no periodic queries or text-response parsing. During editing, your percentage stays on screen; exiting restores the actual pin value. Closing the menu removes only the light subscription and preserves all other printer subscriptions. Off sets PWM to zero; On restores the last positive brightness (100% if none has been observed). Fast input keeps 1% per detent and draws coalesced movement once.
-
-### Startup splash
-
-The DWIN panel displays its own Picture Flash slot-0 boot JPEG. While starting, KlipperDWIN draws a horizontal progress bar at y=290–309, below the artwork’s PRINTER DISPLAY label, with the current operation at y=322: preparing display assets (40%), waiting for the printer (70%), reading printer status (80%), preparing menus (90%), and starting the interface (100%). The bar reflects completed stages rather than elapsed time; it stays at its current stage while waiting. No menu, dashboard or “Moonraker unavailable” text is drawn during boot. A complete normal screen replaces the splash only when all prerequisites are ready. Encoder menu input is ignored during this wait; long-press power-on remains available.
-
-At connection time the driver caches the slot-0 splash in area 1, loads the atlas into area 0 with display-and-cache command `0x22`, then copies the splash pixels back from area 1 before sending any display refresh. This leaves the splash visible and atlas icons resident in area 0. If an area-1 atlas is active, it is loaded after the splash copy. Atlas slot IDs, coordinates and driver ownership are unchanged. If startup cannot finish, inspect the service log; the splash remains on screen.
-
-### Encoder power control
-
-The Raspberry Pi may stay powered while the configured relay cuts power to both the printer MCU and DWIN panel. KlipperDWIN observes the relay independently of Klipper readiness. A power cycle clears menu focus and pending confirmations, starts Home on its first page, and opens a new panel connection to reload volatile atlas areas from Picture Flash. Existing printer commands are never replayed. Power notifications retain short off/on events between UI ticks; Klipper recovery also forces a fresh panel session if a cycle occurred while the status connection was unavailable. A failed power-status read is treated as unknown, not as an off command.
-
-A Moonraker power device can be switched on by holding the encoder button, even while Klipper or LCD UART is offline. Configure the device name and hold duration with `./configure.sh`. Defaults are `Printer` and **2 seconds**; `0` ms requests power-on immediately on press.
-
-Every menu exposes the same power icon at the top-right. From the first menu item, rotate the encoder counter-clockwise to focus the icon; rotate clockwise to return to the menu. Pressing the focused icon opens a **Turn off printer?** confirmation with **Yes selected by default**. Confirming Yes switches off the configured Moonraker power device only when its reported state is `on`; No returns to the originating menu.
 
 ## Configuration
 
@@ -371,7 +395,10 @@ Connection epochs reject stale input and queued commands. Failed printer command
 | `moonraker_client.py`, `moonraker_subscription.py`, `command_feedback.py` | HTTP/WebSocket transport and command confirmation |
 | `screws_tilt.py`, `bed_mesh.py`, `probe_wizard.py` | Calibration state machines and result/config guards |
 | `thumbnail_preview.py`, `thumbnail_cache.py`, `preview_metadata.py` | JPEG preparation, SRAM allocation and optional metadata |
-| `t5uic1_driver.py`, `encoder.py`, `ui_events.py` | Complete T5UIC1 protocol driver, GPIO input and event loop |
+| `t5uic1_driver.py`, `lcd_atlas.py`, `display_settings.py` | LCD/UART driver, managed atlases and persistent screen settings |
+| `encoder.py`, `ui_events.py`, `power_lifecycle.py` | Encoder, UI event loop and relay/panel power lifecycle |
+| `ui_mmu.py`, `mmu_control.py`, `ui_case_light.py` | MMU screens, operation guards and PWM lighting |
+| `software_update.py`, `system_info.py`, `info_qr.py` | Update/recovery, telemetry and project QR |
 | `preset_store.py`, `motion_settings.py`, `system_info.py` | Preset persistence, runtime limits and system telemetry |
 
 Motion and calibration commands recheck live print, homing and session state when dispatched; stale jog positions are rejected. Jog cleanup uses a separate connection guard so MOVE=0 restoration remains available after a movement failure.
@@ -389,6 +416,8 @@ HTTP JSON responses are limited to 8 MiB by default, including file lists, metad
 Complete T5UIC1 LCD configuration, firmware/assets, memory layout and runtime protocol details are documented in [`docs/t5uic1-reference.md`](docs/t5uic1-reference.md).
 
 The MMU full-screen pages use the complete T5UIC1 driver and reserve the top-right header for the managed power icon. From MMU Back, one more counter-clockwise step focuses power; clockwise returns to Back. Choosing No in the power popup restores the full MMU page, including its draft and selection. Static custom icons use the master atlas manifest; MMU live gate/filament graphics remain dynamic. Panel loss or a connection epoch change cancels an open MMU power popup without sending a shutdown command. See the [driver integration record](docs/mmu-driver-integration.md).
+
+Normal X/Y/Z/E move targets, Mainsail preset saves, preheat, cooldown and motion limits avoid waiting overlays on success. Failures remain visible; silent commands do not imply physical completion.
 
 ### Regression tests
 
@@ -410,11 +439,3 @@ This project originated from [odwdinc/DWIN_T5UIC1_LCD](https://github.com/odwdin
 Integrations use [Klipper](https://github.com/Klipper3d/klipper), [Moonraker](https://github.com/Arksine/moonraker), [Mainsail](https://github.com/mainsail-crew/mainsail), [Happy Hare](https://github.com/moggieuk/Happy-Hare) and [Spoolman](https://github.com/Donkie/Spoolman).
 
 Licensed under **GNU GPL v3.0**. See [LICENSE](LICENSE).
-
-### Display settings
-
-The Display menu provides **Brightness (0–100%)** and **Idle dim (Off or 1–60 minutes)**, and **Dim brightness (0–100%)**. Press to edit, turn the encoder, then press again to save. Brightness changes live; encoder movements never write flash. Only a changed, confirmed final value is written and read back for verification. A save failure remains in edit mode so you can retry.
-
-Idle dim uses your configured Dim brightness, capped at the normal brightness; the first encoder turn or press restores the configured brightness without activating a menu action. Off disables dimming. A 0% setting turns the backlight off; while editing, turn clockwise to raise it again. Settings survive panel power cycles. Brightness maps linearly to the driver's 0–255 range.
-
-Display settings use a versioned, CRC-protected 16-byte LCD Data Flash record at **0x0100–0x010F**. Atlas metadata retains **0x0000–0x003F**; neither region overlaps. Invalid/blank settings default to 100%, Off, and 10% dim brightness. Existing records preserve brightness and timeout and use 10% until you change the dim level. The menu uses existing 9.ICO sun (205) and clock (15) icons; atlas assets are unchanged.

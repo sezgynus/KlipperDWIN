@@ -8,7 +8,7 @@ Döner encoder ile dosyaları gezinin, başlatmadan önce baskıyı inceleyin, y
   <a href="README.md">English</a> · <a href="README_TR.md">Türkçe</a>
 </p>
 <p align="center">
-  <a href="https://github.com/sezgynus/KlipperDWIN/tree/v1.0.0"><img alt="v1.0.0" src="https://img.shields.io/badge/version-v1.0.0-0969da"></a>
+  <a href="https://github.com/sezgynus/KlipperDWIN/tree/v1.0.0"><img alt="Tagged release v1.0.0" src="https://img.shields.io/badge/tag-v1.0.0-0969da"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776ab?logo=python&logoColor=white">
   <img alt="Klipper / Moonraker" src="https://img.shields.io/badge/Klipper-Moonraker-7d3cff">
   <a href="LICENSE"><img alt="GPL-3.0" src="https://img.shields.io/badge/License-GPL--3.0-blue"></a>
@@ -24,9 +24,11 @@ KlipperDWIN, Raspberry Pi veya uyumlu bir Linux SBC üzerinde çalışır. **272
 
 Uygulama, Ender 3 V2’de kullanılan 4,3 inç paneli ve görsel kaynak düzenini hedefler. Diğer panel aileleri ve görsel paketleri birbirinin yerine kullanılamaz; [LCD uyumluluk notlarına](docs/lcd-assets.md) bakın.
 
+**Sürüm kapsamı:** `v1.0.0` geçmiş bir etiketli sürümdür. Bu rehber, `master` dalındaki sonraki geliştirmeleri de kapsar.
+
 ## Özellikler
 
-| İş akışı | v1.0.0 ile kullanılabilir |
+| İş akışı | Güncel `master` özellikleri |
 |---|---|
 | Baskı seçme ve başlatma | Alt klasörler, Mainsail sıralaması, JPEG önizleme, baskı metadatası ve Print/Cancel onayı |
 | Hızlı önizleme | İlk beş görselin önceden yüklenmesi ve geçici LCD SRAM önbelleği |
@@ -34,7 +36,8 @@ Uygulama, Ender 3 V2’de kullanılan 4,3 inç paneli ve görsel kaynak düzenin
 | Yazıcı ayarları | Homing, Move/Live Jog, ısıtıcı/fan hedefleri, çalışma zamanı Z offset ve hareket sınırları |
 | Tabla kalibrasyonu | Dört köşe Screws Tilt Adjust, Bed Mesh Calibrate, kayıtlı Mesh Viewer ve Probe calibration |
 | Entegrasyonlar | Düzenlenebilir Mainsail sıcaklık presetleri, Happy Hare kanal görünümü, Spoolman yüzdeleri ve PWM kabin ışığı |
-| Sistem bilgileri | Kaydırılabilir host, yazılım ve MCU bilgileri; encoder ile güç açma/kapatma |
+| Sistem ve güncelleme | Host/Wi-Fi/RAM/MCU bilgileri, QR, güncelleme ve kurtarma |
+| LCD ve güç | Kalıcı parlaklık/boşta kısma, aşamalı açılış ve röle kontrolü |
 
 Menüler algılanan yazıcı yeteneklerine göre şekillenir. **MMU menüsü tam ekran Happy Hare kontrolü, canlı durum ve kurtarma sunar**; ana ekrandaki kanal görünümünün mevcut yerleşimi korunur. Diğer sınırlar [aşağıda](#kapsam-ve-sınırlar) listelenmiştir.
 
@@ -103,7 +106,7 @@ Gezinmek için encoder’ı çevirin, seçmek için basın. Ekran etiketleri İn
 
 Ana ekranda sayfa başına dört ikon bulunur. İkonların altındaki ortalanmış noktalar sayfaları gösterir; aktif sayfa dolu beyaz, diğerleri gri çerçeveli boş dairedir. Çevirmeye devam etmek sonraki veya önceki sayfaya geçirir; boş alanlar seçilmez. Logo/MMU paneli ve canlı durum alanı sabit kalır. Ana ekranın MMU, Display veya Info menüsünden dönüşte seçili ikon korunur.
 
-İkinci sayfada Info’nun hemen önündeki **Display**, LCD ayarları için ayrılmış menüdür. Özel ikonu DWIN kasasını, encoderı ve ayar dişlisini gösterir; yönetilen Atlas 0’dan 52×64 piksel olarak çizilir. Şimdilik yalnızca **Back** içerir; dönüşte ana ekrandaki seçili ikon korunur.
+İkinci sayfada Info'nun önündeki **Display**, **Brightness**, **Idle dim** ve **Dim brightness** ayarlarını sunar. İkon Atlas 0'dan çizilir ve ana ekrana dönüşte seçili ikon korunur.
 
 | Giriş | Açılan bölüm |
 |---|---|
@@ -112,11 +115,20 @@ Ana ekranda sayfa başına dört ikon bulunur. İkonların altındaki ortalanmı
 | Control | Temperature, Motion, Probe calibration, jog kurtarma, Case Light ve Info |
 | Leveling | Bed Mesh: Bed Mesh Calibrate ve Mesh Viewer |
 | MMU | Tam ekran kanallar, filament işlemleri, bypass, canlı durum ve kurtarma |
+| Display | Parlaklık, boşta kısma süresi ve kısılmış parlaklık |
 | Info | Kaydırılabilir sistem bilgileri |
 
 Bed mesh mevcutsa ilk sayfa **Print / Prepare / Control / Leveling**, ikinci sayfa **MMU / Display / Info** olur. Bed mesh yoksa MMU dördüncü alanı alır, Display / Info sonraki sayfada yer alır. İsteğe bağlı menü girişleri yalnızca destekleniyorsa görünür.
 
 Durum alanı mevcut ısıtıcı sıcaklıklarını/hedeflerini, fanı, baskı hızı oranını, akış oranını, çalışma zamanı Z offset’i ve canlı XYZ konumlarını gösterir.
+
+### Display ayarları
+
+Display menüsü **Parlaklık (%0–100)** ve **Boşta kısma (Off veya 1–60 dakika)** ve **Kısılmış parlaklık (%0–100)** seçeneklerini sunar. Düzenlemek için tıklayın, enkoderi çevirin ve kaydetmek için tekrar tıklayın. Parlaklık canlı değişir; enkoder hareketleri flash'a yazmaz. Yalnızca değişen ve onaylanan son değer kaydedilir, ardından okunarak doğrulanır. Kayıt başarısızsa yeniden denemek için düzenleme açık kalır.
+
+Boşta kısma seçtiğiniz kısılmış parlaklığı uygular; normal parlaklığı aşmaz. İlk enkoder hareketi veya tıklama menü işlemi yapmadan ayarlanan parlaklığı geri getirir. Off kısmayı kapatır. %0 arka ışığı kapatır; düzenlerken saat yönünde çevirerek tekrar artırabilirsiniz. Ayarlar ekranın güç döngüsünde korunur. Yüzde değeri sürücünün 0–255 aralığına doğrusal eşlenir.
+
+Ayarlar LCD Data Flash içinde sürümlü, CRC korumalı 16 baytlık **0x0100–0x010F** kaydında tutulur. Atlas metadata alanı **0x0000–0x003F** olarak korunur; alanlar çakışmaz. Boş/geçersiz kayıtta varsayılan %100, Off ve kısılmış parlaklık %10'dur. Eski kayıtlardaki parlaklık ve süre korunur; kısılmış parlaklık siz değiştirene kadar %10 olur. Mevcut 9.ICO güneş (205) ve saat (15) ikonları kullanılır; atlas dosyaları değişmez.
 
 ### Dosyalar ve sıralama
 
@@ -199,7 +211,7 @@ Viewer seçimi **profil yüklemez ve aktif mesh’i değiştirmez**. Haritada d�
 
 **Control → Temperature**, mevcut hotend/tabla/fan kontrollerini sunar. Mainsail preset adları ve etkin ısıtıcı hedefleri Moonraker veritabanından algılanır; Prepare ve Temperature menülerinde dinamik görünür. LCD’deki preset düzenlemeleri Mainsail’e geri kaydedilebilir. Preset kaydı arka planda sessiz yürür; hatalar gösterilmeye devam eder. Uygulamak yazıcıyı bekleme yazısı göstermeden sessizce ısıtır; yalnızca preset ayarlarını kaydetmek ısıtmaz. Fan ayarları sıcaklık presetleriyle senkronize edilmez. Mainsail presetleri yoksa harici yerel JSON deposu kullanılır; kullanılabilir olduğunda Mainsail esas alınır.
 
-**Control → Motion**, `SET_VELOCITY_LIMIT` ile maksimum hız, maksimum ivme, square-corner velocity ve desteklenen minimum cruise ratio değerlerini düzenler. Bunlar **çalışma zamanı değerleridir**; otomatik olarak yapılandırmaya kaydedilmez.
+**Control → Motion**, `SET_VELOCITY_LIMIT` ile maksimum hız, maksimum ivme, square-corner velocity ve desteklenen minimum cruise ratio değerlerini düzenler. Bunlar **çalışma zamanı değerleridir**; otomatik olarak yapılandırmaya kaydedilmez. Onaylanan değerler bekleme penceresi olmadan gönderilir; hatalar yine bildirilir.
 
 ### Info
 
@@ -209,11 +221,29 @@ Viewer seçimi **profil yüklemez ve aktif mesh’i değiştirmez**. Haritada d�
   <img src="docs/assets/screens/info-mcu-details.png" width="220" alt="MCU ayrıntıları">
 </p>
 
-**Home → Info** ve **Control → Info** aynı encoder ile kaydırılabilir özeti açar: makine boyutları, ağ/IPv4, host CPU yükü, RAM kullanımı ve CPU sıcaklığı, kurulu yazılım sürümleri ve her bağlı MCU’nun durumu/yükü. MCU sıcaklığı eşleşen `temperature_mcu` kaynağı gerektirir; alınamayan değerler `N/A` gösterilir. KlipperDWIN, mevcutsa etiket sonrası commit’leri de içeren tam Update Manager Git sürümünü kullanır. Network altında Wi-Fi ağ adı ve RSSI gösterilir; RSSI yanında Strong (güçlü, >= -60 dBm), Medium (orta, >= -70 dBm) veya Poor (kötü) yazılır. Wi-Fi okumaları arka planda çalışır ve Linux `iw` komutunu gerektirir; destek yoksa Unavailable, bağlı ağ yoksa Disconnected gösterilir. Bölüm sırası Machine → Host → tüm MCU’lar → Software şeklindedir. Wi-Fi diğer satırlarla aynı font ve değer hizasını kullanır; uzun ağ adlarının ilk 17 ekran karakteri gösterilir. Sondaki “Scan for project info” yazısı ve GitHub QR kodu listeyle birlikte her encoder adımında bir satır kayar; alt durum alanı sabit kalır. Proje QR kodu DWIN’in yerleşik QR komutuyla güvenli bir konumda çizilir ve alan taşıma komutuyla menü içinde kaydırılır. Altındaki **Check for updates** butonuna kadar kaydırıp encoder’a basmak yalnızca yapılandırılmış KlipperDWIN updater’ını kontrol eder. Güncelleme varsa buton **Update** olur; tekrar basınca KlipperDWIN kurulur ve Moonraker servisi yeniden başlatır. Yazıcı boşta olmalıdır; eksik updater hata gösterir, geçersiz veya değiştirilmiş repo yumuşak kurtarma sunar. Kontrol ve kurulum arka planda çalışır; sonucu doğrulanamayan güncellemede tekrar denemeden önce Mainsail kontrol edilmelidir. Güncelleme sonuçları normal fontla ortalanır: güncelse yeşil, güncelleme varsa sarı, hatalarda kırmızı. Bekleyen işlemin durumu yalnızca butonda gösterilir. Info kaydırması menüyü 24 piksel taşıyıp açılan satırı çizer; yeni görünen QR pikselleri yerleşik QR komutuyla tamamlanır. İçerik değişimi veya ekran geçişi tam yeniden çizim yapar.
+**Home → Info** ve **Control → Info** aynı encoder ile kaydırılabilir özeti açar: makine boyutları, ağ/IPv4, host CPU yükü, RAM kullanımı ve CPU sıcaklığı, kurulu yazılım sürümleri ve her bağlı MCU’nun durumu/yükü. MCU sıcaklığı eşleşen `temperature_mcu` kaynağı gerektirir; alınamayan değerler `N/A` gösterilir. KlipperDWIN, mevcutsa etiket sonrası commit’leri de içeren tam Update Manager Git sürümünü kullanır. Network altında Wi-Fi ağ adı ve RSSI gösterilir; RSSI yanında Strong (güçlü, >= -60 dBm), Medium (orta, >= -70 dBm) veya Poor (kötü) yazılır. Wi-Fi okumaları arka planda çalışır ve Linux `iw` komutunu gerektirir; destek yoksa Unavailable, bağlı ağ yoksa Disconnected gösterilir. Bölüm sırası Machine → Host → tüm MCU’lar → Software şeklindedir. Wi-Fi diğer satırlarla aynı font ve değer hizasını kullanır; uzun ağ adlarının ilk 17 ekran karakteri gösterilir. 
+
+**QR ve gezinme.** Sondaki “Scan for project info” yazısı ve GitHub QR kodu listeyle birlikte her encoder adımında bir satır kayar; alt durum alanı sabit kalır. Proje QR kodu DWIN’in yerleşik QR komutuyla güvenli bir konumda çizilir ve alan taşıma komutuyla menü içinde kaydırılır. 
+
+**Yazılım güncellemesi.** Altındaki **Check for updates** butonuna kadar kaydırıp encoder’a basmak yalnızca yapılandırılmış KlipperDWIN updater’ını kontrol eder. Güncelleme varsa buton **Update** olur; tekrar basınca KlipperDWIN kurulur ve Moonraker servisi yeniden başlatır. Yazıcı boşta olmalıdır; eksik updater hata gösterir, geçersiz veya değiştirilmiş repo yumuşak kurtarma sunar. Kontrol ve kurulum arka planda çalışır; sonucu doğrulanamayan güncellemede tekrar denemeden önce Mainsail kontrol edilmelidir. Güncelleme sonuçları normal fontla ortalanır: güncelse yeşil, güncelleme varsa sarı, hatalarda kırmızı. Bekleyen işlemin durumu yalnızca butonda gösterilir. Info kaydırması menüyü 24 piksel taşıyıp açılan satırı çizer; yeni görünen QR pikselleri yerleşik QR komutuyla tamamlanır. İçerik değişimi veya ekran geçişi tam yeniden çizim yapar.
 
 RAM kullanımı Linux `MemTotal - MemAvailable` üzerinden yüzde olarak gösterilir; geri kazanılabilir önbellek kullanılabilir belleğe dâhildir. Ek paket gerektirmez.
 
-KlipperDWIN dirty veya geçersiz ise buton **Soft recovery** sunar. İlk basış yerel değişikliklerin silineceği uyarısını gösterir; **Confirm recovery** butonuna tekrar basmak yalnızca KlipperDWIN için Moonraker kurtarmasını (`hard: false`) başlatır. Encoderı çevirmek onayı iptal eder. Kurtarma yazıcı boşta iken arka planda çalışır; sonunda durum yeniden kontrol edilir, otomatik güncelleme kurulmaz. Sonuç doğrulanamazsa tekrar denemeden önce Mainsail kontrol edilmelidir.
+**Onaylı kurtarma.** KlipperDWIN dirty veya geçersiz ise buton **Soft recovery** sunar. İlk basış yerel değişikliklerin silineceği uyarısını gösterir; **Confirm recovery** butonuna tekrar basmak yalnızca KlipperDWIN için Moonraker kurtarmasını (`hard: false`) başlatır. Encoderı çevirmek onayı iptal eder. Kurtarma yazıcı boşta iken arka planda çalışır; sonunda durum yeniden kontrol edilir, otomatik güncelleme kurulmaz. Sonuç doğrulanamazsa tekrar denemeden önce Mainsail kontrol edilmelidir.
+
+### Açılış ekranı
+
+DWIN kendi Picture Flash slot 0 açılış JPEG’ini gösterir. KlipperDWIN açılış sırasında görselin PRINTER DISPLAY yazısının altına, y=290–309 arasına yatay ilerleme çubuğu ve y=322’ye o anki işlem açıklamasını çizer: ekran kaynakları hazırlanıyor (%40), yazıcı bekleniyor (%70), yazıcı durumu okunuyor (%80), menüler hazırlanıyor (%90), arayüz açılıyor (%100). Çubuk geçen süreyi değil tamamlanan aşamaları gösterir; beklenen aşama bitene kadar aynı seviyede kalır. Açılışta menü, durum alanı veya “Moonraker unavailable” yazısı çizilmez. Tüm koşullar hazır olunca normal ekran bütünüyle çizilir. Bu bekleme sırasında encoder menü girişleri yok sayılır; uzun basışla güç açma çalışmaya devam eder.
+
+Bağlantıda sürücü slot 0 açılış görselini geçici olarak area 1’e alır, atlası `0x22` göster/yükle komutuyla area 0’a yükler ve ekran güncellemesi göndermeden açılış görselini area 1’den görünür ekrana geri kopyalar. Böylece açılış görseli ekranda, atlas ikonları area 0’da kalır. Aktif area 1 atlası varsa açılış görselinin kopyalanmasından sonra yüklenir. Atlas slotları, koordinatları ve sürücü sahipliği değişmez. Açılış tamamlanamıyorsa servis günlüğünü kontrol edin; açılış görseli ekranda kalır.
+
+### Encoder ile güç kontrolü
+
+Raspberry Pi sürekli enerjili kalırken yapılandırılmış röle hem yazıcı anakartının hem DWIN ekranının beslemesini kesebilir. KlipperDWIN röleyi Klipper hazır olmasa da izler. Güç çevrimi menü seçimini ve bekleyen onayları temizler; ana menünün ilk sayfasından başlayarak yeni ekran bağlantısı kurar ve geçici atlas alanlarını Picture Flash’tan yeniden yükler. Eski yazıcı komutları tekrar gönderilmez. Güç bildirimleri UI kontrolleri arasındaki kısa kapat/aç olaylarını korur; durum bağlantısı kesikken kaçan çevrimler için Klipper yeniden hazır olduğunda da yeni ekran oturumu başlatılır. Güç durumu okunamazsa kapalı varsayılmaz; durum bilinmiyor kabul edilir.
+
+Encoder düğmesini basılı tutarak Moonraker güç aygıtı açılabilir; Klipper veya LCD UART çevrimdışı olsa da çalışır. Aygıt adı ve basılı tutma süresini `./configure.sh` ile ayarlayın. Varsayılanlar `Printer` ve **2 saniye**; `0` ms, basıldığında hemen güç açma ister.
+
+Her menünün sağ üstünde aynı güç ikonu bulunur. İlk menü öğesindeyken encoderi saat yönünün tersine çevirerek ikona odaklanın; saat yönünde çevirerek menüye dönün. Odaklanmış ikonda encoder düğmesine basmak **Turn off printer?** onay penceresini açar ve **Yes varsayılan seçilidir**. Yes onaylandığında yalnızca yapılandırılmış Moonraker güç aygıtının bildirilen durumu `on` ise kapatma komutu gönderilir; No, gelinen menüye döner.
 
 ## İsteğe bağlı entegrasyonlar
 
@@ -241,15 +271,23 @@ Spoolman yüzdeleri tek bir aktif makaradan değil, Moonraker Spoolman proxy’s
 
 Ekrandaki **G1, Happy Hare tarafında `GATE=0`** anlamına gelir; takım numaraları T0'dan başlar. Birden fazla takıma eşlenen makara `T*` gösterir. Load selected mevcut dolu kanalı kullanır; Load/change ilişkili mantıksal takımı seçerek Happy Hare eşlemesini izler. Unload filamenti MMU'da park eder; Eject spool gerçek çıkarmayı açıkça ister ve gerektiğinde aktif kanalı önce boşaltır.
 
+#### İşlem güvenliği ve sonuç doğrulaması
+
 Her işlem hedefini belirten bir onay açar; **ilk odak Cancel üzerindedir**. Gönderim öncesinde durum yeniden kontrol edilir. Eksik, devre dışı, eski veya meşgul MMU verisi işlemleri kilitler. Baskı ve duraklama sırasında normal hareketler kapanır; kurtarmanın ayrı koşulları vardır. Devam eden işlem MMU arayüzü içinde kalır ve LCD'den kalibrasyon başlatılmasını engeller. Komutlar tamamlanması izlenen WebSocket RPC üzerinden gönderilir; ardından gerçek durum sorgulanır. Gönderim onayı fiziksel tamamlanma olarak gösterilmez. Başarısız veya doğrulanamayan sonuçlar kullanıcı onayıyla kapatılır; komutlar otomatik tekrarlanmaz.
 
+#### Filament durumu ve kurtarma
+
 Nedeni bildirilen bir MMU hata duraklaması Recover sayfasını doğrudan açar. Fiziksel sorunu düzeltin, otomatik kurtarma veya gerçek durumu bildirme işlemini yapın, gerekiyorsa kilidi açıp ısıtın ve Resume'u ayrıca seçin. Manuel Apply filament yükleyip boşaltmadan durumu bildirir; takım–kanal atamasını da düzeltebilir. Resume için baskının duraklamış, MMU'nun kilitsiz ve filamentin yüklü olması gerekir. Sensörlerde `CLEAR`, `TRIGGERED`, `UNKNOWN/OFF` ve `ABSENT` ayrı gösterilir; Bowden yüzdesi tüm takım değişimini değil ilgili aşamayı anlatır.
+
+#### Takım eşlemesi, EndlessSpool ve makara ataması
 
 Tool map yalnızca baskı/duraklama dışında ve MMU boşta iken düzenlenir. Birden fazla takım aynı kanala eşlenebilir. Save değişen satırları onaylatır, tek `MMU_TTG_MAP MAP=...` komutu gönderir ve gerçek eşlemeyi doğrular; Cancel taslağı siler. Dışarıdan durum değişirse düzenleyiciyi yeniden açmak gerekir.
 
 EndlessSpool aynı boşta ve baskı dışı koşulları kullanır. Enabled değerini bas, çevir, tekrar bas ile düzenleyin. Grubu açıp kanallara basarak üye ekleyin; çıkarılan üye ayrı gruba geçer (son üye korunur). Grup ekranında her kanalın malzeme/rengi ve aynı, karışık veya bilinmeyen veri durumu görünür; fiziksel makara uyumunu doğrulayın. Save tüm aç/kapat ve grup taslağını tek `MMU_ENDLESS_SPOOL ENABLE=... GROUPS=...` komutuyla gönderip iki alanı da doğrular. Üyelerden Back taslağı korur; EndlessSpool ekranındaki Cancel siler.
 
 Filament → Assign spool ID ekranında pozitif sayısal kimliği bas, çevir, bas ile düzenleyip Save ve onayla kaydedin. Clear assignment ayrı onayla atamayı kaldırır; Cancel taslağı siler. Yerel atama yalnız bilinen `off`, `readonly` ve `push` modlarında açılır; `pull` ve bilinmeyen modlarda kilitlidir. Eksiksiz makara kimliği eşlemesi ve bilinen pozitif tam sayı filament sıcaklığı gerekir. Komut mevcut sıcaklığı korur; kimlik başka kanaldan taşınacaksa onayda gösterilir. Gerçek durum doğrulaması, önceki kanalın atamasının kaldırılması dahil tüm kimlik eşlemesini kontrol eder; makara kaydının varlığını veya asenkron Spoolman senkronizasyonunun tamamlandığını doğrulamaz.
+
+#### Bakım, LED ve çoklu ünite
 
 Maintenance ve Options, doğrulanan Happy Hare v4 `mmu_machine` ünite bilgisini ve canlı selector durumunu okur. Desteklenmeyen kontroller gizlenir; eksik, meşgul, baskıda veya duraklamış durum işlemleri kilitler. Home yalnız tek ve bilinen lineer selector için açılır; sonrasında seçilecek takım onayda gösterilir. Grip/Release boş filament gerektirir; sürekli tutan ünitelerde Release gizlenir. Gear sync, bilinen aktif ünitede yüklü filament ister; sürekli tutan ünite senkronizasyondan çıkarılamaz. Lineer selector sürüş kontrolleri bilinen home durumu gerektirir. Her komutta Cancel odaklı onay ve canlı sonuç kontrolü vardır. Check all gates global kanal indekslerini kullanır; donanım bilgisi kalibrasyonun tamamlandığını kanıtlamaz. Kurulu komut davranışını gerçek donanımda doğrulayın.
 
@@ -259,7 +297,7 @@ Options → LEDs yalnız doğrulanmış aktif ünite `mmu_leds <isim>` telemetri
 
 Options → Units yalnız doğrulanmış çoklu ünite kanal dağılımında görünür. Ünitelerde ve kanallarda gezinmek komut göndermez; kanal numaraları global kalır. Select this unit ünitenin ilk kanalı için `MMU_SELECT GATE=...` onayı açar; selector home veya hareket yapabilir ve baskı/duraklama dışında boş filament gerektirir. Sonuçta sorgulanan aktif ünite ve kanal birlikte doğrulanır. Tek üniteli kurulumlarda bu tarayıcı gösterilmez.
 
-Bu kontrol uygulaması [MMU tasarımını](https://github.com/sezgynus/KlipperDWIN/tree/docs/mmu-menu-demo/docs/mmu-menu-demo) esas alır. Kalibrasyon ve ileri LED yapılandırması için web arayüzünü kullanın. Gerçek komut davranışı kurulu Happy Hare sürümüne ve yapılandırmasına bağlıdır; eksik telemetri ilgili işlemi kilitli bırakır.
+MMU ekranlarının sürücü entegrasyonu [teknik kayıtta](docs/mmu-driver-integration.md) açıklanır. Kalibrasyon ve ileri LED yapılandırması için web arayüzünü kullanın. Gerçek komut davranışı kurulu Happy Hare sürümüne ve yapılandırmasına bağlıdır; eksik telemetri ilgili işlemi kilitli bırakır.
 
 
 ### Case Light
@@ -278,20 +316,6 @@ cycle_time: 0.01
 ```
 
 Menü açıkken, parlaklık düzenlemesi dahil, yalnızca `output_pin case_light.value` durumuna abonelik açılır. Değerler Klipper nesne bildirimlerinden gelir; periyodik sorgu veya metin yanıtı ayrıştırma yapılmaz. Düzenlerken seçtiğiniz yüzde korunur; çıkınca gerçek pin değeri gösterilir. Menüden çıkış sadece ışık aboneliğini kaldırır, diğer yazıcı abonelikleri korunur. Kapatma PWM değerini sıfırlar; açma son pozitif parlaklığı geri getirir (henüz gözlenmediyse %100). Hızlı çevirmede her adım %1 kalır, biriken hareket tek çizimde uygulanır.
-
-### Açılış ekranı
-
-DWIN kendi Picture Flash slot 0 açılış JPEG’ini gösterir. KlipperDWIN açılış sırasında görselin PRINTER DISPLAY yazısının altına, y=290–309 arasına yatay ilerleme çubuğu ve y=322’ye o anki işlem açıklamasını çizer: ekran kaynakları hazırlanıyor (%40), yazıcı bekleniyor (%70), yazıcı durumu okunuyor (%80), menüler hazırlanıyor (%90), arayüz açılıyor (%100). Çubuk geçen süreyi değil tamamlanan aşamaları gösterir; beklenen aşama bitene kadar aynı seviyede kalır. Açılışta menü, durum alanı veya “Moonraker unavailable” yazısı çizilmez. Tüm koşullar hazır olunca normal ekran bütünüyle çizilir. Bu bekleme sırasında encoder menü girişleri yok sayılır; uzun basışla güç açma çalışmaya devam eder.
-
-Bağlantıda sürücü slot 0 açılış görselini geçici olarak area 1’e alır, atlası `0x22` göster/yükle komutuyla area 0’a yükler ve ekran güncellemesi göndermeden açılış görselini area 1’den görünür ekrana geri kopyalar. Böylece açılış görseli ekranda, atlas ikonları area 0’da kalır. Aktif area 1 atlası varsa açılış görselinin kopyalanmasından sonra yüklenir. Atlas slotları, koordinatları ve sürücü sahipliği değişmez. Açılış tamamlanamıyorsa servis günlüğünü kontrol edin; açılış görseli ekranda kalır.
-
-### Encoder ile güç kontrolü
-
-Raspberry Pi sürekli enerjili kalırken yapılandırılmış röle hem yazıcı anakartının hem DWIN ekranının beslemesini kesebilir. KlipperDWIN röleyi Klipper hazır olmasa da izler. Güç çevrimi menü seçimini ve bekleyen onayları temizler; ana menünün ilk sayfasından başlayarak yeni ekran bağlantısı kurar ve geçici atlas alanlarını Picture Flash’tan yeniden yükler. Eski yazıcı komutları tekrar gönderilmez. Güç bildirimleri UI kontrolleri arasındaki kısa kapat/aç olaylarını korur; durum bağlantısı kesikken kaçan çevrimler için Klipper yeniden hazır olduğunda da yeni ekran oturumu başlatılır. Güç durumu okunamazsa kapalı varsayılmaz; durum bilinmiyor kabul edilir.
-
-Encoder düğmesini basılı tutarak Moonraker güç aygıtı açılabilir; Klipper veya LCD UART çevrimdışı olsa da çalışır. Aygıt adı ve basılı tutma süresini `./configure.sh` ile ayarlayın. Varsayılanlar `Printer` ve **2 saniye**; `0` ms, basıldığında hemen güç açma ister.
-
-Her menünün sağ üstünde aynı güç ikonu bulunur. İlk menü öğesindeyken encoderi saat yönünün tersine çevirerek ikona odaklanın; saat yönünde çevirerek menüye dönün. Odaklanmış ikonda encoder düğmesine basmak **Turn off printer?** onay penceresini açar ve **Yes varsayılan seçilidir**. Yes onaylandığında yalnızca yapılandırılmış Moonraker güç aygıtının bildirilen durumu `on` ise kapatma komutu gönderilir; No, gelinen menüye döner.
 
 ## Yapılandırma
 
@@ -373,7 +397,10 @@ Bağlantı epoch’ları eski girdileri ve kuyruktaki komutları reddeder. Başa
 | `moonraker_client.py`, `moonraker_subscription.py`, `command_feedback.py` | HTTP/WebSocket iletişimi ve komut onayı |
 | `screws_tilt.py`, `bed_mesh.py`, `probe_wizard.py` | Kalibrasyon durum makineleri ve sonuç/yapılandırma korumaları |
 | `thumbnail_preview.py`, `thumbnail_cache.py`, `preview_metadata.py` | JPEG hazırlığı, SRAM alan yönetimi ve isteğe bağlı metadata |
-| `t5uic1_driver.py`, `encoder.py`, `ui_events.py` | Tam T5UIC1 protokol sürücüsü, GPIO girdileri ve olay döngüsü |
+| `t5uic1_driver.py`, `lcd_atlas.py`, `display_settings.py` | LCD/UART protokolü, yönetilen atlaslar ve kalıcı ekran ayarları |
+| `encoder.py`, `ui_events.py`, `power_lifecycle.py` | Encoder, olay döngüsü ve röle/panel güç çevrimi |
+| `ui_mmu.py`, `mmu_control.py`, `ui_case_light.py` | MMU arayüzü, işlem korumaları ve PWM aydınlatma |
+| `software_update.py`, `system_info.py`, `info_qr.py` | Güncelleme/kurtarma, telemetri ve proje QR kodu |
 | `preset_store.py`, `motion_settings.py`, `system_info.py` | Preset kaydı, çalışma zamanı sınırları ve sistem telemetrisi |
 
 Hareket ve kalibrasyon komutları gönderilirken canlı baskı, home ve oturum durumu yeniden kontrol edilir; eski jog konumu reddedilir. Hareket hatasından sonra MOVE=0 temizliğinin çalışabilmesi için jog geri yükleme ayrı bağlantı kontrolü kullanır.
@@ -391,6 +418,8 @@ HTTP JSON yanıtları, dosya listesi, metadata ve komut sonuçları dahil varsay
 T5UIC1 LCD'nin donanım yapılandırması, firmware/görsel kaynakları, bellek düzeni ve çalışma zamanı protokolü [`docs/t5uic1-reference.md`](docs/t5uic1-reference.md) içinde birlikte belgelenmiştir.
 
 MMU tam ekran sayfaları tam T5UIC1 sürücüsünü kullanır; başlığın sağ üstü yönetilen güç ikonuna ayrılmıştır. MMU Back seçiliyken bir adım daha saat yönünün tersine dönüş güç ikonuna odaklanır; saat yönünde dönüş Back’e döner. Güç popup’ında No seçmek, taslak ve seçim dahil MMU sayfasını tamamen geri çizer. Özel statik ikonlar master atlas tablosunu kullanır; MMU canlı gate/filament grafikleri dinamik kalır. Panel kaybı veya bağlantı dönemi değişimi açık MMU güç popup’ını kapatma komutu göndermeden iptal eder. Ayrıntılar [sürücü entegrasyon kaydında](docs/mmu-driver-integration.md).
+
+Normal X/Y/Z/E hareket hedefleri, Mainsail preset kaydı, ön ısıtma, soğutma ve Motion limitlerini uygulama başarıda bekleme penceresi göstermez. Hatalar bildirilmeye devam eder; sessiz komut fiziksel tamamlanma anlamına gelmez.
 
 ### Regresyon testleri
 
@@ -412,11 +441,3 @@ Proje [odwdinc/DWIN_T5UIC1_LCD](https://github.com/odwdinc/DWIN_T5UIC1_LCD) ve [
 Entegrasyonlar [Klipper](https://github.com/Klipper3d/klipper), [Moonraker](https://github.com/Arksine/moonraker), [Mainsail](https://github.com/mainsail-crew/mainsail), [Happy Hare](https://github.com/moggieuk/Happy-Hare) ve [Spoolman](https://github.com/Donkie/Spoolman) kullanır.
 
 **GNU GPL v3.0** lisanslıdır. [LICENSE](LICENSE) dosyasına bakın.
-
-### Display ayarları
-
-Display menüsü **Parlaklık (%0–100)** ve **Boşta kısma (Off veya 1–60 dakika)** ve **Kısılmış parlaklık (%0–100)** seçeneklerini sunar. Düzenlemek için tıklayın, enkoderi çevirin ve kaydetmek için tekrar tıklayın. Parlaklık canlı değişir; enkoder hareketleri flash'a yazmaz. Yalnızca değişen ve onaylanan son değer kaydedilir, ardından okunarak doğrulanır. Kayıt başarısızsa yeniden denemek için düzenleme açık kalır.
-
-Boşta kısma seçtiğiniz kısılmış parlaklığı uygular; normal parlaklığı aşmaz. İlk enkoder hareketi veya tıklama menü işlemi yapmadan ayarlanan parlaklığı geri getirir. Off kısmayı kapatır. %0 arka ışığı kapatır; düzenlerken saat yönünde çevirerek tekrar artırabilirsiniz. Ayarlar ekranın güç döngüsünde korunur. Yüzde değeri sürücünün 0–255 aralığına doğrusal eşlenir.
-
-Ayarlar LCD Data Flash içinde sürümlü, CRC korumalı 16 baytlık **0x0100–0x010F** kaydında tutulur. Atlas metadata alanı **0x0000–0x003F** olarak korunur; alanlar çakışmaz. Boş/geçersiz kayıtta varsayılan %100, Off ve kısılmış parlaklık %10'dur. Eski kayıtlardaki parlaklık ve süre korunur; kısılmış parlaklık siz değiştirene kadar %10 olur. Mevcut 9.ICO güneş (205) ve saat (15) ikonları kullanılır; atlas dosyaları değişmez.

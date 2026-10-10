@@ -1,3 +1,4 @@
+import textwrap
 from software_update import SoftwareUpdate
 from info_qr import PROJECT_URL, draw_project_qr
 from system_info import wifi_signal_text
@@ -1332,7 +1333,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if event == self.ENCODER_DIFF_NO:
             return
         items = self._info_items()
-        max_scroll = max(0, len(items) + 8 - 11)
+        max_scroll = max(0, len(items) + 9 - 11)
         current = getattr(self, '_info_scroll', 0)
         if event == self.ENCODER_DIFF_CW:
             self._info_scroll = min(max_scroll, current + 1)
@@ -2308,6 +2309,25 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                              self.lcd.Color_Bg_Black, 40, y, key)
         self.lcd.draw_rectangle(1, color, 40, y + 21, 255, y + 22)
 
+    def _draw_info_update_button(self, y, selected):
+        updater = self._software_updater()
+        background = self.lcd.Select_Color if selected else self.lcd.Color_Bg_Black
+        self.lcd.draw_rectangle(1, background, 32, y - 2, 239, y + 19)
+        label = T5UIC1Display._panel_text(updater.label)[:25]
+        self.lcd.draw_text(False, False, self.lcd.font8x16, self.lcd.Color_White,
+                           background, (272 - len(label) * 8) // 2, y, label)
+        if not updater.message or updater.phase in ('checking', 'updating', 'restarting'):
+            return
+        color = {'current': 0x07E0, 'available': 0xFFE0}.get(updater.phase, 0xF800)
+        lines = textwrap.wrap(T5UIC1Display._panel_text(updater.message), width=28)[:2]
+        first_y = y - (40 if len(lines) > 1 else 32)
+        for index, text in enumerate(lines):
+            line_y = first_y + index * 16
+            if line_y >= 92:
+                self.lcd.draw_text(False, False, self.lcd.font8x16, color,
+                                   self.lcd.Color_Bg_Black,
+                                   (272 - len(text) * 8) // 2, line_y, text)
+
     def _software_updater(self):
         if not hasattr(self, '_software_update'):
             self._software_update = SoftwareUpdate(self.pd)
@@ -2359,13 +2379,13 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.Draw_Title('Info')
         items = self._info_items()
         visible_count = 11
-        # Reserve eight rows for the QR, quiet zone and result message.
-        max_scroll = max(0, len(items) + 8 - visible_count)
+        # Reserve nine rows for the QR, quiet zone and two-line result message.
+        max_scroll = max(0, len(items) + 9 - visible_count)
         self._info_scroll = max(0, min(getattr(self, '_info_scroll', 0), max_scroll))
         self.Draw_Back_First(self._info_scroll < max_scroll)
         ordered = sorted(enumerate(items), key=lambda entry: entry[1][0] != 'qr')
         for index, (kind, label, value) in ordered:
-            y = 92 + (index + (8 if kind == 'update' else 0) - self._info_scroll) * 24
+            y = 92 + (index + (9 if kind == 'update' else 0) - self._info_scroll) * 24
             if kind == 'qr':
                 if y < self.STATUS_Y and y + 192 > 92:
                     draw_project_qr(self.lcd, y + 24, bottom=self.STATUS_Y)
@@ -2373,15 +2393,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                         self._draw_menu_text(label, 48, y)
             elif 92 <= y < 92 + visible_count * 24:
                 if kind == 'update':
-                    updater = self._software_updater()
-                    selected = self._info_scroll == max_scroll
-                    color = self.lcd.Select_Color if selected else self.lcd.Color_Bg_Black
-                    self.lcd.draw_rectangle(1, color, 32, y - 2, 239, y + 19)
-                    self._draw_menu_text(updater.label, 56, y)
-                    if updater.message:
-                        self.lcd.draw_text(False, False, self.lcd.font6x12,
-                                           self.lcd.Color_White, self.lcd.Color_Bg_Black,
-                                           24, y - 16, updater.message[:37])
+                    self._draw_info_update_button(y, self._info_scroll == max_scroll)
                 elif kind == 'section':
                     self._draw_info_section(label, y)
                 else:

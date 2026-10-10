@@ -583,20 +583,46 @@ class CapabilityMenuTests(unittest.TestCase):
             self.assertEqual(draw_qr.call_args.args[1], first_y - 24)
             result.Draw_Status_Area.assert_not_called()
             result.lcd.draw_qr.assert_not_called()
-            maximum = len(result._info_items()) + 8 - 11
+            maximum = len(result._info_items()) + 9 - 11
             for _ in range(20):
                 result.HMI_Info()
             self.assertEqual(result._info_scroll, maximum)
-            self.assertEqual(draw_qr.call_args.args[1], 140)
+            self.assertEqual(draw_qr.call_args.args[1], 116)
             result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
             result.HMI_Info()
             self.assertEqual(result._info_scroll, maximum - 1)
+
+    def test_info_update_feedback_is_centered_colored_and_not_repeated_while_busy(self):
+        result = display(snapshot())
+        for phase, message, color in [('current', 'Up to date', 0x07E0),
+                                      ('available', 'Update available', 0xFFE0),
+                                      ('error', 'Updater not configured', 0xF800)]:
+            result._software_update = Mock(label='Check for updates', phase=phase, message=message)
+            result.lcd.draw_text.reset_mock()
+            result._draw_info_update_button(332, True)
+            args = result.lcd.draw_text.call_args.args
+            self.assertEqual(args[2], result.lcd.font8x16)
+            self.assertEqual(args[3], color)
+            self.assertEqual(args[-3:], ((272 - len(message) * 8) // 2, 300, message))
+        for phase in ('checking', 'updating', 'restarting'):
+            result._software_update = Mock(label='Checking...', phase=phase, message='Please wait...')
+            result.lcd.draw_text.reset_mock()
+            result._draw_info_update_button(332, True)
+            self.assertEqual(result.lcd.draw_text.call_count, 1)
+            self.assertEqual(result.lcd.draw_text.call_args.args[-1], 'Checking...')
+        result._software_update = Mock(label='Check for updates', phase='error',
+                                      message='Update unconfirmed; check Mainsail')
+        result.lcd.draw_text.reset_mock()
+        result._draw_info_update_button(332, True)
+        messages = [call.args for call in result.lcd.draw_text.call_args_list[1:]]
+        self.assertEqual(len(messages), 2)
+        self.assertTrue(all(args[-2] + 16 < 330 for args in messages))
 
     def test_info_update_button_enter_starts_only_at_list_end(self):
         result = display(snapshot())
         result._software_update = Mock(label='Check for updates', message='')
         result.Draw_Info_Menu = Mock()
-        result._info_scroll = len(result._info_items()) + 8 - 11
+        result._info_scroll = len(result._info_items()) + 9 - 11
         result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_ENTER)
         result.HMI_Info()
         result._software_update.start.assert_called_once_with()

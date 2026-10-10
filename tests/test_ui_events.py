@@ -362,6 +362,7 @@ class DisplayIntegrationTests(unittest.TestCase):
                 patch.object(ui, 'Encoder', return_value=encoder), \
                 patch.object(ui, 'Button', return_value=button), \
                 patch.object(ui, 'T5UIC1Display', FakeLCD), \
+                patch.object(ui, 'PowerMonitor'), \
                 patch.object(ui.DWIN_LCD, 'HMI_ShowBoot'), \
                 patch.object(ui.DWIN_LCD, 'Draw_Prepare_Menu', prepare):
             subscription.return_value.snapshot.return_value = snapshot

@@ -271,6 +271,8 @@ Light is ON, Brightness=128
 
 ### Encoder power control
 
+The Raspberry Pi may stay powered while the configured relay cuts power to both the printer MCU and DWIN panel. KlipperDWIN observes the relay independently of Klipper readiness. A power cycle clears menu focus and pending confirmations, starts Home on its first page, and opens a new panel connection to reload volatile atlas areas from Picture Flash. Existing printer commands are never replayed. Power notifications retain short off/on events between UI ticks; Klipper recovery also forces a fresh panel session if a cycle occurred while the status connection was unavailable. A failed power-status read is treated as unknown, not as an off command.
+
 A Moonraker power device can be switched on by holding the encoder button, even while Klipper or LCD UART is offline. Configure the device name and hold duration with `./configure.sh`. Defaults are `Printer` and **2 seconds**; `0` ms requests power-on immediately on press.
 
 Every menu exposes the same power icon at the top-right. From the first menu item, rotate the encoder counter-clockwise to focus the icon; rotate clockwise to return to the menu. Pressing the focused icon opens a **Turn off printer?** confirmation with **Yes selected by default**. Confirming Yes switches off the configured Moonraker power device only when its reported state is `on`; No returns to the originating menu.

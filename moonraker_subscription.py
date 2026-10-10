@@ -64,6 +64,8 @@ class MoonrakerSubscription:
         self._epoch = 0
         self._revision = 0
         self._file_revision = 0
+        self._power_devices = {}
+        self._power_off_serial = {}
         self._subscribing = False
         self._buffered = []
         self._outbound = Queue(maxsize=32)
@@ -84,7 +86,9 @@ class MoonrakerSubscription:
                     'status': copy.deepcopy(self._status),
                     'objects': list(self._objects), 'revision': self._revision, 'epoch': self._epoch,
                     'software_version': self._software_version, 'settings': copy.deepcopy(self._settings),
-                    'file_revision': self._file_revision}
+                    'file_revision': self._file_revision,
+                    'power_devices': dict(self._power_devices),
+                    'power_off_serial': dict(self._power_off_serial)}
 
     def _invalidate(self, error):
         with self._lock:
@@ -125,7 +129,16 @@ class MoonrakerSubscription:
             return
         method = message.get('method')
         params = message.get('params', [])
-        if method == 'notify_status_update':
+        if method == 'notify_power_changed':
+            if isinstance(params, list) and len(params) == 1 and isinstance(params[0], dict):
+                device = str(params[0].get('device', '')).casefold()
+                status = params[0].get('status')
+                if device and status in ('on', 'off'):
+                    with self._lock:
+                        self._power_devices[device] = status
+                        if status == 'off':
+                            self._power_off_serial[device] = self._power_off_serial.get(device, 0) + 1
+        elif method == 'notify_status_update':
             if not isinstance(params, list) or len(params) != 2:
                 raise MoonrakerError('Invalid status notification')
             if self._subscribing:

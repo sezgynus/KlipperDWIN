@@ -184,3 +184,10 @@ Physical follow-up on the integrated branch:
 These are physical acceptance checks; mocked UART packets do not establish
 panel rendering or real printer motion. Integration details and the master
 comparison are recorded in [the driver integration record](../docs/mmu-driver-integration.md).
+
+
+### Printer relay lifecycle
+
+`test_power_lifecycle.py` covers external relay off/on, Home page reset, short power notifications, Klipper epoch recovery, unknown power reads, discarded confirmation/input state and bounded nonblocking polling. UART reconnect and atlas-driver tests verify constructor-time restoration from Picture Flash without render-time Flash programming.
+
+On hardware, keep the Pi running and stop printing first. Select Info on Home page two, turn the configured power device off in Mainsail, wait five seconds, then turn it on. Check Home page one with Print selected and all custom icons visible. Repeat from MMU and from an open power confirmation, then repeat with a brief off/on interval. No old confirmation or filament operation should resume. Repeat while restarting Moonraker, and confirm a subsequent successful power read/ready session restores the panel. Finally check encoder long-press power-on and the screen power-off popup. A UART-only cable interruption continues to restore the current view; a relay/MCU session cycle starts fresh.

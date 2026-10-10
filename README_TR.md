@@ -271,6 +271,8 @@ Light is ON, Brightness=128
 
 ### Encoder ile güç kontrolü
 
+Raspberry Pi sürekli enerjili kalırken yapılandırılmış röle hem yazıcı anakartının hem DWIN ekranının beslemesini kesebilir. KlipperDWIN röleyi Klipper hazır olmasa da izler. Güç çevrimi menü seçimini ve bekleyen onayları temizler; ana menünün ilk sayfasından başlayarak yeni ekran bağlantısı kurar ve geçici atlas alanlarını Picture Flash’tan yeniden yükler. Eski yazıcı komutları tekrar gönderilmez. Güç bildirimleri UI kontrolleri arasındaki kısa kapat/aç olaylarını korur; durum bağlantısı kesikken kaçan çevrimler için Klipper yeniden hazır olduğunda da yeni ekran oturumu başlatılır. Güç durumu okunamazsa kapalı varsayılmaz; durum bilinmiyor kabul edilir.
+
 Encoder düğmesini basılı tutarak Moonraker güç aygıtı açılabilir; Klipper veya LCD UART çevrimdışı olsa da çalışır. Aygıt adı ve basılı tutma süresini `./configure.sh` ile ayarlayın. Varsayılanlar `Printer` ve **2 saniye**; `0` ms, basıldığında hemen güç açma ister.
 
 Her menünün sağ üstünde aynı güç ikonu bulunur. İlk menü öğesindeyken encoderi saat yönünün tersine çevirerek ikona odaklanın; saat yönünde çevirerek menüye dönün. Odaklanmış ikonda encoder düğmesine basmak **Turn off printer?** onay penceresini açar ve **Yes varsayılan seçilidir**. Yes onaylandığında yalnızca yapılandırılmış Moonraker güç aygıtının bildirilen durumu `on` ise kapatma komutu gönderilir; No, gelinen menüye döner.

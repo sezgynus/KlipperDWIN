@@ -9,6 +9,7 @@ from ui_mmu import MMUViewMixin
 from ui_screws_tilt import ScrewsTiltMixin
 from ui_bed_mesh import BedMeshMixin
 from ui_file_preview import FilePreviewMixin
+from power_lifecycle import PowerMonitor
 
 from encoder import Encoder
 from gpiozero import Button, Device
@@ -334,6 +335,10 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.pd = PrinterData(api_key, url, timeout, settings_path=settings_path,
                               power_device=power_device)
         self.pd.init_Webservices()
+        self._power_monitor = PowerMonitor(self.pd.client, self.pd.power_device)
+        self._relay_status = None
+        self._relay_off_serial = 0
+        self._panel_backend_epoch = self.pd.subscription.snapshot()['epoch']
         self._configure_menus()
         self._offline = bool(self.pd.connection_error)
         self._ensure_uart()
@@ -362,7 +367,66 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.lcd = None
         logging.warning('LCD UART unavailable; retrying in 5 seconds')
 
+    def _reset_power_ui(self):
+        """A relay cycle starts a new UI session; never replay old input/actions."""
+        self.checkkey = self.MainMenu
+        for name in self.SELECTIONS:
+            selection = getattr(self, name, None)
+            if selection is not None:
+                selection.reset()
+        self._power_focus = False
+        self._power_origin = None
+        self._info_scroll = 0
+        self._mmu_canvas_page = None
+        self._mmu_edit = None
+        self._mmu_confirmation = None
+        self._mmu_map_draft = None
+        self._mmu_endless_draft = None
+        self._mmu_spool_draft = None
+        self._action_feedback = None
+        self._pending_start = None
+        self._start_error_visible = False
+        self._acknowledged_terminal = None
+        self.index_prepare = self.index_tune = self.index_control = self.MROWS
+        self._live_jog_pending = None
+        self._live_jog_future = None
+        self._encoder_event = self.ENCODER_DIFF_NO
+        self.last_status = None
+        self.last_cardpercentValue = 101
+        self.next_rts_update_ms = 0
+
+    def _poll_panel_power(self):
+        monitor = getattr(self, '_power_monitor', None)
+        if monitor is None:
+            return
+        status = monitor.poll()
+        snapshot = self.pd.subscription.snapshot()
+        device = self.pd.power_device.casefold()
+        serial = snapshot.get('power_off_serial', {}).get(device, 0)
+        epoch = snapshot['epoch']
+        event_cycle = serial != self._relay_off_serial
+        transition = status in ('on', 'off') and status != self._relay_status
+        # Klipper's epoch covers cycles missed while its WebSocket was down.
+        backend_cycle = (snapshot['state'] == 'ready' and epoch != self._panel_backend_epoch)
+        if event_cycle or transition or backend_cycle:
+            self._reset_power_ui()
+            if self.lcd is not None:
+                self.lcd.close()
+                self.lcd = None
+            self._uart_online = False
+            self._uart_epoch += 1
+            self._next_uart_retry = 0
+            self._uart_probe_failures = 0
+            logging.info('Printer power/session changed; starting fresh panel session')
+        self._relay_off_serial = serial
+        if status in ('on', 'off'):
+            self._relay_status = status
+        if snapshot['state'] == 'ready':
+            self._panel_backend_epoch = epoch
+
     def _ensure_uart(self):
+        if getattr(self, '_relay_status', None) == 'off':
+            return False
         if self._uart_online:
             return True
         if self._closed or time.monotonic() < self._next_uart_retry:
@@ -398,6 +462,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             return False
 
     def _ui_tick(self):
+        self._poll_panel_power()
         if not self._uart_online:
             # Keep status current while the panel is disconnected.
             self.pd.update_variable()
@@ -634,7 +699,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if self._closed:
             return
         self._closed = True
-        for resource in (self.button, self.encoder, self.pd):
+        for resource in (getattr(self, '_power_monitor', None), self.button, self.encoder, self.pd):
             if resource is not None:
                 try:
                     resource.close()

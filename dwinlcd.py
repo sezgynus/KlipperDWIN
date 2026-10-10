@@ -611,7 +611,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 raise
 
     def _action(self, label, callback, expected=None, confirmation_timeout=300.0,
-                on_accept=None):
+                on_accept=None, silent=False):
         if getattr(self, '_action_feedback', None) is not None:
             return None
         try:
@@ -624,6 +624,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._action_feedback = CommandFeedback(
                 future, label, self.pd.state.epoch, expected, confirmation_timeout)
             self._action_on_accept = on_accept
+            self._action_silent = silent
         return future
 
     def _restore_action_screen(self):
@@ -643,6 +644,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         feedback = getattr(self, '_action_feedback', None)
         if feedback is None:
             return False
+        silent = getattr(self, '_action_silent', False)
         phase = feedback.update(self.pd.state, bool(self.pd.connection_error))
         if phase == 'accepted':
             self._action_feedback = None
@@ -650,8 +652,12 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._action_on_accept = None
             if on_accept is not None:
                 on_accept()
-            self.HMI_AudioFeedback(True)
-            self._restore_action_screen()
+            if not silent:
+                self.HMI_AudioFeedback(True)
+                self._restore_action_screen()
+            self._action_silent = False
+            return False
+        if phase == 'waiting' and silent:
             return False
         if phase == 'error':
             self._action_on_accept = None
@@ -1890,7 +1896,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             if key == 'SAVE':
                 future = self.pd.save_settings()
                 if isinstance(future, Future):
-                    self._action('Save presets', lambda: future, on_accept=draw)
+                    self._action('Save presets', lambda: future, silent=True,
+                                 on_accept=lambda: draw() if self.checkkey in (self.PLAPreheat, self.ABSPreheat)
+                                 and getattr(self, '_active_preset', 0) == profile else None)
                 else:
                     self.HMI_AudioFeedback(future)
             else:

@@ -204,3 +204,46 @@ class FeedbackTests(unittest.TestCase):
         result.pd.sendGCode.assert_called_once_with('SET_GCODE_OFFSET Z=1.26 MOVE=1')
         result._open_zoffset(0, 4)
         self.assertEqual(result._zoffset_target, 0)
+
+class SilentPresetFeedbackTests(unittest.TestCase):
+    def make(self):
+        view = display(snapshot())
+        view._show_message = Mock()
+        view.HMI_AudioFeedback = Mock()
+        view._restore_action_screen = Mock()
+        return view
+
+    def test_silent_save_waits_and_completes_without_overlay_or_beep(self):
+        view = self.make(); future = Future(); accepted = Mock()
+        view._action('Save presets', lambda: future, on_accept=accepted, silent=True)
+        self.assertFalse(view._poll_action())
+        view._show_message.assert_not_called()
+        accepted.assert_not_called()
+        future.set_result(True)
+        self.assertFalse(view._poll_action())
+        accepted.assert_called_once()
+        view._show_message.assert_not_called()
+        view.HMI_AudioFeedback.assert_not_called()
+        view._restore_action_screen.assert_not_called()
+
+    def test_save_failure_remains_visible(self):
+        view = self.make(); future = Future()
+        view._action('Save presets', lambda: future, silent=True)
+        future.set_exception(ValueError('database unavailable'))
+        self.assertTrue(view._poll_action())
+        self.assertIn('failed', view._show_message.call_args.args[0])
+
+    def test_other_actions_keep_waiting_message(self):
+        view = self.make()
+        view._action('Home', Future)
+        self.assertTrue(view._poll_action())
+        view._show_message.assert_called_once_with('Waiting: Home')
+
+    def test_preset_save_button_selects_silent_feedback(self):
+        view = self.make(); view.checkkey = view.PLAPreheat
+        view.select_PLA.set(next(i + 1 for i, e in enumerate(view._menus['preheat']) if e[0] == 'SAVE'))
+        view._menu_navigation = Mock(return_value=False)
+        view.get_encoder_state = Mock(return_value=view.ENCODER_DIFF_ENTER)
+        view.pd.save_settings = Mock(return_value=Future())
+        view._preset_hmi()
+        self.assertTrue(view._action_silent)

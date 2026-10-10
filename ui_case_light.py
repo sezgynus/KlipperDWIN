@@ -73,8 +73,7 @@ class CaseLightMixin:
             epoch = (self.pd.subscription.snapshot()['epoch'], getattr(self, '_uart_epoch', 0))
             self._case_light_live_epoch = epoch
             try:
-                future = self.pd.sendGCode('M355 P{}'.format(int(round(target * 255.0 / 100.0))),
-                                           report_error=False)
+                future = self.pd.sendGCodeObserved('M355 P{}'.format(int(round(target * 255.0 / 100.0))))
             except ValueError:
                 logging.warning('Case light brightness unavailable', exc_info=True)
                 future = None

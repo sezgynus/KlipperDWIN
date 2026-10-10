@@ -1006,7 +1006,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             return
         self._encoder_jog_rate = event.rate if event.kind == 'rotate' else 0.0
         acceleration_cap = self._encoder_acceleration_cap() if event.kind == 'rotate' else 1
-        if acceleration_cap > 1:
+        if event.kind == 'rotate' and getattr(self, 'checkkey', None) == self.CaseLightBrightness:
+            # Apply coalesced physical detents once, without acceleration.
+            self._encoder_move_value = count
+            count = 1
+        elif acceleration_cap > 1:
             count = 1
             raw_count = max(1, abs(event.value))
             accelerated_count = abs(event.accelerated_value or event.value)

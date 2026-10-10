@@ -1067,7 +1067,7 @@ class PrinterData:
 
     def query_case_light(self, report_error=True):
         self.clear_gcode_responses()
-        return self.sendGCode('M355') if report_error else self.sendGCode('M355', report_error=False)
+        return self.sendGCode('M355') if report_error else self.sendGCodeObserved('M355')
 
     def sendGCodeObserved(self, gcode):
         """Dispatch long-running G-Code without waiting for its completion response.

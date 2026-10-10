@@ -418,3 +418,5 @@ Display settings use a versioned, CRC-protected 16-byte LCD Data Flash record at
 Case-light brightness follows encoder changes live and silently. While editing, the UI keeps your selected percentage; incoming M355 responses cannot replace the draft. Confirming exits the editor and reads the real value with M355 after the last brightness command completes. Rapid input retains only the latest pending value. The Case Light menu polls M355 outside the brightness editor to reflect external changes.
 
 Rapid case-light brightness input applies coalesced encoder detents in one LCD redraw, retaining 1% per detent without acceleration. Live M355 updates and the silent follow-up query use the existing WebSocket in order, avoiding a separate HTTP request per change.
+
+Case-light on/off commands also run silently over WebSocket, followed by M355 state readback; no waiting or accepted overlay is shown.

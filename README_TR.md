@@ -420,3 +420,5 @@ Ayarlar LCD Data Flash içinde sürümlü, CRC korumalı 16 baytlık **0x0100–
 Case light parlaklığı enkoderi canlı ve sessiz takip eder. Düzenlerken UI seçtiğiniz yüzdeyi gösterir; gelen M355 yanıtları düzenleme değerini değiştirmez. Tıklayıp çıkınca son parlaklık komutu tamamlandıktan sonra M355 ile gerçek değer okunur. Hızlı çevirmelerde sırada yalnızca en son değer tutulur. Case Light menüsü parlaklık düzenlemesi dışında M355 sorgulayarak dışarıdan yapılan değişiklikleri gösterir.
 
 Case light parlaklığında hızlı çevirmeyle biriken enkoder adımları tek LCD çiziminde uygulanır; hızlandırma yapılmadan her adım %1 olarak korunur. Canlı M355 komutları ve ardından yapılan sessiz sorgu mevcut WebSocket üzerinden sırayla gönderilir; her değişiklik için ayrı HTTP isteği açılmaz.
+
+Case light açma/kapatma komutları da WebSocket üzerinden sessiz çalışır; ardından M355 ile gerçek durum okunur. Bekleme veya kabul bildirimi gösterilmez.

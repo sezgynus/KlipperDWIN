@@ -747,7 +747,7 @@ class CapabilityMenuTests(unittest.TestCase):
         self.assertEqual(result._case_light_brightness, 100)
         self.assertFalse(result._case_light_query_pending)
 
-    def test_case_light_toggle_waits_for_success_and_fresh_query(self):
+    def test_case_light_toggle_is_silent_and_waits_for_fresh_query(self):
         data = snapshot()
         data['objects'].append('gcode_macro M355')
         result = display(data)
@@ -758,16 +758,18 @@ class CapabilityMenuTests(unittest.TestCase):
         result.pd.query_case_light = Mock()
         future = Future()
         future.set_result({'result': 'ok'})
-        result.pd.sendGCode = Mock(return_value=future)
+        result.pd.sendGCodeObserved = Mock(return_value=future)
+        result._action = Mock()
 
         result.select_light.set(1)
         result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_ENTER)
         result.HMI_Case_Light()
 
-        result.pd.sendGCode.assert_called_once_with('M355 S0')
+        result.pd.sendGCodeObserved.assert_called_once_with('M355 S0')
+        result._action.assert_not_called()
         self.assertTrue(result._case_light_on)
         self.assertFalse(result._poll_action())
-        result.pd.query_case_light.assert_called_once_with()
+        result.pd.query_case_light.assert_called_once_with(report_error=False)
         self.assertTrue(result._case_light_on)
 
     def test_case_light_brightness_exit_silently_queries_real_value(self):

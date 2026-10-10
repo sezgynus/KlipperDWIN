@@ -113,10 +113,13 @@ class CaseLightMixin:
                 self.Draw_Control_Menu()
             elif self.select_light.now == 1:
                 target = not getattr(self, '_case_light_on', False)
-                self._action(
-                    "Case light",
-                    lambda: self.pd.sendGCode('M355 S{}'.format(1 if target else 0)),
-                    on_accept=self._refresh_case_light_state)
+                try:
+                    self.pd.sendGCodeObserved('M355 S{}'.format(1 if target else 0))
+                except ValueError:
+                    logging.warning('Case light toggle unavailable', exc_info=True)
+                else:
+                    self._case_light_live_refresh = True
+                    self._poll_case_light_live()
             else:
                 self.checkkey = self.CaseLightBrightness
                 self._case_light_brightness_target = getattr(self, '_case_light_brightness', 0)

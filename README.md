@@ -103,7 +103,7 @@ Rotate the encoder to navigate, press to select. Display labels remain in Englis
 
 Home has four icons per page. Centered dots below the icons indicate the pages; the active page is filled white and the others have gray outlines. Continuing to rotate moves to the next or previous page; empty slots are skipped. The logo/MMU panel and live dashboard stay fixed. Returning from Home’s MMU, Display or Info preserves the selected icon.
 
-**Display**, immediately before Info on page two, reserves a menu for LCD settings. It currently contains only **Back**, which returns to the selected Home icon.
+**Display**, immediately before Info on page two, reserves a menu for LCD settings. Its dedicated icon depicts the DWIN enclosure, encoder and settings gear; it is copied from managed Atlas 0 at 52×64 pixels. It currently contains only **Back**, which returns to the selected Home icon.
 
 | Entry | Destination |
 |---|---|

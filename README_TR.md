@@ -103,7 +103,7 @@ Gezinmek için encoder’ı çevirin, seçmek için basın. Ekran etiketleri İn
 
 Ana ekranda sayfa başına dört ikon bulunur. İkonların altındaki ortalanmış noktalar sayfaları gösterir; aktif sayfa dolu beyaz, diğerleri gri çerçeveli boş dairedir. Çevirmeye devam etmek sonraki veya önceki sayfaya geçirir; boş alanlar seçilmez. Logo/MMU paneli ve canlı durum alanı sabit kalır. Ana ekranın MMU, Display veya Info menüsünden dönüşte seçili ikon korunur.
 
-İkinci sayfada Info’nun hemen önündeki **Display**, LCD ayarları için ayrılmış menüdür. Şimdilik yalnızca **Back** içerir; dönüşte ana ekrandaki seçili ikon korunur.
+İkinci sayfada Info’nun hemen önündeki **Display**, LCD ayarları için ayrılmış menüdür. Özel ikonu DWIN kasasını, encoderı ve ayar dişlisini gösterir; yönetilen Atlas 0’dan 52×64 piksel olarak çizilir. Şimdilik yalnızca **Back** içerir; dönüşte ana ekrandaki seçili ikon korunur.
 
 | Giriş | Açılan bölüm |
 |---|---|

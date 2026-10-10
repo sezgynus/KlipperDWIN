@@ -162,3 +162,14 @@ class HomePageTests(unittest.TestCase):
             self.assertEqual(view.checkkey, view.MainMenu)
             self.assertEqual(view.select_page.now, index)
             view.pd.sendGCode.assert_not_called()
+
+    def test_display_uses_managed_device_gear_atlas_for_normal_and_selected(self):
+        from lcd_atlas import ICON_DISPLAY
+        view = self.make()
+        for selection in (4, 5):
+            view.select_page.set(selection)
+            view.lcd.reset_mock()
+            view._draw_home_page()
+            view.lcd.draw_atlas_icon.assert_any_call(ICON_DISPLAY, 174, 134)
+            self.assertFalse(any(call.args[-4:] == (173, 142, 226, 181)
+                                 for call in view.lcd.draw_rectangle.call_args_list))

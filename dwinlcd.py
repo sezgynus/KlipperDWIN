@@ -20,7 +20,7 @@ from gpiozero import Button, Device
 from gpiozero.pins.lgpio import LGPIOFactory
 from printerInterface import PrinterData
 from t5uic1_driver import T5UIC1Display
-from lcd_atlas import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER
+from lcd_atlas import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY
 
 def _MAX(lhs, rhs):
     if lhs > rhs:
@@ -1101,10 +1101,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             x, y = (17 if slot % 2 == 0 else 145), (130 if slot < 2 else 246)
             active = index == self.select_page.now
             if key == 'DISPLAY':
-                color = 0x07FF if active else 0x8410
-                self.lcd.draw_rectangle(0, color, x + 28, y + 12, x + 81, y + 51)
-                self.lcd.draw_rectangle(1, color, x + 52, y + 52, x + 57, y + 59)
-                self.lcd.draw_rectangle(1, color, x + 42, y + 60, x + 67, y + 62)
+                self.lcd.draw_atlas_icon(ICON_DISPLAY, x + 29, y + 4)
             elif key == 'MMU':
                 self.Draw_MMU_Home_Icon(x, y, active)
             else:

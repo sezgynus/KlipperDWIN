@@ -41,7 +41,7 @@ class AtlasDriverTests(unittest.TestCase):
         from PIL import Image
 
         for icon_id in (lcd_atlas.ICON_MCU, lcd_atlas.ICON_MACHINE,
-                        lcd_atlas.ICON_HOST, lcd_atlas.ICON_SOFTWARE):
+                        lcd_atlas.ICON_HOST, lcd_atlas.ICON_SOFTWARE, lcd_atlas.ICON_DISPLAY):
             with self.subTest(icon_id=icon_id):
                 area, x, y, width, height = lcd_atlas.ICON_COORDINATES[icon_id]
                 path = Path(lcd_atlas.__file__).parent / lcd_atlas.ATLAS_FILES[area][0]
@@ -57,6 +57,21 @@ class AtlasDriverTests(unittest.TestCase):
                     self.assertGreater(lit, 80)
                     self.assertLess(lit, width * height)
 
+    def test_display_atlas_addition_preserves_all_previous_icon_pixels_and_bounds(self):
+        import hashlib
+        from PIL import Image
+        expected = {256: 'e8e22b4b1f3e5e77f84c13ccc64aa325c5ee5cdcc3361eaf313d705ec0576c10', 257: '1655db9eaa0d021a3396a34cb9f16a57c81e6ba1e6e4114c1355928cb5c6d29b', 258: '870655e75c2a5913e5cfc6645788ed30c69a2106e3a31f9a2258773a053c12a9', 259: '662a25884180cf6c0314adf33e4ba7c4bdb84af6d2f699fd71fbb37262bd796d', 260: '6312117eb9a47b79b11dcc78d158d3cabf52b70eda88a13c1e8b6e3007c6eda3', 261: 'cd1d363f015cf11564b65ec69aa53764770226b8369faf204b704a89f31dc804', 262: 'b841f8ba6c3cfc3080d1c0c70b8022b85f5eb23421a2300dc1ef24cb2f4cc30b', 263: '27dbf75681c9c528042e25633dfdce85053b8f1af62a31bbc9d5409fb6780ecd'}
+        path = Path(lcd_atlas.__file__).parent / lcd_atlas.ATLAS_FILES[0][0]
+        with Image.open(path) as image:
+            portrait = image.transpose(Image.Transpose.ROTATE_270).convert('RGB')
+            for icon_id, digest in expected.items():
+                area, x, y, width, height = lcd_atlas.ICON_COORDINATES[icon_id]
+                self.assertEqual(hashlib.sha256(portrait.crop((x, y, x+width, y+height)).tobytes()).hexdigest(), digest)
+        area, x, y, w, h = lcd_atlas.ICON_COORDINATES[lcd_atlas.ICON_DISPLAY]
+        for icon_id, (other_area, ox, oy, ow, oh) in lcd_atlas.ICON_COORDINATES.items():
+            if icon_id != lcd_atlas.ICON_DISPLAY and other_area == area:
+                self.assertFalse(x < ox+ow and x+w > ox and y < oy+oh and y+h > oy)
+
     def test_manifest_coordinates_match_current_custom_static_icons(self):
         self.assertEqual(lcd_atlas.ICON_MMU_HOME_NORMAL, 0x0100)
         self.assertEqual(lcd_atlas.ICON_MMU_HOME_SELECTED, 0x0101)
@@ -66,6 +81,7 @@ class AtlasDriverTests(unittest.TestCase):
         self.assertEqual(lcd_atlas.ICON_HOST, 0x0105)
         self.assertEqual(lcd_atlas.ICON_SOFTWARE, 0x0106)
         self.assertEqual(lcd_atlas.ICON_POWER, 0x0107)
+        self.assertEqual(lcd_atlas.ICON_DISPLAY, 0x0108)
         self.assertEqual(
             lcd_atlas.ICON_COORDINATES,
             {
@@ -77,6 +93,7 @@ class AtlasDriverTests(unittest.TestCase):
                 0x0105: (0, 160, 32, 20, 20),
                 0x0106: (0, 192, 32, 20, 20),
                 0x0107: (0, 224, 32, 20, 20),
+                0x0108: (0, 0, 48, 52, 64),
             },
         )
         self.assertEqual(

@@ -22,6 +22,7 @@ Current Atlas 0 layout:
 | `0x0105` | Host computer board (`ICON_HOST`) | 0 | 160 | 32 | 20 | 20 |
 | `0x0106` | Software terminal (`ICON_SOFTWARE`) | 0 | 192 | 32 | 20 | 20 |
 | `0x0107` | Power (`ICON_POWER`) | 0 | 224 | 32 | 20 | 20 |
+| `0x0108` | LCD + settings gear (`ICON_DISPLAY`) | 0 | 0 | 48 | 52 | 64 |
 
 The Info section icons use blue/cyan shading on black to match the stock `9.ICO`
 style: a 3D printer for MACHINE, a computer board for HOST, a terminal window
@@ -41,3 +42,9 @@ Flash ID 15. Each JPEG must fit inside the T5UIC1 32 KiB SRAM transfer limit.
 ## Boot splash artwork
 
 `klipperdwin_bootsplash.jpg` is the selected cyan/black KlipperDWIN design, rotated 90° counterclockwise for the panel’s physical 480×272 JPEG orientation. It is a baseline RGB JPEG below the 32 KiB UART SRAM limit. The center remains clear for the runtime progress bar. Intended Picture Flash slot: 0. This commit stores artwork only; it does not register it as an atlas or upload/replace the panel’s existing boot image.
+
+## Display settings icon
+
+`display-settings.png` is the 52×64 transparent sprite of the physical DWIN enclosure, encoder and settings gear. Atlas 0 contains it at portrait `(0, 48)`; Home centers it at `(x + 29, y + 4)` above the Display caption. Normal and selected states share the sprite and use the existing selection border.
+
+All eight previous atlas rectangles and their decoded RGB pixels are unchanged. The JPEG was patched in free 16-pixel-aligned blocks with matching quantization tables instead of re-encoding the existing artwork. `tools/patch_atlas_icon.py` can add sprites to a separate output file using build-only `jpeglib`, numpy and Pillow; these are not new runtime dependencies. It finds the first free block rectangle, verifies every registered old icon pixel, and checks the 32 KiB transfer limit. Atlas 1 remains reserved.

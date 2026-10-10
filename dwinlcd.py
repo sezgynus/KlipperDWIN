@@ -299,6 +299,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self._next_uart_retry = 0
         self._next_uart_probe = 0
         self._uart_probe_failures = 0
+        self._boot_active = True
+        self._boot_progress = -1
         self.encoder = self.button = self.lcd = self.pd = None
         self._settings = (USARTx, encoder_pins, button_pin, octoPrint_API_Key,
                           moonraker_url, request_timeout, settings_path, power_device, power_on_hold_ms)
@@ -350,6 +352,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.button.when_held = self._button_held
 
     def _uart_failed(self):
+        if getattr(self, '_boot_active', False):
+            self._boot_progress = -1
         if (getattr(self, 'checkkey', None) == self.PowerConfirm
                 and getattr(self, '_power_origin', None) == self.MMUMenu):
             self.checkkey = self.MMUMenu
@@ -370,6 +374,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     def _reset_power_ui(self):
         """A relay cycle starts a new UI session; never replay old input/actions."""
         self.checkkey = self.MainMenu
+        self._boot_active = True
+        self._boot_progress = -1
         for name in self.SELECTIONS:
             selection = getattr(self, name, None)
             if selection is not None:
@@ -405,9 +411,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         serial = snapshot.get('power_off_serial', {}).get(device, 0)
         epoch = snapshot['epoch']
         event_cycle = serial != self._relay_off_serial
-        transition = status in ('on', 'off') and status != self._relay_status
+        transition = (status in ('on', 'off') and status != self._relay_status
+                      and (status == 'off' or self._relay_status is not None))
         # Klipper's epoch covers cycles missed while its WebSocket was down.
-        backend_cycle = (snapshot['state'] == 'ready' and epoch != self._panel_backend_epoch)
+        backend_cycle = (snapshot['state'] == 'ready' and epoch != self._panel_backend_epoch
+                         and not getattr(self, '_boot_active', False))
         if event_cycle or transition or backend_cycle:
             self._reset_power_ui()
             if self.lcd is not None:
@@ -432,11 +440,17 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if self._closed or time.monotonic() < self._next_uart_retry:
             return False
         try:
+            options = {}
+            if getattr(self, '_boot_active', False):
+                options['startup_progress'] = lambda lcd, value: self._draw_boot_progress(value, lcd)
             self.lcd = T5UIC1Display(self._settings[0], handshake_timeout=1.0,
-                                 handshake_attempts=1)
+                                 handshake_attempts=1, **options)
             self._configure_menus()
             self.HMI_Init()
-            self.HMI_StartFrame(False)
+            if getattr(self, '_boot_active', False):
+                self._draw_boot_progress(70 if self.lcd._atlas_synced else 40)
+            else:
+                self.HMI_StartFrame(False)
             if getattr(self, 'checkkey', None) == self.BedMeshScreen:
                 self.Draw_Bed_Mesh()
             elif getattr(self, 'checkkey', None) == self.MeshProfiles:
@@ -449,17 +463,53 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             if getattr(self, 'checkkey', None) == self.FilePreview:
                 self.Draw_File_Preview()
             self.lcd.update()
-            if self.pd.connection_error and self.checkkey != self.MMUMenu:
+            if (self.pd.connection_error and self.checkkey != self.MMUMenu
+                    and not getattr(self, '_boot_active', False)):
                 self._show_message('Moonraker unavailable')
             self._uart_online = True
             self._uart_epoch += 1
             self._uart_probe_failures = 0
             self._next_uart_probe = time.monotonic() + 2.0
-            logging.info('LCD UART connected; current screen restored')
+            if getattr(self, '_boot_active', False):
+                self._poll_boot()
+            logging.info('LCD UART connected; %s', 'boot readiness pending'
+                         if getattr(self, '_boot_active', False) else 'current screen restored')
             return True
         except (OSError, TimeoutError):
             self._uart_failed()
             return False
+
+    def _draw_boot_progress(self, value, lcd=None):
+        lcd = self.lcd if lcd is None else lcd
+        value = max(getattr(self, '_boot_progress', -1), min(100, value))
+        if value == getattr(self, '_boot_progress', -1):
+            return
+        self._boot_progress = value
+        # The panel owns the slot-0 splash. Touch only this centered bar.
+        lcd.draw_rectangle(1, 0x0000, 16, 230, 255, 249)
+        lcd.draw_rectangle(0, 0xFFFF, 16, 230, 255, 249)
+        if value:
+            lcd.draw_rectangle(1, 0x07E0, 18, 232, 18 + 235 * value // 100, 247)
+        lcd.update()
+
+    def _poll_boot(self):
+        self.pd.update_variable()
+        snapshot = self.pd.subscription.snapshot()
+        if not self.lcd._atlas_synced or not self.lcd._atlas_virtual_areas_loaded:
+            return
+        self._draw_boot_progress(70)
+        if (snapshot['state'] != 'ready' or self.pd.connection_error
+                or not self.pd.state.ready or self.pd.state.epoch != snapshot['epoch']):
+            return
+        self._configure_menus()
+        self.pd.mmu_session.update()
+        self._draw_boot_progress(100)
+        self._boot_active = False
+        self._uart_epoch += 1
+        self._offline = False
+        self._panel_backend_epoch = snapshot['epoch']
+        self.HMI_StartFrame(False)
+        self.lcd.update()
 
     def _ui_tick(self):
         self._poll_panel_power()
@@ -484,6 +534,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                         logging.warning('LCD liveness lost; reconnecting')
                         self._uart_failed()
                         return
+            if getattr(self, '_boot_active', False):
+                self._poll_boot()
+                return
             if getattr(self, 'checkkey', None) == self.FilePreview:
                 if not getattr(self, '_pending_start', None) and not getattr(self, '_start_error_visible', False):
                     self._poll_file_preview()
@@ -875,6 +928,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if event.kind == 'power_on':
             if not self._closed:
                 self.pd.power_on_if_off()
+            return
+        if getattr(self, '_boot_active', False):
             return
         if (not getattr(self, '_uart_online', True)
                 or event.ui_epoch != getattr(self, '_uart_epoch', 0)):

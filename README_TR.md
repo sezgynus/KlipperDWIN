@@ -269,6 +269,12 @@ M355 P0..255
 Light is ON, Brightness=128
 ```
 
+### Açılış ekranı
+
+DWIN kendi Picture Flash slot 0 açılış JPEG’ini gösterir. KlipperDWIN açılış sırasında yalnızca bu görselin ortasına yatay ilerleme çubuğu çizer: UART handshake/yön ayarı tamamlanınca %40, atlas hazırlığı tamamlanınca %70, geçerli ve hazır Klipper verisi ile menü yapılandırması tamamlanınca %100. Çubuk geçen süreyi değil tamamlanan aşamaları gösterir; beklenen aşama bitene kadar aynı seviyede kalır. Açılışta menü, durum alanı veya “Moonraker unavailable” yazısı çizilmez. Tüm koşullar hazır olunca normal ekran bütünüyle çizilir. Bu bekleme sırasında encoder menü girişleri yok sayılır; uzun basışla güç açma çalışmaya devam eder.
+
+Atlaslar virtual area 0/1’e yalnızca cache komutlarıyla yüklenir; görünür açılış görseli korunur. Atlas slotları, koordinatları ve sürücü sahipliği değişmez. Açılış tamamlanamıyorsa servis günlüğünü kontrol edin; açılış görseli ekranda kalır.
+
 ### Encoder ile güç kontrolü
 
 Raspberry Pi sürekli enerjili kalırken yapılandırılmış röle hem yazıcı anakartının hem DWIN ekranının beslemesini kesebilir. KlipperDWIN röleyi Klipper hazır olmasa da izler. Güç çevrimi menü seçimini ve bekleyen onayları temizler; ana menünün ilk sayfasından başlayarak yeni ekran bağlantısı kurar ve geçici atlas alanlarını Picture Flash’tan yeniden yükler. Eski yazıcı komutları tekrar gönderilmez. Güç bildirimleri UI kontrolleri arasındaki kısa kapat/aç olaylarını korur; durum bağlantısı kesikken kaçan çevrimler için Klipper yeniden hazır olduğunda da yeni ekran oturumu başlatılır. Güç durumu okunamazsa kapalı varsayılmaz; durum bilinmiyor kabul edilir.

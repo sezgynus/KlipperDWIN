@@ -108,7 +108,7 @@ class AtlasDriverTests(unittest.TestCase):
             lcd.store_sram_as_picture = Mock()
             lcd.load_atlases()
 
-        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x22, 0x25])
+        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x25, 0x25])
         self.assertEqual(lcd._virtual_area_pictures, {0: 14, 1: 15})
         self.assertTrue(lcd._atlas_virtual_areas_loaded)
         lcd.write_flash.assert_not_called()
@@ -151,9 +151,9 @@ class AtlasDriverTests(unittest.TestCase):
             lcd, _, _ = configured_driver(tmp)
             lcd.draw_atlas_icon(0x100, 50, 60)
 
-        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x22, 0x27])
+        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x25, 0x27])
         self.assertEqual(lcd.serial.frames[0],
-                         bytes.fromhex("AA 22 00 0E CC 33 C3 3C"))
+                         bytes.fromhex("AA 25 00 0E CC 33 C3 3C"))
         self.assertEqual(lcd._virtual_area_pictures[0], 14)
 
     def test_unknown_icon_and_destination_overflow_fail_without_uart(self):

@@ -131,7 +131,7 @@ class T5UIC1Display:
     }
 
     def __init__(self, port, baudrate=115200, handshake_timeout=1.0,
-                 handshake_attempts=3, wake_delay=0.750):
+                 handshake_attempts=3, wake_delay=0.750, startup_progress=None):
         if not isinstance(baudrate, int) or baudrate <= 0:
             raise ValueError("baudrate must be positive")
         if not math.isfinite(handshake_timeout) or handshake_timeout <= 0:
@@ -168,6 +168,8 @@ class T5UIC1Display:
             # Preserve the existing Ender 3 V2 portrait orientation and startup
             # traffic.  Do not wait for the optional 0x34 acknowledgement here.
             self.set_orientation(1, wait_ack=False)
+            if startup_progress is not None:
+                startup_progress(self, 40)
             # Atlas Picture Flash is synchronized once during connection.
             # Failure is non-fatal to the normal LCD UI and automatic retry is
             # blocked for this connection/process to protect Flash endurance.
@@ -175,6 +177,8 @@ class T5UIC1Display:
             self._startup_sync_atlases()
             if self._atlas_synced:
                 self.load_atlases()
+                if startup_progress is not None:
+                    startup_progress(self, 70)
             self.update()
         except BaseException:
             self.close()
@@ -629,13 +633,15 @@ class T5UIC1Display:
         mode = (bool(background) << 7) | (bool(enhanced) << 5)
         self._send(0x24, self._words(x, y) + bytes((mode,)) + self._word(address))
 
-    def cache_jpeg(self, jpeg_id):
+    def cache_jpeg(self, jpeg_id, area=1):
         if not isinstance(jpeg_id, int) or not 0 <= jpeg_id <= 15:
             raise ValueError("JPEG ID must be 0..15")
-        self._send(0x25, bytes((1, jpeg_id)))
+        if area not in (0, 1):
+            raise ValueError("virtual display area must be 0 or 1")
+        self._send(0x25, bytes((area, jpeg_id)))
         if not hasattr(self, "_virtual_area_pictures"):
             self._virtual_area_pictures = {}
-        self._virtual_area_pictures[1] = jpeg_id
+        self._virtual_area_pictures[area] = jpeg_id
 
     def copy_cache1(self, x0, y0, x1, y1, x, y):
         self._send(0x26, self._words(x0, y0, x1, y1, x, y))
@@ -1105,10 +1111,9 @@ class T5UIC1Display:
             "Atlas %d: loading Picture Flash %d into virtual area %d",
             area, picture_id, area,
         )
-        if area == 0:
-            self.show_jpeg(picture_id)
-        else:
-            self.cache_jpeg(picture_id)
+        # 0x25 decodes to either cache without drawing over the boot JPEG.
+        # 0x22 both displays the JPEG and replaces area 0.
+        self.cache_jpeg(picture_id, area=area)
 
     def load_atlases(self):
         """Restore volatile virtual areas from persistent Picture Flash.

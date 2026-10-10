@@ -106,6 +106,7 @@ class T5UIC1DriverPackets(unittest.TestCase):
             (lambda d: d.show_sram_jpeg(16, 16, 0),
              bytes.fromhex("AA 24 00 10 00 10 80 00 00 CC 33 C3 3C")),
             (lambda d: d.cache_jpeg(1), bytes.fromhex("AA 25 01 01 CC 33 C3 3C")),
+            (lambda d: d.cache_jpeg(14, area=0), bytes.fromhex("AA 25 00 0E CC 33 C3 3C")),
             (lambda d: d.copy_cache1(0x40, 0x40, 0x100, 0x100, 0x20, 0x20),
              bytes.fromhex("AA 26 00 40 00 40 01 00 01 00 00 20 00 20 CC 33 C3 3C")),
             (lambda d: d.copy_cache(1, 0x40, 0x40, 0x100, 0x100, 0x40, 0x40,

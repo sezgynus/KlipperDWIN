@@ -61,9 +61,9 @@ class MMUDriverLifecycleTests(unittest.TestCase):
         self.assertTrue(v._uart_online)
         self.assertEqual(v._mmu_page, 'status')
         opcodes = [f[1] for f in restored.serial.frames]
-        self.assertEqual(opcodes.count(0x22), 1)
+        self.assertEqual(opcodes.count(0x25), 1)
         self.assertIn(0x27, opcodes)
-        self.assertFalse(set(opcodes) & {0x25, 0x31, 0x32, 0x33})
+        self.assertFalse(set(opcodes) & {0x22, 0x31, 0x32, 0x33})
         self.assertEqual(restored._virtual_area_pictures, {0: 14})
         self.assertEqual(v.pd.subscription.request.call_count, 1)
         self.assertIsNotNone(v.pd.mmu_session.pending)

@@ -69,7 +69,7 @@ class RelayLifecycleTests(unittest.TestCase):
         with patch.object(ui, 'T5UIC1Display', side_effect=construct):
             self.assertTrue(v._ensure_uart())
         opcodes = [frame[1] for frame in lcd.serial.frames]
-        self.assertEqual(opcodes[0], 0x22)
+        self.assertEqual(opcodes[0], 0x25)
         self.assertEqual(lcd._virtual_area_pictures[0], 14)
         self.assertEqual(opcodes[-1], 0x3D)
         self.assertFalse(set(opcodes) & {0x31, 0x32, 0x33})

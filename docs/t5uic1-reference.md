@@ -204,7 +204,7 @@ using payload bytes as frame delimiters.
 | `0x22` | Show JPEG / cache to area 0 | `show_jpeg()` |
 | `0x23` | Icon library | `show_icon()` |
 | `0x24` | JPEG icon from SRAM | `show_sram_jpeg()` |
-| `0x25` | JPEG to virtual area 1 | `cache_jpeg()` |
+| `0x25` | JPEG to virtual area 0/1 without display | `cache_jpeg()` |
 | `0x26` | Copy virtual area 1 | `copy_cache1()` |
 | `0x27` | Copy virtual area 0/1 | `copy_cache()` |
 | `0x28` | Configure icon animation | `configure_animation()` |
@@ -326,9 +326,11 @@ transfer limit. The default coordinate table is intentionally empty until the
 production atlas artwork is finalized, so this infrastructure does not alter
 the current UI rendering or startup traffic yet.
 
-Virtual areas are populated lazily by `draw_atlas_icon()`; `load_atlases()`
-is also available to preload all active atlases. Lazy loading avoids flushing
-the Area-0 atlas sheet to the visible screen during driver startup.
+Virtual areas are preloaded on connection by `load_atlases()` and restored lazily
+by `draw_atlas_icon()` if necessary. Both use cache-only `0x25` with the target
+area index (0 or 1). They never use display-and-cache `0x22`, so loading area 0
+does not replace the visible slot-0 boot splash. The cache index behavior matches
+`dwinJPGCacheToN(n, id)` in the reference [DWIN API](https://github.com/mriscoc/Ender3V2S1/blob/Ender3V2S1-Bugfix/Marlin/src/lcd/dwin/common/dwin_api.cpp).
 
 ## Rendering compatibility
 

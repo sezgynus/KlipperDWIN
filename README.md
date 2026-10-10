@@ -273,7 +273,7 @@ Light is ON, Brightness=128
 
 The DWIN panel displays its own Picture Flash slot-0 boot JPEG. While starting, KlipperDWIN draws a horizontal progress bar at y=290–309, below the artwork’s PRINTER DISPLAY label, with the current operation at y=322: preparing display assets (40%), waiting for the printer (70%), reading printer status (80%), preparing menus (90%), and starting the interface (100%). The bar reflects completed stages rather than elapsed time; it stays at its current stage while waiting. No menu, dashboard or “Moonraker unavailable” text is drawn during boot. A complete normal screen replaces the splash only when all prerequisites are ready. Encoder menu input is ignored during this wait; long-press power-on remains available.
 
-Atlas loading uses cache-only commands for virtual areas 0/1, preserving the visible splash. Atlas slot IDs, coordinates and driver ownership are unchanged. If startup cannot finish, inspect the service log; the splash remains on screen.
+At connection time the driver caches the slot-0 splash in area 1, loads the atlas into area 0 with display-and-cache command `0x22`, then copies the splash pixels back from area 1 before sending any display refresh. This leaves the splash visible and atlas icons resident in area 0. If an area-1 atlas is active, it is loaded after the splash copy. Atlas slot IDs, coordinates and driver ownership are unchanged. If startup cannot finish, inspect the service log; the splash remains on screen.
 
 ### Encoder power control
 

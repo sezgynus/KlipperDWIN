@@ -176,7 +176,7 @@ class T5UIC1Display:
             # Virtual areas are still populated lazily by draw_atlas_icon().
             self._startup_sync_atlases()
             if self._atlas_synced:
-                self.load_atlases()
+                self.load_atlases(preserve_boot_splash=True)
                 if startup_progress is not None:
                     startup_progress(self, 70)
             self.update()
@@ -636,8 +636,8 @@ class T5UIC1Display:
     def cache_jpeg(self, jpeg_id, area=1):
         if not isinstance(jpeg_id, int) or not 0 <= jpeg_id <= 15:
             raise ValueError("JPEG ID must be 0..15")
-        if area not in (0, 1):
-            raise ValueError("virtual display area must be 0 or 1")
+        if area != 1:
+            raise ValueError("cache-only JPEG loading supports virtual area 1; use show_jpeg for area 0")
         self._send(0x25, bytes((area, jpeg_id)))
         if not hasattr(self, "_virtual_area_pictures"):
             self._virtual_area_pictures = {}
@@ -1111,11 +1111,12 @@ class T5UIC1Display:
             "Atlas %d: loading Picture Flash %d into virtual area %d",
             area, picture_id, area,
         )
-        # 0x25 decodes to either cache without drawing over the boot JPEG.
-        # 0x22 both displays the JPEG and replaces area 0.
-        self.cache_jpeg(picture_id, area=area)
+        if area == 0:
+            self.show_jpeg(picture_id)
+        else:
+            self.cache_jpeg(picture_id)
 
-    def load_atlases(self):
+    def load_atlases(self, *, preserve_boot_splash=False):
         """Restore volatile virtual areas from persistent Picture Flash.
 
         This is safe on every panel reconnect: it issues only display/cache
@@ -1126,7 +1127,19 @@ class T5UIC1Display:
                 "custom atlases are not synchronized; refusing render-time Flash sync"
             )
         self._virtual_area_pictures.clear()
-        for area in self._active_atlas_areas():
+        active = self._active_atlas_areas()
+        if preserve_boot_splash and 0 in active:
+            # On this panel 0x25 loads cache 1, not cache 0. Keep a temporary
+            # slot-0 splash in cache 1, load atlas 0 with 0x22, then restore
+            # the splash pixels without replacing cache 0. No refresh occurs
+            # between the atlas display command and the splash copy.
+            self.cache_jpeg(0)
+            self._load_atlas_area(0)
+            self.copy_cache1(0, 0, self.WIDTH - 1, self.HEIGHT - 1, 0, 0)
+            self._virtual_area_pictures.pop(1, None)
+        for area in active:
+            if preserve_boot_splash and area == 0:
+                continue
             self._load_atlas_area(area)
         self._atlas_virtual_areas_loaded = True
 

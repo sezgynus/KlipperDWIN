@@ -108,11 +108,48 @@ class AtlasDriverTests(unittest.TestCase):
             lcd.store_sram_as_picture = Mock()
             lcd.load_atlases()
 
-        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x25, 0x25])
+        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x22, 0x25])
         self.assertEqual(lcd._virtual_area_pictures, {0: 14, 1: 15})
         self.assertTrue(lcd._atlas_virtual_areas_loaded)
         lcd.write_flash.assert_not_called()
         lcd.store_sram_as_picture.assert_not_called()
+
+    def test_boot_restore_works_when_cache_only_command_supports_area_one_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            lcd, _, _ = configured_driver(tmp)
+            lcd.load_atlases(preserve_boot_splash=True)
+            lcd.update()
+
+        # Model the observed panel: 0x25 is cache-1 only; 0x22 sets cache-0
+        # and the frame buffer. A cache-1 copy restores pixels, not cache-0.
+        areas = {0: 0}
+        buffer = 0
+        visible = []
+        for frame in lcd.serial.frames:
+            opcode = frame[1]
+            if opcode == 0x25:
+                self.assertEqual(frame[2], 1)
+                areas[1] = frame[3]
+            elif opcode == 0x22:
+                areas[0] = buffer = frame[3]
+            elif opcode == 0x26:
+                buffer = areas[1]
+            elif opcode == 0x3D:
+                visible.append(buffer)
+        self.assertEqual(areas, {0: 14, 1: 15})
+        self.assertEqual(visible, [0])
+        self.assertEqual(lcd._virtual_area_pictures, areas)
+        opcodes = [f[1] for f in lcd.serial.frames]
+        self.assertEqual(opcodes, [0x25, 0x22, 0x26, 0x25, 0x3D])
+        self.assertFalse(set(opcodes) & {0x31, 0x32, 0x33})
+
+    def test_cache_only_area_zero_is_rejected_without_false_cache_bookkeeping(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            lcd, _, _ = configured_driver(tmp)
+            with self.assertRaises(ValueError):
+                lcd.cache_jpeg(14, area=0)
+        self.assertEqual(lcd.serial.frames, [])
+        self.assertNotIn(0, lcd._virtual_area_pictures)
 
     def test_draw_atlas_icon_resolves_area_and_source_rectangle(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -151,9 +188,9 @@ class AtlasDriverTests(unittest.TestCase):
             lcd, _, _ = configured_driver(tmp)
             lcd.draw_atlas_icon(0x100, 50, 60)
 
-        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x25, 0x27])
+        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x22, 0x27])
         self.assertEqual(lcd.serial.frames[0],
-                         bytes.fromhex("AA 25 00 0E CC 33 C3 3C"))
+                         bytes.fromhex("AA 22 00 0E CC 33 C3 3C"))
         self.assertEqual(lcd._virtual_area_pictures[0], 14)
 
     def test_unknown_icon_and_destination_overflow_fail_without_uart(self):

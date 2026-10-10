@@ -106,7 +106,7 @@ class BootSplashTests(unittest.TestCase):
         v._process_input(InputEvent('power_on', 1, 0, 0))
         v.pd.power_on_if_off.assert_called_once()
 
-    def test_connect_waits_without_drawing_home_and_cache_does_not_show_atlas(self):
+    def test_connect_restores_splash_before_refresh_without_drawing_home(self):
         v = self.view()
         v._uart_online = False
         v.pd.subscription.snapshot.return_value['state'] = 'disconnected'
@@ -116,7 +116,7 @@ class BootSplashTests(unittest.TestCase):
 
         def constructor(port, **kwargs):
             kwargs['startup_progress'](lcd, 40)
-            lcd.load_atlases()
+            lcd.load_atlases(preserve_boot_splash=True)
             kwargs['startup_progress'](lcd, 70)
             return lcd
 
@@ -125,7 +125,9 @@ class BootSplashTests(unittest.TestCase):
         v.HMI_StartFrame.assert_not_called()
         v._show_message.assert_not_called()
         opcodes = [f[1] for f in lcd.serial.frames]
-        self.assertNotIn(0x22, opcodes)
+        self.assertIn(0x22, opcodes)
+        self.assertIn(0x26, opcodes)
+        self.assertNotIn(0x3D, opcodes[opcodes.index(0x22):opcodes.index(0x26)])
         self.assertNotIn(0x01, opcodes)
         self.assertIn(0x11, opcodes)
         self.assertIn(0x25, opcodes)
@@ -141,7 +143,7 @@ class BootSplashTests(unittest.TestCase):
         v._uart_failed()
         self.assertEqual(v._boot_progress, -1)
 
-    def test_constructor_preloads_atlas_without_showing_jpeg_or_copying_screen(self):
+    def test_constructor_loads_area_zero_and_restores_splash_before_refresh(self):
         import test_uart as uart
         from t5uic1_driver import T5UIC1Display
         port = uart.Port([b'\xAA\x00OK' + T5UIC1Display.TAIL])
@@ -164,7 +166,10 @@ class BootSplashTests(unittest.TestCase):
         self.assertEqual(stages, [40, 70])
         opcodes = [frame[1] for frame in port.frames]
         self.assertIn(0x25, opcodes)
-        self.assertFalse(set(opcodes) & {0x01, 0x22, 0x26, 0x27})
+        self.assertFalse(set(opcodes) & {0x01, 0x27})
+        self.assertIn(0x22, opcodes)
+        self.assertIn(0x26, opcodes)
+        self.assertNotIn(0x3D, opcodes[opcodes.index(0x22):opcodes.index(0x26)])
         self.assertEqual(lcd._virtual_area_pictures, {0: 14})
 
     def test_initial_on_observation_does_not_restart_completed_boot(self):

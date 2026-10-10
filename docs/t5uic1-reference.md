@@ -204,7 +204,7 @@ using payload bytes as frame delimiters.
 | `0x22` | Show JPEG / cache to area 0 | `show_jpeg()` |
 | `0x23` | Icon library | `show_icon()` |
 | `0x24` | JPEG icon from SRAM | `show_sram_jpeg()` |
-| `0x25` | JPEG to virtual area 0/1 without display | `cache_jpeg()` |
+| `0x25` | JPEG to virtual area 1 without display | `cache_jpeg()` |
 | `0x26` | Copy virtual area 1 | `copy_cache1()` |
 | `0x27` | Copy virtual area 0/1 | `copy_cache()` |
 | `0x28` | Configure icon animation | `configure_animation()` |
@@ -327,10 +327,24 @@ production atlas artwork is finalized, so this infrastructure does not alter
 the current UI rendering or startup traffic yet.
 
 Virtual areas are preloaded on connection by `load_atlases()` and restored lazily
-by `draw_atlas_icon()` if necessary. Both use cache-only `0x25` with the target
-area index (0 or 1). They never use display-and-cache `0x22`, so loading area 0
-does not replace the visible slot-0 boot splash. The cache index behavior matches
-`dwinJPGCacheToN(n, id)` in the reference [DWIN API](https://github.com/mriscoc/Ender3V2S1/blob/Ender3V2S1-Bugfix/Marlin/src/lcd/dwin/common/dwin_api.cpp).
+by `draw_atlas_icon()` if necessary. This target panel requires `0x22` to load
+area 0; `0x25` is used only for area 1. The generic reference API's cache-index
+argument must not be taken as proof that cache-only area-0 loading works on
+this panel. `cache_jpeg(..., area=0)` therefore raises rather than recording a
+false successful load.
+
+On connection, `load_atlases(preserve_boot_splash=True)` sends:
+
+1. `0x25 01 00`: load Picture Flash slot 0 into temporary cache 1.
+2. `0x22 00 0E`: load Picture Flash slot 14 into area 0/display buffer.
+3. `0x26`: copy the full portrait splash from cache 1 back to the display buffer.
+4. Restore an active area-1 atlas, if any, using `0x25`.
+
+No `0x3D` refresh is sent between steps 2 and 3. The splash is restored before
+progress rendering refreshes the screen, while area 0 retains slot 14 for
+`0x27` icon copies. Both cache areas remain exclusively driver-owned. No
+Picture Flash or Data Flash writes occur in this restore sequence.
+
 
 ## Rendering compatibility
 

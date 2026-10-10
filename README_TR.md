@@ -273,7 +273,7 @@ Light is ON, Brightness=128
 
 DWIN kendi Picture Flash slot 0 açılış JPEG’ini gösterir. KlipperDWIN açılış sırasında görselin PRINTER DISPLAY yazısının altına, y=290–309 arasına yatay ilerleme çubuğu ve y=322’ye o anki işlem açıklamasını çizer: ekran kaynakları hazırlanıyor (%40), yazıcı bekleniyor (%70), yazıcı durumu okunuyor (%80), menüler hazırlanıyor (%90), arayüz açılıyor (%100). Çubuk geçen süreyi değil tamamlanan aşamaları gösterir; beklenen aşama bitene kadar aynı seviyede kalır. Açılışta menü, durum alanı veya “Moonraker unavailable” yazısı çizilmez. Tüm koşullar hazır olunca normal ekran bütünüyle çizilir. Bu bekleme sırasında encoder menü girişleri yok sayılır; uzun basışla güç açma çalışmaya devam eder.
 
-Atlaslar virtual area 0/1’e yalnızca cache komutlarıyla yüklenir; görünür açılış görseli korunur. Atlas slotları, koordinatları ve sürücü sahipliği değişmez. Açılış tamamlanamıyorsa servis günlüğünü kontrol edin; açılış görseli ekranda kalır.
+Bağlantıda sürücü slot 0 açılış görselini geçici olarak area 1’e alır, atlası `0x22` göster/yükle komutuyla area 0’a yükler ve ekran güncellemesi göndermeden açılış görselini area 1’den görünür ekrana geri kopyalar. Böylece açılış görseli ekranda, atlas ikonları area 0’da kalır. Aktif area 1 atlası varsa açılış görselinin kopyalanmasından sonra yüklenir. Atlas slotları, koordinatları ve sürücü sahipliği değişmez. Açılış tamamlanamıyorsa servis günlüğünü kontrol edin; açılış görseli ekranda kalır.
 
 ### Encoder ile güç kontrolü
 

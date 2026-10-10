@@ -62,7 +62,7 @@ class RelayLifecycleTests(unittest.TestCase):
         lcd._atlas_virtual_areas_loaded = False
 
         def construct(*args, **kwargs):
-            lcd.load_atlases()
+            lcd.load_atlases(preserve_boot_splash=True)
             return lcd
 
         v.HMI_StartFrame = lambda update: lcd.clear(0)

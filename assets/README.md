@@ -36,3 +36,8 @@ Atlas 1 currently contains no icons and is reserved for future expansion.
 
 The runtime driver stores Atlas 0 in Picture Flash ID 14 and Atlas 1 in Picture
 Flash ID 15. Each JPEG must fit inside the T5UIC1 32 KiB SRAM transfer limit.
+
+
+## Boot splash artwork
+
+`klipperdwin_bootsplash.jpg` is the selected cyan/black KlipperDWIN design, rotated 90° counterclockwise for the panel’s physical 480×272 JPEG orientation. It is a baseline RGB JPEG below the 32 KiB UART SRAM limit. The center remains clear for the runtime progress bar. Intended Picture Flash slot: 0. This commit stores artwork only; it does not register it as an atlas or upload/replace the panel’s existing boot image.

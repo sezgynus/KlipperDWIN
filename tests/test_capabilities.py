@@ -567,23 +567,28 @@ class CapabilityMenuTests(unittest.TestCase):
         self.assertEqual([label for kind, label, _ in result._info_items() if kind == 'section'],
                          ['Machine', 'Host', 'MCU', 'Software'])
 
-    def test_info_qr_has_its_own_complete_final_page(self):
+    def test_info_qr_scrolls_one_row_and_dashboard_masks_overflow(self):
         result = display(snapshot())
         result.pd.refresh_system_info = Mock(return_value=False)
-        items = result._info_items()
-        final = len(items) - 1
-        regular_end = max(0, final - 11)
-        result._info_scroll = regular_end
+        result.Draw_Status_Area = Mock()
+        final = len(result._info_items()) - 1
+        result._info_scroll = final - 10
         result.Draw_Info_Menu()
-        result.lcd.draw_qr.assert_not_called()
+        first_y = result.lcd.draw_qr.call_args.args[1]
         result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CW)
         result.HMI_Info()
-        self.assertEqual(result._info_scroll, final)
-        result.lcd.draw_qr.assert_called_once_with(
-            44, 148, 4, 'https://github.com/sezgynus/KlipperDWIN')
+        self.assertEqual(result._info_scroll, final - 9)
+        self.assertEqual(result.lcd.draw_qr.call_args.args[1], first_y - 24)
+        result.Draw_Status_Area.assert_called_with(False)
+        maximum = len(result._info_items()) + 7 - 11
+        for _ in range(20):
+            result.HMI_Info()
+        self.assertEqual(result._info_scroll, maximum)
+        self.assertEqual(result.lcd.draw_qr.call_args.args,
+                         (64, 200, 3, 'https://github.com/sezgynus/KlipperDWIN'))
         result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
         result.HMI_Info()
-        self.assertEqual(result._info_scroll, regular_end)
+        self.assertEqual(result._info_scroll, maximum - 1)
 
     def test_info_encoder_scrolls_and_enter_returns(self):
         result = display(snapshot())

@@ -1330,14 +1330,13 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if event == self.ENCODER_DIFF_NO:
             return
         items = self._info_items()
-        last_page = len(items) - 1
-        max_scroll = max(0, last_page - 11)
+        max_scroll = max(0, len(items) + 7 - 11)
         current = getattr(self, '_info_scroll', 0)
         if event == self.ENCODER_DIFF_CW:
-            self._info_scroll = last_page if current >= max_scroll else current + 1
+            self._info_scroll = min(max_scroll, current + 1)
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_CCW:
-            self._info_scroll = max_scroll if current == last_page else max(0, current - 1)
+            self._info_scroll = max(0, current - 1)
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_ENTER:
             self._info_scroll = 0
@@ -2348,31 +2347,31 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.Draw_Back_First()
         items = self._info_items()
         visible_count = 11
-        last_page = len(items) - 1
-        max_scroll = max(0, last_page - visible_count)
-        scroll = getattr(self, '_info_scroll', 0)
-        if scroll == last_page:
-            self._info_scroll = last_page
-            _, label, url = items[-1]
-            self._draw_menu_text(label, 48, 104)
-            # Reserve the whole page: scrolling never clips the QR or its quiet zone.
-            self.lcd.draw_rectangle(1, self.lcd.Color_White, 32, 136, 239, 343)
-            self.lcd.draw_qr(44, 148, 4, url)
-            self._draw_menu_text('^', 256, 76)
-            return
-        self._info_scroll = max(0, min(scroll, max_scroll))
-        y = 92
-        for kind, label, value in items[self._info_scroll:self._info_scroll + visible_count]:
+        # The caption is one row; reserve seven more rows for QR and quiet zone.
+        max_scroll = max(0, len(items) + 7 - visible_count)
+        self._info_scroll = max(0, min(getattr(self, '_info_scroll', 0), max_scroll))
+        qr_visible = False
+        for index, (kind, label, value) in enumerate(items):
+            y = 92 + (index - self._info_scroll) * 24
             if kind == 'qr':
-                break
-            if kind == 'section':
-                self._draw_info_section(label, y)
-            else:
-                self._draw_info_row(label, value, y)
-            y += 24
+                if y < self.STATUS_Y and y + 192 > 92:
+                    self._draw_menu_text(label, 48, y)
+                    self.lcd.draw_rectangle(1, self.lcd.Color_White, 52, y + 24, 219, y + 191)
+                    self.lcd.draw_qr(64, y + 36, 3, value)
+                    qr_visible = True
+            elif 92 <= y < 92 + visible_count * 24:
+                if kind == 'section':
+                    self._draw_info_section(label, y)
+                else:
+                    self._draw_info_row(label, value, y)
+        if qr_visible:
+            # Native QR has no clip command. Restore the fixed dashboard before
+            # the caller refreshes the display, masking the part below the menu.
+            self.Draw_Status_Area(False)
         if self._info_scroll:
             self._draw_menu_text('^', 256, 76)
-        self._draw_menu_text('v', 256, 328)
+        if self._info_scroll < max_scroll:
+            self._draw_menu_text('v', 256, 328)
 
     def Draw_Tune_Menu(self):
         self._draw_capability_menu('tune', self.select_tune, self.index_tune)

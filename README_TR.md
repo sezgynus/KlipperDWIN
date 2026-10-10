@@ -8,7 +8,7 @@ Döner encoder ile dosyaları gezinin, başlatmadan önce baskıyı inceleyin, y
   <a href="README.md">English</a> · <a href="README_TR.md">Türkçe</a>
 </p>
 <p align="center">
-  <a href="https://github.com/sezgynus/KlipperDWIN/tree/v1.0.0"><img alt="Tagged release v1.0.0" src="https://img.shields.io/badge/tag-v1.0.0-0969da"></a>
+  <a href="https://github.com/sezgynus/KlipperDWIN/tree/v2.0.0"><img alt="Tagged release v2.0.0" src="https://img.shields.io/badge/tag-v2.0.0-0969da"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776ab?logo=python&logoColor=white">
   <img alt="Klipper / Moonraker" src="https://img.shields.io/badge/Klipper-Moonraker-7d3cff">
   <a href="LICENSE"><img alt="GPL-3.0" src="https://img.shields.io/badge/License-GPL--3.0-blue"></a>
@@ -24,7 +24,7 @@ KlipperDWIN, Raspberry Pi veya uyumlu bir Linux SBC üzerinde çalışır. **272
 
 Uygulama, Ender 3 V2’de kullanılan 4,3 inç paneli ve görsel kaynak düzenini hedefler. Diğer panel aileleri ve görsel paketleri birbirinin yerine kullanılamaz; [LCD uyumluluk notlarına](docs/lcd-assets.md) bakın.
 
-**Sürüm kapsamı:** `v1.0.0` geçmiş bir etiketli sürümdür. Bu rehber, `master` dalındaki sonraki geliştirmeleri de kapsar.
+**Sürüm kapsamı:** `v2.0.0` son etiketli sürümdür. Bu rehber tag'den sonraki geliştirmeler dâhil güncel `master` dalını açıklar. Etiketli sürümün birebir durumu için tag'i kullanın.
 
 ## Özellikler
 
@@ -96,7 +96,7 @@ Mevcut değerler varsayılan olarak gösterilir; kayıt sonrasında servis yenid
 Moonraker oluşturulan yapılandırmayı yükledikten sonra **Machine → Update Manager** bölümünde yenileyip **KlipperDWIN** bileşenini güncelleyin. Moonraker `master` dalını takip eder, gerektiğinde Python bağımlılıklarını günceller ve yönetilen servisi yeniden başlatır. Normal Update Manager güncellemesinde ayrıca bağımlılık yüklemeniz gerekmez.
 
 > [!NOTE]
-> Donanım ayarlarını harici yapılandırma dosyasında tutun. Takip edilen repo dosyalarındaki yerel değişiklikler Update Manager için gereken temiz çalışma ağacını bozar. Etiketler sürümleri belirtir; güncelleyici `v1.0.0` sonrasında da `master` dalını takip eder.
+> Donanım ayarlarını harici yapılandırma dosyasında tutun. Takip edilen repo dosyalarındaki yerel değişiklikler Update Manager için gereken temiz çalışma ağacını bozar. Etiketler sürümleri belirtir; güncelleyici `v2.0.0` sonrasında da `master` dalını takip eder.
 
 ## Arayüz rehberi
 

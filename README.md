@@ -8,7 +8,7 @@ Browse files, inspect a print before starting it, adjust your printer and calibr
   <a href="README.md">English</a> · <a href="README_TR.md">Türkçe</a>
 </p>
 <p align="center">
-  <a href="https://github.com/sezgynus/KlipperDWIN/tree/v1.0.0"><img alt="Tagged release v1.0.0" src="https://img.shields.io/badge/tag-v1.0.0-0969da"></a>
+  <a href="https://github.com/sezgynus/KlipperDWIN/tree/v2.0.0"><img alt="Tagged release v2.0.0" src="https://img.shields.io/badge/tag-v2.0.0-0969da"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776ab?logo=python&logoColor=white">
   <img alt="Klipper / Moonraker" src="https://img.shields.io/badge/Klipper-Moonraker-7d3cff">
   <a href="LICENSE"><img alt="GPL-3.0" src="https://img.shields.io/badge/License-GPL--3.0-blue"></a>
@@ -24,7 +24,7 @@ KlipperDWIN runs on a Raspberry Pi or compatible Linux SBC. It connects to the *
 
 The application targets the 4.3-inch panel and asset layout used by the Ender 3 V2. Other panel families and asset packages are not interchangeable; see [LCD compatibility](docs/lcd-assets.md).
 
-**Version scope:** `v1.0.0` is a historical tagged release. This guide also documents later changes on `master`.
+**Version scope:** `v2.0.0` is the latest tagged release. This guide describes current `master`, including changes after the tag. Use the tag to inspect the exact release snapshot.
 
 ## Features
 
@@ -96,7 +96,7 @@ This uses current values as defaults and offers a service restart after saving. 
 After Moonraker reloads the generated configuration, open **Machine → Update Manager**, refresh and update **KlipperDWIN**. Moonraker follows `master`, updates Python requirements when needed and restarts the managed service. No separate dependency installation is needed for a normal Update Manager update.
 
 > [!NOTE]
-> Keep hardware settings in the external configuration file. Local edits to tracked repository files prevent the checkout from remaining clean for Update Manager. Tags identify releases; the updater continues following `master` after `v1.0.0`.
+> Keep hardware settings in the external configuration file. Local edits to tracked repository files prevent the checkout from remaining clean for Update Manager. Tags identify releases; the updater continues following `master` after `v2.0.0`.
 
 ## UI guide
 

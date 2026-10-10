@@ -57,6 +57,10 @@ class MoonrakerSubscription:
         self._error = 'Moonraker subscription is connecting'
         self._status = {}
         self._objects = []
+        self._base_subscription = {}
+        self._case_light_tracking = False
+        self._case_light_callback = None
+        self._case_light_generation = 0
         self._settings = {}
         self._software_version = 'unknown'
         self._eventtime = None
@@ -90,6 +94,46 @@ class MoonrakerSubscription:
                     'power_devices': dict(self._power_devices),
                     'power_off_serial': dict(self._power_off_serial)}
 
+    def set_case_light_tracking(self, enabled, callback=None):
+        """Replace the subscription while retaining every baseline printer object."""
+        with self._lock:
+            self._case_light_tracking = bool(enabled)
+            self._case_light_callback = callback if enabled else None
+            self._case_light_generation += 1
+            generation, epoch = self._case_light_generation, self._epoch
+            objects = copy.deepcopy(self._base_subscription)
+            if enabled and 'output_pin case_light' in self._objects:
+                objects['output_pin case_light'] = ['value']
+            if not enabled:
+                self._status.pop('output_pin case_light', None)
+        future = self.request('printer.objects.subscribe', {'objects': objects})
+        def receive(done):
+            if done.cancelled() or done.exception():
+                return
+            result = done.result()
+            with self._lock:
+                if generation != self._case_light_generation or epoch != self._epoch:
+                    return
+            try:
+                self._merge(result.get('status'), result.get('eventtime'))
+                # Other objects may have newer deltas before this reply arrives.
+                # Seed a newly tracked pin only if no pin state has arrived yet.
+                callback = None
+                light = result.get('status', {}).get('output_pin case_light')
+                with self._lock:
+                    if (generation == self._case_light_generation and epoch == self._epoch
+                            and self._case_light_tracking and isinstance(light, dict)
+                            and 'output_pin case_light' not in self._status):
+                        self._status['output_pin case_light'] = copy.deepcopy(light)
+                        self._revision += 1
+                        callback = self._case_light_callback
+                if callback is not None:
+                    callback()
+            except (AttributeError, MoonrakerError):
+                return
+        future.add_done_callback(receive)
+        return future
+
     def _invalidate(self, error):
         with self._lock:
             self._state = 'disconnected'
@@ -106,7 +150,9 @@ class MoonrakerSubscription:
                 or not math.isfinite(eventtime)
                 or not all(isinstance(value, dict) for value in status.values())):
             raise MoonrakerError('Invalid status notification')
+        callback = None
         with self._lock:
+            previous_light = copy.deepcopy(self._status.get('output_pin case_light'))
             if not replace and self._eventtime is not None and eventtime < self._eventtime:
                 return
             if replace:
@@ -116,6 +162,12 @@ class MoonrakerSubscription:
                     self._status.setdefault(name, {}).update(copy.deepcopy(fields))
             self._eventtime = eventtime
             self._revision += 1
+            if self._case_light_tracking and previous_light != self._status.get('output_pin case_light'):
+                callback = self._case_light_callback
+            if not self._case_light_tracking:
+                self._status.pop('output_pin case_light', None)
+        if callback is not None:
+            callback()
 
     def _notification(self, message):
         if 'id' in message:
@@ -334,12 +386,17 @@ class MoonrakerSubscription:
         required = {'toolhead', 'gcode_move', 'print_stats', 'virtual_sdcard'}
         if not required.issubset(available):
             raise MoonrakerError('Required printer objects are unavailable')
+        with self._lock:
+            self._base_subscription = {name: (['save_config_pending', 'save_config_pending_items']
+                                               if name == 'configfile' else None) for name in available}
+            subscription_objects = copy.deepcopy(self._base_subscription)
+            if self._case_light_tracking and 'output_pin case_light' in names:
+                subscription_objects['output_pin case_light'] = ['value']
         self._subscribing = True
         self._buffered = []
         try:
             result = self._rpc('printer.objects.subscribe',
-                               {'objects': {name: (['save_config_pending', 'save_config_pending_items']
-                                                  if name == 'configfile' else None) for name in available}})
+                               {'objects': subscription_objects})
             if not isinstance(result, dict):
                 raise MoonrakerError('Invalid subscription response')
             self._merge(result.get('status'), result.get('eventtime'), replace=True)
@@ -369,7 +426,13 @@ class MoonrakerSubscription:
                 connection.settimeout(min(self.timeout, 1.0))
                 self._last_receive = self._last_ping = time.monotonic()
                 self._bootstrap()
+                receive_timeout = min(self.timeout, 1.0)
                 while not self._stop.is_set():
+                    # Keep live lighting responsive without increasing idle polling.
+                    desired_timeout = min(self.timeout, 0.05 if self._case_light_tracking else 1.0)
+                    if receive_timeout != desired_timeout:
+                        connection.settimeout(desired_timeout)
+                        receive_timeout = desired_timeout
                     self._drain_outbound()
                     message = self._receive()
                     if message is not None:

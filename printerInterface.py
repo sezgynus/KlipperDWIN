@@ -1065,9 +1065,26 @@ class PrinterData:
         except Empty:
             return None
 
-    def query_case_light(self, report_error=True):
-        self.clear_gcode_responses()
-        return self.sendGCode('M355') if report_error else self.sendGCodeObserved('M355')
+    def case_light_state(self):
+        snapshot = self.subscription.snapshot()
+        value = snapshot['status'].get('output_pin case_light', {}).get('value')
+        if snapshot['state'] != 'ready' or not isinstance(value, (int, float)):
+            return None
+        if not math.isfinite(value) or not 0 <= value <= 1:
+            return None
+        return value > 0, int(round(value * 100))
+
+    def set_case_light_brightness(self, percent):
+        percent = float(percent)
+        snapshot = self.subscription.snapshot()
+        if not math.isfinite(percent) or not 0 <= percent <= 100:
+            raise ValueError('Case light brightness out of range')
+        if 'output_pin case_light' not in snapshot['objects']:
+            raise ValueError('Case light output pin unavailable')
+        scale = float(snapshot['settings'].get('output_pin case_light', {}).get('scale', 1))
+        if not math.isfinite(scale) or scale <= 0:
+            raise ValueError('Invalid case light scale')
+        return self.sendGCodeObserved('SET_PIN PIN=case_light VALUE={:.6f}'.format(percent * scale / 100))
 
     def sendGCodeObserved(self, gcode):
         """Dispatch long-running G-Code without waiting for its completion response.

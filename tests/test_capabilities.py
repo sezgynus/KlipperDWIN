@@ -697,21 +697,21 @@ class CapabilityMenuTests(unittest.TestCase):
 
     def test_case_light_uses_dedicated_light_icon_alias(self):
         data = snapshot()
-        data['objects'].append('gcode_macro M355')
+        data['objects'].append('output_pin case_light')
         result = display(data)
         entry = next(item for item in result._menus['control'] if item[0] == 'LIGHT')
         self.assertEqual(entry[2], result.ICON_CaseLight)
         self.assertEqual(result.ICON_CaseLight, result.ICON_Motion)
 
-    def test_case_light_is_hidden_without_m355_macro(self):
+    def test_case_light_is_hidden_without_output_pin(self):
         result = display(snapshot())
         keys = [entry[0] for entry in result._menus['control']]
         self.assertNotIn('LIGHT', keys)
         self.assertEqual(result.CONTROL_CASE_LIGHT, -1)
 
-    def test_case_light_is_visible_with_m355_macro(self):
+    def test_case_light_is_visible_with_output_pin(self):
         data = snapshot()
-        data['objects'].append('gcode_macro M355')
+        data['objects'].append('output_pin case_light')
         result = display(data)
         keys = [entry[0] for entry in result._menus['control']]
         self.assertIn('LIGHT', keys)
@@ -720,56 +720,53 @@ class CapabilityMenuTests(unittest.TestCase):
 
     def test_case_light_opens_submenu_and_queries_initial_state(self):
         data = snapshot()
-        data['objects'].append('gcode_macro M355')
+        data['objects'].append('output_pin case_light')
         result = display(data)
         keys = [entry[0] for entry in result._menus['control']]
         self.assertIn('LIGHT', keys)
         self.assertLess(keys.index('MOVE'), keys.index('LIGHT'))
         self.assertLess(keys.index('LIGHT'), keys.index('INFO'))
-        result.pd.query_case_light = Mock()
+        result.pd.subscription.set_case_light_tracking = Mock()
         result.Draw_Case_Light_Menu = Mock()
         result.select_control.set(result.CONTROL_CASE_LIGHT)
         result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_ENTER)
         result.HMI_Control()
         self.assertEqual(result.checkkey, result.CaseLight)
-        result.pd.query_case_light.assert_called_once_with()
+        result.pd.subscription.set_case_light_tracking.assert_called_once()
 
     def test_case_light_query_parses_on_and_brightness(self):
         data = snapshot()
-        data['objects'].append('gcode_macro M355')
+        data['objects'].append('output_pin case_light')
         result = display(data)
         result.checkkey = result.CaseLight
-        result._case_light_query_pending = True
-        result.pd.pop_gcode_response = Mock(side_effect=['info Light is ON, Brightness=255'])
+        data['status']['output_pin case_light'] = {'value': 1}
         result.Draw_Case_Light_Menu = Mock()
-        self.assertTrue(result._poll_case_light_query())
+        self.assertTrue(result._poll_case_light_state())
         self.assertTrue(result._case_light_on)
         self.assertEqual(result._case_light_brightness, 100)
-        self.assertFalse(result._case_light_query_pending)
 
     def test_case_light_toggle_is_silent_and_waits_for_fresh_query(self):
         data = snapshot()
-        data['objects'].append('gcode_macro M355')
+        data['objects'].append('output_pin case_light')
         result = display(data)
         result._case_light_on = True
         result.Draw_Case_Light_Menu = Mock()
         result._restore_action_screen = Mock()
         result.HMI_AudioFeedback = Mock()
-        result.pd.query_case_light = Mock()
+        result.pd.subscription.set_case_light_tracking = Mock()
         future = Future()
         future.set_result({'result': 'ok'})
-        result.pd.sendGCodeObserved = Mock(return_value=future)
+        result.pd.set_case_light_brightness = Mock(return_value=future)
         result._action = Mock()
 
         result.select_light.set(1)
         result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_ENTER)
         result.HMI_Case_Light()
 
-        result.pd.sendGCodeObserved.assert_called_once_with('M355 S0')
+        result.pd.set_case_light_brightness.assert_called_once_with(0)
         result._action.assert_not_called()
         self.assertTrue(result._case_light_on)
         self.assertFalse(result._poll_action())
-        result.pd.query_case_light.assert_called_once_with(report_error=False)
         self.assertTrue(result._case_light_on)
 
     def test_case_light_brightness_exit_silently_queries_real_value(self):
@@ -777,30 +774,27 @@ class CapabilityMenuTests(unittest.TestCase):
         result._case_light_brightness = 25
         result._case_light_brightness_target = 50
         result.checkkey = result.CaseLightBrightness
-        result.pd.query_case_light = Mock()
+        result.pd.subscription.set_case_light_tracking = Mock()
         result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_ENTER)
         result._action = Mock()
         result.HMI_Case_Light_Brightness()
         result.pd.sendGCode.assert_not_called()
-        result.pd.query_case_light.assert_called_once_with(report_error=False)
         self.assertEqual(result._case_light_brightness, 50)
         result._action.assert_not_called()
 
     def test_case_light_brightness_response_converts_raw_to_percent(self):
         data = snapshot()
-        data['objects'].append('gcode_macro M355')
+        data['objects'].append('output_pin case_light')
         result = display(data)
         result.checkkey = result.CaseLight
-        result._case_light_query_pending = True
-        result.pd.pop_gcode_response = Mock(side_effect=[
-            'info Light is OFF, Brightness=128'])
+        data['status']['output_pin case_light'] = {'value': 0.5}
         result.Draw_Case_Light_Menu = Mock()
-        result._poll_case_light_query()
+        result._poll_case_light_state()
         self.assertEqual(result._case_light_brightness, 50)
 
     def test_case_light_brightness_editor_clamps_percent_range(self):
         data = snapshot()
-        data['objects'].append('gcode_macro M355')
+        data['objects'].append('output_pin case_light')
         result = display(data)
         result._case_light_brightness_target = 100
         result._encoder_move_value = 10

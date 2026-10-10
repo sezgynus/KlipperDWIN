@@ -33,7 +33,7 @@ The application targets the 4.3-inch panel and asset layout used by the Ender 3 
 | Monitor a print | Progress, elapsed/remaining time, Pause/Resume, Stop and Tune |
 | Adjust the printer | Homing, Move/Live Jog, heater/fan targets, runtime Z offset and motion limits |
 | Calibrate the bed | Four-corner Screws Tilt Adjust, Bed Mesh Calibrate, saved Mesh Viewer and Probe calibration |
-| Use integrations | Editable Mainsail temperature presets, Happy Hare gate visualization, Spoolman percentages and M355 case light |
+| Use integrations | Editable Mainsail temperature presets, Happy Hare gate visualization, Spoolman percentages and PWM case light |
 | Inspect the system | Scrollable host, software and MCU information; encoder power on/off |
 
 Menus adapt to detected printer capabilities. The **MMU menu provides full-screen Happy Hare control, live status and recovery**; its Home-screen gate visualization keeps the existing layout. Remaining limitations are listed [below](#scope-and-limitations).
@@ -266,14 +266,18 @@ This control implementation follows the [MMU design](https://github.com/sezgynus
 
 <p align="center"><img src="docs/assets/screens/case-light.png" width="240" alt="Case Light"></p>
 
-**Control → Case Light** appears when `gcode_macro M355` exists. It provides on/off and 0–100% brightness, converted to a 0–255 macro value. For bidirectional status, the macro must accept the commands and return the query format below:
+**Control → Case Light** appears when `output_pin case_light` is configured. It provides silent on/off and live 0–100% PWM brightness via `SET_PIN`, sent over the existing WebSocket. No macro is required.
 
-```text
-M355 S0/1
-M355 P0..255
-
-Light is ON, Brightness=128
+```ini
+[output_pin case_light]
+pin: PA3
+pwm: True
+value: 1.0
+shutdown_value: 0
+cycle_time: 0.01
 ```
+
+The menu subscribes to `output_pin case_light.value` only while open, including the brightness editor. Values come from structured Klipper status notifications; there are no periodic queries or text-response parsing. During editing, your percentage stays on screen; exiting restores the actual pin value. Closing the menu removes only the light subscription and preserves all other printer subscriptions. Off sets PWM to zero; On restores the last positive brightness (100% if none has been observed). Fast input keeps 1% per detent and draws coalesced movement once.
 
 ### Startup splash
 
@@ -414,9 +418,3 @@ The Display menu provides **Brightness (0–100%)** and **Idle dim (Off or 1–6
 Idle dim uses your configured Dim brightness, capped at the normal brightness; the first encoder turn or press restores the configured brightness without activating a menu action. Off disables dimming. A 0% setting turns the backlight off; while editing, turn clockwise to raise it again. Settings survive panel power cycles. Brightness maps linearly to the driver's 0–255 range.
 
 Display settings use a versioned, CRC-protected 16-byte LCD Data Flash record at **0x0100–0x010F**. Atlas metadata retains **0x0000–0x003F**; neither region overlaps. Invalid/blank settings default to 100%, Off, and 10% dim brightness. Existing records preserve brightness and timeout and use 10% until you change the dim level. The menu uses existing 9.ICO sun (205) and clock (15) icons; atlas assets are unchanged.
-
-Case-light brightness follows encoder changes live and silently. While editing, the UI keeps your selected percentage; incoming M355 responses cannot replace the draft. Confirming exits the editor and reads the real value with M355 after the last brightness command completes. Rapid input retains only the latest pending value. The Case Light menu polls M355 outside the brightness editor to reflect external changes.
-
-Rapid case-light brightness input applies coalesced encoder detents in one LCD redraw, retaining 1% per detent without acceleration. Live M355 updates and the silent follow-up query use the existing WebSocket in order, avoiding a separate HTTP request per change.
-
-Case-light on/off commands also run silently over WebSocket, followed by M355 state readback; no waiting or accepted overlay is shown.

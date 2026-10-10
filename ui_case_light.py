@@ -1,7 +1,6 @@
 """Case-light screen rendering and interaction mixin."""
 
 import logging
-import time
 from concurrent.futures import Future
 from ui_events import InputEvent
 
@@ -24,30 +23,39 @@ class CaseLightMixin:
         self.lcd.draw_text(False, True, self.lcd.font8x16, self.lcd.Color_White,
                              self.lcd.Color_Bg_Black, 232, self.MBASE(2), '%')
 
-    def _poll_case_light_query(self):
-        if not getattr(self, '_case_light_query_pending', False):
-            return False
-        import re
-        while True:
-            response = self.pd.pop_gcode_response()
-            if response is None:
-                return False
-            match = re.search(r'Light is (ON|OFF),\s*Brightness=(\d+)', response, re.IGNORECASE)
-            if match:
-                self._case_light_on = match.group(1).upper() == 'ON'
-                raw_brightness = max(0, min(255, int(match.group(2))))
-                self._case_light_brightness = int(round(raw_brightness * 100.0 / 255.0))
-                self._case_light_query_pending = False
-                if self.checkkey == self.CaseLight:
-                    self.Draw_Case_Light_Menu()
-                    self.lcd.update()
-                return True
+    def _sync_case_light_tracking(self):
+        screen = getattr(self, 'checkkey', None)
+        enabled = screen in (self.CaseLight, self.CaseLightBrightness)
+        if screen == self.PowerConfirm and getattr(self, '_power_origin', None) == self.CaseLight:
+            enabled = True
+        enabled = enabled and getattr(self, '_uart_online', True)
+        snapshot = self.pd.subscription.snapshot()
+        key = (bool(enabled), snapshot['epoch'], getattr(self, '_uart_epoch', 0))
+        if key == getattr(self, '_case_light_tracking_key', None):
+            return
+        self._case_light_tracking_key = key
+        if not enabled and not getattr(self, '_case_light_tracking_active', False):
+            return
+        self._case_light_tracking_active = enabled
+        loop = getattr(self, '_loop', None)
+        callback = (lambda: loop.post(InputEvent('case_light_status', 0, key[1], key[2]))) if loop else None
+        self.pd.subscription.set_case_light_tracking(enabled, callback)
 
-    def _refresh_case_light_state(self):
-        # Commit displayed light state only after a successful command and a
-        # fresh M355 query response; never optimistically change the UI.
-        self._case_light_query_pending = True
-        self.pd.query_case_light()
+    def _poll_case_light_state(self, redraw=True):
+        if self.checkkey not in (self.CaseLight, self.CaseLightBrightness):
+            return False
+        state = self.pd.case_light_state()
+        if not isinstance(state, tuple) or len(state) != 2:
+            return False
+        changed = state != (getattr(self, '_case_light_on', None),
+                            getattr(self, '_case_light_brightness', None))
+        self._case_light_on, self._case_light_brightness = state
+        if state[1] > 0:
+            self._case_light_restore_brightness = state[1]
+        if changed and redraw and self.checkkey == self.CaseLight:
+            self.Draw_Case_Light_Menu()
+            self.lcd.update()
+        return changed
 
     def _poll_case_light_live(self):
         future = getattr(self, '_case_light_live_future', None)
@@ -73,7 +81,7 @@ class CaseLightMixin:
             epoch = (self.pd.subscription.snapshot()['epoch'], getattr(self, '_uart_epoch', 0))
             self._case_light_live_epoch = epoch
             try:
-                future = self.pd.sendGCodeObserved('M355 P{}'.format(int(round(target * 255.0 / 100.0))))
+                future = self.pd.set_case_light_brightness(target)
             except ValueError:
                 logging.warning('Case light brightness unavailable', exc_info=True)
                 future = None
@@ -88,15 +96,7 @@ class CaseLightMixin:
                 self._case_light_live_future = None
         if getattr(self, '_case_light_live_refresh', False):
             self._case_light_live_refresh = False
-            self._case_light_query_pending = True
-            self.pd.query_case_light(report_error=False)
-            self._case_light_next_query = time.monotonic() + 2
-        elif (self.checkkey == self.CaseLight
-                and not getattr(self, '_case_light_query_pending', False)
-                and time.monotonic() >= getattr(self, '_case_light_next_query', 0)):
-            self._case_light_query_pending = True
-            self.pd.query_case_light(report_error=False)
-            self._case_light_next_query = time.monotonic() + 2
+            self._poll_case_light_state()
 
     def HMI_Case_Light(self):
         event = self.get_encoder_state()
@@ -110,16 +110,12 @@ class CaseLightMixin:
             if self.select_light.now == 0:
                 self.checkkey = self.Control
                 self.select_control.set(self.CONTROL_CASE_LIGHT)
+                self._sync_case_light_tracking()
                 self.Draw_Control_Menu()
             elif self.select_light.now == 1:
-                target = not getattr(self, '_case_light_on', False)
-                try:
-                    self.pd.sendGCodeObserved('M355 S{}'.format(1 if target else 0))
-                except ValueError:
-                    logging.warning('Case light toggle unavailable', exc_info=True)
-                else:
-                    self._case_light_live_refresh = True
-                    self._poll_case_light_live()
+                self._case_light_live_pending = (0 if getattr(self, '_case_light_on', False)
+                                                 else getattr(self, '_case_light_restore_brightness', 100))
+                self._poll_case_light_live()
             else:
                 self.checkkey = self.CaseLightBrightness
                 self._case_light_brightness_target = getattr(self, '_case_light_brightness', 0)
@@ -132,7 +128,7 @@ class CaseLightMixin:
         event = self.get_encoder_state()
         if event == self.ENCODER_DIFF_ENTER:
             self.checkkey = self.CaseLight
-            # Keep the last handwheel value until a fresh M355 response arrives.
+            # After editing, the subscribed pin state becomes authoritative again.
             self._case_light_brightness = self._case_light_brightness_target
             self._case_light_live_refresh = True
             self.Draw_Case_Light_Menu()

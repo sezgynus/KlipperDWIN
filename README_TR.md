@@ -33,7 +33,7 @@ Uygulama, Ender 3 V2’de kullanılan 4,3 inç paneli ve görsel kaynak düzenin
 | Baskı izleme | İlerleme, geçen/kalan süre, Pause/Resume, Stop ve Tune |
 | Yazıcı ayarları | Homing, Move/Live Jog, ısıtıcı/fan hedefleri, çalışma zamanı Z offset ve hareket sınırları |
 | Tabla kalibrasyonu | Dört köşe Screws Tilt Adjust, Bed Mesh Calibrate, kayıtlı Mesh Viewer ve Probe calibration |
-| Entegrasyonlar | Düzenlenebilir Mainsail sıcaklık presetleri, Happy Hare kanal görünümü, Spoolman yüzdeleri ve M355 kabin ışığı |
+| Entegrasyonlar | Düzenlenebilir Mainsail sıcaklık presetleri, Happy Hare kanal görünümü, Spoolman yüzdeleri ve PWM kabin ışığı |
 | Sistem bilgileri | Kaydırılabilir host, yazılım ve MCU bilgileri; encoder ile güç açma/kapatma |
 
 Menüler algılanan yazıcı yeteneklerine göre şekillenir. **MMU menüsü tam ekran Happy Hare kontrolü, canlı durum ve kurtarma sunar**; ana ekrandaki kanal görünümünün mevcut yerleşimi korunur. Diğer sınırlar [aşağıda](#kapsam-ve-sınırlar) listelenmiştir.
@@ -266,14 +266,18 @@ Bu kontrol uygulaması [MMU tasarımını](https://github.com/sezgynus/KlipperDW
 
 <p align="center"><img src="docs/assets/screens/case-light.png" width="240" alt="Case Light"></p>
 
-**Control → Case Light**, `gcode_macro M355` mevcutsa görünür. Aç/kapat ve %0–100 parlaklık sunar; parlaklık 0–255 macro değerine çevrilir. Çift yönlü durum için macro aşağıdaki komutları kabul etmeli ve sorgu formatını döndürmelidir:
+**Control → Case Light**, `output_pin case_light` tanımlıysa görünür. Sessiz aç/kapat ve canlı %0–100 PWM parlaklık sunar; `SET_PIN` mevcut WebSocket üzerinden gönderilir. Makro gerekmez.
 
-```text
-M355 S0/1
-M355 P0..255
-
-Light is ON, Brightness=128
+```ini
+[output_pin case_light]
+pin: PA3
+pwm: True
+value: 1.0
+shutdown_value: 0
+cycle_time: 0.01
 ```
+
+Menü açıkken, parlaklık düzenlemesi dahil, yalnızca `output_pin case_light.value` durumuna abonelik açılır. Değerler Klipper nesne bildirimlerinden gelir; periyodik sorgu veya metin yanıtı ayrıştırma yapılmaz. Düzenlerken seçtiğiniz yüzde korunur; çıkınca gerçek pin değeri gösterilir. Menüden çıkış sadece ışık aboneliğini kaldırır, diğer yazıcı abonelikleri korunur. Kapatma PWM değerini sıfırlar; açma son pozitif parlaklığı geri getirir (henüz gözlenmediyse %100). Hızlı çevirmede her adım %1 kalır, biriken hareket tek çizimde uygulanır.
 
 ### Açılış ekranı
 
@@ -416,9 +420,3 @@ Display menüsü **Parlaklık (%0–100)** ve **Boşta kısma (Off veya 1–60 d
 Boşta kısma seçtiğiniz kısılmış parlaklığı uygular; normal parlaklığı aşmaz. İlk enkoder hareketi veya tıklama menü işlemi yapmadan ayarlanan parlaklığı geri getirir. Off kısmayı kapatır. %0 arka ışığı kapatır; düzenlerken saat yönünde çevirerek tekrar artırabilirsiniz. Ayarlar ekranın güç döngüsünde korunur. Yüzde değeri sürücünün 0–255 aralığına doğrusal eşlenir.
 
 Ayarlar LCD Data Flash içinde sürümlü, CRC korumalı 16 baytlık **0x0100–0x010F** kaydında tutulur. Atlas metadata alanı **0x0000–0x003F** olarak korunur; alanlar çakışmaz. Boş/geçersiz kayıtta varsayılan %100, Off ve kısılmış parlaklık %10'dur. Eski kayıtlardaki parlaklık ve süre korunur; kısılmış parlaklık siz değiştirene kadar %10 olur. Mevcut 9.ICO güneş (205) ve saat (15) ikonları kullanılır; atlas dosyaları değişmez.
-
-Case light parlaklığı enkoderi canlı ve sessiz takip eder. Düzenlerken UI seçtiğiniz yüzdeyi gösterir; gelen M355 yanıtları düzenleme değerini değiştirmez. Tıklayıp çıkınca son parlaklık komutu tamamlandıktan sonra M355 ile gerçek değer okunur. Hızlı çevirmelerde sırada yalnızca en son değer tutulur. Case Light menüsü parlaklık düzenlemesi dışında M355 sorgulayarak dışarıdan yapılan değişiklikleri gösterir.
-
-Case light parlaklığında hızlı çevirmeyle biriken enkoder adımları tek LCD çiziminde uygulanır; hızlandırma yapılmadan her adım %1 olarak korunur. Canlı M355 komutları ve ardından yapılan sessiz sorgu mevcut WebSocket üzerinden sırayla gönderilir; her değişiklik için ayrı HTTP isteği açılmaz.
-
-Case light açma/kapatma komutları da WebSocket üzerinden sessiz çalışır; ardından M355 ile gerçek durum okunur. Bekleme veya kabul bildirimi gösterilmez.

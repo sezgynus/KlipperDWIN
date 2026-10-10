@@ -393,7 +393,6 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self._case_light_live_refresh = False
         self._case_light_live_epoch = None
         self._case_light_live_future = None
-        self._case_light_query_pending = False
         self._display_selection = 0
         self._display_edit = False
         self._display_save_message = ''
@@ -563,6 +562,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
 
     def _ui_tick(self):
         self._poll_panel_power()
+        self._sync_case_light_tracking()
         if not self._uart_online:
             # Keep status current while the panel is disconnected.
             self.pd.update_variable()
@@ -708,9 +708,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._menus['control'].append(('PROBE', 'Probe calibration', self.ICON_Zoffset))
         if recovery:
             self._menus['control'].append(('RECOVERY', 'Restore jog state', self.ICON_Homing))
-        # Klipper exposes configured macros as "gcode_macro <name>" objects.
-        # M355 commands are valid only when that compatibility macro exists.
-        if any(name.lower() == 'gcode_macro m355' for name in self.pd.state.objects):
+        if caps.case_light:
             self._menus['control'].append(('LIGHT', 'Case Light', self.ICON_CaseLight))
         self._menus['control'].append(('INFO', 'Info', self.ICON_Info))
         prefixes = {'prepare': 'PREPARE', 'temperature': 'TEMP', 'tune': 'TUNE',
@@ -989,6 +987,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if ((snapshot['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu) or snapshot['epoch'] != event.epoch
                 or self._closed):
             return
+        if event.kind == 'case_light_status':
+            self._poll_case_light_state()
+            return
         if event.kind == 'case_light_flush':
             self._poll_case_light_live()
             return
@@ -1046,6 +1047,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                     and not getattr(lcd, '_closed', False)):
                 lcd._defer_updates = False
                 lcd.update()
+            self._sync_case_light_tracking()
 
     def MBASE(self, L):
         return 49 + self.MLINE * L
@@ -1368,8 +1370,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             if self.select_control.now == self.CONTROL_CASE_LIGHT:
                 self.checkkey = self.CaseLight
                 self.select_light.reset()
-                self._case_light_query_pending = True
-                self.pd.query_case_light()
+                self._sync_case_light_tracking()
+                self._poll_case_light_state(redraw=False)
                 self.Draw_Case_Light_Menu()
             if (self.select_control.now == self.CONTROL_CASE_INFO):  # Info
                 self._info_origin = self.Control
@@ -2928,7 +2930,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
 
     def EachMomentUpdate(self):
         self._poll_case_light_live()
-        self._poll_case_light_query()
+        self._sync_case_light_tracking()
+        self._poll_case_light_state()
         # variable update
         update = self.pd.update_variable()
         if not self.pd.connection_error and self._configure_menus():

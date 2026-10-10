@@ -50,6 +50,7 @@ class PrinterCapabilities:
     axis_maximum: tuple = (0, 0, 0)
 
     screws_tilt_adjust: bool = False
+    case_light: bool = False
 
     @classmethod
     def from_state(cls, state):
@@ -77,7 +78,8 @@ class PrinterCapabilities:
         return cls(hotends, active, bed, 'fan' in objects,
                    'probe' in objects or 'bltouch' in objects,
                    'bed_mesh' in objects, minimum, maximum,
-                   'screws_tilt_adjust' in objects and 'screws_tilt_adjust' in settings)
+                   'screws_tilt_adjust' in objects and 'screws_tilt_adjust' in settings,
+                   'output_pin case_light' in objects)
 
     @property
     def has_heaters(self):

@@ -1330,12 +1330,14 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         if event == self.ENCODER_DIFF_NO:
             return
         items = self._info_items()
-        max_scroll = max(0, len(items) - 11)
+        last_page = len(items) - 1
+        max_scroll = max(0, last_page - 11)
+        current = getattr(self, '_info_scroll', 0)
         if event == self.ENCODER_DIFF_CW:
-            self._info_scroll = min(max_scroll, getattr(self, '_info_scroll', 0) + 1)
+            self._info_scroll = last_page if current >= max_scroll else current + 1
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_CCW:
-            self._info_scroll = max(0, getattr(self, '_info_scroll', 0) - 1)
+            self._info_scroll = max_scroll if current == last_page else max(0, current - 1)
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_ENTER:
             self._info_scroll = 0
@@ -2335,7 +2337,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             ('row', 'Klipper', self.pd.SHORT_BUILD_VERSION),
             ('row', 'Moonraker', info.get('moonraker', 'Unavailable')),
             ('row', 'Mainsail', info.get('mainsail', 'Unavailable')),
-            ('wide', '', 'github.com/sezgynus/KlipperDWIN'),
+            ('qr', 'Scan for project info', 'https://github.com/sezgynus/KlipperDWIN'),
         ])
         return items
 
@@ -2346,23 +2348,31 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         self.Draw_Back_First()
         items = self._info_items()
         visible_count = 11
-        max_scroll = max(0, len(items) - visible_count)
-        self._info_scroll = max(0, min(getattr(self, '_info_scroll', 0), max_scroll))
+        last_page = len(items) - 1
+        max_scroll = max(0, last_page - visible_count)
+        scroll = getattr(self, '_info_scroll', 0)
+        if scroll == last_page:
+            self._info_scroll = last_page
+            _, label, url = items[-1]
+            self._draw_menu_text(label, 48, 104)
+            # Reserve the whole page: scrolling never clips the QR or its quiet zone.
+            self.lcd.draw_rectangle(1, self.lcd.Color_White, 32, 136, 239, 343)
+            self.lcd.draw_qr(44, 148, 4, url)
+            self._draw_menu_text('^', 256, 76)
+            return
+        self._info_scroll = max(0, min(scroll, max_scroll))
         y = 92
         for kind, label, value in items[self._info_scroll:self._info_scroll + visible_count]:
+            if kind == 'qr':
+                break
             if kind == 'section':
                 self._draw_info_section(label, y)
-            elif kind == 'wide':
-                text = T5UIC1Display._panel_text(value)[:31]
-                self.lcd.draw_text(False, False, self.lcd.font8x16, self.lcd.Color_White,
-                                     self.lcd.Color_Bg_Black, 8, y, text)
             else:
                 self._draw_info_row(label, value, y)
             y += 24
         if self._info_scroll:
             self._draw_menu_text('^', 256, 76)
-        if self._info_scroll < max_scroll:
-            self._draw_menu_text('v', 256, 328)
+        self._draw_menu_text('v', 256, 328)
 
     def Draw_Tune_Menu(self):
         self._draw_capability_menu('tune', self.select_tune, self.index_tune)

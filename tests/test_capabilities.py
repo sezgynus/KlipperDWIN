@@ -567,6 +567,24 @@ class CapabilityMenuTests(unittest.TestCase):
         self.assertEqual([label for kind, label, _ in result._info_items() if kind == 'section'],
                          ['Machine', 'Host', 'MCU', 'Software'])
 
+    def test_info_qr_has_its_own_complete_final_page(self):
+        result = display(snapshot())
+        result.pd.refresh_system_info = Mock(return_value=False)
+        items = result._info_items()
+        final = len(items) - 1
+        regular_end = max(0, final - 11)
+        result._info_scroll = regular_end
+        result.Draw_Info_Menu()
+        result.lcd.draw_qr.assert_not_called()
+        result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CW)
+        result.HMI_Info()
+        self.assertEqual(result._info_scroll, final)
+        result.lcd.draw_qr.assert_called_once_with(
+            44, 148, 4, 'https://github.com/sezgynus/KlipperDWIN')
+        result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
+        result.HMI_Info()
+        self.assertEqual(result._info_scroll, regular_end)
+
     def test_info_encoder_scrolls_and_enter_returns(self):
         result = display(snapshot())
         result.pd.system_info['mcus'] = tuple(

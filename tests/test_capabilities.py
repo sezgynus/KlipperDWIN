@@ -669,6 +669,18 @@ class CapabilityMenuTests(unittest.TestCase):
         result._software_update.start.assert_not_called()
         result.Goto_MainMenu.assert_called_once_with()
 
+    def test_info_rotation_cancels_soft_recovery_confirmation(self):
+        result = display(snapshot())
+        updater = result._software_updater()
+        updater.phase = 'confirm_recovery'
+        updater.confirm_epoch = 1
+        result.Draw_Info_Menu = Mock()
+        result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CW)
+        result.HMI_Info()
+        self.assertEqual(updater.phase, 'dirty')
+        self.assertIsNone(updater.confirm_epoch)
+        self.assertEqual(updater.label, 'Soft recovery')
+
     def test_info_encoder_scrolls_and_enter_returns(self):
         result = display(snapshot())
         result.pd.system_info['mcus'] = tuple(

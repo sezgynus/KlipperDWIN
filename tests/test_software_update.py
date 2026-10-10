@@ -90,3 +90,72 @@ class UpdateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'state changed'):
             captured[0]()
         client.request.assert_not_called()
+
+    @patch('software_update.MoonrakerClient')
+    def test_dirty_recovery_requires_confirmation_and_scopes_soft_request(self, factory):
+        updater, client, item, _ = self.make('klipperdwin')
+        factory.return_value = client
+        item['is_dirty'] = True
+        updater.start(); updater.poll()
+        self.assertEqual(updater.phase, 'dirty')
+        self.assertEqual(updater.label, 'Soft recovery')
+        client.request.reset_mock()
+        updater.start()
+        self.assertEqual(updater.label, 'Confirm recovery')
+        client.request.assert_not_called()
+        def request(method, path, params):
+            self.assertEqual(params.get('name'), 'klipperdwin')
+            if path == '/machine/update/recover':
+                self.assertIs(params['hard'], False)
+                item['is_dirty'] = False
+                return {'result': 'ok'}
+            return {'result': {'version_info': {'klipperdwin': item}}}
+        client.request.side_effect = request
+        updater.start(); updater.poll()
+        self.assertEqual(updater.phase, 'available')
+        self.assertEqual([call.args[1] for call in client.request.call_args_list],
+                         ['/machine/update/recover', '/machine/update/refresh'])
+
+    @patch('software_update.MoonrakerClient')
+    def test_cancel_confirmation_and_state_change_never_recover(self, factory):
+        updater, client, item, state = self.make()
+        factory.return_value = client
+        item['is_dirty'] = True
+        updater.start(); updater.poll(); updater.start()
+        updater.cancel_confirmation()
+        self.assertEqual(updater.phase, 'dirty')
+        updater.start()
+        state['epoch'] = 2
+        client.request.reset_mock()
+        updater.start()
+        self.assertEqual(updater.phase, 'error')
+        client.request.assert_not_called()
+
+    @patch('software_update.MoonrakerClient')
+    def test_recovery_rechecks_dirty_state_and_rejects_other_updater(self, factory):
+        for mode in ('clean', 'invalid', 'wrong_name', 'printing', 'paused'):
+            updater, client, item, state = self.make()
+            factory.return_value = client
+            item['is_dirty'] = True
+            updater.start(); updater.poll(); updater.start()
+            if mode == 'clean': item['is_dirty'] = False
+            if mode == 'invalid': item['is_valid'] = False
+            if mode == 'wrong_name': updater.name = 'moonraker'
+            if mode in ('printing', 'paused'): state['status']['print_stats']['state'] = mode
+            client.request.reset_mock()
+            updater.start(); updater.poll()
+            client.request.assert_not_called()
+
+    @patch('software_update.MoonrakerClient')
+    def test_recovery_timeout_never_automatically_retries(self, factory):
+        updater, client, item, _ = self.make()
+        factory.return_value = client
+        item['is_dirty'] = True
+        updater.start(); updater.poll(); updater.start()
+        client.request.side_effect = TimeoutError('timeout')
+        client.request.reset_mock()
+        updater.start(); updater.poll(); updater.poll()
+        self.assertEqual(updater.phase, 'error')
+        self.assertEqual(updater.message, 'Recovery unconfirmed; check Mainsail')
+        client.request.assert_called_once_with('POST', '/machine/update/recover',
+                                               {'name': 'KlipperDWIN', 'hard': False})

@@ -9,11 +9,14 @@ class SoftwareUpdate:
         self.phase = 'idle'
         self.message = ''
         self.name = None
+        self.confirm_epoch = None
 
     @property
     def label(self):
         return {'checking': 'Checking...', 'available': 'Update',
-                'updating': 'Updating...', 'restarting': 'Restarting...'}.get(
+                'updating': 'Updating...', 'restarting': 'Restarting...',
+                'dirty': 'Soft recovery', 'confirm_recovery': 'Confirm recovery',
+                'recovering': 'Recovering...'}.get(
                     self.phase, 'Check for updates')
 
     def start(self):
@@ -23,6 +26,17 @@ class SoftwareUpdate:
         snapshot = printer.subscription.snapshot()
         if snapshot.get('state') != 'ready' or snapshot.get('status', {}).get('print_stats', {}).get('state') in ('printing', 'paused'):
             self.message = 'Printer must be idle'
+            return
+        if self.phase == 'dirty':
+            self.phase = 'confirm_recovery'
+            self.confirm_epoch = snapshot.get('epoch')
+            self.message = 'Discard local changes? Press again'
+            return
+        recover = self.phase == 'confirm_recovery'
+        if recover and snapshot.get('epoch') != self.confirm_epoch:
+            self.cancel_confirmation()
+            self.message = 'Printer state changed; check again'
+            self.phase = 'error'
             return
         upgrade = self.phase == 'available'
         epoch = snapshot.get('epoch')
@@ -36,6 +50,17 @@ class SoftwareUpdate:
                 current = printer.subscription.snapshot()
                 if current.get('state') != 'ready' or current.get('epoch') != epoch or current.get('status', {}).get('print_stats', {}).get('state') in ('printing', 'paused'):
                     raise ValueError('Printer state changed')
+                if recover:
+                    versions = client.get('/machine/update/status')['result']['version_info']
+                    item = versions.get(name, {})
+                    if not name or name.casefold() != 'klipperdwin' or not item.get('is_valid', False) or not item.get('is_dirty', False):
+                        raise ValueError('Check updates again')
+                    client.request('POST', '/machine/update/recover', {'name': name, 'hard': False})
+                    refreshed = client.request('POST', '/machine/update/refresh', {'name': name})
+                    item = refreshed['result']['version_info'][name]
+                    if not item.get('is_valid', False) or item.get('is_dirty', False):
+                        raise ValueError('Recovery incomplete; check Mainsail')
+                    return name, self.available(item)
                 if upgrade:
                     # Re-check validity and revision before installing a previously checked update.
                     versions = client.get('/machine/update/status')['result']['version_info']
@@ -50,15 +75,22 @@ class SoftwareUpdate:
                     raise ValueError('Updater not configured')
                 refreshed = client.request('POST', '/machine/update/refresh', {'name': name_found})
                 item = refreshed['result']['version_info'][name_found]
-                if not item.get('is_valid', False) or item.get('is_dirty', False):
-                    raise ValueError('Updater invalid or dirty')
+                if not item.get('is_valid', False):
+                    raise ValueError('Updater invalid')
+                if item.get('is_dirty', False):
+                    return name_found, 'dirty'
                 return name_found, self.available(item)
             finally:
                 client.close()
 
-        self.phase = 'updating' if upgrade else 'checking'
+        self.phase = 'recovering' if recover else ('updating' if upgrade else 'checking')
         self.message = 'Please wait...'
         self.future = printer._read_worker.submit(work)
+
+    def cancel_confirmation(self):
+        if self.phase == 'confirm_recovery':
+            self.phase, self.message = 'dirty', 'Local changes detected'
+        self.confirm_epoch = None
 
     @staticmethod
     def available(item):
@@ -72,7 +104,9 @@ class SoftwareUpdate:
         future, self.future = self.future, None
         try:
             self.name, available = future.result()
-            if available is None:
+            if available == 'dirty':
+                self.phase, self.message = 'dirty', 'Local changes detected'
+            elif available is None:
                 self.phase, self.message = 'restarting', 'Restarting KlipperDWIN'
             elif available:
                 self.phase, self.message = 'available', 'Update available'
@@ -80,6 +114,8 @@ class SoftwareUpdate:
                 self.phase, self.message = 'current', 'Up to date'
         except Exception as error:
             upgrading = self.phase == 'updating'
+            recovering = self.phase == 'recovering'
             self.phase = 'error'
-            self.message = ('Update unconfirmed; check Mainsail' if upgrading else str(error))
+            self.message = ('Update unconfirmed; check Mainsail' if upgrading else
+                            'Recovery unconfirmed; check Mainsail' if recovering else str(error))
         return True

@@ -1335,6 +1335,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         items = self._info_items()
         max_scroll = max(0, len(items) + 9 - 11)
         current = getattr(self, '_info_scroll', 0)
+        if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
+            self._software_updater().cancel_confirmation()
         if event == self.ENCODER_DIFF_CW:
             self._info_scroll = min(max_scroll, current + 1)
             if self._info_scroll == current:
@@ -2320,9 +2322,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         label = T5UIC1Display._panel_text(updater.label)[:25]
         self.lcd.draw_text(False, False, self.lcd.font8x16, self.lcd.Color_White,
                            background, (272 - len(label) * 8) // 2, y, label)
-        if not updater.message or updater.phase in ('checking', 'updating', 'restarting'):
+        if not updater.message or updater.phase in ('checking', 'updating', 'restarting', 'recovering'):
             return
-        color = {'current': 0x07E0, 'available': 0xFFE0}.get(updater.phase, 0xF800)
+        color = {'current': 0x07E0, 'available': 0xFFE0, 'dirty': 0xFFE0, 'confirm_recovery': 0xFFE0}.get(updater.phase, 0xF800)
         lines = textwrap.wrap(T5UIC1Display._panel_text(updater.message), width=28)[:2]
         first_y = y - (40 if len(lines) > 1 else 32)
         for index, text in enumerate(lines):

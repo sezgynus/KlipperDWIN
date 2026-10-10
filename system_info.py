@@ -2,6 +2,8 @@
 import socket
 import struct
 import os
+import re
+import subprocess
 
 try:
     import fcntl
@@ -68,3 +70,28 @@ def host_metrics():
         except (OSError, ValueError):
             continue
     return cpu, temp
+
+
+def wifi_info():
+    """Read associated Wi-Fi SSID/RSSI with bounded commands (worker only)."""
+    try:
+        devices = subprocess.run(['iw', 'dev'], capture_output=True, text=True,
+                                 timeout=1, check=True).stdout
+        for name in re.findall(r'^\s*Interface (\S+)', devices, re.MULTILINE):
+            link = subprocess.run(['iw', 'dev', name, 'link'], capture_output=True,
+                                  text=True, timeout=1, check=True).stdout
+            ssid = re.search(r'^\s*SSID: (.*)$', link, re.MULTILINE)
+            if ssid:
+                signal = re.search(r'^\s*signal: (-?\d+(?:\.\d+)?) dBm', link, re.MULTILINE)
+                return ssid.group(1), float(signal.group(1)) if signal else None
+    except (OSError, subprocess.SubprocessError, UnicodeError):
+        return 'Unavailable', None
+    return 'Disconnected', None
+
+
+def wifi_signal_text(rssi):
+    """Compact signal description fitting the Info value column."""
+    if rssi is None:
+        return 'N/A'
+    level = 'Strong' if rssi >= -60 else 'Medium' if rssi >= -70 else 'Poor'
+    return '{:.0f} dBm ({})'.format(rssi, level)

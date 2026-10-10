@@ -1,3 +1,4 @@
+from system_info import wifi_signal_text
 import time
 import logging
 from concurrent.futures import Future
@@ -2268,6 +2269,11 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
 
     def _draw_info_row(self, label, value, y):
         self._draw_menu_text(label, 8, y)
+        if label == 'Wi-Fi':
+            text = T5UIC1Display._panel_text(value)[:32]
+            self.lcd.draw_text(False, False, self.lcd.font6x12, self.lcd.Color_White,
+                               self.lcd.Color_Bg_Black, 64, y + 2, text)
+            return
         text = T5UIC1Display._panel_text(value)[:17]
         color = self.lcd.Color_White
         if label == 'Network':
@@ -2307,6 +2313,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             ('section', 'Machine', None),
             ('row', 'Size', self.pd.MACHINE_SIZE),
             ('row', 'Network', info.get('network', 'Unknown')),
+            ('row', 'Wi-Fi', info.get('wifi_ssid', 'Unavailable')),
+            ('row', 'RSSI', wifi_signal_text(info.get('wifi_rssi'))),
             ('row', 'IP', info.get('ip', 'Unavailable')),
             ('section', 'Host', None),
             ('row', 'CPU', 'N/A' if cpu is None else '{:.0f}%'.format(cpu)),

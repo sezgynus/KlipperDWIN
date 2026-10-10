@@ -537,6 +537,7 @@ class CapabilityMenuTests(unittest.TestCase):
             'klipperdwin': 'v0.4.0-2-g1234abcd', 'moonraker': 'v0.9.3-1-gabcd',
             'mainsail': 'v2.14.0', 'network': 'Online', 'ip': '192.168.1.50',
             'host_cpu': 37.2, 'host_temp': 48.5,
+            'wifi_ssid': 'My WiFi', 'wifi_rssi': -65,
             'mcus': ({'name': 'mcu', 'load': 1.2, 'temperature': 42.5, 'version': 'v1'},
                      {'name': 'mmu', 'load': 0.4, 'temperature': None, 'version': 'v2'}),
         }
@@ -544,6 +545,8 @@ class CapabilityMenuTests(unittest.TestCase):
         result.pd.MACHINE_SIZE = '220x220x250'
         items = result._info_items()
         self.assertIn(('row', 'Size', '220x220x250'), items)
+        self.assertIn(('row', 'Wi-Fi', 'My WiFi'), items)
+        self.assertIn(('row', 'RSSI', '-65 dBm (Medium)'), items)
         self.assertIn(('row', 'CPU', '37%'), items)
         self.assertIn(('section', 'MCU: mcu', None), items)
         self.assertIn(('row', 'Load', '1.2%'), items)
@@ -552,6 +555,11 @@ class CapabilityMenuTests(unittest.TestCase):
         self.assertIn(('row', 'Temp', 'N/A'), items)
         result.Draw_Info_Menu()
         self.assertGreater(len(items), 11)
+        ssid = 'A' * 32
+        result._draw_info_row('Wi-Fi', ssid, 100)
+        call = result.lcd.draw_text.call_args.args
+        self.assertEqual(call[-1], ssid)
+        self.assertEqual(call[-3], 64)
 
     def test_info_encoder_scrolls_and_enter_returns(self):
         result = display(snapshot())

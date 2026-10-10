@@ -20,7 +20,7 @@ from mmu_control import MMUSession
 from preset_store import PresetStore
 from printer_state import PrinterState
 from printer_capabilities import PrinterCapabilities
-from system_info import host_metrics, network_info, updater_version
+from system_info import host_metrics, network_info, updater_version, wifi_info
 
 class xyze_t:
     x = 0.0
@@ -227,6 +227,8 @@ class PrinterData:
             'moonraker': 'Unavailable',
             'mainsail': 'Unavailable',
             'network': 'Unknown',
+            'wifi_ssid': 'Unavailable',
+            'wifi_rssi': None,
             'ip': 'Unavailable',
             'host_cpu': None,
             'host_temp': None,
@@ -342,7 +344,16 @@ class PrinterData:
                              'version': str(value.get('mcu_version') or '')})
             current['mcus'] = tuple(mcus)
         try:
-            response = self._read('system_info', lambda: self.client.get('/machine/update/status'))
+            def read_info():
+                wireless = wifi_info()
+                try:
+                    return wireless, self.client.get('/machine/update/status'), None
+                except MoonrakerError as error:
+                    return wireless, None, error
+            wireless, response, error = self._read('system_info', read_info)
+            current['wifi_ssid'], current['wifi_rssi'] = wireless
+            if error is not None:
+                raise error
             versions = response.get('result', {}).get('version_info', {})
             if not isinstance(versions, Mapping):
                 raise ValueError('Invalid update-manager status')

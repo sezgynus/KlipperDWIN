@@ -1,4 +1,6 @@
 import socket
+import subprocess
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -6,6 +8,36 @@ import system_info
 
 
 class SystemInfoTests(unittest.TestCase):
+    @patch.object(system_info.subprocess, 'run')
+    def test_wifi_association_and_fractional_signal(self, run):
+        run.side_effect = [SimpleNamespace(stdout='Interface wlan0\n'),
+                           SimpleNamespace(stdout='Connected to aa:bb\n\tSSID: My WiFi\n\tsignal: -64.50 dBm\n')]
+        self.assertEqual(system_info.wifi_info(), ('My WiFi', -64.5))
+        self.assertEqual(run.call_args.kwargs['timeout'], 1)
+        self.assertEqual(run.call_args.args[0], ['iw', 'dev', 'wlan0', 'link'])
+
+    @patch.object(system_info.subprocess, 'run')
+    def test_wifi_disconnected_and_missing_signal(self, run):
+        run.side_effect = [SimpleNamespace(stdout='Interface wlan0\n'), SimpleNamespace(stdout='Not connected.\n')]
+        self.assertEqual(system_info.wifi_info(), ('Disconnected', None))
+        run.side_effect = [SimpleNamespace(stdout='Interface wlan0\n'), SimpleNamespace(stdout='SSID: Office\n')]
+        self.assertEqual(system_info.wifi_info(), ('Office', None))
+
+    @patch.object(system_info.subprocess, 'run')
+    def test_wifi_missing_tool_and_timeout(self, run):
+        for error in (FileNotFoundError(), subprocess.TimeoutExpired('iw', 1)):
+            run.side_effect = error
+            self.assertEqual(system_info.wifi_info(), ('Unavailable', None))
+
+    def test_signal_thresholds_and_column_width(self):
+        for value, level in [(-30, 'Strong'), (-60, 'Strong'), (-61, 'Medium'),
+                             (-70, 'Medium'), (-71, 'Poor'), (-100, 'Poor')]:
+            text = system_info.wifi_signal_text(value)
+            self.assertIn('({})'.format(level), text)
+            self.assertIn('{} dBm'.format(value), text)
+            self.assertLessEqual(len(text), 17)
+        self.assertEqual(system_info.wifi_signal_text(None), 'N/A')
+
     def test_updater_version_prefers_full_git_description(self):
         versions = {'KlipperDWIN': {
             'version': 'v0.4.0-2',

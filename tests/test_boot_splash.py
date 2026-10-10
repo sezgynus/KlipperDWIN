@@ -18,7 +18,7 @@ class BootSplashTests(unittest.TestCase):
         v.EachMomentUpdate = Mock()
         return v
 
-    def test_waiting_for_klipper_only_draws_centered_bar(self):
+    def test_waiting_for_klipper_only_draws_lower_bar_and_stage(self):
         v = self.view()
         v.pd.subscription.snapshot.return_value['state'] = 'disconnected'
         v._ui_tick()
@@ -29,14 +29,17 @@ class BootSplashTests(unittest.TestCase):
         v._show_message.assert_not_called()
         frames = v.lcd.serial.frames
         self.assertTrue(frames)
-        self.assertTrue(all(f[1] in (0x00, 0x05, 0x3D) for f in frames))
+        self.assertTrue(all(f[1] in (0x00, 0x05, 0x11, 0x3D) for f in frames))
         for frame in frames:
             if frame[1] == 0x05:
                 x0,y0,x1,y1 = [int.from_bytes(frame[i:i+2], 'big') for i in (5,7,9,11)]
                 self.assertGreaterEqual(x0, 16)
                 self.assertLessEqual(x1, 255)
-                self.assertGreaterEqual(y0, 230)
-                self.assertLessEqual(y1, 249)
+                self.assertGreaterEqual(y0, 290)
+                self.assertLessEqual(y1, 339)
+            elif frame[1] == 0x11:
+                self.assertEqual(int.from_bytes(frame[9:11], 'big'), 322)
+                self.assertIn(b'Waiting for printer...', frame)
 
     def test_unchanged_wait_does_not_repaint_or_fake_completion(self):
         v = self.view()
@@ -47,6 +50,28 @@ class BootSplashTests(unittest.TestCase):
             v._poll_boot()
         self.assertEqual(v._boot_progress, 70)
         self.assertEqual(v.lcd.serial.frames, [])
+
+    def test_stage_text_changes_even_when_progress_has_not_changed(self):
+        v = self.view()
+        v._draw_boot_progress(80)
+        v.lcd.serial.frames.clear()
+        v._draw_boot_progress(80, message='Waiting for printer data')
+        self.assertEqual(v._boot_progress, 80)
+        self.assertTrue(any(b'Waiting for printer data' in f for f in v.lcd.serial.frames))
+
+    def test_failed_prerequisites_identify_the_stage_without_opening_menu(self):
+        v = self.view()
+        v.lcd._atlas_synced = False
+        v._poll_boot()
+        self.assertEqual(v._boot_message, 'Display assets unavailable')
+        self.assertEqual(v._boot_progress, 40)
+        v.lcd._atlas_synced = True
+        v.pd.update_variable = Mock()
+        v.pd.connection_error = 'invalid data'
+        v._poll_boot()
+        self.assertEqual(v._boot_message, 'Waiting for printer data')
+        self.assertEqual(v._boot_progress, 80)
+        v.HMI_StartFrame.assert_not_called()
 
     def test_ready_data_and_atlas_finish_once_with_one_full_frame(self):
         v = self.view()
@@ -102,7 +127,7 @@ class BootSplashTests(unittest.TestCase):
         opcodes = [f[1] for f in lcd.serial.frames]
         self.assertNotIn(0x22, opcodes)
         self.assertNotIn(0x01, opcodes)
-        self.assertNotIn(0x11, opcodes)
+        self.assertIn(0x11, opcodes)
         self.assertIn(0x25, opcodes)
         self.assertEqual(lcd._virtual_area_pictures, {0: 14})
 
@@ -139,7 +164,7 @@ class BootSplashTests(unittest.TestCase):
         self.assertEqual(stages, [40, 70])
         opcodes = [frame[1] for frame in port.frames]
         self.assertIn(0x25, opcodes)
-        self.assertFalse(set(opcodes) & {0x01, 0x11, 0x22, 0x26, 0x27})
+        self.assertFalse(set(opcodes) & {0x01, 0x22, 0x26, 0x27})
         self.assertEqual(lcd._virtual_area_pictures, {0: 14})
 
     def test_initial_on_observation_does_not_restart_completed_boot(self):

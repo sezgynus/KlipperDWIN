@@ -479,28 +479,44 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._uart_failed()
             return False
 
-    def _draw_boot_progress(self, value, lcd=None):
+    def _draw_boot_progress(self, value, lcd=None, message=None):
         lcd = self.lcd if lcd is None else lcd
+        message = message or {40: 'Preparing display assets', 70: 'Waiting for printer...',
+                              80: 'Reading printer status', 90: 'Preparing menus',
+                              100: 'Starting interface'}.get(value, 'Starting display')
         value = max(getattr(self, '_boot_progress', -1), min(100, value))
-        if value == getattr(self, '_boot_progress', -1):
+        if (value == getattr(self, '_boot_progress', -1)
+                and message == getattr(self, '_boot_message', None)):
             return
         self._boot_progress = value
-        # The panel owns the slot-0 splash. Touch only this centered bar.
-        lcd.draw_rectangle(1, 0x0000, 16, 230, 255, 249)
-        lcd.draw_rectangle(0, 0xFFFF, 16, 230, 255, 249)
+        self._boot_message = message
+        # Keep both overlays below the slot-0 artwork's PRINTER DISPLAY label.
+        lcd.draw_rectangle(1, 0x0000, 16, 290, 255, 309)
+        lcd.draw_rectangle(0, 0xFFFF, 16, 290, 255, 309)
         if value:
-            lcd.draw_rectangle(1, 0x07E0, 18, 232, 18 + 235 * value // 100, 247)
+            lcd.draw_rectangle(1, 0x07E0, 18, 292, 18 + 235 * value // 100, 307)
+        lcd.draw_rectangle(1, 0x0000, 16, 320, 255, 339)
+        lcd.draw_text(False, False, lcd.font8x16, 0xFFFF, 0x0000,
+                      (272 - len(message) * 8) // 2, 322, message)
         lcd.update()
 
     def _poll_boot(self):
-        self.pd.update_variable()
         snapshot = self.pd.subscription.snapshot()
         if not self.lcd._atlas_synced or not self.lcd._atlas_virtual_areas_loaded:
+            self._draw_boot_progress(40, message='Display assets unavailable')
             return
-        self._draw_boot_progress(70)
+        if snapshot['state'] != 'ready':
+            self.pd.update_variable()
+            self._draw_boot_progress(70)
+            return
+        self._draw_boot_progress(80)
+        self.pd.update_variable()
+        snapshot = self.pd.subscription.snapshot()
         if (snapshot['state'] != 'ready' or self.pd.connection_error
                 or not self.pd.state.ready or self.pd.state.epoch != snapshot['epoch']):
+            self._draw_boot_progress(80, message='Waiting for printer data')
             return
+        self._draw_boot_progress(90)
         self._configure_menus()
         self.pd.mmu_session.update()
         self._draw_boot_progress(100)

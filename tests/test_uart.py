@@ -41,6 +41,7 @@ class UARTTests(unittest.TestCase):
         # coverage in test_atlas_driver.py.
         with patch.object(serial_module, 'Serial', return_value=port, create=True), \
                 patch.object(Driver.__init__.__globals__['time'], 'sleep'), \
+                patch('icon_library.sync_library'), \
                 patch.object(Driver, 'sync_atlases', return_value=False):
             return Driver('/dev/fake', **kwargs)
 

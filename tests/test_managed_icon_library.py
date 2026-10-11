@@ -104,6 +104,23 @@ class ManagedIconTests(unittest.TestCase):
         broken[20] ^= 1
         self.assertEqual(icons.parse_metadata(broken), [])
 
+    def test_startup_syncs_icons_then_atlases_before_boot_animation(self):
+        from test_uart import Port, Driver, serial_module
+        port = Port([b'\xAA\x00OK' + Driver.TAIL])
+        events = []
+        def icon_sync(lcd):
+            events.append('icons')
+        def atlas_sync(lcd, **kwargs):
+            events.append('atlases')
+            return False
+        with patch.object(serial_module, 'Serial', return_value=port, create=True), \
+                patch('icon_library.sync_library', side_effect=icon_sync), \
+                patch.object(Driver, 'sync_atlases', atlas_sync):
+            lcd = Driver('/dev/fake', wake_delay=0,
+                         startup_progress=lambda lcd, value: events.append(('progress', value)))
+        lcd.close()
+        self.assertEqual(events, ['icons', 'atlases', ('progress', 40)])
+
     def test_checked_in_pack_matches_sources_and_all_payloads_are_preserved(self):
         root = Path(__file__).resolve().parents[1]
         data = icons.build_library(root / 'assets/icons')

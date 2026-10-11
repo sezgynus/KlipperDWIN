@@ -49,6 +49,28 @@ class IconLibraryPackingTests(TestCase):
             self.assertEqual(before[1][:4] + before[1][8:], after[1][:4] + after[1][8:])
 
     @patch('tools.flash_icon_library.time.sleep')
+    def test_delay_occurs_after_each_ack_before_next_write(self, sleep):
+        data = (ROOT / 'assets/emulator/7.ICO').read_bytes()
+        lcd = Mock()
+        events = Mock()
+        events.attach_mock(lcd, 'lcd')
+        events.attach_mock(sleep, 'sleep')
+        upload(lcd, data, post_ack_delay=2.5)
+        calls = events.mock_calls
+        acknowledgements = [i for i, call in enumerate(calls)
+                            if call[0] == 'lcd.store_sram_as_picture']
+        self.assertEqual(len(acknowledgements), 8)
+        for i in acknowledgements:
+            self.assertEqual(calls[i + 1][0], 'sleep')
+            self.assertEqual(calls[i + 1].args, (2.5,))
+        self.assertEqual(lcd.write_sram.call_count, 8)
+        for invalid in (-1, 11, float('nan'), float('inf')):
+            untouched = Mock()
+            with self.assertRaises(ValueError):
+                upload(untouched, data, post_ack_delay=invalid)
+            untouched.write_sram.assert_not_called()
+
+    @patch('tools.flash_icon_library.time.sleep')
     def test_separate_last_byte_write_uses_exact_address_and_original_byte(self, sleep):
         data = (ROOT / 'assets/emulator/7.ICO').read_bytes()
         lcd = Mock()

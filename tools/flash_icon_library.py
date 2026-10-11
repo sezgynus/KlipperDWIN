@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import logging
+import math
 from pathlib import Path
 import subprocess
 import sys
@@ -30,7 +31,10 @@ def validate_upload(data, allow_cross_block=False):
             raise ValueError('No icon entries')
 
 
-def upload(lcd, data, *, allow_cross_block=False, rewrite_last_byte=False):
+def upload(lcd, data, *, allow_cross_block=False, rewrite_last_byte=False,
+           post_ack_delay=0):
+    if not math.isfinite(post_ack_delay) or not 0 <= post_ack_delay <= 10:
+        raise ValueError('Post-ACK delay must be finite and within 0..10 seconds')
     validate_upload(data, allow_cross_block)
     count = (len(data) + BLOCK_SIZE - 1) // BLOCK_SIZE
     lcd.set_animation_mask(0)
@@ -50,6 +54,9 @@ def upload(lcd, data, *, allow_cross_block=False, rewrite_last_byte=False):
         time.sleep(0.1)
         lcd.store_sram_as_picture(slot, timeout=5)
         print(f'Slot {slot}: panel acknowledged write.', flush=True)
+        if post_ack_delay:
+            print(f'Slot {slot}: waiting {post_ack_delay:g} seconds after ACK...', flush=True)
+            time.sleep(post_ack_delay)
 
 
 def main():
@@ -61,9 +68,13 @@ def main():
                         help='Diagnostic only: allow JPEGs spanning Flash blocks; requires --file and --sha256')
     parser.add_argument('--rewrite-last-byte', action='store_true',
                         help='Diagnostic: write SRAM address 0x7FFF again in a separate one-byte command')
+    parser.add_argument('--post-ack-delay', type=float, default=0,
+                        help='Diagnostic: extra wait after every Picture Flash ACK, in seconds (0..10)')
     args = parser.parse_args()
     if not args.serial_port:
         parser.error('UART not configured; specify --serial-port')
+    if not math.isfinite(args.post_ack_delay) or not 0 <= args.post_ack_delay <= 10:
+        parser.error('--post-ack-delay must be finite and within 0..10 seconds')
     if args.allow_cross_block and (not args.file or not args.sha256):
         parser.error('--allow-cross-block requires --file and --sha256')
     state = subprocess.run(['systemctl', 'is-active', 'KlipperDWIN.service'],
@@ -84,7 +95,7 @@ def main():
     lcd = ManualDisplay(args.serial_port)
     try:
         upload(lcd, data, allow_cross_block=args.allow_cross_block,
-               rewrite_last_byte=args.rewrite_last_byte)
+               rewrite_last_byte=args.rewrite_last_byte, post_ack_delay=args.post_ack_delay)
         print('Upload acknowledged. Check Leveling and Cooldown on the physical display.')
     finally:
         lcd.close()

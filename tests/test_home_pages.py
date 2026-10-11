@@ -24,7 +24,7 @@ class HomePageTests(unittest.TestCase):
             self.assertEqual(view.select_page.now,index)
         view.lcd.reset_mock();view._draw_home_page()
         icons=[c.args[1:] for c in view.lcd.show_icon.call_args_list]
-        self.assertEqual(icons,[(101,33,146),(108,174,134),(view.ICON_Info_0,17,246)])
+        self.assertEqual(icons,[(101,17,130),(108,145,130),(view.ICON_Info_0,17,246)])
         self.step(view,view.ENCODER_DIFF_CW)
         self.assertEqual(view.select_page.now,5)
         self.step(view,view.ENCODER_DIFF_CW)
@@ -138,16 +138,12 @@ class HomePageTests(unittest.TestCase):
 
     def test_mmu_icon_uses_icon_library_for_both_selection_states(self):
         from lcd_resources import ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
-        view=self.make()
-        for x,y in ((17,130),(145,246)):
-            for selected,icon_id in (
-                (False,ICON_MMU_HOME_NORMAL),
-                (True,ICON_MMU_HOME_SELECTED),
-            ):
-                view.lcd.reset_mock();view.Draw_MMU_Home_Icon(x,y,selected)
-                view.lcd.show_icon.assert_called_once_with(7,icon_id,x+16,y+16)
-                view.lcd.draw_rectangle.assert_not_called()
-                view.lcd.draw_line.assert_not_called()
+        view = self.make()
+        for selection, icon in ((5, ICON_MMU_HOME_NORMAL), (4, ICON_MMU_HOME_SELECTED)):
+            view.select_page.set(selection)
+            view.lcd.reset_mock()
+            view._draw_home_page()
+            view.lcd.show_icon.assert_any_call(7, icon, 17, 130)
 
     def test_display_placeholder_before_info_opens_back_only_and_restores_focus(self):
         for mesh in (True, False):
@@ -167,12 +163,12 @@ class HomePageTests(unittest.TestCase):
             view.pd.sendGCode.assert_not_called()
 
     def test_display_uses_device_gear_library_icon_for_normal_and_selected(self):
-        from lcd_resources import ICON_DISPLAY
+        from lcd_resources import ICON_DISPLAY_NORMAL, ICON_DISPLAY_SELECTED
         view = self.make()
-        for selection in (4, 5):
+        for selection, icon in ((4, ICON_DISPLAY_NORMAL), (5, ICON_DISPLAY_SELECTED)):
             view.select_page.set(selection)
             view.lcd.reset_mock()
             view._draw_home_page()
-            view.lcd.show_icon.assert_any_call(7, ICON_DISPLAY, 174, 134)
+            view.lcd.show_icon.assert_any_call(7, icon, 145, 130)
             self.assertFalse(any(call.args[-4:] == (173, 142, 226, 181)
                                  for call in view.lcd.draw_rectangle.call_args_list))

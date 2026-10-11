@@ -23,7 +23,7 @@ from gpiozero import Button, Device
 from gpiozero.pins.lgpio import LGPIOFactory
 from printerInterface import PrinterData
 from t5uic1_driver import T5UIC1Display, T5UIC1ProtocolError
-from lcd_resources import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY
+from lcd_resources import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY_NORMAL, ICON_DISPLAY_SELECTED, ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
 
 def _MAX(lhs, rhs):
     if lhs > rhs:
@@ -156,6 +156,10 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     ICON = ICON_LIBRARY_ID
 
     ICON_LOGO = 0
+    ICON_MMU_0 = ICON_MMU_HOME_NORMAL
+    ICON_MMU_1 = ICON_MMU_HOME_SELECTED
+    ICON_Display_0 = ICON_DISPLAY_NORMAL
+    ICON_Display_1 = ICON_DISPLAY_SELECTED
     ICON_Print_0 = 1
     ICON_Print_1 = 2
     ICON_Prepare_0 = 3
@@ -1199,8 +1203,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                    ('CONTROL', 'Control', self.ICON_Control_0, self.ICON_Control_1)]
         if len(self._leveling_menu_entries()) > 1:
             entries.append(('LEVEL', 'Leveling', self.ICON_Leveling_0, self.ICON_Leveling_1))
-        entries.append(('MMU', 'MMU', None, None))
-        entries.append(('DISPLAY', 'Display', None, None))
+        entries.append(('MMU', 'MMU', self.ICON_MMU_0, self.ICON_MMU_1))
+        entries.append(('DISPLAY', 'Display', self.ICON_Display_0, self.ICON_Display_1))
         entries.append(('INFO', 'Info', self.ICON_Info_0, self.ICON_Info_1))
         return tuple(entries)
 
@@ -1220,12 +1224,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             active = index == self.select_page.now
             if partial:
                 self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, x, y, x+109, y+99)
-            if key == 'DISPLAY':
-                self.lcd.show_icon(self.ICON, ICON_DISPLAY, x + 29, y + 4)
-            elif key == 'MMU':
-                self.Draw_MMU_Home_Icon(x, y, active)
-            else:
-                self.lcd.show_icon(self.ICON, selected if active else normal, x, y)
+            self.lcd.show_icon(self.ICON, selected if active else normal, x, y)
             if active:
                 self.lcd.draw_rectangle(0, self.lcd.Color_White, x, y, x+109, y+99)
             self._draw_menu_text(label, x+(109-len(label)*8)//2, y+71)

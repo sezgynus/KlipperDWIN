@@ -102,11 +102,11 @@ class EmulatorRenderingTests(unittest.TestCase):
         from lcd_resources import ICON_MMU_HOME_NORMAL
         source = self.assets.icon(7, ICON_MMU_HOME_NORMAL)
         # Native transparency changes black pixels only; compare a colored pixel.
-        points = [(x, y) for y in range(47) for x in range(77)
+        points = [(x, y) for y in range(2, 65) for x in range(2, 108)
                   if max(source.getpixel((x, y))) > 31]
         self.assertTrue(points)
         x, y = points[len(points) // 2]
-        # UI centers the native JPEG icon in its home tile.
+        # All home icons use the same native tile coordinates.
         frames = self.lcd.serial.frames
         copies = [f for f in frames if f[1] == 0x23 and f[6:8] == bytes((0x87, ICON_MMU_HOME_NORMAL))]
         self.assertTrue(copies)

@@ -39,14 +39,19 @@ class MMUDriverIntegrationTests(unittest.TestCase):
     def test_home_mmu_icon_is_native_library_7_for_both_selections(self):
         view, _ = mmu_fixtures.MMUUITests().make()
         view.lcd = lcd()
+        index = next(i for i, entry in enumerate(view._home_entries()) if entry[0] == 'MMU')
+        slot = index % 4
+        x, y = (17 if slot % 2 == 0 else 145), (130 if slot < 2 else 246)
         for selected, icon in ((False, ICON_MMU_HOME_NORMAL), (True, ICON_MMU_HOME_SELECTED)):
             view.lcd.serial.frames.clear()
-            view.Draw_MMU_Home_Icon(145, 170, selected)
-            self.assertEqual(len(view.lcd.serial.frames), 1)
-            frame = view.lcd.serial.frames[0]
+            view.select_page.set(index if selected else index - 1)
+            view._draw_home_page()
+            frames = [f for f in view.lcd.serial.frames if f[1] == 0x23 and f[6:8] == bytes((0x87, icon))]
+            self.assertEqual(len(frames), 1)
+            frame = frames[0]
             self.assertEqual(frame[1], 0x23)
-            self.assertEqual(int.from_bytes(frame[2:4], 'big'), 161)
-            self.assertEqual(int.from_bytes(frame[4:6], 'big'), 186)
+            self.assertEqual(int.from_bytes(frame[2:4], 'big'), x)
+            self.assertEqual(int.from_bytes(frame[4:6], 'big'), y)
             self.assertEqual(frame[6:8], bytes((0x87, icon)))
 
     def test_all_production_lcd_calls_exist_on_complete_driver(self):

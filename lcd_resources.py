@@ -12,7 +12,8 @@ ICON_MACHINE = 104
 ICON_HOST = 105
 ICON_SOFTWARE = 106
 ICON_POWER = 107
-ICON_DISPLAY = 108
+ICON_DISPLAY_NORMAL = 108
+ICON_DISPLAY_SELECTED = 124
 ICON_SPOOL_EMPTY = 109
 # Only the small wooden flanges vary in width, not entire spool images.
 SPOOL_LEFT_FLANGES = {width: 109 + width for width in range(1, 8)}

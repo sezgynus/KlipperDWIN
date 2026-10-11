@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from icon_library import sync_library
 from tools.flash_icon_library import ManualDisplay
-from tools.reload_atlases import configured_port
+from tools.lcd_connection import configured_port
 
 
 def main():

@@ -858,7 +858,6 @@ class MMUUITests(unittest.TestCase):
         v._uart_online = False
         v._next_uart_retry = 0
         v._uart_epoch = 0
-        v.HMI_Init = Mock()
         port = Mock()
         with patch.object(ui, 'T5UIC1Display', return_value=port):
             self.assertTrue(v._ensure_uart())

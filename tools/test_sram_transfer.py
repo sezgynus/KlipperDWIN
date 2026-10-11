@@ -9,7 +9,7 @@ import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from tools.flash_icon_library import ManualDisplay
-from tools.reload_atlases import configured_port
+from tools.lcd_connection import configured_port
 
 
 class TracePort:

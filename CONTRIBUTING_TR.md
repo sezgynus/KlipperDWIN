@@ -20,7 +20,7 @@ Kullanıcının gördüğü değişikliklerde ilgili rehberi ve ekran görüntü
 |---|---|---|
 | İsteğe bağlı framebuffer emülatörü | Görsel inceleme, dokümantasyon ve hata bildirimi için çalışan LCD arayüzünü yakalar | [Emülatör rehberi](docs/ui-emulator_TR.md) |
 | Regresyon testleri | Yazıcıya bağlanmadan veya hareket ettirmeden değişikliği kontrol eder | [Test rehberi](tests/README_TR.md) |
-| Atlas patch aracı | Mevcut ikonları yeniden kodlamadan yeni ikon hazırlar | [Kaynak rehberi](assets/README_TR.md) |
+| JPEG ikon paketleyici | İkon ekler ve yönetilen kütüphaneyi dışa aktarır | [İkon kaynak rehberi](assets/icons/README_TR.md) |
 | Servis günlükleri | Açılış, bağlantı ve işlem hatalarını incelemeyi sağlar | [Sorun giderme](docs/installation_TR.md#sorun-giderme) |
 
 ## Çalıştırma ve doğrulama

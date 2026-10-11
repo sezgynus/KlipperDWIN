@@ -6,27 +6,17 @@
 
 | Dosya | Amaç |
 |---|---|
-| `klipperdwin_atlas_0.jpg` | Özel sabit ikonlar: MMU, klasör, makine/host/MCU/yazılım, güç, Display ve ortak boş makara |
-| `klipperdwin_atlas_1.jpg` | Boş yedek atlas; şu anda hiçbir ikon kullanmıyor |
 | `klipperdwin_bootsplash.jpg` | Panel picture slot 0 için seçilen açılış görseli |
 | `spool-empty.png` | Ortak 42×52 boş makara sprite’ı: ahşap kenarlar ve ince gri merkez |
 | `display-settings.png` | Özgün şeffaf Display ikon sprite'ı |
 | `klipperdwin-readme.png` | Açılış görselinden uyarlanan README logo ve yazı başlığı |
 | [emulator/](emulator/README_TR.md) | Ekran görüntüleri için bilgisayar tarafı stok ikon ve font girdileri |
 
-Atlas dosya adları değişmemelidir. Atlas JPEG'leri fiziksel panel için **480×272 baseline JPEG**'dir; ikon konumları dikey **272×480** düzenindedir. Açılış görseli burada sağlanır; klasöre koymak tek başına panelin mevcut açılış görselini değiştirmez.
+Açılış JPEG’i panelin 0 numaralı resim slotu için 480×272 boyutundadır. Önbellek kopyası olmadan doğrudan gösterilir.
 
-## Yeni ikon hazırlama
+## Yönetilen ikon kütüphanesi
 
-Şeffaf PNG sprite kullanın. Patch aracı Atlas 0'da yer bulur, mevcut çözülmüş ikonları değiştirmez ve panelin 32 KiB görsel sınırını kontrol eder. Yalnız görsel hazırlamada gereken bağımlılıkları ayrı geliştirme ortamına kurun:
-
-```bash
-python3 -m venv .venv-artwork
-.venv-artwork/bin/python -m pip install Pillow numpy jpeglib
-.venv-artwork/bin/python tools/patch_atlas_icon.py sprite.png candidate-atlas.jpg
-```
-
-Repo kökünden çalıştırın. **Ayrı çıktı adı** kullanın; araç kaynak atlasın üzerine yazmayı reddeder. Yeni ikon dikdörtgenini yazdırır. Kod değişikliğinin parçası olarak ikonu `lcd_atlas.py` içinde kaydedin, eski/yeni ikonları inceleyin, ilgili testleri çalıştırın ve takip edilen atlası değiştirmeden önce panelde doğrulayın.
+Baseline JPEG ikonlarını dosya adında ikon ID’siyle [`assets/icons`](icons/README_TR.md) klasörüne koyun. Uygulama güncelleme sonrası ilk LCD bağlantısında değişen kaynakları paketleyip yükler. Paketleyici blok boşluklarını kullanır ve her bloğun son baytını boş bırakır. Emülatör aynı kaynakları kullanır.
 
 ## Ekran görüntüleri
 
@@ -34,12 +24,12 @@ Kullanıcı arayüzü ekran görüntüleri bu görsel klasörüne değil `docs/a
 
 ## Panel kaynaklarını yeniden yükledikten sonra
 
-Atlaslar Picture Flash 5 ve 6 konumlarını kullanır. İkinci atlas boş olduğu sürece yüklenmez. Panel kaynaklarını yeniden yükledikten sonra eski atlas sürüm kaydı hâlâ durabilir. SSH üzerinden servis kullanıcısı olarak şu komutları çalıştırın:
+Panel kaynaklarını yeniden kurduktan sonra yönetilen ikonları SSH üzerinden servis kullanıcısı olarak zorla yeniden yükleyin:
 
 ```bash
 sudo systemctl stop KlipperDWIN.service
-~/klipperdwin-env/bin/python ~/KlipperDWIN/tools/reload_atlases.py --force
+~/klipperdwin-env/bin/python ~/KlipperDWIN/tools/reload_icons.py
 sudo systemctl start KlipperDWIN.service
 ```
 
-Araç UART aygıtını `~/.config/KlipperDWIN/KlipperDWIN.env` dosyasından okur; gerekirse `--serial-port /dev/ttyS0` ile belirtin. Yalnız aktif atlasları yeniden yazar ve sürüm kayıtlarını günceller; ekran ayarlarını korur.
+Araç yapılandırılmış UART’ı okur, kütüphane 7’yi oluşturup bloklarını yeniden yükler. Ekran ayarları korunur.

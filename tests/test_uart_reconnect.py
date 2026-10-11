@@ -16,7 +16,6 @@ class UARTReconnectTests(unittest.TestCase):
         result._next_uart_retry = 0
         result._next_uart_probe = 0
         result._uart_probe_failures = 0
-        result.HMI_Init = Mock()
         result.HMI_StartFrame = Mock()
         result._show_message = Mock()
         result._encoder_event = result.ENCODER_DIFF_NO
@@ -36,7 +35,6 @@ class UARTReconnectTests(unittest.TestCase):
                 result._ui_tick()
         self.assertTrue(result._uart_online)
         self.assertIs(result.lcd, port)
-        result.HMI_Init.assert_called_once()
         result.HMI_StartFrame.assert_called_once_with(False)
         result.pd.sendGCode.assert_not_called()
 
@@ -150,11 +148,9 @@ class UARTReconnectTests(unittest.TestCase):
         lcd = driver()
         lcd.load_display_settings = Mock(return_value=(100, 0))
         lcd._needs_update = False
-        result.HMI_Init = Mock()
         result.HMI_StartFrame = lambda update: lcd.clear(0)
         with patch.object(ui, 'T5UIC1Display', return_value=lcd):
             self.assertTrue(result._ensure_uart())
-        result.HMI_Init.assert_called_once_with()
         self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x30, 1, 0x3D])
         self.assertFalse(lcd._needs_update)
 

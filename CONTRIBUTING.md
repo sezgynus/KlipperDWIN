@@ -20,7 +20,7 @@ For user-visible changes, update the relevant guide and screenshots. **English a
 |---|---|---|
 | Optional framebuffer emulator | Capture the running LCD UI for visual review, documentation and bug reports | [Emulator guide](docs/ui-emulator.md) |
 | Regression suite | Check a change without connecting to or moving a printer | [Test guide](tests/README.md) |
-| Atlas patch tool | Prepare a new icon without re-encoding existing icons | [Asset guide](assets/README.md) |
+| JPEG icon packer | Add icons and export the managed library | [Icon source guide](assets/icons/README.md) |
 | Service logs | Diagnose startup, connection and operation errors | [Troubleshooting](docs/installation.md#troubleshooting) |
 
 ## Run and verify

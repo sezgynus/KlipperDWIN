@@ -145,8 +145,8 @@ class BootSplashTests(unittest.TestCase):
         lcd = v.lcd
 
         def constructor(port, **kwargs):
-            kwargs['startup_progress'](lcd, 40)
             lcd.show_jpeg(0)
+            kwargs['startup_progress'](lcd, 40)
             kwargs['startup_progress'](lcd, 70)
             return lcd
 

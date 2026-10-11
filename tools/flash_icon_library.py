@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lcd_resources import ICON_LIBRARY_FILENAME, ICON_LIBRARY_ID
 from t5uic1_driver import T5UIC1Display
 from tools.pack_icon_library import BLOCK_SIZE, entries, validate_block_layout
-from tools.reload_atlases import configured_port
+from tools.lcd_connection import configured_port
 
 
 class ManualDisplay(T5UIC1Display):

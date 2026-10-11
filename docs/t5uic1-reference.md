@@ -253,111 +253,26 @@ Picture Flash is separate from the 16 KiB Data Flash.
 `store_sram_as_picture()` uses opcode `0x33` to copy the panel's 32 KiB SRAM
 image content into picture slot `0x00..0x0F`.
 
-## Managed custom icon atlases
+## Managed icon library
 
-JPEG pictures and ICO libraries share the same 512 KiB Picture Flash, divided
-into 32 KiB blocks. A large ICO file spans multiple blocks beginning at its
-library ID. The application icon library `7.ICO` starts at block 7 and spans the upper
-blocks. Stock pictures occupy 0..2; the application uses 5/6 for atlases and
-rejects icon-library blocks in its default manifest. The previous library
-started at 9; writing atlases to 14/15 overwrote its icon data. Removing an atlas
-from the manifest does not restore previously overwritten icon data; reload
-`7.ICO` through the panel SD-card update interface after upgrading the host.
+JPEG pictures and ICO libraries share Picture Flash. Library 7 uses slots 7–15;
+stock pictures remain in slots 0–2. Individual baseline JPEGs in `assets/icons/`
+are packed by `icon_library.py`, preserving each payload within one 32 KiB
+block and reserving every block’s final byte. The packer reuses gaps with
+smaller images, independently of icon ID order.
 
-KlipperDWIN reserves Picture Flash IDs **5** and **6** for up to two
-host-managed custom JPEG atlases. Stock assets already available through
-`7.ICO` remain on the normal `0x23 show_icon()` path and are intentionally
-not duplicated into these atlases.
+Startup compares block hashes, writes changed payload blocks first and the
+directory last, and verifies each metadata checkpoint. Unchanged blocks are
+skipped. Failed automatic writes are guarded against repeated programming
+inside a reconnect loop. The emulator uses the same JPEG sources.
 
-The host manifest lives in `lcd_atlas.py`:
+All UI icons use `show_icon(7, id, x, y)`. Boot splash uses `show_jpeg(0)`
+directly, followed by progress/animation rendering; no temporary cache or
+full-screen copy is needed. General JPEG/cache protocol commands remain
+available for their documented uses.
 
-```python
-# virtual_area: (JPEG path, reserved Picture Flash ID)
-ATLAS_FILES = {
-    0: ("assets/klipperdwin_atlas_0.jpg", 5),
-    1: ("assets/klipperdwin_atlas_1.jpg", 6),
-}
-
-# icon_id: (virtual_area, source_x, source_y, width, height)
-ICON_COORDINATES = {
-    # ...
-}
-```
-
-UI code does not know source coordinates, dimensions, Picture Flash IDs or
-virtual-area assignments. It renders a custom asset only by ID:
-
-```python
-lcd.draw_atlas_icon(icon_id, x, y)
-```
-
-The driver resolves the coordinate table, ensures that the required atlas is
-resident in virtual area 0 or 1, then emits the corresponding `0x27` copy.
-If another low-level JPEG/cache operation replaces a virtual area, the driver
-tracks that change and automatically restores the required atlas on the next
-`draw_atlas_icon()`.
-
-### Atlas synchronization and versioning
-
-An active atlas is hashed on the host with SHA-256; the first 16 digest bytes,
-JPEG size, Picture Flash ID and virtual-area ID form its persistent version
-record. KlipperDWIN reserves Data Flash range **0x0000..0x003F** (64 bytes) for
-this metadata, with magic `KDWATLS1`. The record intentionally starts at zero
-and avoids the physically non-responsive `0x3FFF` boundary.
-
-On LCD connection the driver:
-
-1. reads the persistent atlas metadata;
-2. compares it with the current host JPEG fingerprints;
-3. uploads only changed JPEGs through SRAM;
-4. commits each changed JPEG to its reserved Picture Flash slot with `0x33`;
-5. writes the new metadata **only after all required Picture Flash writes
-   succeed**.
-
-Each successful Picture Flash write is checkpointed immediately in Data Flash
-and read back for verification. If a later atlas fails, an already committed
-atlas is therefore not rewritten on the next service start.
-
-Automatic Picture Flash programming also has a process-lifetime wear guard:
-the same `(Picture ID, size, digest)` is attempted at most once automatically
-per KlipperDWIN process. Atlas-sync failure is non-fatal to the normal LCD UI
-and does not enter the 5-second UART reconnect loop. Rendering APIs
-(`draw_atlas_icon()` and `load_atlases()`) never initiate persistent Flash
-writes; they require startup synchronization to have completed successfully.
-A deliberate explicit `sync_atlases()` call may retry after an operator has
-investigated the failure.
-
-This means a lost acknowledgement, failed metadata write, or later atlas error
-cannot cause continuous Picture Flash programming every few seconds. A true
-host/service restart may make one new automatic attempt, while systemd's
-existing start-rate limit remains a secondary guard.
-
-If host and panel versions already match, no JPEG or metadata is written.
-
-Atlas JPEGs must be complete JPEG files and fit inside the T5UIC1's 32 KiB SRAM
-transfer limit. The default coordinate table is intentionally empty until the
-production atlas artwork is finalized, so this infrastructure does not alter
-the current UI rendering or startup traffic yet.
-
-Virtual areas are preloaded on connection by `load_atlases()` and restored lazily
-by `draw_atlas_icon()` if necessary. This target panel requires `0x22` to load
-area 0; `0x25` is used only for area 1. The generic reference API's cache-index
-argument must not be taken as proof that cache-only area-0 loading works on
-this panel. `cache_jpeg(..., area=0)` therefore raises rather than recording a
-false successful load.
-
-On connection, `load_atlases(preserve_boot_splash=True)` sends:
-
-1. `0x25 01 00`: load Picture Flash slot 0 into temporary cache 1.
-2. `0x22 00 05`: load Picture Flash slot 5 into area 0/display buffer.
-3. `0x26`: copy the full portrait splash from cache 1 back to the display buffer.
-4. Restore an active area-1 atlas, if any, using `0x25`.
-
-No `0x3D` refresh is sent between steps 2 and 3. The splash is restored before
-progress rendering refreshes the screen, while area 0 retains slot 5 for
-`0x27` icon copies. Both cache areas remain exclusively driver-owned. No
-Picture Flash or Data Flash writes occur in this restore sequence.
-
+See the [JPEG source guide](../assets/icons/README.md) for adding icons,
+exporting a library and deliberately reloading resources after panel updates.
 
 ## Rendering compatibility
 
@@ -397,8 +312,8 @@ changed setting, never on encoder movement or idle dim/wake.
 
 | Data Flash range | Owner | Size |
 | --- | --- | --- |
-| `0x0000..0x003F` | Atlas metadata | 64 bytes |
 | `0x0100..0x010F` | Display settings | 16 bytes |
+| `0x0200..0x037F` | Icon-library block metadata | 384 bytes |
 
 The Display record contains the magic/version `KDWDSPL2`, brightness (0–100),
 idle minutes (0 = Off, otherwise 1–60), dim brightness (0–100), one reserved byte and a CRC32. Legacy `KDWDSPL1` records retain brightness/timeout and default dim brightness to 10%, without an automatic flash write. The 16-byte allocation is unchanged. These

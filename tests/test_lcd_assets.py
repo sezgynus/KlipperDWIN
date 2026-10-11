@@ -22,7 +22,7 @@ class AssetContracts(unittest.TestCase):
         self.assertEqual(icon.value.id, 'ICON_LIBRARY_ID')
         self.assertEqual(ICON_LIBRARY_ID, manifest['library'])
         # The legacy English JPEG cache is intentionally not a UI constant:
-        # virtual display areas are reserved for managed custom atlases.
+        # the UI uses native icon-library rendering.
         self.assertNotIn('Language_English', constants)
         for name, entry in manifest['icons'].items():
             self.assertEqual(constants[name], entry['id'], name)

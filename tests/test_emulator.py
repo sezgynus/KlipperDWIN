@@ -120,7 +120,7 @@ class EmulatorRenderingTests(unittest.TestCase):
     def test_real_ui_home_and_prepare_packets_render_without_a_second_ui(self):
         from test_capabilities import display, snapshot
         view = display(snapshot()); view.lcd = self.lcd; view.checkkey = view.MainMenu
-        self.lcd.show_jpeg(5)
+        self.lcd.show_jpeg(0)
         view._draw_home_page(); view.Draw_Status_Area(False); self.lcd.update()
         home, _ = self.model.snapshot()
         from lcd_resources import ICON_MMU_HOME_NORMAL
@@ -139,15 +139,15 @@ class EmulatorRenderingTests(unittest.TestCase):
         view.Draw_Prepare_Menu(); self.lcd.update()
         self.assertNotEqual(self.model.snapshot()[0].tobytes(), home.tobytes())
 
-    def test_atlas_rotation_and_both_cache_areas(self):
-        self.lcd.show_jpeg(5)
-        self.lcd.cache_jpeg(6, 1)
+    def test_picture_rotation_and_both_cache_areas(self):
+        self.lcd.show_jpeg(0)
+        self.lcd.cache_jpeg(0, 1)
         self.lcd.clear(0x001F)
         self.lcd.copy_cache(0, 224, 32, 243, 51, 10, 20, background=True)
         self.lcd.copy_cache1(0, 0, 9, 9, 40, 50)
         self.lcd.update(); image, _ = self.model.snapshot()
-        atlas = self.assets.picture(5).transpose(Image.Transpose.ROTATE_270)
-        self.assertEqual(image.crop((10, 20, 30, 40)).tobytes(), atlas.crop((224, 32, 244, 52)).tobytes())
+        picture = self.assets.picture(0).transpose(Image.Transpose.ROTATE_270)
+        self.assertEqual(image.crop((10, 20, 30, 40)).tobytes(), picture.crop((224, 32, 244, 52)).tobytes())
         self.assertEqual(image.crop((40, 50, 50, 60)).tobytes(), self.model.areas[1].crop((0, 0, 10, 10)).tobytes())
         self.assertEqual(image.getpixel((0, 0)), (0, 0, 255))
 

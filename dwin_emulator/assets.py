@@ -71,9 +71,7 @@ class PanelAssets:
             return panel_colors(image)
 
     def picture(self, slot):
-        from lcd_atlas import ATLAS_FILES
         paths = {0: 'assets/klipperdwin_bootsplash.jpg'}
-        paths.update({spec[1]: spec[0] for spec in ATLAS_FILES.values()})
         if slot not in paths:
             raise ValueError(f'No host image for picture slot {slot}')
         with Image.open(self.root / paths[slot]) as image:

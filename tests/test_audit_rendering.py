@@ -13,44 +13,33 @@ class AuditRenderingTests(unittest.TestCase):
         result.lcd._virtual_area_pictures = {0: 5}
         return result
 
-    def test_mcu_headings_copy_chip_from_atlas_including_unavailable_heading(self):
+    def test_mcu_headings_use_native_library_chip_including_unavailable_heading(self):
         result = self.screen()
         for label in ('MCU: mcu', 'MCU: mmu', 'MCU'):
             with self.subTest(label=label):
                 result.lcd.serial.frames.clear()
                 result._draw_info_section(label, 140)
-                copies = [f for f in result.lcd.serial.frames if f[1] == 0x27]
-                self.assertEqual(copies, [bytes.fromhex(
-                    'AA 27 20 00 C0 00 00 00 D3 00 13 '
-                    '00 08 00 8A CC 33 C3 3C')])
-                # Custom IDs must never be sent to the stock 7.ICO renderer.
-                self.assertFalse(any(f[1] == 0x23 for f in result.lcd.serial.frames))
+                icons = [f for f in result.lcd.serial.frames if f[1] == 0x23]
+                self.assertEqual(icons, [bytes.fromhex('AA 23 00 08 00 8A 87 67 CC 33 C3 3C')])
+                self.assertFalse(any(f[1] == 0x27 for f in result.lcd.serial.frames))
 
-    def test_machine_host_software_headings_use_their_atlas_rectangles(self):
+    def test_machine_host_software_headings_use_native_library_ids(self):
         result = self.screen()
-        rectangles = {
-            'Machine': '00 E0 00 00 00 F3 00 13',
-            'Host': '00 A0 00 20 00 B3 00 33',
-            'Software': '00 C0 00 20 00 D3 00 33',
-        }
-        for label, rectangle in rectangles.items():
+        for label, icon in (('Machine', 104), ('Host', 105), ('Software', 106)):
             with self.subTest(label=label):
                 result.lcd.serial.frames.clear()
                 result._draw_info_section(label, 140)
-                copies = [f for f in result.lcd.serial.frames if f[1] == 0x27]
-                self.assertEqual(copies, [bytes.fromhex(
-                    'AA 27 20 ' + rectangle + ' 00 08 00 8A CC 33 C3 3C')])
-                self.assertFalse(any(f[1] == 0x23 for f in result.lcd.serial.frames))
+                icons = [f for f in result.lcd.serial.frames if f[1] == 0x23]
+                self.assertEqual(icons, [bytes.fromhex('AA 23 00 08 00 8A 87') + bytes((icon,)) + result.lcd.TAIL])
+                self.assertFalse(any(f[1] == 0x27 for f in result.lcd.serial.frames))
 
-    def test_title_draws_global_power_icon_from_managed_atlas(self):
+    def test_title_draws_global_power_from_native_library(self):
         result = self.screen()
         result.lcd.serial.frames.clear()
         result.Draw_Title('Prepare')
-        copies = [f for f in result.lcd.serial.frames if f[1] == 0x27]
-        self.assertEqual(copies, [bytes.fromhex(
-            'AA 27 20 00 E0 00 20 00 F3 00 33 '
-            '00 F4 00 05 CC 33 C3 3C')])
-        self.assertFalse(any(f[1] == 0x23 for f in result.lcd.serial.frames))
+        icons = [f for f in result.lcd.serial.frames if f[1] == 0x23]
+        self.assertEqual(icons, [bytes.fromhex('AA 23 00 F4 00 05 87 6B CC 33 C3 3C')])
+        self.assertFalse(any(f[1] == 0x27 for f in result.lcd.serial.frames))
 
     def test_complete_progress_has_three_digits_before_percent_sign(self):
         result = self.screen()

@@ -1,4 +1,4 @@
-"""New UART heartbeat, atlas ownership, input batching and popup lifecycle."""
+"""New UART heartbeat, native icon rendering, input batching and popup lifecycle."""
 import time
 import unittest
 from unittest.mock import Mock, patch
@@ -22,11 +22,10 @@ class MMUDriverLifecycleTests(unittest.TestCase):
         opcodes = [f[1] for f in v.lcd.serial.frames]
         self.assertEqual(v._mmu_page, 'gates')
         self.assertEqual(opcodes.count(0x3D), 1)
-        self.assertEqual(v.lcd._virtual_area_pictures, {0: 5})
         self.assertFalse(set(opcodes) & {0x22, 0x25, 0x31, 0x32, 0x33})
         v.pd.subscription.request.assert_not_called()
 
-    def test_heartbeat_reconnect_restores_atlas_and_mmu_without_replaying_operation(self):
+    def test_heartbeat_reconnect_restores_mmu_without_replaying_operation(self):
         fixture = fixtures.MMUUITests()
         v, _ = fixture.make()
         fixture.press(v, 2)
@@ -53,22 +52,17 @@ class MMUDriverLifecycleTests(unittest.TestCase):
         self.assertFalse(v._uart_online)
         self.assertTrue(old._closed)
         restored = packets.lcd()
-        restored._virtual_area_pictures = {}
-        restored._atlas_virtual_areas_loaded = False
-        # Constructor restores virtual areas before the UI draws its canvas.
-        restored.load_atlases()
         with patch.object(application.ui, 'T5UIC1Display', return_value=restored), \
                 patch.object(application.ui.time, 'monotonic', return_value=now + 9):
             v._ui_tick()
         self.assertTrue(v._uart_online)
         self.assertEqual(v._mmu_page, 'status')
         opcodes = [f[1] for f in restored.serial.frames]
-        self.assertEqual(opcodes.count(0x22), 1)
+        self.assertEqual(opcodes.count(0x22), 0)
         self.assertIn(0x23, opcodes)
         self.assertNotIn(0x27, opcodes)
-        self.assertEqual(opcodes.count(0x25), 0)  # No second atlas is loaded.
+        self.assertEqual(opcodes.count(0x25), 0)
         self.assertFalse(set(opcodes) & {0x31, 0x32, 0x33})
-        self.assertEqual(restored._virtual_area_pictures, {0: 5})
         self.assertEqual(v.pd.subscription.request.call_count, 1)
         self.assertIsNotNone(v.pd.mmu_session.pending)
 

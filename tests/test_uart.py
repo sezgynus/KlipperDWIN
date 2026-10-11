@@ -37,12 +37,10 @@ class Port:
 class UARTTests(unittest.TestCase):
     def open(self, port, **kwargs):
         # UART framing tests intentionally isolate the transport constructor
-        # from atlas persistence. Atlas startup/sync behavior has dedicated
-        # coverage in test_atlas_driver.py.
+        # from managed icon persistence, covered in test_managed_icon_library.py.
         with patch.object(serial_module, 'Serial', return_value=port, create=True), \
                 patch.object(Driver.__init__.__globals__['time'], 'sleep'), \
-                patch('icon_library.sync_library'), \
-                patch.object(Driver, 'sync_atlases', return_value=False):
+                patch('icon_library.sync_library'):
             return Driver('/dev/fake', **kwargs)
 
     def test_first_handshake_frame_and_fragmented_ack_with_noise(self):

@@ -332,10 +332,6 @@ class DisplayIntegrationTests(unittest.TestCase):
                 self._closed = False
                 self._needs_update = True
                 self._defer_updates = False
-                self._atlas_synced = True
-                self._atlas_virtual_areas_loaded = True
-                self._atlas_sync_blocked = False
-                self._virtual_area_pictures = {0: 5}
 
         encoder = Mock()
         encoder.getValue.return_value = 0

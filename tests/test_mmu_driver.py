@@ -10,9 +10,6 @@ from lcd_resources import ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
 
 def lcd():
     result = transport.driver()
-    result._atlas_synced = True
-    result._atlas_virtual_areas_loaded = True
-    result._virtual_area_pictures = {0: 5}
     return result
 
 

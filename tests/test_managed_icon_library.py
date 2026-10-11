@@ -110,12 +110,8 @@ class ManagedIconTests(unittest.TestCase):
         events = []
         def icon_sync(lcd):
             events.append('icons')
-        def atlas_sync(lcd, **kwargs):
-            events.append('atlases')
-            return False
         with patch.object(serial_module, 'Serial', return_value=port, create=True), \
-                patch('icon_library.sync_library', side_effect=icon_sync), \
-                patch.object(Driver, 'sync_atlases', atlas_sync):
+                patch('icon_library.sync_library', side_effect=icon_sync):
             lcd = Driver('/dev/fake', wake_delay=0,
                          startup_progress=lambda lcd, value: events.append(('progress', value)))
         lcd.close()

@@ -64,9 +64,6 @@ class IncrementalMenuTests(unittest.TestCase):
     def test_incremental_scroll_matches_complete_render_pixels(self):
         v = self.make()
         v.lcd = driver()
-        v.lcd._atlas_synced = True
-        v.lcd._atlas_virtual_areas_loaded = True
-        v.lcd._virtual_area_pictures = {0: 5}
         model = Framebuffer(PanelAssets())
         v.lcd._packet_observer = model
         v.lcd.show_jpeg(5)

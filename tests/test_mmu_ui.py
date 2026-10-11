@@ -661,9 +661,6 @@ class MMUUITests(unittest.TestCase):
         v, _ = self.make(num_gates=count, gate_status=[1]*count,
                          gate_color_rgb=[[1,0,0]]*count, ttg_map=list(range(count)))
         v.lcd = driver()
-        v.lcd._atlas_synced = True
-        v.lcd._atlas_virtual_areas_loaded = True
-        v.lcd._virtual_area_pictures = {0: 5}
         model = Framebuffer(PanelAssets())
         v.lcd._packet_observer = model
         v.lcd.show_jpeg(5)

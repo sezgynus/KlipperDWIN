@@ -28,15 +28,13 @@ class NativeCustomIconTests(unittest.TestCase):
                 self.assertGreaterEqual(x, 80)
                 self.assertLessEqual(x + iw, 80 + width)
                 self.assertEqual((y, ih), (60, 52))
-            lcd.draw_atlas_icon.assert_not_called()
-            lcd.draw_atlas_icon_strip.assert_not_called()
 
     def test_production_ui_no_longer_calls_atlas_renderers(self):
         for path in [ROOT / 'dwinlcd.py', ROOT / 'spool_view.py', *ROOT.glob('ui_*.py')]:
             tree = ast.parse(path.read_text())
             for node in ast.walk(tree):
                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                    self.assertNotIn(node.func.attr, ('draw_atlas_icon', 'draw_atlas_icon_strip'), path.name)
+                    self.assertNotIn(node.func.attr, ("draw_atlas_icon", "draw_atlas_icon_strip"), path.name)
 
     def test_flange_images_have_only_the_needed_width(self):
         assets = PanelAssets()

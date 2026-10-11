@@ -1,4 +1,4 @@
-"""Validated, versioned LCD settings record; independent of atlas metadata."""
+"""Validated, versioned LCD settings record; independent of icon-library metadata."""
 import struct
 import zlib
 

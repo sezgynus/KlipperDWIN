@@ -120,9 +120,6 @@ class EmulatorRenderingTests(unittest.TestCase):
     def test_real_ui_home_and_prepare_packets_render_without_a_second_ui(self):
         from test_capabilities import display, snapshot
         view = display(snapshot()); view.lcd = self.lcd; view.checkkey = view.MainMenu
-        self.lcd._atlas_synced = True
-        self.lcd._atlas_virtual_areas_loaded = True
-        self.lcd._virtual_area_pictures = {0: 5}
         self.lcd.show_jpeg(5)
         view._draw_home_page(); view.Draw_Status_Area(False); self.lcd.update()
         home, _ = self.model.snapshot()

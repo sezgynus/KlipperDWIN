@@ -7,10 +7,6 @@ class AuditRenderingTests(unittest.TestCase):
     def screen(self):
         result = display(snapshot())
         result.lcd = driver()
-        # Simulate startup having synchronized and loaded the managed atlas.
-        result.lcd._atlas_synced = True
-        result.lcd._atlas_virtual_areas_loaded = True
-        result.lcd._virtual_area_pictures = {0: 5}
         return result
 
     def test_mcu_headings_use_native_library_chip_including_unavailable_heading(self):

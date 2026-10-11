@@ -3,7 +3,7 @@
 ICON_LIBRARY_ID = 7
 ICON_LIBRARY_FILENAME = "7.ICO"
 
-# Custom JPEG sources, migrated from the atlas into unused library IDs.
+# Custom JPEG source IDs in the managed icon library.
 ICON_MMU_HOME_NORMAL = 100
 ICON_MMU_HOME_SELECTED = 101
 ICON_FOLDER = 102

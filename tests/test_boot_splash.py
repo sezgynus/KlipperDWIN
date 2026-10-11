@@ -143,8 +143,6 @@ class BootSplashTests(unittest.TestCase):
         v._uart_online = False
         v.pd.subscription.snapshot.return_value['state'] = 'disconnected'
         lcd = v.lcd
-        lcd._virtual_area_pictures = {}
-        lcd._atlas_virtual_areas_loaded = False
 
         def constructor(port, **kwargs):
             kwargs['startup_progress'](lcd, 40)
@@ -162,7 +160,6 @@ class BootSplashTests(unittest.TestCase):
         self.assertNotIn(0x01, opcodes)
         self.assertIn(0x11, opcodes)
         self.assertNotIn(0x25, opcodes)
-        self.assertEqual(lcd._virtual_area_pictures, {0: 0})
 
     def test_progress_resets_on_power_cycle_and_uart_retry(self):
         v = self.view()
@@ -181,7 +178,6 @@ class BootSplashTests(unittest.TestCase):
         v = self.view()
 
         def synchronized(lcd):
-            lcd._atlas_synced = True
             return True
 
         stages = []
@@ -200,7 +196,6 @@ class BootSplashTests(unittest.TestCase):
         self.assertFalse(set(opcodes) & {0x01, 0x27})
         self.assertIn(0x22, opcodes)
         self.assertNotIn(0x26, opcodes)
-        self.assertEqual(lcd._virtual_area_pictures, {0: 0})
 
     def test_initial_on_observation_does_not_restart_completed_boot(self):
         v = self.view()

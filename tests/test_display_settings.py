@@ -24,8 +24,9 @@ class DisplaySettingsTests(unittest.TestCase):
         lcd.write_flash = Mock(); lcd.read_flash = Mock(return_value=record)
         lcd.save_display_settings(72, 12)
         lcd.write_flash.assert_called_once_with(0x100, record)
-        self.assertGreaterEqual(lcd.DISPLAY_SETTINGS_ADDRESS,
-                                lcd.ATLAS_METADATA_ADDRESS + lcd.ATLAS_METADATA_SIZE)
+        from icon_library import METADATA_ADDRESS
+        self.assertLessEqual(lcd.DISPLAY_SETTINGS_ADDRESS + lcd.DISPLAY_SETTINGS_SIZE,
+                             METADATA_ADDRESS)
         self.assertEqual(lcd.load_display_settings(), (72, 12, 10))
         lcd.read_flash.return_value = bytes(16)
         with self.assertRaises(OSError): lcd.save_display_settings(72, 12)

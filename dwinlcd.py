@@ -496,7 +496,6 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._display_dimmed = False
             self.lcd.set_backlight(display_settings.raw_brightness(self._display_values[0]))
             self._configure_menus()
-            self.HMI_Init()
             if getattr(self, '_boot_active', False):
                 self._draw_boot_progress(70)
             else:
@@ -1145,12 +1144,6 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 15 + t * 242 / 100, 260, 257, 280)
             self.lcd.update()
             time.sleep(.020)
-
-    def HMI_Init(self):
-        # Virtual display areas are owned exclusively by the managed atlas
-        # driver. Legacy language-JPEG caching used area 1 and could overwrite
-        # an atlas after a panel power-cycle/reconnect.
-        pass
 
     def _present_print_state(self):
         status = self.pd.status

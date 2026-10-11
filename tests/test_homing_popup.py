@@ -8,10 +8,6 @@ from test_t5uic1_driver import driver as raw_driver
 
 def driver():
     lcd = raw_driver()
-    lcd._atlas_specs, lcd._atlas_icons = lcd._build_atlas_config()
-    lcd._atlas_synced = True
-    lcd._atlas_virtual_areas_loaded = True
-    lcd._virtual_area_pictures = {0: 5, 1: 6}
     return lcd
 
 

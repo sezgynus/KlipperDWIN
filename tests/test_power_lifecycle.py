@@ -35,7 +35,7 @@ class RelayLifecycleTests(unittest.TestCase):
         factory.assert_not_called()
         v.pd.sendGCode.assert_not_called()
 
-    def test_on_reconnects_immediately_with_new_driver_and_atlases(self):
+    def test_on_reconnects_immediately_with_new_driver(self):
         v = self.view()
         v._relay_status = 'off'
         v._next_uart_retry = float('inf')
@@ -51,7 +51,7 @@ class RelayLifecycleTests(unittest.TestCase):
         self.assertIsNone(v._power_origin)
         self.assertEqual(v.select_page.now, 0)
 
-    def test_new_power_session_restores_area_zero_before_first_frame(self):
+    def test_new_power_session_shows_splash_without_cache_before_first_frame(self):
         import test_mmu_driver as packets
         v = self.view()
         v._relay_status = 'off'
@@ -59,19 +59,18 @@ class RelayLifecycleTests(unittest.TestCase):
         lcd = packets.lcd()
         lcd.load_display_settings = Mock(return_value=(100, 0))
         lcd.serial.frames.clear()
-        lcd._virtual_area_pictures = {}
-        lcd._atlas_virtual_areas_loaded = False
 
         def construct(*args, **kwargs):
-            lcd.load_atlases(preserve_boot_splash=True)
+            lcd.show_jpeg(0)
             return lcd
 
         v.HMI_StartFrame = lambda update: lcd.clear(0)
         with patch.object(ui, 'T5UIC1Display', side_effect=construct):
             self.assertTrue(v._ensure_uart())
         opcodes = [frame[1] for frame in lcd.serial.frames]
-        self.assertEqual(opcodes[0], 0x25)
-        self.assertEqual(lcd._virtual_area_pictures[0], 5)
+        self.assertEqual(opcodes[0], 0x22)
+        self.assertNotIn(0x25, opcodes)
+        self.assertNotIn(0x26, opcodes)
         self.assertEqual(opcodes[-1], 0x3D)
         self.assertFalse(set(opcodes) & {0x31, 0x32, 0x33})
 

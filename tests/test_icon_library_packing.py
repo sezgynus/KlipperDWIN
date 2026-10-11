@@ -49,6 +49,19 @@ class IconLibraryPackingTests(TestCase):
             self.assertEqual(before[1][:4] + before[1][8:], after[1][:4] + after[1][8:])
 
     @patch('tools.flash_icon_library.time.sleep')
+    def test_separate_last_byte_write_uses_exact_address_and_original_byte(self, sleep):
+        data = (ROOT / 'assets/emulator/7.ICO').read_bytes()
+        lcd = Mock()
+        upload(lcd, data, rewrite_last_byte=True)
+        calls = lcd.write_sram.call_args_list
+        self.assertEqual(len(calls), 16)
+        order = list(range(1, 8)) + [0]
+        for position, index in enumerate(order):
+            chunk = data[index * BLOCK_SIZE:(index + 1) * BLOCK_SIZE].ljust(BLOCK_SIZE, b'\x00')
+            self.assertEqual(calls[position * 2].args, (0, chunk))
+            self.assertEqual(calls[position * 2 + 1].args, (0x7FFF, chunk[-1:]))
+
+    @patch('tools.flash_icon_library.time.sleep')
     def test_upload_exact_blocks_directory_last_and_stop_on_failure(self, sleep):
         data = (ROOT / 'assets/emulator/7.ICO').read_bytes()
         lcd = Mock()

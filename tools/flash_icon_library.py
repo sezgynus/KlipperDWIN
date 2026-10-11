@@ -30,7 +30,7 @@ def validate_upload(data, allow_cross_block=False):
             raise ValueError('No icon entries')
 
 
-def upload(lcd, data, *, allow_cross_block=False):
+def upload(lcd, data, *, allow_cross_block=False, rewrite_last_byte=False):
     validate_upload(data, allow_cross_block)
     count = (len(data) + BLOCK_SIZE - 1) // BLOCK_SIZE
     lcd.set_animation_mask(0)
@@ -40,6 +40,12 @@ def upload(lcd, data, *, allow_cross_block=False):
         chunk = data[index * BLOCK_SIZE:(index + 1) * BLOCK_SIZE].ljust(BLOCK_SIZE, b'\x00')
         print(f'Slot {slot}: uploading...', flush=True)
         lcd.write_sram(0, chunk)
+        if rewrite_last_byte:
+            # Diagnostic: separate the final-byte write from the 128-byte burst.
+            lcd.serial.flush()
+            time.sleep(0.1)
+            lcd.write_sram(BLOCK_SIZE - 1, chunk[-1:])
+            print(f'Slot {slot}: separate 0x7FFF write = {chunk[-1]:02X}', flush=True)
         lcd.serial.flush()
         time.sleep(0.1)
         lcd.store_sram_as_picture(slot, timeout=5)
@@ -53,6 +59,8 @@ def main():
     parser.add_argument('--sha256', help='Required hash for diagnostic files')
     parser.add_argument('--allow-cross-block', action='store_true',
                         help='Diagnostic only: allow JPEGs spanning Flash blocks; requires --file and --sha256')
+    parser.add_argument('--rewrite-last-byte', action='store_true',
+                        help='Diagnostic: write SRAM address 0x7FFF again in a separate one-byte command')
     args = parser.parse_args()
     if not args.serial_port:
         parser.error('UART not configured; specify --serial-port')
@@ -75,7 +83,8 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     lcd = ManualDisplay(args.serial_port)
     try:
-        upload(lcd, data, allow_cross_block=args.allow_cross_block)
+        upload(lcd, data, allow_cross_block=args.allow_cross_block,
+               rewrite_last_byte=args.rewrite_last_byte)
         print('Upload acknowledged. Check Leveling and Cooldown on the physical display.')
     finally:
         lcd.close()

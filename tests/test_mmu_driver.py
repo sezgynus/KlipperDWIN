@@ -5,7 +5,7 @@ import unittest
 import test_mmu_ui as mmu_fixtures
 import test_t5uic1_driver as transport
 from t5uic1_driver import T5UIC1Display
-from lcd_atlas import ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
+from lcd_resources import ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
 
 
 def lcd():
@@ -36,18 +36,18 @@ class MMUDriverIntegrationTests(unittest.TestCase):
                 self.assertNotIn(0x33, [f[1] for f in frames])
                 view.pd.subscription.request.assert_not_called()
 
-    def test_home_mmu_icon_is_an_atlas_copy_for_both_selections(self):
+    def test_home_mmu_icon_is_native_library_7_for_both_selections(self):
         view, _ = mmu_fixtures.MMUUITests().make()
         view.lcd = lcd()
-        for selected, source_x in ((False, 0), (True, 80)):
+        for selected, icon in ((False, ICON_MMU_HOME_NORMAL), (True, ICON_MMU_HOME_SELECTED)):
             view.lcd.serial.frames.clear()
             view.Draw_MMU_Home_Icon(145, 170, selected)
             self.assertEqual(len(view.lcd.serial.frames), 1)
             frame = view.lcd.serial.frames[0]
-            self.assertEqual(frame[1], 0x27)
-            self.assertEqual(int.from_bytes(frame[3:5], 'big'), source_x)
-            self.assertEqual(int.from_bytes(frame[11:13], 'big'), 161)
-            self.assertEqual(int.from_bytes(frame[13:15], 'big'), 186)
+            self.assertEqual(frame[1], 0x23)
+            self.assertEqual(int.from_bytes(frame[2:4], 'big'), 161)
+            self.assertEqual(int.from_bytes(frame[4:6], 'big'), 186)
+            self.assertEqual(frame[6:8], bytes((0x87, icon)))
 
     def test_all_production_lcd_calls_exist_on_complete_driver(self):
         root = Path(__file__).resolve().parents[1]

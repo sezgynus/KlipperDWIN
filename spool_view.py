@@ -1,6 +1,6 @@
-"""Shared atlas-backed spool with independently changing filament and percentage."""
+"""Shared library-backed spool with independently changing filament and percentage."""
 
-from lcd_atlas import ICON_SPOOL_EMPTY
+from lcd_resources import ICON_LIBRARY_ID, ICON_SPOOL_EMPTY, SPOOL_LEFT_FLANGES, SPOOL_RIGHT_FLANGES
 
 
 class SpoolView:
@@ -44,17 +44,18 @@ class SpoolView:
         painted = (height, color, text if self.label_width >= 28 else None)
         if frame != self._frame:
             if self.width == 42:
-                self.lcd.draw_atlas_icon(ICON_SPOOL_EMPTY, self.x, self.y)
+                self.lcd.show_icon(ICON_LIBRARY_ID, ICON_SPOOL_EMPTY, self.x, self.y)
             else:
-                # Reuse strips from the single source, without additional atlas images.
+                # Native icon commands cannot crop: use only wooden flange
+                # JPEGs, preserving the shared dynamic filament component.
                 flange = min(max(1, round(self.width / 6)), max(0, (self.width - 1) // 2))
                 self.lcd.draw_rectangle(1, self.background, self.x, self.y,
                                         self.x + self.width - 1, self.y + self.HEIGHT - 1)
                 if flange:
-                    self.lcd.draw_atlas_icon_strip(ICON_SPOOL_EMPTY, 0, flange,
-                                                   self.x, self.y)
-                    self.lcd.draw_atlas_icon_strip(ICON_SPOOL_EMPTY, 42 - flange, flange,
-                                                   self.x + self.width - flange, self.y)
+                    self.lcd.show_icon(ICON_LIBRARY_ID, SPOOL_LEFT_FLANGES[flange],
+                                       self.x, self.y)
+                    self.lcd.show_icon(ICON_LIBRARY_ID, SPOOL_RIGHT_FLANGES[flange],
+                                       self.x + self.width - flange, self.y)
             self._frame = frame
             self._painted = None
         if painted == self._painted:

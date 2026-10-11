@@ -1,12 +1,12 @@
 """MMU menu and Happy Hare home-screen rendering mixin."""
 
-from lcd_atlas import ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
+from lcd_resources import ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
 from spool_view import SpoolView
 
 class MMUViewMixin:
     def Draw_MMU_Home_Icon(self, x, y, selected):
         icon_id = ICON_MMU_HOME_SELECTED if selected else ICON_MMU_HOME_NORMAL
-        self.lcd.draw_atlas_icon(icon_id, x + 16, y + 16)
+        self.lcd.show_icon(self.ICON, icon_id, x + 16, y + 16)
 
     @staticmethod
     def _rgb565(rgb):

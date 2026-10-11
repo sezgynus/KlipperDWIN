@@ -59,11 +59,11 @@ class IconLibraryPackingTests(TestCase):
         calls = events.mock_calls
         acknowledgements = [i for i, call in enumerate(calls)
                             if call[0] == 'lcd.store_sram_as_picture']
-        self.assertEqual(len(acknowledgements), 8)
+        self.assertEqual(len(acknowledgements), len(data) // BLOCK_SIZE)
         for i in acknowledgements:
             self.assertEqual(calls[i + 1][0], 'sleep')
             self.assertEqual(calls[i + 1].args, (2.5,))
-        self.assertEqual(lcd.write_sram.call_count, 8)
+        self.assertEqual(lcd.write_sram.call_count, len(data) // BLOCK_SIZE)
         for invalid in (-1, 11, float('nan'), float('inf')):
             untouched = Mock()
             with self.assertRaises(ValueError):
@@ -76,8 +76,8 @@ class IconLibraryPackingTests(TestCase):
         lcd = Mock()
         upload(lcd, data, rewrite_last_byte=True)
         calls = lcd.write_sram.call_args_list
-        self.assertEqual(len(calls), 16)
-        order = list(range(1, 8)) + [0]
+        self.assertEqual(len(calls), 2 * len(data) // BLOCK_SIZE)
+        order = list(range(1, len(data) // BLOCK_SIZE)) + [0]
         for position, index in enumerate(order):
             chunk = data[index * BLOCK_SIZE:(index + 1) * BLOCK_SIZE].ljust(BLOCK_SIZE, b'\x00')
             self.assertEqual(calls[position * 2].args, (0, chunk))
@@ -88,7 +88,7 @@ class IconLibraryPackingTests(TestCase):
         data = (ROOT / 'assets/emulator/7.ICO').read_bytes()
         lcd = Mock()
         upload(lcd, data)
-        order = list(range(1, 8)) + [0]
+        order = list(range(1, len(data) // BLOCK_SIZE)) + [0]
         self.assertEqual([c.args[0] for c in lcd.store_sram_as_picture.call_args_list],
                          [7 + i for i in order])
         self.assertEqual([c.args for c in lcd.write_sram.call_args_list],

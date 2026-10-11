@@ -99,19 +99,18 @@ class EmulatorRenderingTests(unittest.TestCase):
         self.lcd.show_jpeg(5)
         view._draw_home_page(); view.Draw_Status_Area(False); self.lcd.update()
         home, _ = self.model.snapshot()
-        # Atlas MMU is at source (0,0), fourth home tile at (145,246).
-        source = self.model.areas[0].crop((0, 0, 77, 47))
+        from lcd_resources import ICON_MMU_HOME_NORMAL
+        source = self.assets.icon(7, ICON_MMU_HOME_NORMAL)
         # Native transparency changes black pixels only; compare a colored pixel.
         points = [(x, y) for y in range(47) for x in range(77)
                   if max(source.getpixel((x, y))) > 31]
         self.assertTrue(points)
         x, y = points[len(points) // 2]
-        # UI centers the smaller atlas in its home tile.
-        from lcd_atlas import ICON_MMU_HOME_NORMAL
+        # UI centers the native JPEG icon in its home tile.
         frames = self.lcd.serial.frames
-        copies = [f for f in frames if f[1] == 0x27 and f[3:11] == bytes.fromhex('00000000004c002e')]
+        copies = [f for f in frames if f[1] == 0x23 and f[6:8] == bytes((0x87, ICON_MMU_HOME_NORMAL))]
         self.assertTrue(copies)
-        target_x, target_y = self.model.words(copies[-1][11:15])
+        target_x, target_y = self.model.words(copies[-1][2:6])
         self.assertEqual(home.getpixel((target_x + x, target_y + y)), source.getpixel((x, y)))
         view.Draw_Prepare_Menu(); self.lcd.update()
         self.assertNotEqual(self.model.snapshot()[0].tobytes(), home.tobytes())

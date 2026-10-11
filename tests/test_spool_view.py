@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock
 
 from spool_view import SpoolView
-from lcd_atlas import SPOOL_EMPTY_ICONS, ICON_COORDINATES
+from lcd_resources import ICON_SPOOL_EMPTY, SPOOL_LEFT_FLANGES, SPOOL_RIGHT_FLANGES
 from test_t5uic1_driver import driver
 from dwin_emulator.assets import PanelAssets
 from dwin_emulator.framebuffer import Framebuffer
@@ -22,13 +22,13 @@ class SpoolViewTests(unittest.TestCase):
         self.assertEqual(b.remaining_percent, 75)
         self.assertEqual(lcd.method_calls, [])
 
-    def test_percentage_only_update_keeps_atlas_and_filament(self):
+    def test_percentage_only_update_keeps_icon_and_filament(self):
         lcd = Mock()
         spool = SpoolView(lcd, 10, 10, color=0xF800, remaining_percent=100)
         spool.draw(); lcd.reset_mock()
         spool.remaining_percent = 99
         spool.draw()
-        lcd.draw_atlas_icon.assert_not_called()
+        lcd.show_icon.assert_not_called()
         self.assertEqual(lcd.draw_rectangle.call_count, 1)
         self.assertEqual(lcd.draw_rectangle.call_args.args[-3], 30)
         self.assertEqual(lcd.draw_rectangle.call_args.args[-1], 41)
@@ -63,13 +63,15 @@ class SpoolViewTests(unittest.TestCase):
             self.assertLessEqual(call.args[5], 97)
         lcd.draw_line.assert_not_called()
 
-    def test_compact_atlas_sizes_fit_every_existing_home_lane(self):
+    def test_compact_sizes_fit_every_existing_home_lane(self):
         for count in range(1, 257):
             gap = 5 if count <= 4 else 2 if count <= 8 else 1 if count <= 32 else 0
             slot = max(1, min(60, (256 - gap * (count - 1)) // count))
             width = min(max(8, int(slot * .70)), max(1, slot - 2))
             self.assertEqual(SpoolView(Mock(), 0, 0, width).width, width)
-        self.assertEqual(SPOOL_EMPTY_ICONS, {42: 0x010A})
+        self.assertEqual(ICON_SPOOL_EMPTY, 109)
+        self.assertEqual(set(SPOOL_LEFT_FLANGES), set(range(1, 8)))
+        self.assertEqual(set(SPOOL_RIGHT_FLANGES), set(range(1, 8)))
 
     def test_both_screens_use_shared_instances_and_one_change_does_not_redraw_others(self):
         from test_capabilities import display
@@ -86,7 +88,7 @@ class SpoolViewTests(unittest.TestCase):
         view.pd.mmu['remaining_percent'][1] = 99
         view.Draw_MMU_Status()
         self.assertEqual(len(view.lcd.method_calls), 2)
-        view.lcd.draw_atlas_icon.assert_not_called()
+        view.lcd.show_icon.assert_not_called()
 
         view.Enter_MMU_Menu()
         self.assertTrue(all(isinstance(s, runtime_class) for s in view._mmu_spool_views.values()))
@@ -94,7 +96,7 @@ class SpoolViewTests(unittest.TestCase):
         view.pd.mmu['remaining_percent'][1] = 98
         view._mmu_spools(view.pd.mmu_session.state)
         self.assertEqual(len(view.lcd.method_calls), 2)
-        view.lcd.draw_atlas_icon.assert_not_called()
+        view.lcd.show_icon.assert_not_called()
 
     def test_home_led_change_never_redraws_spools(self):
         from test_capabilities import display
@@ -108,7 +110,7 @@ class SpoolViewTests(unittest.TestCase):
         view.pd.mmu['exit_led_rgb'][1] = (0, 1, 0)
         view.Draw_MMU_Status()
         self.assertEqual(len(view.lcd.method_calls), 3)
-        view.lcd.draw_atlas_icon.assert_not_called()
+        view.lcd.show_icon.assert_not_called()
         self.assertTrue(all(c.args[3] == 103 and c.args[5] == 117
                             for c in view.lcd.draw_rectangle.call_args_list))
 
@@ -117,11 +119,9 @@ class SpoolViewTests(unittest.TestCase):
         for width in (42, 34, 28, 23, 8, 2, 1):
             with self.subTest(width=width):
                 lcd = driver()
-                lcd._atlas_synced = lcd._atlas_virtual_areas_loaded = True
-                lcd._virtual_area_pictures = {0: 5, 1: 6}
                 model = Framebuffer(assets)
                 lcd._packet_observer = model
-                lcd.show_jpeg(5)
+                lcd.clear(0)
                 spool = SpoolView(lcd, 80, 60, width, remaining_percent=100,
                                   color=0xF800, label_width=max(28, width))
                 for percent, color in ((100, 0xF800), (99, 0xF800), (25, 0xF800),

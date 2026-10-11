@@ -23,7 +23,7 @@ from gpiozero import Button, Device
 from gpiozero.pins.lgpio import LGPIOFactory
 from printerInterface import PrinterData
 from t5uic1_driver import T5UIC1Display, T5UIC1ProtocolError
-from lcd_atlas import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY
+from lcd_resources import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY
 
 def _MAX(lhs, rhs):
     if lhs > rhs:
@@ -1221,7 +1221,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             if partial:
                 self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, x, y, x+109, y+99)
             if key == 'DISPLAY':
-                self.lcd.draw_atlas_icon(ICON_DISPLAY, x + 29, y + 4)
+                self.lcd.show_icon(self.ICON, ICON_DISPLAY, x + 29, y + 4)
             elif key == 'MMU':
                 self.Draw_MMU_Home_Icon(x, y, active)
             else:
@@ -2452,7 +2452,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     def _draw_power_icon(self, selected=False, clear=False):
         if clear:
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Blue, 241, 2, 268, 29)
-        self.lcd.draw_atlas_icon(ICON_POWER, 244, 5)
+        self.lcd.show_icon(self.ICON, ICON_POWER, 244, 5)
         if selected:
             self.lcd.draw_rectangle(0, self.lcd.Color_White, 241, 2, 267, 28)
 
@@ -2520,7 +2520,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         label = path.rstrip('/').rsplit('/', 1)[-1]
         self.Draw_Menu_Line(row, False if is_dir else self.ICON_File, label)
         if is_dir:
-            self.lcd.draw_atlas_icon(ICON_FOLDER, 26, self.MBASE(row) - 7)
+            self.lcd.show_icon(self.ICON, ICON_FOLDER, 26, self.MBASE(row) - 7)
 
     def Draw_Select_Highlight(self, sel):
         self.pd.HMI_flag.select_flag = sel
@@ -2599,7 +2599,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
         else:
             color, icon = palette.get(key, (self.lcd.Color_White, None))
         if icon is not None:
-            self.lcd.draw_atlas_icon(icon, 8, y - 2)
+            self.lcd.show_icon(self.ICON, icon, 8, y - 2)
         else:
             self.lcd.show_icon(self.ICON, self.ICON_Info, 8, y - 2)
         self.lcd.draw_text(False, False, self.lcd.font10x20, color,

@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import Mock
 import test_mmu_ui as mmu_fixtures
-from lcd_atlas import ICON_POWER
+from lcd_resources import ICON_POWER
 
 
 class MMUPowerIntegrationTests(unittest.TestCase):
@@ -32,13 +32,13 @@ class MMUPowerIntegrationTests(unittest.TestCase):
                 v._mmu_page, v._mmu_canvas_page = page, None
                 v.lcd.reset_mock()
                 v.Draw_MMU_Menu()
-                power_copies = [c for c in v.lcd.draw_atlas_icon.call_args_list if c.args[0] == ICON_POWER]
-                self.assertEqual([c.args for c in power_copies], [(ICON_POWER, 244, 5)])
+                power_copies = [c for c in v.lcd.show_icon.call_args_list if c.args[1] == ICON_POWER]
+                self.assertEqual([c.args for c in power_copies], [(7, ICON_POWER, 244, 5)])
                 title = v._mmu_render['title']
                 self.assertLessEqual(title[1] + title[3] * 8, 241)
                 v.lcd.reset_mock()
                 v.Draw_MMU_Menu()
-                v.lcd.draw_atlas_icon.assert_not_called()
+                v.lcd.show_icon.assert_not_called()
         v.pd.subscription.request.assert_not_called()
 
     def test_ccw_reaches_back_before_power_and_cw_restores_back(self):
@@ -80,7 +80,7 @@ class MMUPowerIntegrationTests(unittest.TestCase):
         self.assertEqual(v._mmu_map_draft, draft)
         self.assertEqual(v._mmu_selection, 0)
         self.assertIn((1, 0, 0, 0, 271, 479), [c.args for c in v.lcd.draw_rectangle.call_args_list])
-        v.lcd.draw_atlas_icon.assert_called_with(ICON_POWER, 244, 5)
+        v.lcd.show_icon.assert_called_with(7, ICON_POWER, 244, 5)
         v.pd.power_off_if_on.assert_not_called()
         v.pd.subscription.request.assert_not_called()
 

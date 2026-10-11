@@ -1,4 +1,4 @@
-import lcd_atlas
+from lcd_resources import ICON_SPOOL_EMPTY
 from read_fixture import ImmediateReadWorker
 import copy
 from concurrent.futures import Future
@@ -303,10 +303,10 @@ class CapabilityTests(unittest.TestCase):
         fills = [call.args[1] for call in rectangles if call.args[0] == 1]
         self.assertIn(result._rgb565((0.0, 1.0, 0.2)), fills)
         self.assertIn(0x8410, fills)
-        spool_copies = [call for call in result.lcd.draw_atlas_icon.call_args_list
-                        if call.args[0] in lcd_atlas.SPOOL_EMPTY_ICONS.values()]
+        spool_copies = [call for call in result.lcd.show_icon.call_args_list
+                        if call.args[1] == ICON_SPOOL_EMPTY]
         self.assertEqual(len(spool_copies), 4)
-        self.assertTrue(all(call.args[2] == 46 for call in spool_copies))
+        self.assertTrue(all(call.args[3] == 46 for call in spool_copies))
         result.lcd.draw_line.assert_not_called()
         result.lcd.fill_circle.assert_not_called()
         result.lcd.draw_circle.assert_not_called()

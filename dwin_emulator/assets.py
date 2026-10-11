@@ -27,7 +27,10 @@ class PanelAssets:
     def __init__(self, root=ROOT, font_path=None):
         self.root = Path(root)
         self.font = Path(font_path or self.root / 'assets/emulator/0T5UIC1.HZK').expanduser().read_bytes()
-        self.ico = (self.root / 'assets/emulator' / ICON_LIBRARY_FILENAME).read_bytes()
+        from icon_library import build_library
+        sources = self.root / 'assets/icons'
+        self.ico = (build_library(sources) if sources.is_dir() else
+                    (self.root / 'assets/emulator' / ICON_LIBRARY_FILENAME).read_bytes())
         if len(self.ico) < 4096:
             raise ValueError(f'Truncated {ICON_LIBRARY_FILENAME} directory')
         self.glyph = lru_cache(maxsize=1280)(self.glyph)

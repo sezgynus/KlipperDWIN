@@ -28,6 +28,10 @@ python3 -m venv .venv-artwork
 
 Run from the repository root. Use a **separate output filename**; the tool rejects overwriting the source atlas. It prints the new icon rectangle. Register the icon in `lcd_atlas.py` as part of the code change, review old/new icons, run the relevant tests and verify the result on a panel before replacing the tracked atlas.
 
+## Managed icon library
+
+Put baseline JPEG icons in [`assets/icons`](icons/README.md), with the icon ID in each filename. The application packs and uploads changed resources on its first LCD connection after an update. The packer reuses block gaps and never uses a block's final byte. The emulator uses the same sources.
+
 ## Screenshots
 
 User-interface screenshots belong in `docs/assets/screens/`, not this artwork folder. Follow the [capture guide](../docs/ui-emulator.md) and preserve original 272×480 PNG output.

@@ -20,6 +20,8 @@ Kurulumdan sonra fiziksel ekranda menü yazılarını/ikonlarını, renkleri, ö
 
 ## Kaynakları tanıma
 
+Uygulama artık kütüphane 7'yi [`assets/icons`](../assets/icons/README_TR.md) kaynaklarından oluşturur ve güncelleme sonrası ilk LCD bağlantısında değişen blokları otomatik yükler. Değişmeyen kaynaklar atlanır. JPEG ekleme, paketi dışa aktarma ve panel kaynakları yeniden kurulduktan sonra zorla yükleme için bu kılavuzu kullanın.
+
 Deneysel library-7 branch'inde, panel firmware'ini değiştirmeden depodaki `7.ICO` dosyasını UART üzerinden yükleyin:
 
 ```sh

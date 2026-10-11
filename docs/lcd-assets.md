@@ -20,6 +20,8 @@ Previews come from Moonraker and do not need a new panel asset pack. Missing thu
 
 ## Resource identification
 
+The application now builds library 7 from [`assets/icons`](../assets/icons/README.md) and automatically uploads changed blocks at the first LCD connection after an update. Unchanged resources are skipped. Follow that guide to add JPEGs, export a pack or force a reload after reinstalling panel resources.
+
 On the experimental library-7 branch, install the bundled `7.ICO` over UART without replacing panel firmware:
 
 ```sh

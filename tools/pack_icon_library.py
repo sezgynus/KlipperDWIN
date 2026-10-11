@@ -2,6 +2,9 @@
 """Repack a DWIN ICO without splitting JPEG icons across Flash blocks."""
 import argparse
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 BLOCK_SIZE = 32768
 DIRECTORY_SIZE = 4096
@@ -29,15 +32,10 @@ def entries(data):
 
 
 def pack(data):
-    result = bytearray(data[:DIRECTORY_SIZE])
-    for index, entry, old_offset, payload in entries(data):
-        remaining = BLOCK_SIZE - len(result) % BLOCK_SIZE
-        if len(payload) > remaining:
-            result.extend(bytes(remaining))
-        offset = len(result)
-        result[index * 16 + 4:index * 16 + 8] = offset.to_bytes(4, 'big')
-        result.extend(payload)
-    return bytes(result)
+    from icon_library import pack_records
+    return pack_records([(index, int.from_bytes(entry[:2], 'big'),
+                          int.from_bytes(entry[2:4], 'big'), payload)
+                         for index, entry, old_offset, payload in entries(data)])
 
 
 def validate_block_layout(data, library):
@@ -46,6 +44,8 @@ def validate_block_layout(data, library):
     for index, entry, offset, payload in entries(data):
         if offset // BLOCK_SIZE != (offset + len(payload) - 1) // BLOCK_SIZE:
             raise ValueError(f'Icon {index} crosses a 32 KiB boundary; repack first')
+        if (offset + len(payload) - 1) % BLOCK_SIZE == BLOCK_SIZE - 1:
+            raise ValueError(f'Icon {index} uses the reserved last block byte')
 
 
 def main():
@@ -54,7 +54,11 @@ def main():
     parser.add_argument('destination', type=Path)
     parser.add_argument('--library', type=int, default=7)
     args = parser.parse_args()
-    data = pack(args.source.read_bytes())
+    if args.source.is_dir():
+        from icon_library import build_library
+        data = build_library(args.source)
+    else:
+        data = pack(args.source.read_bytes())
     validate_block_layout(data, args.library)
     args.destination.write_bytes(data)
     print(f'{len(data)} bytes; {(len(data) + BLOCK_SIZE - 1) // BLOCK_SIZE} blocks')

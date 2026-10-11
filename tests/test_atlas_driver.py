@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import lcd_atlas
 from test_t5uic1_driver import driver
@@ -340,7 +340,7 @@ class AtlasDriverTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             lcd, _, _ = configured_driver(tmp)
             lcd.sync_atlases = Mock(side_effect=RuntimeError('upload failed'))
-            with self.assertRaisesRegex(RuntimeError, 'upload failed'):
+            with patch('icon_library.sync_library'), self.assertRaisesRegex(RuntimeError, 'upload failed'):
                 lcd._startup_sync_atlases(force=True)
             lcd.sync_atlases.assert_called_once_with(force=True)
 
@@ -484,7 +484,7 @@ class AtlasDriverTests(unittest.TestCase):
         lcd._atlas_sync_blocked = False
         lcd.sync_atlases = Mock(side_effect=TimeoutError("metadata timeout"))
 
-        with self.assertLogs(level="ERROR") as captured:
+        with patch('icon_library.sync_library'), self.assertLogs(level="ERROR") as captured:
             self.assertFalse(lcd._startup_sync_atlases())
 
         self.assertTrue(lcd._atlas_sync_blocked)

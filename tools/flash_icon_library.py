@@ -83,7 +83,11 @@ def main():
         parser.error('Stop KlipperDWIN.service before uploading')
     root = Path(__file__).resolve().parent.parent
     path = args.file or (root / 'assets/emulator' / ICON_LIBRARY_FILENAME)
-    data = path.read_bytes()
+    if args.file:
+        data = path.read_bytes()
+    else:
+        from icon_library import build_library
+        data = build_library(root / 'assets/icons')
     digest = hashlib.sha256(data).hexdigest()
     if args.sha256 and digest.lower() != args.sha256.lower():
         parser.error(f'SHA256 mismatch: {digest}; no UART opened')

@@ -20,4 +20,15 @@ Kurulumdan sonra fiziksel ekranda menü yazılarını/ikonlarını, renkleri, ö
 
 ## Kaynakları tanıma
 
+Deneysel library-7 branch'inde, panel firmware'ini değiştirmeden depodaki `7.ICO` dosyasını UART üzerinden yükleyin:
+
+```sh
+sudo systemctl stop KlipperDWIN.service
+~/klipperdwin-env/bin/python ~/KlipperDWIN/tools/flash_icon_library.py && sudo systemctl start KlipperDWIN.service
+```
+
+Araç yapılandırılmış seri portu kullanır ve 7–14 slotlarına yazar. Yazma başarısız olursa servis kapalı kalır. Yazma onayları kontrol edilir; Flash geri okuması yapılmaz. Yüklemeden sonra ikonları fiziksel panelde kontrol edin.
+
+Katkı görselleri için `tools/pack_icon_library.py kaynak.ICO hedef.ICO`, JPEG görsellerini koruyarak her ikonu tek bir 32 KiB blokta tutar. Böylece gözlenen çizim sorunlarıyla ilişkili blok sınırlarında ikonların bölünmesi önlenir.
+
 [Stok envanteri](lcd-assets.json) proje için önceden incelenen kaynakları kaydeder. Kendi panelinizde kurulu dosyaları belirlemez. Katkı görselleri ve emülatör font seçimi talimatlarına [dokümantasyon dizininden](README_TR.md) ulaşabilirsiniz.

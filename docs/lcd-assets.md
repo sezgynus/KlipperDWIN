@@ -20,4 +20,15 @@ Previews come from Moonraker and do not need a new panel asset pack. Missing thu
 
 ## Resource identification
 
+On the experimental library-7 branch, install the bundled `7.ICO` over UART without replacing panel firmware:
+
+```sh
+sudo systemctl stop KlipperDWIN.service
+~/klipperdwin-env/bin/python ~/KlipperDWIN/tools/flash_icon_library.py && sudo systemctl start KlipperDWIN.service
+```
+
+The tool uses the configured serial port and writes slots 7–14. Failed writes leave the service stopped. It checks write acknowledgements, without Flash readback. Inspect the icons on the physical panel after upload.
+
+For contributor artwork, `tools/pack_icon_library.py source.ICO destination.ICO` preserves JPEG images while keeping each icon within one 32 KiB block. This layout avoids splitting icons at the boundaries associated with the observed rendering faults.
+
 The [stock inventory](lcd-assets.json) records the resources previously audited for this project. It does not identify the files installed on your own panel. Contributor artwork and emulator font-selection instructions are linked from the [documentation index](README.md).

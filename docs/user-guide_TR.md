@@ -130,6 +130,10 @@ Düzenlemek için basın, çevirin ve kaydetmek için tekrar basın. Ayarlar ekr
 
 Boşta kısma sonrası ilk encoder hareketi veya tıklama, menü işlemi yapmadan ekranı uyandırır. **%0 arka ışığı kapatır**; Brightness düzenlerken saat yönünde çevirerek tekrar artırın.
 
+## Bakım
+
+**Home → Maintenance**, Info’dan önceki menüdür. Şimdilik yalnızca **Back** seçeneğini içerir; bu seçenek ana menüde aynı ikona döner.
+
 ## Info ve güncellemeler
 
 <p align="center">

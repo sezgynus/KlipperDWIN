@@ -134,6 +134,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     FilePreview = 45
     PowerConfirm = 46
     DisplayMenu = 47
+    MaintenanceMenu = 48
 
     MINUNITMULT = 10
 
@@ -254,8 +255,10 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
     ICON_Cancel_E = 87
     ICON_Confirm_C = 88
     ICON_Confirm_E = 89
-    ICON_Info_0 = 90
-    ICON_Info_1 = 91
+    ICON_Maintenance_0 = 90
+    ICON_Maintenance_1 = 91
+    ICON_Info_0 = 92
+    ICON_Info_1 = 93
 
     MENU_CHAR_LIMIT = 24
     STATUS_Y = 360
@@ -511,6 +514,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 self.Draw_File_Preview()
             if getattr(self, 'checkkey', None) == self.DisplayMenu:
                 self.Draw_Display_Menu()
+            if getattr(self, 'checkkey', None) == self.MaintenanceMenu:
+                self.Draw_Maintenance_Menu()
             self.lcd.update()
             if (self.pd.connection_error and self.checkkey != self.MMUMenu
                     and not getattr(self, '_boot_active', False)):
@@ -1205,6 +1210,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             entries.append(('LEVEL', 'Leveling', self.ICON_Leveling_0, self.ICON_Leveling_1))
         entries.append(('MMU', 'MMU', self.ICON_MMU_0, self.ICON_MMU_1))
         entries.append(('DISPLAY', 'Display', self.ICON_Display_0, self.ICON_Display_1))
+        entries.append(('MAINTENANCE', 'Maintenance', self.ICON_Maintenance_0, self.ICON_Maintenance_1))
         entries.append(('INFO', 'Info', self.ICON_Info_0, self.ICON_Info_1))
         return tuple(entries)
 
@@ -1275,6 +1281,9 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             elif key == 'DISPLAY':
                 self.checkkey = self.DisplayMenu
                 self.Draw_Display_Menu()
+            elif key == 'MAINTENANCE':
+                self.checkkey = self.MaintenanceMenu
+                self.Draw_Maintenance_Menu()
             elif key == 'INFO':
                 self._info_origin = self.MainMenu
                 self.checkkey = self.Info
@@ -1466,6 +1475,16 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
                 and not getattr(self, '_display_edit', False)):
             self.lcd.set_backlight(display_settings.raw_brightness(min(values[0], values[2])))
             self._display_dimmed = True
+
+    def Draw_Maintenance_Menu(self):
+        self._draw_list_menu('Maintenance', [('Back', self.ICON_Back, None, None)], 0)
+
+    def HMI_Maintenance_Menu(self):
+        if self.get_encoder_state() == self.ENCODER_DIFF_ENTER:
+            self.select_page.set(next(i for i, entry in enumerate(self._home_entries())
+                                      if entry[0] == 'MAINTENANCE'))
+            self.Goto_MainMenu()
+            self.lcd.update()
 
     def Draw_Display_Menu(self):
         selection = getattr(self, '_display_selection', 0)
@@ -3219,6 +3238,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.FilePreview: '_preview_choice',
             self.Info: '_info_scroll',
             self.DisplayMenu: '_display_selection',
+            self.MaintenanceMenu: '_maintenance_selection',
         }
         if self.checkkey == self.MMUMenu:
             return (not self.pd.connection_error and getattr(self, '_mmu_selection', 0) == 0
@@ -3257,6 +3277,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.Motion: self.Draw_Motion_Menu,
             self.Info: self.Draw_Info_Menu,
             self.DisplayMenu: self.Draw_Display_Menu,
+            self.MaintenanceMenu: self.Draw_Maintenance_Menu,
             self.Tune: self.Draw_Tune_Menu,
             self.MMUMenu: self.Draw_MMU_Menu,
             self.BedMeshMenu: self.Draw_Bed_Mesh_Menu,
@@ -3367,6 +3388,8 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self.HMI_Probe_Wizard()
         elif self.checkkey == self.MotionValue:
             self.HMI_MotionValue()
+        elif self.checkkey == self.MaintenanceMenu:
+            self.HMI_Maintenance_Menu()
         elif self.checkkey == self.DisplayMenu:
             self.HMI_Display_Menu()
         elif self.checkkey == self.Info:

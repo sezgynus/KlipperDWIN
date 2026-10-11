@@ -130,6 +130,10 @@ Press to edit, rotate and press again to save. Settings survive display power cy
 
 The first encoder movement or click after idle dimming wakes the display without performing a menu action. **0% turns off the backlight**; while editing Brightness, rotate clockwise to increase it again.
 
+## Maintenance
+
+**Home → Maintenance** is the tile before Info. It currently contains only **Back**, which returns to the same home tile.
+
 ## Info and updates
 
 <p align="center">

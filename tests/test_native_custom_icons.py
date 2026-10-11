@@ -14,7 +14,7 @@ class NativeCustomIconTests(unittest.TestCase):
         assets = PanelAssets()
         expected = {100: (110, 100), 101: (110, 100), 102: (20, 18),
                     103: (20, 20), 104: (20, 20), 105: (20, 20),
-                    106: (20, 20), 107: (20, 20), 108: (110, 100), 124: (110, 100), 109: (42, 52)}
+                    106: (20, 20), 107: (20, 20), 108: (110, 100), 109: (110, 100), 124: (42, 52)}
         for icon, size in expected.items():
             self.assertEqual(assets.icon(7, icon).size, size)
         for width in range(1, 43):

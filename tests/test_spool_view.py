@@ -69,7 +69,7 @@ class SpoolViewTests(unittest.TestCase):
             slot = max(1, min(60, (256 - gap * (count - 1)) // count))
             width = min(max(8, int(slot * .70)), max(1, slot - 2))
             self.assertEqual(SpoolView(Mock(), 0, 0, width).width, width)
-        self.assertEqual(ICON_SPOOL_EMPTY, 109)
+        self.assertEqual(ICON_SPOOL_EMPTY, 124)
         self.assertEqual(set(SPOOL_LEFT_FLANGES), set(range(1, 8)))
         self.assertEqual(set(SPOOL_RIGHT_FLANGES), set(range(1, 8)))
 

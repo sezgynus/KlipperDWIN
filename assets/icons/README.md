@@ -18,7 +18,7 @@ python tools/pack_icon_library.py assets/icons /tmp/7.ICO
 
 The emulator uses these same JPEG sources. `assets/emulator/7.ICO` is a reference export, not the source for automatic updates.
 
-Custom UI icons use IDs 100–109 and 124. MMU uses 100/101 and Display uses 108/124 for normal/selected 110×100 home tiles, matching the stock home icons. Wooden spool flanges use IDs 110–123 for widths 1–7, so compact lanes need no separate complete spool artwork. The symbolic mapping is in `lcd_resources.py`. These icons now render through library 7; legacy atlas resources and startup synchronization remain temporarily during physical-panel migration testing.
+Custom UI icons use IDs 100–109 and 124. MMU uses 100/101 and Display uses 108/109 for normal/selected 110×100 home tiles, matching the stock home icons. The empty spool uses ID 124. Wooden spool flanges use IDs 110–123 for widths 1–7, so compact lanes need no separate complete spool artwork. The symbolic mapping is in `lcd_resources.py`. These icons now render through library 7; legacy atlas resources and startup synchronization remain temporarily during physical-panel migration testing.
 
 After reinstalling panel resources, force a reload because stored metadata may still describe the previous installation:
 

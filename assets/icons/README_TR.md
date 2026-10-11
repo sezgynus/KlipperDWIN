@@ -18,7 +18,7 @@ python tools/pack_icon_library.py assets/icons /tmp/7.ICO
 
 Emülatör de bu JPEG kaynaklarını kullanır. `assets/emulator/7.ICO` referans çıktıdır; otomatik güncellemenin kaynağı değildir.
 
-Özel UI ikonları 100–109 ve 124 ID'lerini kullanır. MMU 100/101, Display 108/124 ID'leriyle seçili olmayan/seçili 110×100 ana menü ikonlarını kullanır; boyut ve arka planlar orijinal ana menü ikonlarıyla aynıdır. Ahşap makara yan parçaları 1–7 genişlikleri için 110–123 ID'lerini kullanır; dar alanlarda ayrı tam makara görselleri gerekmez. Sembolik eşleştirme `lcd_resources.py` içindedir. Bu ikonlar artık kütüphane 7'den çizilir; fiziksel panelde geçiş denemesi tamamlanana kadar eski atlas kaynakları ve başlangıç senkronizasyonu geçici olarak korunur.
+Özel UI ikonları 100–109 ve 124 ID'lerini kullanır. MMU 100/101, Display 108/109 ID'leriyle seçili olmayan/seçili 110×100 ana menü ikonlarını kullanır; boyut ve arka planlar orijinal ana menü ikonlarıyla aynıdır. Boş makara 124 ID’sini kullanır. Ahşap makara yan parçaları 1–7 genişlikleri için 110–123 ID'lerini kullanır; dar alanlarda ayrı tam makara görselleri gerekmez. Sembolik eşleştirme `lcd_resources.py` içindedir. Bu ikonlar artık kütüphane 7'den çizilir; fiziksel panelde geçiş denemesi tamamlanana kadar eski atlas kaynakları ve başlangıç senkronizasyonu geçici olarak korunur.
 
 Panel kaynaklarını yeniden yüklediğinizde, kayıt eski kurulumu tarif ediyor olabileceğinden zorla yeniden yükleyin:
 

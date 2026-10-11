@@ -23,6 +23,33 @@ class EmulatorRenderingTests(unittest.TestCase):
         self.lcd = driver()
         self.lcd._packet_observer = self.model
 
+    def test_managed_ico_flash_blocks_do_not_require_jpeg_decoding(self):
+        from icon_library import build_library
+        packed = build_library()
+        for index in range(len(packed) // 32768):
+            block = packed[index * 32768:(index + 1) * 32768]
+            self.model.sram[:] = block
+            self.model.feed(b'\xaa\x33\x5a\xa5' + bytes((7 + index,)) + self.model.TAIL)
+            self.assertEqual(self.model.flash_blocks[7 + index], block)
+        self.lcd.show_icon(7, 101, 17, 130)
+        self.lcd.update()
+        self.assertEqual(self.model.snapshot()[0].size, (272, 480))
+        self.assertFalse(self.model.errors)
+
+    def test_flash_picture_decodes_when_displayed_and_replacement_invalidates_cache(self):
+        for color in ('red', 'green'):
+            stream = BytesIO()
+            Image.new('RGB', (480, 272), color).save(stream, format='JPEG')
+            data = stream.getvalue()
+            self.model.sram[:] = data + bytes(32768 - len(data))
+            self.model.feed(b'\xaa\x33\x5a\xa5\x05' + self.model.TAIL)
+            self.assertNotIn(5, self.model.pictures)
+            self.lcd.show_jpeg(5)
+            self.lcd.update()
+            expected = self.model.pictures[5].getpixel((0, 0))
+            self.assertEqual(self.model.snapshot()[0].getpixel((0, 0)), expected)
+        self.assertFalse(self.model.errors)
+
     def test_transmitted_packets_and_completed_updates_are_the_only_input(self):
         self.lcd.clear(0xF800)
         with self.assertRaisesRegex(RuntimeError, 'completed'):

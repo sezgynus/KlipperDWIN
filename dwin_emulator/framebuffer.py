@@ -27,6 +27,7 @@ class Framebuffer:
             self.areas = {0: splash.copy(), 1: Image.new('RGB', (272, 480))}
             self.sram = bytearray(32768)
             self.pictures = {}
+            self.flash_blocks = {}
             self.errors = set()
             self.animations = {}
             self.presented = None
@@ -65,7 +66,13 @@ class Framebuffer:
     def _picture(self, slot):
         physical = self.pictures.get(slot)
         if physical is None:
-            physical = self.assets.picture(slot)
+            if slot in self.flash_blocks:
+                from .assets import panel_colors
+                with Image.open(BytesIO(self.flash_blocks[slot])) as image:
+                    physical = panel_colors(image)
+                self.pictures[slot] = physical
+            else:
+                physical = self.assets.picture(slot)
         turns = {0: None, 1: Image.Transpose.ROTATE_270,
                  2: Image.Transpose.ROTATE_180, 3: Image.Transpose.ROTATE_90}
         return physical.copy() if self.direction == 0 else physical.transpose(turns[self.direction])
@@ -211,9 +218,10 @@ class Framebuffer:
                         raise ValueError('SRAM write out of bounds')
                     self.sram[address:end] = p[3:]
             elif opcode == 0x33:
-                with Image.open(BytesIO(self.sram)) as image:
-                    from .assets import panel_colors
-                    self.pictures[p[2]] = panel_colors(image)
+                # Flash holds ICO blocks as well as pictures. Decode only when
+                # a picture command actually requests this slot.
+                self.flash_blocks[p[2]] = bytes(self.sram)
+                self.pictures.pop(p[2], None)
             elif opcode == 0x34:
                 if p[:2] != b'\x5a\xa5' or p[2] not in range(4):
                     raise ValueError('Invalid orientation')

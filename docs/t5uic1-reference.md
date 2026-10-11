@@ -257,15 +257,16 @@ image content into picture slot `0x00..0x0F`.
 
 JPEG pictures and ICO libraries share the same 512 KiB Picture Flash, divided
 into 32 KiB blocks. A large ICO file spans multiple blocks beginning at its
-library ID. The stock `9.ICO` occupies the upper blocks, so atlas writes to
-14/15 overwrite icon data. Stock pictures occupy 0..2; the application uses
-5/6 and rejects stock-reserved IDs in its default manifest. Removing an atlas
+library ID. The application icon library `7.ICO` starts at block 7 and spans the upper
+blocks. Stock pictures occupy 0..2; the application uses 5/6 for atlases and
+rejects icon-library blocks in its default manifest. The previous library
+started at 9; writing atlases to 14/15 overwrote its icon data. Removing an atlas
 from the manifest does not restore previously overwritten icon data; reload
-`9.ICO` through the panel SD-card update interface after upgrading the host.
+`7.ICO` through the panel SD-card update interface after upgrading the host.
 
 KlipperDWIN reserves Picture Flash IDs **5** and **6** for up to two
 host-managed custom JPEG atlases. Stock assets already available through
-`9.ICO` remain on the normal `0x23 show_icon()` path and are intentionally
+`7.ICO` remain on the normal `0x23 show_icon()` path and are intentionally
 not duplicated into these atlases.
 
 The host manifest lives in `lcd_atlas.py`:

@@ -23,7 +23,7 @@ class AuditRenderingTests(unittest.TestCase):
                 self.assertEqual(copies, [bytes.fromhex(
                     'AA 27 20 00 C0 00 00 00 D3 00 13 '
                     '00 08 00 8A CC 33 C3 3C')])
-                # Custom IDs must never be sent to the stock 9.ICO renderer.
+                # Custom IDs must never be sent to the stock 7.ICO renderer.
                 self.assertFalse(any(f[1] == 0x23 for f in result.lcd.serial.frames))
 
     def test_machine_host_software_headings_use_their_atlas_rectangles(self):

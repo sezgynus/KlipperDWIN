@@ -45,7 +45,7 @@ class BootSplashTests(unittest.TestCase):
         v = self.view()
         v._draw_boot_progress(70)
         frame = next(f for f in v.lcd.serial.frames if f[1] == 0x28)
-        self.assertEqual(frame[6:11], bytes((0xC0, 9, 250, 254, 10)))
+        self.assertEqual(frame[6:11], bytes((0xC0, 7, 250, 254, 10)))
         self.assertEqual(int.from_bytes(frame[4:6], 'big'), 320)
         text = next(f for f in v.lcd.serial.frames if f[1] == 0x11)
         self.assertEqual(int.from_bytes(text[7:9], 'big'), int.from_bytes(frame[2:4], 'big')+24)

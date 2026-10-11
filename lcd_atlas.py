@@ -2,12 +2,14 @@
 
 The UI must not depend on atlas coordinates or virtual-area selection. Add or
 move custom static icons only by updating ICON_COORDINATES and the corresponding
-JPEG file. Stock icons already present in 9.ICO do not belong here.
+JPEG file. Stock icons already present in 7.ICO do not belong here.
 
 T5UIC1 JPEG files are stored at the physical 480x272 panel resolution, while
 source rectangles below use the runtime portrait virtual-area coordinate space
 (272x480) after direction=1 is applied.
 """
+
+from lcd_resources import ICON_LIBRARY_ID
 
 # KlipperDWIN custom icon IDs. UI code imports these symbolic IDs and calls
 # lcd.draw_atlas_icon(icon_id, x, y); it never sees atlas coordinates.
@@ -23,8 +25,8 @@ ICON_DISPLAY = 0x0108
 ICON_SPOOL_EMPTY = 0x010A
 
 # JPEGs and ICO libraries share 32 KiB Picture Flash blocks.
-# Stock pictures occupy 0..2; 9.ICO spans the upper blocks, including 14/15.
-STOCK_RESERVED_PICTURE_IDS = frozenset((0, 1, 2, *range(9, 16)))
+# Stock pictures occupy 0..2; 7.ICO spans the upper blocks, including 14/15.
+STOCK_RESERVED_PICTURE_IDS = frozenset((0, 1, 2, *range(ICON_LIBRARY_ID, 16)))
 
 # virtual_area: (repo-relative JPEG path, reserved Picture Flash ID)
 ATLAS_FILES = {

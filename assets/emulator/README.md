@@ -8,7 +8,7 @@ These files are inputs for screenshot rendering on the Pi. Enabling the emulator
 
 | File | Use |
 |---|---|
-| `9.ICO` | Stock icon library supplied for this project |
+| `7.ICO` | Application icon library at slot 7; stock icons plus About variants 92/93 |
 | `0T5UIC1.HZK` | Default original T5UIC1 font |
 | `0_DWIN_ASC.HZK` | Alternative DGUS ASCII font; select explicitly only when appropriate |
 

@@ -1,6 +1,6 @@
 {
   "reference_commit": "05903a80d6e15cc91b0bc690b35e08fd440a21e9",
-  "library": 9,
+  "library": 7,
   "english_jpg": 1,
   "cache": 1,
   "raw_jpg_dimensions": [
@@ -17,8 +17,8 @@
     "2_Chinese.jpg": "c6396f8a2cb0ed757b2da8220fa9e41f2f3deb5b764fa1bb883a0abc258b33f9",
     "T5UIC1.CFG": "e1c573639bfa2b3a06c2fa7ad3cab483653dd3dc383217ff653fab3145458095",
     "1_English.jpg": "854dcc7ad264f7e4fcaf08010e86a15822cd918651b266c39d40a2ffdef9727d",
-    "9.ICO": "cdfbafbfd5f4c4d502bb55fb71740e672fb6112b0275c70bc4f3cb648eb9bbc0",
-    "0T5UIC1.HZK": "27f3ae70117dc031e6ea542654ca03b89bb9a0592b23aa9b7e452c35583c0108"
+    "0T5UIC1.HZK": "27f3ae70117dc031e6ea542654ca03b89bb9a0592b23aa9b7e452c35583c0108",
+    "7.ICO": "560d75f4283d194a2e486078a03884f68da32fee3f632ce9ae3584d5c992a387"
   },
   "icons": {
     "ICON_LOGO": {

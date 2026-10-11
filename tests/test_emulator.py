@@ -43,20 +43,20 @@ class EmulatorRenderingTests(unittest.TestCase):
     def test_native_animation_capture_advances_stops_and_moves_without_traces(self):
         with patch('dwin_emulator.framebuffer.time.monotonic', return_value=100):
             self.lcd.clear(0)
-            self.lcd.configure_animation(0, True, 9, 250, 254, 12, 40, 10)
+            self.lcd.configure_animation(0, True, 7, 250, 254, 12, 40, 10)
             self.lcd.update()
             first, _ = self.model.snapshot()
         with patch('dwin_emulator.framebuffer.time.monotonic', return_value=100.11):
             second, _ = self.model.snapshot()
             self.assertNotEqual(first.tobytes(), second.tobytes())
-            self.lcd.configure_animation(0, False, 9, 250, 254, 12, 40, 10)
+            self.lcd.configure_animation(0, False, 7, 250, 254, 12, 40, 10)
             self.lcd.clear(0)
-            self.lcd.configure_animation(0, True, 9, 250, 254, 70, 40, 10)
+            self.lcd.configure_animation(0, True, 7, 250, 254, 70, 40, 10)
             self.lcd.update()
             moved, _ = self.model.snapshot()
-            width, height = self.assets.icon(9, 250).size
+            width, height = self.assets.icon(7, 250).size
             self.assertIsNone(moved.crop((12, 40, 12+width, 40+height)).getbbox())
-            self.lcd.configure_animation(0, False, 9, 250, 254, 70, 40, 10)
+            self.lcd.configure_animation(0, False, 7, 250, 254, 70, 40, 10)
             self.lcd.update()
             stopped, _ = self.model.snapshot()
         with patch('dwin_emulator.framebuffer.time.monotonic', return_value=200):
@@ -64,7 +64,7 @@ class EmulatorRenderingTests(unittest.TestCase):
         self.assertFalse(self.model.errors)
 
     def test_animation_mask_disables_configured_animation(self):
-        self.lcd.configure_animation(2, True, 9, 250, 254, 10, 10, 10)
+        self.lcd.configure_animation(2, True, 7, 250, 254, 10, 10, 10)
         self.assertIn(2, self.model.animations)
         self.lcd.set_animation_mask(0)
         self.assertFalse(self.model.animations)
@@ -130,12 +130,12 @@ class EmulatorRenderingTests(unittest.TestCase):
 
     def test_stock_icon_directory_including_sparse_ids(self):
         for icon in (0, 1, 15, 205, 254):
-            image = self.assets.icon(9, icon)
-            self.lcd.show_icon(9, icon, 0, 0, background=True)
+            image = self.assets.icon(7, icon)
+            self.lcd.show_icon(7, icon, 0, 0, background=True)
             self.lcd.update(); frame, _ = self.model.snapshot()
             self.assertEqual(frame.crop((0, 0, image.width, image.height)).tobytes(), image.tobytes())
         with self.assertRaises(ValueError):
-            self.assets.icon(9, 39)
+            self.assets.icon(7, 39)
 
     def test_move_area_translation_and_wrap_leave_surroundings_unchanged(self):
         for direction, target in ((0, (8, 10)), (1, (12, 10)), (2, (10, 8)), (3, (10, 12))):

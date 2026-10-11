@@ -6,7 +6,7 @@
 
 KlipperDWIN targets the **272×480 portrait DWIN T5UIC1** layout used by the compatible 4.3-inch Ender 3 V2 panel. DWIN, DACAI and TJC firmware/resource packs are not interchangeable.
 
-The physical panel needs the matching stock icon library **9 (`9.ICO`)**, fonts and English bitmap resources. Display direction is **1**. Custom KlipperDWIN artwork is supplied separately with the application; see the [artwork guide](../assets/README.md).
+The physical panel needs the matching stock icon library **7 (`7.ICO`)**, fonts and English bitmap resources. Display direction is **1**. Custom KlipperDWIN artwork is supplied separately with the application; see the [artwork guide](../assets/README.md).
 
 ## Before installing or replacing a panel
 

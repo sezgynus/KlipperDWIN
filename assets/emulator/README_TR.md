@@ -8,7 +8,7 @@ Bu dosyalar Pi üzerinde ekran görüntüsü çiziminde kullanılır. Emülatör
 
 | Dosya | Kullanım |
 |---|---|
-| `9.ICO` | Proje için sağlanan stok ikon kütüphanesi |
+| `7.ICO` | 7 numaralı konumdaki uygulama ikon kütüphanesi; stok ikonlar ve 92/93 About çeşitleri |
 | `0T5UIC1.HZK` | Varsayılan özgün T5UIC1 fontu |
 | `0_DWIN_ASC.HZK` | Alternatif DGUS ASCII fontu; yalnız uygun olduğunda açıkça seçin |
 

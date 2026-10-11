@@ -6,7 +6,7 @@
 
 KlipperDWIN, uyumlu 4,3 inç Ender 3 V2 panelinde kullanılan **272×480 dikey DWIN T5UIC1** düzenini hedefler. DWIN, DACAI ve TJC firmware/kaynak paketleri birbirinin yerine kullanılamaz.
 
-Fiziksel panelde eşleşen stok ikon kütüphanesi **9 (`9.ICO`)**, fontlar ve İngilizce bitmap kaynakları bulunmalıdır. Ekran yönü **1**'dir. Özel KlipperDWIN görselleri uygulamayla ayrıca sağlanır; [görsel rehberine](../assets/README_TR.md) bakın.
+Fiziksel panelde eşleşen stok ikon kütüphanesi **7 (`7.ICO`)**, fontlar ve İngilizce bitmap kaynakları bulunmalıdır. Ekran yönü **1**'dir. Özel KlipperDWIN görselleri uygulamayla ayrıca sağlanır; [görsel rehberine](../assets/README_TR.md) bakın.
 
 ## Panel kurmadan veya değiştirmeden önce
 

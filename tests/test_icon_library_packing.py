@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 from PIL import Image
 from io import BytesIO
 from tools.pack_icon_library import BLOCK_SIZE, entries, pack, validate_block_layout
-from tools.flash_icon_library import upload
+from tools.flash_icon_library import upload, validate_upload
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -32,6 +32,13 @@ class IconLibraryPackingTests(TestCase):
             data.extend(payload)
         with self.assertRaisesRegex(ValueError, 'crosses'):
             validate_block_layout(data, 7)
+        with self.assertRaisesRegex(ValueError, 'crosses'):
+            validate_upload(data)
+        validate_upload(data, allow_cross_block=True)
+        with self.assertRaisesRegex(ValueError, 'exceeds'):
+            validate_upload(bytes(9 * BLOCK_SIZE + 1), allow_cross_block=True)
+        with self.assertRaisesRegex(ValueError, 'No icon entries'):
+            validate_upload(bytes(4096), allow_cross_block=True)
         result = pack(data)
         validate_block_layout(result, 7)
         original = list(entries(data))

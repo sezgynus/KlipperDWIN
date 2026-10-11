@@ -11,7 +11,7 @@ import time
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lcd_resources import ICON_LIBRARY_FILENAME, ICON_LIBRARY_ID
 from t5uic1_driver import T5UIC1Display
-from tools.pack_icon_library import BLOCK_SIZE, validate_block_layout
+from tools.pack_icon_library import BLOCK_SIZE, entries, validate_block_layout
 from tools.reload_atlases import configured_port
 
 
@@ -20,8 +20,18 @@ class ManualDisplay(T5UIC1Display):
         return False
 
 
-def upload(lcd, data):
-    validate_block_layout(data, ICON_LIBRARY_ID)
+def validate_upload(data, allow_cross_block=False):
+    if not allow_cross_block:
+        validate_block_layout(data, ICON_LIBRARY_ID)
+    else:
+        if len(data) > (16 - ICON_LIBRARY_ID) * BLOCK_SIZE:
+            raise ValueError('Icon library exceeds available Picture Flash')
+        if not list(entries(data)):
+            raise ValueError('No icon entries')
+
+
+def upload(lcd, data, *, allow_cross_block=False):
+    validate_upload(data, allow_cross_block)
     count = (len(data) + BLOCK_SIZE - 1) // BLOCK_SIZE
     lcd.set_animation_mask(0)
     # Commit the new directory only after every payload block is acknowledged.
@@ -39,21 +49,33 @@ def upload(lcd, data):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--serial-port', default=configured_port())
+    parser.add_argument('--file', type=Path, help='Use an explicitly selected ICO file')
+    parser.add_argument('--sha256', help='Required hash for diagnostic files')
+    parser.add_argument('--allow-cross-block', action='store_true',
+                        help='Diagnostic only: allow JPEGs spanning Flash blocks; requires --file and --sha256')
     args = parser.parse_args()
     if not args.serial_port:
         parser.error('UART not configured; specify --serial-port')
+    if args.allow_cross_block and (not args.file or not args.sha256):
+        parser.error('--allow-cross-block requires --file and --sha256')
     state = subprocess.run(['systemctl', 'is-active', 'KlipperDWIN.service'],
                            capture_output=True, text=True).stdout.strip()
     if state not in ('inactive', 'failed', 'unknown'):
         parser.error('Stop KlipperDWIN.service before uploading')
     root = Path(__file__).resolve().parent.parent
-    data = (root / 'assets/emulator' / ICON_LIBRARY_FILENAME).read_bytes()
-    validate_block_layout(data, ICON_LIBRARY_ID)
-    print(f'{ICON_LIBRARY_FILENAME}: {len(data)} bytes; SHA256 {hashlib.sha256(data).hexdigest()}')
+    path = args.file or (root / 'assets/emulator' / ICON_LIBRARY_FILENAME)
+    data = path.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    if args.sha256 and digest.lower() != args.sha256.lower():
+        parser.error(f'SHA256 mismatch: {digest}; no UART opened')
+    validate_upload(data, args.allow_cross_block)
+    print(f'{path}: {len(data)} bytes; SHA256 {digest}')
+    if args.allow_cross_block:
+        print('DIAGNOSTIC: cross-block icon layout; inspect icons before restoring bundled library.')
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     lcd = ManualDisplay(args.serial_port)
     try:
-        upload(lcd, data)
+        upload(lcd, data, allow_cross_block=args.allow_cross_block)
         print('Upload acknowledged. Check Leveling and Cooldown on the physical display.')
     finally:
         lcd.close()

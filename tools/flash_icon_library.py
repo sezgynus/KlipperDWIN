@@ -17,7 +17,7 @@ from tools.reload_atlases import configured_port
 
 
 class ManualDisplay(T5UIC1Display):
-    def _startup_sync_atlases(self, **kwargs):
+    def _startup_sync_icons(self):
         return False
 
 

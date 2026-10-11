@@ -498,7 +498,7 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
             self._configure_menus()
             self.HMI_Init()
             if getattr(self, '_boot_active', False):
-                self._draw_boot_progress(70 if self.lcd._atlas_synced else 40)
+                self._draw_boot_progress(70)
             else:
                 self.HMI_StartFrame(False)
             if getattr(self, 'checkkey', None) == self.BedMeshScreen:
@@ -570,9 +570,6 @@ class DWIN_LCD(MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, File
 
     def _poll_boot(self):
         snapshot = self.pd.subscription.snapshot()
-        if not self.lcd._atlas_synced or not self.lcd._atlas_virtual_areas_loaded:
-            self._draw_boot_progress(40, message='Display assets unavailable')
-            return
         if snapshot['state'] != 'ready':
             self.pd.update_variable()
             self._draw_boot_progress(70)

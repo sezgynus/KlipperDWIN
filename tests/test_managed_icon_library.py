@@ -104,7 +104,7 @@ class ManagedIconTests(unittest.TestCase):
         broken[20] ^= 1
         self.assertEqual(icons.parse_metadata(broken), [])
 
-    def test_startup_syncs_icons_then_atlases_before_boot_animation(self):
+    def test_startup_syncs_icons_before_boot_animation(self):
         from test_uart import Port, Driver, serial_module
         port = Port([b'\xAA\x00OK' + Driver.TAIL])
         events = []
@@ -119,7 +119,9 @@ class ManagedIconTests(unittest.TestCase):
             lcd = Driver('/dev/fake', wake_delay=0,
                          startup_progress=lambda lcd, value: events.append(('progress', value)))
         lcd.close()
-        self.assertEqual(events, ['icons', 'atlases', ('progress', 40)])
+        self.assertNotIn(0x25, [frame[1] for frame in port.frames])
+        self.assertNotIn(0x26, [frame[1] for frame in port.frames])
+        self.assertEqual(events, ['icons', ('progress', 40), ('progress', 70)])
 
     def test_checked_in_pack_matches_sources_and_all_payloads_are_preserved(self):
         root = Path(__file__).resolve().parents[1]

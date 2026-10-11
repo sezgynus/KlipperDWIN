@@ -102,11 +102,6 @@ class BootSplashTests(unittest.TestCase):
 
     def test_failed_prerequisites_identify_the_stage_without_opening_menu(self):
         v = self.view()
-        v.lcd._atlas_synced = False
-        v._poll_boot()
-        self.assertEqual(v._boot_message, 'Display assets unavailable')
-        self.assertEqual(v._boot_progress, 40)
-        v.lcd._atlas_synced = True
         v.pd.update_variable = Mock()
         v.pd.connection_error = 'invalid data'
         v._poll_boot()
@@ -114,7 +109,7 @@ class BootSplashTests(unittest.TestCase):
         self.assertEqual(v._boot_progress, 80)
         v.HMI_StartFrame.assert_not_called()
 
-    def test_ready_data_and_atlas_finish_once_with_one_full_frame(self):
+    def test_ready_data_finishes_once_with_one_full_frame(self):
         v = self.view()
         v.HMI_StartFrame.side_effect = lambda update: v.lcd.clear(0)
         v._poll_boot()
@@ -124,18 +119,14 @@ class BootSplashTests(unittest.TestCase):
         self.assertEqual([f[1] for f in v.lcd.serial.frames][-2:], [0x01, 0x3D])
         v.pd.sendGCode.assert_not_called()
 
-    def test_missing_atlas_or_invalid_printer_data_keeps_splash(self):
-        for cause in ('atlas', 'error'):
-            v = self.view()
-            if cause == 'atlas':
-                v.lcd._atlas_synced = False
-            else:
-                v.pd.update_variable = Mock()
-                v.pd.connection_error = 'invalid data'
-            v._poll_boot()
-            self.assertTrue(v._boot_active)
-            v.HMI_StartFrame.assert_not_called()
-            v._show_message.assert_not_called()
+    def test_invalid_printer_data_keeps_splash(self):
+        v = self.view()
+        v.pd.update_variable = Mock()
+        v.pd.connection_error = 'invalid data'
+        v._poll_boot()
+        self.assertTrue(v._boot_active)
+        v.HMI_StartFrame.assert_not_called()
+        v._show_message.assert_not_called()
 
     def test_input_is_ignored_during_boot_but_power_on_still_works(self):
         v = self.view()
@@ -157,7 +148,7 @@ class BootSplashTests(unittest.TestCase):
 
         def constructor(port, **kwargs):
             kwargs['startup_progress'](lcd, 40)
-            lcd.load_atlases(preserve_boot_splash=True)
+            lcd.show_jpeg(0)
             kwargs['startup_progress'](lcd, 70)
             return lcd
 
@@ -167,12 +158,11 @@ class BootSplashTests(unittest.TestCase):
         v._show_message.assert_not_called()
         opcodes = [f[1] for f in lcd.serial.frames]
         self.assertIn(0x22, opcodes)
-        self.assertIn(0x26, opcodes)
-        self.assertNotIn(0x3D, opcodes[opcodes.index(0x22):opcodes.index(0x26)])
+        self.assertNotIn(0x26, opcodes)
         self.assertNotIn(0x01, opcodes)
         self.assertIn(0x11, opcodes)
-        self.assertIn(0x25, opcodes)
-        self.assertEqual(lcd._virtual_area_pictures, {0: 5})
+        self.assertNotIn(0x25, opcodes)
+        self.assertEqual(lcd._virtual_area_pictures, {0: 0})
 
     def test_progress_resets_on_power_cycle_and_uart_retry(self):
         v = self.view()
@@ -184,7 +174,7 @@ class BootSplashTests(unittest.TestCase):
         v._uart_failed()
         self.assertEqual(v._boot_progress, -1)
 
-    def test_constructor_loads_area_zero_and_restores_splash_before_refresh(self):
+    def test_constructor_shows_splash_directly_without_cache_copy(self):
         import test_uart as uart
         from t5uic1_driver import T5UIC1Display
         port = uart.Port([b'\xAA\x00OK' + T5UIC1Display.TAIL])
@@ -201,17 +191,16 @@ class BootSplashTests(unittest.TestCase):
             v._draw_boot_progress(value, lcd)
 
         with patch.object(uart.serial_module, 'Serial', return_value=port, create=True), \
-                patch.object(T5UIC1Display, '_startup_sync_atlases', synchronized):
+                patch.object(T5UIC1Display, '_startup_sync_icons', synchronized):
             lcd = T5UIC1Display('/dev/fake', wake_delay=0, startup_progress=progress)
         self.addCleanup(lcd.close)
         self.assertEqual(stages, [40, 70])
         opcodes = [frame[1] for frame in port.frames]
-        self.assertIn(0x25, opcodes)
+        self.assertNotIn(0x25, opcodes)
         self.assertFalse(set(opcodes) & {0x01, 0x27})
         self.assertIn(0x22, opcodes)
-        self.assertIn(0x26, opcodes)
-        self.assertNotIn(0x3D, opcodes[opcodes.index(0x22):opcodes.index(0x26)])
-        self.assertEqual(lcd._virtual_area_pictures, {0: 5})
+        self.assertNotIn(0x26, opcodes)
+        self.assertEqual(lcd._virtual_area_pictures, {0: 0})
 
     def test_initial_on_observation_does_not_restart_completed_boot(self):
         v = self.view()

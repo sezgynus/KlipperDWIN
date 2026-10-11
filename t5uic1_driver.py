@@ -175,25 +175,20 @@ class T5UIC1Display:
             # Preserve the existing Ender 3 V2 portrait orientation and startup
             # traffic.  Do not wait for the optional 0x34 acknowledgement here.
             self.set_orientation(1, wait_ack=False)
-            # Atlas Picture Flash is synchronized once during connection.
-            # Failure is non-fatal to the normal LCD UI and automatic retry is
-            # blocked for this connection/process to protect Flash endurance.
-            # Virtual areas are still populated lazily by draw_atlas_icon().
-            if force_atlases:
-                self._startup_sync_atlases(force=True)
-            else:
-                self._startup_sync_atlases()
-            # Boot animation uses the ICO library; start it only after uploads.
+            self._startup_sync_icons()
+            # Start the animation only after the managed icon upload finishes.
             if startup_progress is not None:
+                self.show_jpeg(0)
                 startup_progress(self, 40)
-            if self._atlas_synced:
-                self.load_atlases(preserve_boot_splash=True)
-                if startup_progress is not None:
-                    startup_progress(self, 70)
+                startup_progress(self, 70)
             self.update()
         except BaseException:
             self.close()
             raise
+
+    def _startup_sync_icons(self):
+        from icon_library import sync_library
+        sync_library(self)
 
     def close(self):
         if not getattr(self, "_closed", False):

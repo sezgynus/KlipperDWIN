@@ -13,7 +13,7 @@ Yalnız değişen bloklar yüklenir; tablo bloğu en son yazılır. Paneldeki ka
 Çalışma sırasında kullanılan paketin aynısını dışa aktarın:
 
 ```bash
-python tools/pack_icon_library.py assets/icons /tmp/3.ICO
+python tools/pack_icon_library.py assets/icons /tmp/3.ICO --library 3
 ```
 
 Emülatör de bu JPEG kaynaklarını kullanır. `assets/emulator/3.ICO` referans çıktıdır; otomatik güncellemenin kaynağı değildir.
@@ -33,6 +33,16 @@ Yazma onayları ve kayıt geri okuması doğrulanır; Picture Flash'ın kendisi 
 ## Graphite
 
 Graphite; ışık, parlaklık, ses ayarları, hareket parametreleri, kalibrasyon ve profiller için 210–234 ID’lerini ekler. Düzenlenebilir SVG kaynakları `assets/icon-source` içindedir; JPEG üretmek için `python tools/render_icon_sources.py` çalıştırın (geliştirme bağımlılığı: CairoSVG). Siyah JPEG zemini panelin şeffaf/enhanced ikon modu ile filtrelenir; menü ve dashboard yüzeyleri korunur. İkon paketi 3 numaralı slotta başlar, 3–15 slotlarını kullanabilir; 512 baytlık metadata kaydı Data Flash `0x0200–0x03FF` aralığındadır.
+
+## Print butonları, switchler ve fan görselleri
+
+Print butonları yuvarlatılmış yüzeyi, seçim çerçevesini ve Lucide simgesini tek JPEG içinde taşır; etiketler panelin **0 numaralı fontuyla** native metin olarak çizilir. Normal dar butonlar **243–247**, seçili karşılıkları **125–129** (78×36); tamamlanan baskının Tune/Close çiftleri **130–133** (119×36) ID'lerini kullanır. AFTER JOB switchleri **248/249** (27×12) kullanır. Normal/seçili siluetleri aynı tutun: üretici aynı nötr opak kenarı taşıyan keskin yuvarlak maske kullanır; böylece filtrelenen JPEG kenarlarında önceki durumun pikselleri kalmaz.
+
+Fan kareleri **235–242** nötr gri tonlarla üretilir; siyah saydamlık zeminindeki çınlamayı önlemek için kodlamadan önce 24 altı parlaklık temizlenir. Fan ve tam buton JPEG'leri **kalite 100**, baseline **4:2:0** kullanır. Diğer üretilen ikonlar kalite 94 kullanır. JPEG'i tekrar sıkıştırmak yerine SVG'den üretin. Lucide kaynak lisansı: [Lucide lisansı](../icon-source/Lucide-LICENSE.txt).
+
+## Paket boyutu ve ayrılan alan
+
+Mevcut referans paket **8×32 KiB = 256 KiB**, yani **3–10** slotlarını kullanır. Ayrılan üst sınır **13×32 KiB = 416 KiB**, yani **3–15** slotlarıdır; **11–15** büyüme için kullanılabilir. Bu ayrılmış blok alanıdır; birebir JPEG veri bütçesi değildir: dizin, yerleşim boşlukları ve blokların ayrılmış son baytları da alan tüketir. Picture Flash, **0x0200–0x03FF adresindeki 512 baytlık Data Flash metadata kaydından** ayrıdır. Export sırasında `--library 3` verin; aracın eski varsayılanı 7'dir ve kullanılabilir slot sayısı farklıdır.
 
 ## JPEG uyumluluk kuralı
 

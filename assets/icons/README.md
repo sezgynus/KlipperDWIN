@@ -13,7 +13,7 @@ Only changed blocks are uploaded; the directory block is committed last. Panel m
 Preview/export the exact runtime pack:
 
 ```bash
-python tools/pack_icon_library.py assets/icons /tmp/3.ICO
+python tools/pack_icon_library.py assets/icons /tmp/3.ICO --library 3
 ```
 
 The emulator uses these same JPEG sources. `assets/emulator/3.ICO` is a reference export, not the source for automatic updates.
@@ -34,8 +34,16 @@ Write acknowledgements and metadata readback are verified; Picture Flash itself 
 
 Graphite adds dedicated IDs 210–234 for light, brightness, sound settings, motion parameters, calibration and profiles. Editable SVG sources are in `assets/icon-source`; use `python tools/render_icon_sources.py` to regenerate JPEGs (developer dependency: CairoSVG). Black JPEG backing is filtered with the native transparent/enhanced icon mode; menu and dashboard surfaces remain visible. The icon pack starts at picture slot 3 and may use slots 3–15; its 512-byte metadata record occupies Data Flash `0x0200–0x03FF`.
 
+## Print buttons, switches and fan artwork
+
+Print buttons contain the rounded surface, selection outline and Lucide symbol in one JPEG; labels remain native panel text using font ID **0**. Normal narrow buttons use **243–247** and selected variants **125–129** (78×36); completed-print Tune/Close pairs use **130–133** (119×36). AFTER JOB switches use **248/249** (27×12). Keep normal/selected silhouettes identical: the renderer uses a hard rounded mask with the same neutral opaque perimeter so filtered JPEG edges do not retain the previous state.
+
+Fan frames **235–242** are rendered in neutral grayscale; luminance below 24 is removed before encoding to avoid ringing in the black transparency matte. Fan and full-button JPEGs use **quality 100**, baseline **4:2:0**. Other generated icons use quality 94. Regenerate from SVG rather than recompressing JPEGs. Lucide source licensing: [Lucide license](../icon-source/Lucide-LICENSE.txt).
+
+## Package size and reserved space
+
+The current reference pack occupies **8×32 KiB = 256 KiB**, slots **3–10**. The reserved maximum is **13×32 KiB = 416 KiB**, slots **3–15**, leaving slots **11–15** available for growth. This is allocated block space, not an exact JPEG payload budget: the directory, placement gaps and reserved final bytes also consume space. Picture Flash is separate from the **512-byte Data Flash metadata record at 0x0200–0x03FF**. Pass `--library 3` to export; the export tool's legacy default is 7, with a different available slot count.
+
 ## JPEG compatibility rule
 
 All managed icons must be baseline RGB/YCbCr JPEG with 4:2:0 sampling (`Pillow: subsampling=2`). Render directly from SVG using `tools/render_icon_sources.py`; do not repeatedly recompress JPEGs. Physical T5UIC1 tests reproduced damaged selected home tiles and homing artwork with 4:4:4 from both Flash and byte-verified SRAM; 4:2:0 rendered correctly. A clean emulator preview cannot validate the panel JPEG decoder. The source loader rejects other sampling formats before any panel access, and CI checks every shipped icon and the exported ICO against its sources. Check selected/unselected home tiles, homing, small menu/status icons and animation on hardware after artwork updates.
-
-Print buttons include their rounded surface, selection outline and Lucide symbol in one JPEG. Normal narrow buttons use IDs 243–247; selected variants use 125–129 (78 × 36). Completed-print Tune/Close pairs use 130–133 (119 × 36). Labels remain native panel text. After Job switches use 248/249 (27 × 12). Library capacity is eight 32 KiB blocks. Lucide licensing is in `assets/icon-source/Lucide-LICENSE.txt` (relative to the repository root).

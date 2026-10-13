@@ -256,7 +256,7 @@ image content into picture slot `0x00..0x0F`.
 ## Managed icon library
 
 JPEG pictures and ICO libraries share Picture Flash. Library 3 uses slots 3–15;
-stock pictures remain in slots 0–2. Individual baseline JPEGs in `assets/icons/`
+slot 0 holds managed Petrel boot artwork; stock pictures 1–2 are untouched. Individual baseline JPEGs in `assets/icons/`
 are packed by `icon_library.py`, preserving each payload within one 32 KiB
 block and reserving every block’s final byte. The packer reuses gaps with
 smaller images, independently of icon ID order.
@@ -266,7 +266,7 @@ directory last, and verifies each metadata checkpoint. Unchanged blocks are
 skipped. Failed automatic writes are guarded against repeated programming
 inside a reconnect loop. The emulator uses the same JPEG sources.
 
-All UI icons use `show_icon(7, id, x, y)`. Boot splash uses `show_jpeg(0)`
+All UI icons use `show_icon(3, id, x, y)`. Boot splash uses `show_jpeg(0)`
 directly, followed by progress/animation rendering; no temporary cache or
 full-screen copy is needed. General JPEG/cache protocol commands remain
 available for their documented uses.
@@ -282,9 +282,13 @@ render strategy. Compatibility helpers such as `draw_integer_text()`,
 generate the same `0x11` text rendering used before the migration.
 
 The native `0x14` implementation is available separately as `draw_number()`.
-Hardware animation, virtual display areas, QR/EAN-13, Data Flash, picture Flash
-and extended-UART APIs are exposed without changing current UI behavior. They
-can be adopted by the UI only after physical-panel validation.
+The original migration kept UI behavior unchanged; the current UI now uses
+native animation channel **0** for boot icons **250–254** and channel **1** for
+dashboard fan frames **235–242**. Fan intervals follow the percentage in 10 ms
+units; unchanged intervals send no new command and 0% stops animation. The
+boot animation is stopped during actual icon uploads and restarted by the next
+boot stage. Virtual display areas, EAN-13 and extended UART remain available
+protocol APIs; availability alone does not imply a current UI feature.
 
 ## Sources and validation boundary
 

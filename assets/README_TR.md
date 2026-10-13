@@ -20,6 +20,8 @@ Değişen açılış görseli ilk LCD bağlantısında otomatik olarak resim slo
 
 Baseline JPEG ikonlarını dosya adında ikon ID’siyle [`assets/icons`](icons/README_TR.md) klasörüne koyun. Uygulama güncelleme sonrası ilk LCD bağlantısında değişen kaynakları paketleyip yükler. Paketleyici blok boşluklarını kullanır ve her bloğun son baytını boş bırakır. Emülatör aynı kaynakları kullanır.
 
+Print butonları, switchler, fan kareleri, kaynak lisansları ve mevcut paket boyutu ile ayrılan alanın farkı [ikon kaynak rehberinde](icons/README_TR.md#print-butonları-switchler-ve-fan-görselleri) açıklanır.
+
 ## Ekran görüntüleri
 
 Kullanıcı arayüzü ekran görüntüleri bu görsel klasörüne değil `docs/assets/screens/` içine aittir. [Görüntü alma rehberini](../docs/ui-emulator_TR.md) izleyin ve özgün 272×480 PNG çıktısını koruyun.

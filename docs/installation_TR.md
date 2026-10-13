@@ -2,6 +2,8 @@
 
 [English](installation.md) · [Türkçe](installation_TR.md) · [Dokümantasyon](README_TR.md)
 
+Bu belge Petrel'in arayüz restorasyonu geliştirme dalı `feature/graphite-theme` ile eşleşir; çalışma tamamlandığında `master` ile birleşecektir. Mevcut temiz `~/Petrel` kopyasında kurulumdan önce `git fetch origin` ve `git switch feature/graphite-theme` kullanabilirsiniz. Update Manager `master` izlediği için bu dalı korumak istediğiniz sürece onun güncelleme/kurtarma işlemlerini kullanmayın.
+
 ## Kurulumdan önce
 
 Uyumlu DWIN T5UIC1 panel, UART/GPIO erişimli Linux SBC, Python 3.11+ ve çalışan Klipper/Moonraker kurulumu kullanın. [LCD uyumluluğunu](lcd-assets_TR.md) kontrol edin. Kurulum betiği LCD kernel firmware'ini veya fontunu yüklemez; Petrel ikonlarını uygulama ilk LCD bağlantısında otomatik eşitler.
@@ -28,7 +30,7 @@ Servisin sahibi olacak kullanıcıyla çalıştırın. Repo temiz olmalı ve `~/
 
 ```bash
 cd ~
-git clone https://github.com/sezgynus/Petrel.git
+git clone --branch feature/graphite-theme https://github.com/sezgynus/Petrel.git
 cd ~/Petrel
 ./install.sh
 ```

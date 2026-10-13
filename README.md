@@ -1,113 +1,93 @@
 <p align="center">
-  <img src="assets/petrel-readme.png" width="600" alt="Petrel — Open-source display interface">
+  <img src="assets/petrel-readme.png" width="600" alt="Petrel — local printer interface">
 </p>
 
-**Control your Klipper printer from a DWIN display and rotary encoder.**
+**A lightweight printer UI for supported stock DWIN displays, powered by Moonraker.**
 
-Browse prints, preview a model, adjust the printer, level the bed and manage a Happy Hare MMU without opening the web interface.
+Reuse the compatible Ender 3 V2 screen after moving to Klipper: choose a file, adjust a print, prepare the bed and inspect filament from the printer's rotary encoder.
 
-[English](README.md) · [Türkçe](README_TR.md)
+[English](README.md) · [Türkçe](README_TR.md) · **[Install Petrel](docs/installation.md)** · [Display compatibility](docs/lcd-assets.md)
 
 <p align="center">
-  <a href="https://github.com/sezgynus/Petrel/tree/v4.0.0"><img alt="v4.0.0" src="https://img.shields.io/badge/version-v4.0.0-0969da"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776ab?logo=python&amp;logoColor=white">
   <img alt="Klipper / Moonraker" src="https://img.shields.io/badge/Klipper-Moonraker-7d3cff">
   <a href="LICENSE"><img alt="GPL-3.0" src="https://img.shields.io/badge/License-GPL--3.0-blue"></a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screens/home.png" width="240" alt="Home, page one">
-  <img src="docs/assets/screens/home-page-2.png" width="240" alt="Home, page two">
-  <img src="docs/assets/screens/print-preview.png" width="240" alt="Print preview">
+  <img src="docs/assets/screens/framed/home.png" width="220" alt="Petrel Home with optional MMU">
+  <img src="docs/assets/screens/framed/printing.png" width="220" alt="Print progress and encoder controls">
+  <img src="docs/assets/screens/framed/tune.png" width="220" alt="Runtime Tune controls">
 </p>
 
-## Features
+*Real UI/driver emulator output with example data; these are not photographs or physical measurements. [Explore the screens](docs/screenshots.md).*
 
-| What you want to do | What is available |
+## Why Petrel?
+
+A supported stock display can lose its original role when the printer moves to Klipper. Petrel puts everyday controls back beside the printer, so checking a print or adjusting a temperature does not always require a phone or browser. You keep the supported panel; a Linux SBC, wiring and a working Klipper/Moonraker setup are still required.
+
+The interface uses the existing encoder and native panel drawing commands. The host runs a Python service and receives printer status through Moonraker's WebSocket subscription. “Lightweight” describes that architecture; this project does not publish comparative CPU, RAM or latency benchmarks. KlipperScreen serves a different hardware/UI choice with a touch display; choose the interface that suits your equipment and workflow.
+
+## Everyday controls and optional integrations
+
+| Task | Available on the LCD |
 |---|---|
-| Choose a print | Nested folders, Mainsail sorting, model preview, estimated time, filament usage and tool changes |
-| Manage a print | Progress and time, Pause/Resume, Stop, speed, temperature, fan, runtime Z offset and flow monitoring |
-| Prepare the printer | Homing, stepper release, XYZ/extruder movement, Live jog, preheat presets and cooldown |
-| Calibrate the bed | Four-corner screw adjustment, probe-offset calibration, bed mesh measurement and saved mesh viewing |
-| Manage an MMU | Direct tool changes, live filament path and purge display, Happy Hare gates, load/unload, bypass, tool mapping, EndlessSpool, recovery, maintenance, LEDs and multiple units |
-| Inspect filament | Gate material/color, spool assignment and Spoolman remaining percentage when available |
-| Adjust the display | Brightness, idle dimming, buzzer output, volume and button tones, retained across power cycles |
-| Control lighting and power | PWM case light, encoder hold to power on and a power-off confirmation |
-| Check the system | Network/Wi-Fi, host and MCU status, software versions, project QR code and Petrel updates |
-| Create screenshots | Optional emulator capture for documentation and bug reports |
+| Choose a print | Nested folders, Mainsail sorting, model thumbnail, estimated time and slicer filament/tool metadata when available |
+| Manage a print | Progress/time, optional layers, direct Pause/Resume, confirmed Stop and Close after completion |
+| Tune | Speed/Flow, fan and temperatures, session Z offset, SCV/minimum cruise ratio, PA/smoothing and firmware retraction when supported |
+| Prepare and calibrate | Homing, steppers, XYZ/extruder movement, Live jog, presets/cooldown, bed mesh, four-corner screw adjustment and probe-offset calibration |
+| Happy Hare MMU | Live filament path/purge, gates, load/unload, bypass, tool map, EndlessSpool, explicit recovery, supported LEDs and multiple units |
+| Spoolman | Spool IDs and gate material/color; remaining percentage when the Happy Hare/Spoolman integration supplies it |
+| Display and system | Brightness/dimming, buzzer/tones, network/host/MCU/software status, QR link and idle-time Petrel updates |
+| Light and power | Configured PWM case light and Moonraker power device; encoder hold with confirmation and active-print blocking |
+| After Job | Three optional policy switches; only set pins, while your macros perform end-print actions |
 
-Optional controls appear according to the printer's configuration. The on-screen menu labels are in English in both guides. These documents describe the current `master` version.
+MMU and Spoolman are optional. Menus depend on discovered configuration and valid status; on-screen labels remain English. Maintenance currently contains only Back. See the [complete Print/Tune field table](docs/print-controls.md).
 
-<p align="center">
-  <img src="docs/assets/screens/mesh-calibrating.png" width="220" alt="Live mesh measurement">
-  <img src="docs/assets/screens/probe-calibration-active.png" width="220" alt="Live Z calibration">
-  <img src="docs/assets/screens/mmu-loading.png" width="220" alt="Live MMU filament path">
-</p>
+## Compatibility and requirements
 
-## Requirements
+- **272×480 portrait DWIN T5UIC1**, including the compatible 4.3-inch Ender 3 V2 panel. Other DWIN models and DACAI/TJC are not implied to work.
+- Raspberry Pi or compatible Linux SBC with UART/GPIO and **Python 3.11+**.
+- Working **Klipper and Moonraker**, authorized network access, crossed TX/RX and configured encoder pins.
+- The bundled LCD font, installed once using the panel's SD update procedure; boot artwork and icons synchronize automatically over UART.
 
-- A **272×480 DWIN T5UIC1** panel, such as the compatible 4.3-inch Ender 3 V2 display, with matching panel resources.
-- A Raspberry Pi or compatible Linux SBC with UART/GPIO and **Python 3.11 or newer**.
-- A working **Klipper and Moonraker** installation.
-- Optional: Mainsail for shared sorting/temperature presets, Happy Hare for MMU controls, Spoolman for spool information, and a configured Moonraker power device.
+Check [display/resources](docs/lcd-assets.md) and [wiring](docs/installation.md#wiring-and-serial-setup) before starting. Existing supported hardware avoids buying a replacement display; it does not remove the SBC/cable requirements.
 
-DWIN, DACAI and TJC panels are not interchangeable. Check [display compatibility](docs/lcd-assets.md) before installation.
+## Quick start
 
-## Installation
-
-Follow the [installation and configuration guide](docs/installation.md) for wiring, serial setup and connection settings. Clone into the installation user's home directory:
+These documents describe Petrel's current UI restoration development on `feature/graphite-theme`, which will merge into `master`. Use this branch to reproduce the screens shown here:
 
 ```bash
 cd ~
-git clone https://github.com/sezgynus/Petrel.git
+git clone --branch feature/graphite-theme https://github.com/sezgynus/Petrel.git
 cd ~/Petrel
 ./install.sh
 ```
 
-Existing installations switch to Petrel through the next Moonraker update, preserving settings. See the [update and migration guide](docs/installation.md#update).
+The installer prepares dependencies, `Petrel.service`, external settings and Moonraker Update Manager. Complete the [LCD font and first-start checks](docs/installation.md#lcd-resources-and-first-start). Update Manager currently follows `master`; read the [update guidance](docs/installation.md#update) before updating this development checkout. Existing installations preserve settings during [migration](docs/installation.md#update).
 
-The installer sets up dependencies, the service and Moonraker Update Manager. To change connection, encoder or power settings later, run `./configure.sh` from `~/Petrel`.
+To change connection/encoder/power settings later, run `./configure.sh` from `~/Petrel`. Rotate to navigate and press to select; numeric editors use rotate then Apply. **Back** returns; keep rotating to move between Home pages.
 
-## Getting started
+## Find the right guide
 
-Rotate the encoder to navigate; press to select. For a numeric setting, press, rotate and press again to confirm. **Back** returns to the previous menu. Home has multiple pages; keep rotating to reach the next page.
-
-| Home entry | Where it takes you |
+| Guide | What you will learn |
 |---|---|
-| Print | File browser and print preview |
-| Prepare | Movement, homing, preheat and cooldown |
-| Control | Temperature, runtime motion limits and case light |
-| Leveling | Bed mesh calibration, mesh viewer, screw adjustment and probe calibration |
-| MMU | Happy Hare filament controls and recovery |
-| Display | Brightness, idle dimming and button sounds |
-| Maintenance | Maintenance entry; currently contains only Back |
-| Info | System status, software versions and updates |
+| [Installation and configuration](docs/installation.md) | Wiring, LCD font, first start, settings, updates and troubleshooting |
+| [Daily use](docs/user-guide.md) | Dashboard units, file selection, movement, heating, calibration, Display, Info and power |
+| [Print and Tune](docs/print-controls.md) | All 17 possible fields, command outcomes, optional job switches and MMU error flow |
+| [MMU and filament](docs/mmu-guide.md) | Gates/spools, mapping, EndlessSpool, bypass, state reporting and recovery |
+| [Screenshot gallery](docs/screenshots.md) | Framed previews with original panel PNG links |
+| [Documentation index](docs/README.md) | User and contributor routes plus optional historical references |
 
-Leveling and MMU depend on configured capabilities. During startup, a progress bar shows the current preparation stage; wait for Home before navigating. Hold-to-power-on remains available while waiting.
+Runtime settings do not replace persistent Klipper/probe configuration. Screw adjustment needs a probe and four configured corner screws. Viewing a mesh does not activate it; saving restarts Klipper and explicitly stopping a measurement shuts it down. MMU calibration/custom LED effects stay in the web UI. After an uncertain command, check actual printer state before retrying.
 
-## User guides
+## Architecture and development
 
-| Guide | Contents |
-|---|---|
-| [Installation and configuration](docs/installation.md) | Wiring, installation, settings, updates and troubleshooting |
-| [Daily use](docs/user-guide.md) | Print workflow, Live jog, temperatures, calibration, Display, Info, lighting and power |
-| [MMU and filament](docs/mmu-guide.md) | Gates, spool IDs, tool mapping, EndlessSpool, bypass, recovery and options |
-| [Screenshot gallery](docs/screenshots.md) | All screens and direct image links for forum posts |
-| [Documentation index](docs/README.md) | All user guides, contributor tools and optional references |
+Petrel translates subscribed Moonraker state and encoder input into T5UIC1 UART drawing commands. Thumbnails use panel SRAM; managed boot/icon resources use Picture Flash and fingerprints to avoid uploading unchanged blocks. Persistent display/buzzer records use separate Data Flash.
 
-The guides include the current emulator screenshots. See [Display](docs/user-guide.md#display-settings), [Info and updates](docs/user-guide.md#info-and-updates) and [screw adjustment](docs/user-guide.md#screw-adjustment) for the recently added screens.
+Discovery reads Moonraker's object list and configuration when a connection is established; it repeats after reconnect. Capability/status models determine visible controls and limits. This is conditional menu visibility, not dynamic module loading. A new MMU protocol would need status mapping, command adaptation and tests in addition to detection.
 
-## Important usage notes
-
-- Motion limits and runtime Z offset apply to the current session; they do not replace permanent printer/probe calibration.
-- Screw adjustment requires a probe and four distinct corner screws configured in Klipper.
-- Viewing a mesh does not activate it. Saving calibration restarts Klipper; stopping a running mesh measurement puts Klipper into shutdown.
-- MMU calibration and advanced LED effects remain in the web interface. Available LCD actions depend on the installed Happy Hare configuration.
-- A failed or unconfirmed action should be checked in Mainsail before you repeat it.
-
-## Development and contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, pull requests, tests, screenshot capture and the icon preparation tool. The [emulator guide](docs/ui-emulator.md) explains how to enable capture and save original-size images from the running service.
+Start with [Contributing](CONTRIBUTING.md), [tests](tests/README.md), [PNG/GIF reproduction](docs/ui-emulator.md#render-documentation-screens-offline) and [icon sources](assets/icons/README.md). For physical panel work use the optional [protocol reference](docs/t5uic1-reference.md).
 
 ## Credits and license
 
@@ -116,5 +96,3 @@ This project grew from [odwdinc/DWIN_T5UIC1_LCD](https://github.com/odwdinc/DWIN
 Integrations use [Klipper](https://github.com/Klipper3d/klipper), [Moonraker](https://github.com/Arksine/moonraker), [Mainsail](https://github.com/mainsail-crew/mainsail), [Happy Hare](https://github.com/moggieuk/Happy-Hare) and [Spoolman](https://github.com/Donkie/Spoolman).
 
 Licensed under **GNU GPL v3.0**; see [LICENSE](LICENSE).
-
-Print/Tune controls and optional job policy switches: [guide](docs/print-controls.md).

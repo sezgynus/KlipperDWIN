@@ -2,6 +2,8 @@
 
 [English](installation.md) · [Türkçe](installation_TR.md) · [Documentation](README.md)
 
+This guide matches Petrel's UI restoration development branch `feature/graphite-theme`; it will merge into `master` when complete. In an existing clean `~/Petrel` checkout, use `git fetch origin` and `git switch feature/graphite-theme` before installation. Update Manager follows `master`, so avoid its update/recovery actions while you intend to retain this development branch.
+
 ## Before installation
 
 Use a compatible DWIN T5UIC1 panel, a Linux SBC with UART/GPIO, Python 3.11+ and a working Klipper/Moonraker setup. Check [LCD compatibility](lcd-assets.md). The installer does not flash LCD kernel firmware or fonts; the application synchronizes Petrel icons automatically at its first LCD connection.
@@ -28,7 +30,7 @@ Run as the user who will own the service. The checkout must be clean and located
 
 ```bash
 cd ~
-git clone https://github.com/sezgynus/Petrel.git
+git clone --branch feature/graphite-theme https://github.com/sezgynus/Petrel.git
 cd ~/Petrel
 ./install.sh
 ```

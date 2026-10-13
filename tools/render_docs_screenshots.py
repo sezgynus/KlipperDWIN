@@ -253,7 +253,7 @@ def preview():
     return finish(v)
 
 
-def printing(paused=False,tune=False,mmu=False,error=False,changing=False,complete=False):
+def printing(paused=False,tune=False,mmu=False,error=False,changing=False,complete=False,return_view=False,minimal=False,missing=False):
     data=sample(mmu=mmu)
     data['status']['print_stats'].update(state='complete' if complete else ('paused' if paused or error else 'printing'),
         filename='calibration_cube.gcode',print_duration=4800,total_duration=4900,
@@ -277,14 +277,22 @@ def printing(paused=False,tune=False,mmu=False,error=False,changing=False,comple
             gate_material=['PETG','PLA','ABS','PLA'])
     data['status']['motion_report'].update(live_position=[125,125,8.4,200],live_velocity=0 if paused else 65,
                                          live_extruder_velocity=0 if paused else 2.1)
+    if minimal:
+        data['objects'] = [o for o in data['objects'] if o != 'firmware_retraction' and not o.startswith('output_pin ')]
+        for key in list(data['status']):
+            if key == 'firmware_retraction' or key.startswith('output_pin '):
+                data['status'].pop(key, None); data['settings'].pop(key, None)
+    if missing:
+        data['status']['print_stats'].pop('info', None)
     v=canvas(data)
     v._sync_thumbnail_cache()
     key=v._print_thumbnail_key;payload=cube_thumbnail(size=88)
-    v.lcd.write_sram(0,payload);v._thumbnail_cache.entries[key]=(0,len(payload))
-    v._thumbnail_cache.details[key]=PreviewDetails(12000,24,11200,33.4,(Filament(0,'PLA',0x369F,33.4),))
+    if not missing:
+        v.lcd.write_sram(0,payload);v._thumbnail_cache.entries[key]=(0,len(payload))
+        v._thumbnail_cache.details[key]=PreviewDetails(12000,24,11200,33.4,(Filament(0,'PLA',0x369F,33.4),))
     if tune:v.Draw_Tune_Menu()
     else:v.Goto_PrintProcess()
-    return finish(v)
+    return v if return_view else finish(v, dashboard=not tune)
 
 
 scene('printing','printing','Print progress, time and controls','Baskı ilerlemesi, süre ve kontroller')(lambda:printing())
@@ -468,6 +476,87 @@ for name,kind,en,tr in (
     scene(name,'info',en,tr)(lambda kind=kind:info(kind))
 
 
+
+def workflow_view(kind, pending_rejection=False):
+    """Example states driven through the production UI, with isolated doubles."""
+    if kind.startswith('hold') or kind == 'power-idle':
+        v = canvas(); v.Goto_MainMenu(); v.Draw_Status_Area(False)
+        if kind == 'power-idle': v._open_power_hold_popup()
+        else:
+            v._power_hold_started = 0
+            v._power_hold_epoch = v.pd.subscription.snapshot()['epoch']
+            v._power_hold_pixels = 0; v._power_hold_visible = False; v._power_hold_ready = False
+            elapsed = {'hold-start': .45, 'hold-progress': .85, 'hold-ready': 1.2, 'hold-cancel': .85}[kind]
+            with patch.object(time, 'monotonic', return_value=elapsed): v._power_hold_tick()
+            if kind == 'hold-cancel': v._clear_power_hold()
+        return v
+    v = printing(mmu=kind.startswith('error'), error=kind.startswith('error'),
+                 tune=kind.startswith('tune'), minimal=kind=='tune-limited',
+                 missing=kind=='print-no-metadata', return_view=True)
+    if kind in ('tune-edit', 'tune-hold-cancel'):
+        v.select_tune.set(2)
+        v.get_encoder_state.return_value=v.ENCODER_DIFF_ENTER; v.HMI_Tune()
+        v._tune_target=97; v._focus_edit_value()
+        if kind == 'tune-hold-cancel':
+            v._power_hold_started=0; v._power_hold_epoch=v.pd.subscription.snapshot()['epoch']
+            v._power_hold_pixels=0; v._power_hold_visible=False; v._power_hold_ready=False
+            with patch.object(time,'monotonic',return_value=.85): v._power_hold_tick()
+            v._clear_power_hold()
+    elif kind in ('tune-rejected','tune-switch-rejected','pause-rejected'):
+        future=Future()
+        if not pending_rejection: future.set_exception(RuntimeError('Example rejected command'))
+        if kind=='pause-rejected':
+            v.select_print.set(1)
+            v._focus_submit('pause', True, lambda:future); v._focus_print_tick()
+        else:
+            rows=v._focus_tune_rows()
+            i=next(i for i,(field,y) in enumerate(rows) if field and (field.toggle if kind=='tune-switch-rejected' else field.key=='flow'))
+            field=rows[i][0]; v.select_tune.set(i)
+            v._focus_submit(field.key, 0 if field.toggle else 97, lambda:future)
+            v._focus_tune_tick()
+    elif kind.startswith('error'):
+        v._focus_error_open()
+        if kind in ('error-long','error-scrolled'):
+            v._focus_full_error = ('Unload failed: toolhead sensor remains active. Check the filament path, inspect the cutter and report the real filament position before resuming. ' * 6).strip()
+            v._focus_error_draw()
+            if kind=='error-scrolled':
+                v.get_encoder_state.return_value=v.ENCODER_DIFF_CW
+                for _ in range(12): v._focus_error_input()
+    elif kind=='stop-confirm':
+        v.select_print.set(2); v.get_encoder_state.return_value=v.ENCODER_DIFF_ENTER;v.HMI_Printing()
+    elif kind=='power-blocked': v._open_power_hold_popup()
+    return v
+
+
+WORKFLOWS = [
+    ('tune-edit','printing','Tune: adjust Flow and Apply','Tune: Flow düzenleme ve Apply'),
+    ('tune-limited','printing','Tune without firmware retraction or job pins','Firmware retraction ve iş pinleri olmadan Tune'),
+    ('tune-rejected','printing','Rejected Flow returns to subscribed value','Reddedilen Flow güncel bildirilen değere döner'),
+    ('tune-switch-rejected','printing','Rejected job policy switch returns to its previous value','Reddedilen iş switchi önceki değerine döner'),
+    ('pause-rejected','printing','Rejected Pause leaves the actual print state','Reddedilen Pause gerçek baskı durumunu korur'),
+    ('stop-confirm','printing','Stop confirmation starts on Back','Stop onayı Back seçili başlar'),
+    ('error-full','printing','Read full MMU error before recovery','Kurtarma öncesi tam MMU hatasını okuma'),
+    ('error-long','printing','Long MMU error: first page','Uzun MMU hatası: ilk sayfa'),
+    ('error-scrolled','printing','Long MMU error after encoder scrolling','Enkoderle kaydırılmış uzun MMU hatası'),
+    ('print-no-metadata','printing','Printing without a thumbnail or layer metadata','Önizleme ve katman bilgisi olmadan baskı'),
+    ('hold-start','controls','Power hold appears after 450 ms','Güç basılı tutma göstergesi 450 ms sonra görünür'),
+    ('hold-progress','controls','Continue holding to fill the progress bar','İlerleme çubuğu dolana kadar basılı tutma'),
+    ('hold-ready','controls','Release after 1.2 seconds','1.2 saniye sonra bırakma'),
+    ('hold-cancel','controls','Incomplete hold returns without selecting a menu item','Yarım basılı tutma menü seçmeden geri döner'),
+    ('tune-hold-cancel','printing','Incomplete hold preserves the Tune draft','Yarım basılı tutma Tune taslağını korur'),
+    ('power-blocked','controls','Power off is blocked while a print is active','Aktif baskıda güç kapatma engellenir'),
+]
+for name, group, en, tr in WORKFLOWS:
+    scene(name,group,en,tr)(lambda name=name: finish(workflow_view(name), dashboard=False))
+
+# Follow menu navigation rather than source registration order.
+MENU_ORDER = {
+    'controls': 'prepare prepare-preheat preheat-settings move move-live-jog control temperature temperature-edit motion-runtime case-light case-light-off display display-sound-settings display-volume-edit buzzer hold-start hold-progress hold-ready hold-cancel power-confirm power-blocked maintenance'.split(),
+    'mmu': 'mmu mmu-loading mmu-unloading mmu-purging mmu-more mmu-gates mmu-gate-details mmu-filament mmu-spool mmu-tool-map mmu-endless-spool mmu-group-members mmu-manage mmu-status mmu-recovery mmu-manual-state mmu-confirm mmu-bypass mmu-maintenance mmu-options mmu-leds mmu-units mmu-unit-gates'.split(),
+    'printing': 'print-file print-preview printing printing-paused printing-mmu printing-toolchange printing-mmu-error error-full error-long error-scrolled tune tune-edit tune-limited tune-rejected tune-switch-rejected pause-rejected tune-hold-cancel print-no-metadata stop-confirm printing-complete'.split(),
+}
+
+
 def write_galleries():
     groups = [('home', 'Home and startup', 'Ana ekran ve açılış'),
               ('printing', 'Files and printing', 'Dosyalar ve baskı'),
@@ -479,19 +568,21 @@ def write_galleries():
         title = 'Ekran galerisi' if turkish else 'Screenshot gallery'
         intro = ('Bu görseller güncel Petrel arayüzünden, emülatör aracılığıyla özgün **272×480 RGB PNG** boyutunda üretilmiştir. Yazıcı, sıcaklık, filament ve ağ değerleri örnektir; gerçek bir makineden alınmış ölçümler değildir. İsteğe bağlı menüler yazıcınızın özelliklerine göre görünür.' if turkish else
                  'These images are rendered from the current Petrel UI through the emulator as original-size **272×480 RGB PNGs**. Printer, temperature, filament and network values are examples, not measurements from a physical machine. Optional menus depend on your printer’s capabilities.')
-        links = ('Forum yazılarında her görselin **PNG bağlantısını** kullanabilirsiniz. Bu `master` bağlantıları, aynı dosya adı korunarak güncellenir. `v4.0.0` gibi bir etikete verilen bağlantı ise o sürümün görselini göstermeye devam eder.' if turkish else
-                 'Use each image’s **PNG link** in forum posts. These `master` links update when the same filename is replaced. Links pinned to a tag such as `v4.0.0` continue showing that release’s image.')
-        guide = ('Kullanım adımları: [Günlük kullanım](user-guide_TR.md) · [MMU](mmu-guide_TR.md). Görüntü alma ve yeniden üretme: [Emülatör rehberi](ui-emulator_TR.md).' if turkish else
-                 'Usage steps: [Daily use](user-guide.md) · [MMU](mmu-guide.md). Capture and regeneration: [Emulator guide](ui-emulator.md).')
+        links = ('Çerçeveli önizlemeler sunum içindir; **PNG bağlantısı** özgün panel piksellerini açar. Repo içi yollar bulunduğunuz dalı izler. Forum paylaşımı için GitHub’da bağlantıyı açıp tam adresini kopyalayın; sabit sürüm için commit bağlantısı kullanın.' if turkish else
+                 'Framed previews are for presentation; the **PNG link** opens native panel pixels. Repository-relative paths follow the branch you are viewing. For forum posts, open the link on GitHub and copy its full address; use a commit permalink for a fixed revision.')
+        guide = ('Kullanım adımları: [Günlük kullanım](user-guide_TR.md) · [Print/Tune](print-controls_TR.md) · [MMU](mmu-guide_TR.md). Görüntü alma ve yeniden üretme: [Emülatör rehberi](ui-emulator_TR.md).' if turkish else
+                 'Usage steps: [Daily use](user-guide.md) · [Print/Tune](print-controls.md) · [MMU](mmu-guide.md). Capture and regeneration: [Emulator guide](ui-emulator.md).')
         lines = [f'# {title}', '', '[English](screenshots.md) · [Türkçe](screenshots_TR.md)', '', intro, '', links, '', guide, '']
         for group, english, translated in groups:
             lines += [f'## {translated if turkish else english}', '',
-                      '| Ekran | Önizleme | Dış bağlantı |' if turkish else '| Screen | Preview | External link |', '|---|---|---|']
-            for name, category, en, tr, _ in SCENES:
+                      '| Ekran | Önizleme | Panel PNG |' if turkish else '| Screen | Preview | Panel PNG |', '|---|---|---|']
+            order = MENU_ORDER.get(group, [])
+            scenes = sorted(SCENES, key=lambda item: order.index(item[0]) if item[0] in order else len(order))
+            for name, category, en, tr, _ in scenes:
                 if category == group:
                     url = f'assets/screens/{name}.png'
                     caption = tr if turkish else en
-                    lines.append(f'| {caption} | <img src="assets/screens/{name}.png" width="136" alt="{caption}"> | [PNG]({url}) |')
+                    lines.append(f'| {caption} | <img src="assets/screens/framed/{name}.png" width="176" alt="{caption}"> | [PNG]({url}) |')
             lines.append('')
         path = ROOT / 'docs' / ('screenshots_TR.md' if turkish else 'screenshots.md')
         path.write_text('\n'.join(lines), encoding='utf-8', newline='\n')
@@ -500,6 +591,7 @@ def write_galleries():
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-directory', type=Path, default=ROOT/'docs/assets/screens')
+    parser.add_argument('--frame', action='store_true', help='Also save framed presentation copies; native PNGs remain unchanged')
     args=parser.parse_args()
     names = [item[0] for item in SCENES]
     if len(names) != len(set(names)):
@@ -523,6 +615,12 @@ def main():
             raise SystemExit('No images published; failed scenes: '+', '.join(n for n,_ in errors))
         for image in output.glob('*.png'):
             shutil.copyfile(image,args.output_directory/image.name)
+    if args.frame:
+        from dwin_emulator.presentation import with_frame
+        framed=args.output_directory/'framed'; framed.mkdir(exist_ok=True)
+        for name in names:
+            with Image.open(args.output_directory/(name+'.png')) as native:
+                with_frame(native).save(framed/(name+'.png'), optimize=True)
     if args.output_directory.resolve() == (ROOT / 'docs/assets/screens').resolve():
         write_galleries()
     print('Rendered %d real-UI emulator screenshots.'%len(SCENES))

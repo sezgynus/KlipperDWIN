@@ -79,7 +79,7 @@ Bir geliştirme checkout’u içinde tüm dokümantasyon ekranlarını gerçek U
 
 ```bash
 cd ~/Petrel
-~/petrel-env/bin/python tools/render_docs_screenshots.py
+~/petrel-env/bin/python tools/render_docs_screenshots.py --frame
 ```
 
 Tüm ekranlar başarılı çizilirse `docs/assets/screens/` içindeki görseller yenilenir. Mevcut dosya adlarını koruyun; forumlar bu adlara dış bağlantı verebilir. Yeni bir ekran eklemek için aracın sahne listesine örnek durumu ve iki dilde açıklamasını ekleyin. Galerileri de aynı listeden yeniden üretir.
@@ -97,3 +97,20 @@ Repo dosyalarını değiştirmeden incelemek için:
 ```bash
 ~/petrel-env/bin/python ~/Petrel/tools/screenshot.py --frame
 ```
+
+### PNG, çerçeve ve GIF yenileme
+
+Tek üretim oturumunda aynı checkout'tan bütün çıktıları yenileyin:
+
+```bash
+~/petrel-env/bin/python tools/render_docs_screenshots.py --frame
+~/petrel-env/bin/python tools/render_print_controls.py
+~/petrel-env/bin/python tools/render_print_controls.py --frame
+~/petrel-env/bin/python tools/render_docs_workflows.py
+```
+
+İlk komut özgün 272×480 panel PNG'lerini ve `docs/assets/screens/framed/` içindeki 528×900 sunum kopyalarını üretir; aynı UI pikselleri çerçeveye yeniden örneklenmeden yerleştirilir. İki galeri aynı sahne kaydından, aynı menü sırasıyla yenilenir. Mevcut 76 dosya adı korunur; yeni sahneler eklenir.
+
+İkinci/üçüncü komut Print/Tune başarı akışını özgün/çerçeveli GIF olarak üretir. Son komut güç basılı tutma/iptal/engelleme, iki kırmızı ret yanıp sönmesi, uzun MMU hatası kaydırması ve 0/1/50/100% panel-native fan animasyonu için iki biçimde GIF üretir. Özgün GIF'ler `docs/assets/`, sunum kopyaları `docs/assets/framed/` içindedir. PNG komutu bu GIF'leri yenilemez.
+
+Bütün durumlar gerçek UI/driver ile örnek verilerden üretilir; fiziksel yazıcıya bağlanılmaz. Hata yanıtları test doubles ile sağlanır. Saat 12:34'tür; animasyonlar kontrollü geçen zamanla örneklenir. Eksik preview/katman, azaltılmış Tune ve uzun hata örnekleri galeriye dahildir. Fan GIF'i panel animasyon komutlarını emüle eder; fiziksel JPEG decoder doğrulaması yerine geçmez.

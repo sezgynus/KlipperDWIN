@@ -3,6 +3,7 @@
 from pathlib import Path
 from concurrent.futures import Future
 from unittest.mock import Mock, patch
+import argparse
 import logging
 import time
 
@@ -12,6 +13,9 @@ from print_tuning import JOB_PINS
 
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--frame',action='store_true')
+    args=parser.parse_args()
     logging.getLogger().setLevel(logging.ERROR)
     data=sample(mmu=True)
     data['status']['print_stats'].update(state='printing',filename='calibration_cube.gcode',print_duration=4800,info={'current_layer':85,'total_layer':200})
@@ -59,6 +63,10 @@ def main():
         v._mmu_back();v.select_print.set(2);enter(v.HMI_Printing);capture()
         enter(v.HMI_PauseOrStop);v._open_power_hold_popup();capture()
     target=Path(__file__).resolve().parents[1]/'docs/assets/print-controls-demo.gif'
+    if args.frame:
+        from dwin_emulator.presentation import with_frame
+        frames=[with_frame(frame) for frame in frames]
+        target=target.parent/'framed'/target.name;target.parent.mkdir(exist_ok=True)
     frames[0].save(target,save_all=True,append_images=frames[1:],duration=durations,loop=0,disposal=2)
     print(target)
 

@@ -9,7 +9,7 @@
 3. **Pause / Resume** doğrudan çalışır. **Stop** onay açar; başlangıçta **Back** seçilidir.
 4. Baskı tamamlandığında **Close** ile Home'a dönün.
 
-![Print ve Tune örnek akışı](assets/print-controls-demo.gif)
+![Print ve Tune örnek akışı](assets/framed/print-controls-demo.gif)
 
 Gerçek UI ve sürücünün çevrimdışı emülatör çıktısıdır; durum verileri örnektir. Üretim yöntemi: [emülatör rehberi](ui-emulator_TR.md).
 
@@ -88,3 +88,18 @@ Switch sadece `SET_PIN PIN=<tam isim> VALUE=0|1` gönderir. O anda ısıtıcı/m
 ```
 
 `Power_OFF_Printer_After_Job` değerini kendi baskı sonu güç makronuzda, tanımlı Moonraker güç cihazınız ve soğutma politikanızla kullanın. Tanımsız pinler, PWM pinleri ve dijital değeri bilinmeyen pinler gizlenir.
+
+## Durum örnekleri
+
+| Adım | Görsel kanıt |
+|---|---|
+| Flow düzenle → Apply; daha az özellikli yapılandırma | [Düzenleyici](assets/screens/tune-edit.png) · [Azaltılmış Tune](assets/screens/tune-limited.png) |
+| Reddedilen değer/switch/Pause | [İki kırmızı yanıp sönme ve geri dönüş GIF'i](assets/framed/rejected-controls-demo.gif) |
+| Uzun MMU hatasını enkoderle oku → Back | [Kaydırma GIF'i](assets/framed/mmu-error-scroll-demo.gif) · [Tam hata](assets/screens/error-full.png) |
+| Stop → Back başlangıç seçimi | [Stop onayı](assets/screens/stop-confirm.png) |
+| Basılı tut → bırak → onay; yarım hold/aktif baskı engeli | [Güç kısayolu GIF'i](assets/framed/power-shortcut-demo.gif) · [Korunan taslak](assets/screens/tune-hold-cancel.png) |
+| Önizleme veya katman verisi yok | [Eksik veriyle baskı](assets/screens/print-no-metadata.png) |
+
+![Reddedilen ayar, iş switchi ve Pause komutunun iki kırmızı yanıp sönmesi](assets/framed/rejected-controls-demo.gif)
+
+Bunlar gerçek UI'dan örnek durumlarla üretilen çevrimdışı emülatör çıktılarıdır. [Üretim komutları](ui-emulator_TR.md#png-çerçeve-ve-gif-yenileme) ve [tam galeri](screenshots_TR.md).

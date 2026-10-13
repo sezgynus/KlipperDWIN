@@ -9,7 +9,7 @@
 3. **Pause / Resume** act directly. **Stop** opens confirmation with **Back** initially selected.
 4. When the job completes, select **Close** to return Home.
 
-![Example Print and Tune workflow](assets/print-controls-demo.gif)
+![Example Print and Tune workflow](assets/framed/print-controls-demo.gif)
 
 Offline emulator output from the real UI and driver, using example state data. See the [emulator guide](ui-emulator.md) for reproduction.
 
@@ -88,3 +88,18 @@ Switching a row sends only `SET_PIN PIN=<exact name> VALUE=0|1`. It does **not**
 ```
 
 Handle `Power_OFF_Printer_After_Job` in your own end-print power macro using your configured Moonraker power device and cooling policy. Undefined pins, PWM pins and pins without a known digital value are hidden.
+
+## State examples
+
+| Step | Visual evidence |
+|---|---|
+| Edit Flow → Apply; fewer configured features | [Editor](assets/screens/tune-edit.png) · [Reduced Tune](assets/screens/tune-limited.png) |
+| Rejected value/switch/Pause | [Two red blinks and rollback GIF](assets/framed/rejected-controls-demo.gif) |
+| Read long MMU error with encoder → Back | [Scrolling GIF](assets/framed/mmu-error-scroll-demo.gif) · [Full error](assets/screens/error-full.png) |
+| Stop → Back initially selected | [Stop confirmation](assets/screens/stop-confirm.png) |
+| Hold → release → confirm; incomplete hold/active-print blocking | [Power shortcut GIF](assets/framed/power-shortcut-demo.gif) · [Preserved draft](assets/screens/tune-hold-cancel.png) |
+| Missing preview or layer data | [Print without metadata](assets/screens/print-no-metadata.png) |
+
+![Rejected value, job switch and Pause command blink red twice](assets/framed/rejected-controls-demo.gif)
+
+These are offline emulator outputs from the real UI with example states. [Production commands](ui-emulator.md#refresh-pngs-frames-and-gifs) and [complete gallery](screenshots.md).

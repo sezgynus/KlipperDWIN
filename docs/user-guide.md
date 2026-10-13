@@ -11,7 +11,13 @@
 
 Rotate to move the highlight; press to select. Press a numeric value, rotate to edit it and press again to apply it. **Back** returns to the previous screen. Home shows four icons per page; continue rotating to change pages. Dots indicate the active page. Optional entries depend on your printer's configuration.
 
-The fixed dashboard shows temperatures/targets, fan, speed/flow information, runtime Z offset and XYZ coordinates. Speed and extrusion fields alternate between override percentages and actual speed/volumetric flow. MMU pages use their own status layout.
+The three dashboard rows are shown below. Speed/flow fields alternate every two seconds between an override and instantaneous telemetry. Tune, its numeric editor, the full error reader and MMU pages omit this dashboard.
+
+| Row | Left | Center | Right |
+|---|---|---|---|
+| 1 | Nozzle actual/target (°C) | Speed override (%) / live velocity (mm/s) | Fan (0–100%) |
+| 2 | Bed actual/target (°C) | Flow override (%) / volumetric flow (mm³/s) | Session Z offset (mm) |
+| 3 | X (mm) | Y (mm) | Z (mm) |
 
 The fan icon uses panel-native animation; its speed follows the fan percentage, rounded to 10 ms intervals. Unchanged intervals send no new command; 0% stops it.
 
@@ -38,9 +44,9 @@ Missing thumbnails or metadata do not prevent printing. Up to four used tools ar
   <img src="assets/screens/tune.png" width="240" alt="Tune">
 </p>
 
-The print screen shows the file, progress and elapsed/remaining time. Use **Pause**, **Resume** or **Stop** as needed. Open **Tune** to change print speed, available hotend/bed/fan settings or runtime Z offset. Flow is shown on the dashboard; it has no LCD editor.
+Print shows the preview, progress, elapsed/remaining time, estimated finish and optional layers. **Pause / Resume** act directly; **Stop** opens confirmation with **Back** initially selected. After completion, **Close** returns Home.
 
-Runtime Z offset adjusts the current session. It does not save a permanent probe offset. If an action fails or its result is unclear, check Mainsail before repeating it.
+Use **Tune** for Speed, **Flow**, temperatures/fan, Z offset, SCV, minimum cruise ratio, PA/smoothing and firmware retraction. Fields depend on configuration and telemetry. AFTER JOB switches only change policy pins; your macros implement the end-of-job actions. Z offset is not permanent probe calibration. See [fields, units and error behavior](print-controls.md).
 
 ## Prepare and Live jog
 

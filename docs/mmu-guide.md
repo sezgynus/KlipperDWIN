@@ -103,7 +103,7 @@ Open **MMU → More → Bypass**. First **Unload current gate**, then **Select b
   <img src="assets/screens/mmu-status.png" width="240" alt="MMU status and sensors">
 </p>
 
-An MMU error pause with a reported reason opens recovery automatically. You can also use **MMU → More → Manage → Recover state**. A failed overview operation replaces its main action with **Recover**, opening the result and recovery options.
+During a print, an MMU error stays on Print as a summary; **MMU** replaces **Resume**. Follow **Print → MMU → full error → MMU recovery**; rotate to scroll long text. **Back** returns to Print. You can also use **MMU → More → Manage → Recover state**. A failed overview operation changes its main button to **Recover**. See [Print/Tune](print-controls.md).
 
 1. Read the error and fix the physical filament problem.
 2. Use recovery, or the manual state editor to report the actual gate/tool/filament state. Manual Apply reports state; it does not load or unload filament.

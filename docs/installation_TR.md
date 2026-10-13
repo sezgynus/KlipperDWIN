@@ -4,7 +4,7 @@
 
 ## Kurulumdan önce
 
-Uyumlu DWIN T5UIC1 panel, UART/GPIO erişimli Linux SBC, Python 3.11+ ve çalışan Klipper/Moonraker kurulumu kullanın. [LCD uyumluluğunu](lcd-assets_TR.md) kontrol edin. Uygulamanın kurulum betiği panel firmware'ini veya stok font/ikon paketini yüklemez.
+Uyumlu DWIN T5UIC1 panel, UART/GPIO erişimli Linux SBC, Python 3.11+ ve çalışan Klipper/Moonraker kurulumu kullanın. [LCD uyumluluğunu](lcd-assets_TR.md) kontrol edin. Kurulum betiği LCD kernel firmware'ini veya fontunu yüklemez; Petrel ikonlarını uygulama ilk LCD bağlantısında otomatik eşitler.
 
 ## Bağlantı ve seri port hazırlığı
 
@@ -51,6 +51,15 @@ Moonraker yapılandırmanız farklı konumdaysa:
 ```bash
 MOONRAKER_CONFIG=/path/to/moonraker.conf ./install.sh
 ```
+
+## LCD kaynakları ve ilk açılış
+
+1. [LCD fontunu kurun](lcd-assets_TR.md#lcd-fontu). Font SD karttan bir kez yüklenir; ikonlar ve açılış görseli UART üzerinden otomatik yönetilir.
+2. Petrel açılış ilerlemesi tamamlanıp **Home** görünene kadar bekleyin.
+3. Enkoderi çevirip bir menü açın; sıcaklıkların web arayüzüyle uyuştuğunu kontrol edin.
+4. Yazılar/ikonlar yanlışsa [LCD kaynak rehberini](lcd-assets_TR.md), bağlantı hatası varsa aşağıdaki sorun giderme tablosunu izleyin.
+
+Moonraker, Petrel bağlantısına izin vermelidir. Kimlik doğrulama gerekiyorsa `MOONRAKER_API_KEY` ayarlayın. Seri port ve GPIO erişimi için servis kullanıcısının izinlerini kontrol edin; installer `dialout` ve `gpio` gruplarını yapılandırır.
 
 ## Ayarları değiştirme
 

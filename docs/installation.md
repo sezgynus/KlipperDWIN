@@ -4,7 +4,7 @@
 
 ## Before installation
 
-Use a compatible DWIN T5UIC1 panel, a Linux SBC with UART/GPIO, Python 3.11+ and a working Klipper/Moonraker setup. Check [LCD compatibility](lcd-assets.md). The application installer does not flash the panel firmware or install the stock font/icon pack.
+Use a compatible DWIN T5UIC1 panel, a Linux SBC with UART/GPIO, Python 3.11+ and a working Klipper/Moonraker setup. Check [LCD compatibility](lcd-assets.md). The installer does not flash LCD kernel firmware or fonts; the application synchronizes Petrel icons automatically at its first LCD connection.
 
 ## Wiring and serial setup
 
@@ -51,6 +51,15 @@ For a nonstandard Moonraker configuration location:
 ```bash
 MOONRAKER_CONFIG=/path/to/moonraker.conf ./install.sh
 ```
+
+## LCD resources and first start
+
+1. [Install the LCD font](lcd-assets.md#lcd-font). The font is installed once from SD; icons and boot artwork are managed automatically over UART.
+2. Wait for Petrel startup progress to finish and **Home** to appear.
+3. Rotate the encoder and open a menu; check temperatures against the web interface.
+4. For wrong text/icons, follow the [LCD resource guide](lcd-assets.md); for connection failures, use the troubleshooting table below.
+
+Moonraker must authorize the Petrel connection. Set `MOONRAKER_API_KEY` if authentication is required. Check the service user's serial/GPIO permissions; the installer configures the `dialout` and `gpio` groups.
 
 ## Change settings
 

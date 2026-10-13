@@ -1,16 +1,60 @@
 # Print ve Tune kontrolleri
 
-![Print and Tune demo](assets/print-controls-demo.gif)
+[English](print-controls.md) · [Türkçe](print-controls_TR.md) · [Dokümantasyon](README_TR.md)
 
-Print ekranında önbellekteki G-code önizlemesi, ilerleme, geçen/kalan süre, tahmini bitiş saati ve `print_stats.info` sağlıyorsa katman bilgisi bulunur. Alt canlı gösterge bloğu korunur. Görsel indirme ve dönüştürme UI thread'i dışında yapılır; panele sınırlı SRAM parçaları ve yalnızca değişen alanlar gönderilir. Print önizlemesi 88 × 88 baseline 4:2:0 JPEG kullanır; siyah model ayrıntılarını koruyan mevcut filtreli arka plan yöntemi geçerlidir.
+## Baskıyı yönetme
 
-Enkoderle Tune, Pause/Resume veya Stop seçilir. Pause ve Resume doğrudan çalışır; Stop ilk seçeneği Back olan onay ekranını açar. Basılı tutma genel power kısayolunu açar. Baskı sürerken veya duraklatılmışken güç kapatma engellenir; önce baskı iptal edilmelidir. Power kısayolundan vazgeçmek Tune'daki düzenlenen değeri kaybettirmez.
+1. **Home → Print** üzerinden dosyayı seçip önizlemedeki **Print** ile başlatın.
+2. İlerlemeyi, geçen/kalan süreyi ve tahmini bitiş saatini izleyin. Önizleme ve `print_stats.info` katman verisi isteğe bağlıdır; katman Z yüksekliğinden tahmin edilmez.
+3. **Pause / Resume** doğrudan çalışır. **Stop** onay açar; başlangıçta **Back** seçilidir.
+4. Baskı tamamlandığında **Close** ile Home'a dönün.
 
-Happy Hare varsa aktif tool'un eşlendiği gate'in rengi ve malzemesi gösterilir. Filament değişiminde bildirilen `last_tool` / `next_tool` kullanılır; eksik değerler tahmin edilmez. MMU kilitlenince hata Print üzerinde görünür ve Resume yerine MMU çıkar. Bu kontrol kaydırılabilir tam hata metnini ve mevcut korumalı kurtarma/manuel durum menülerini açar. Back ile Print'e dönülür. MMU yoksa MMU kontrolleri gösterilmez.
+![Print ve Tune örnek akışı](assets/print-controls-demo.gif)
 
-Tune tek ekranda Print, Motion, Extrusion ve After Job gruplarını sunar. Kontroller yalnızca ilgili cihaz ve çalışma zamanı verisi varsa görünür. Yazılımsal geri çekme için `[firmware_retraction]` gerekir; PA ve yumuşatma aktif extruder'ı takip eder. Katman bilgisi isteğe bağlıdır; Z yüksekliğinden tahmin edilmez.
+Gerçek UI ve sürücünün çevrimdışı emülatör çıktısıdır; durum verileri örnektir. Üretim yöntemi: [emülatör rehberi](ui-emulator_TR.md).
 
-Sayısal değere basıp enkoderle değiştirin, Apply ile gönderin. Değerler ve switchler bekleme/başarı popupı olmadan hemen gösterilir. Komut reddedilirse güncel abonelik değerine dönülür ve iki kısa kırmızı blink gösterilir. Sadece yanıtın gecikmesi ret sayılmaz; tamamlanan komutlar abonelik verisiyle karşılaştırılır. Eski yanıt yeni düzenlemeyi ezmez; yeniden bağlantı bekleyen düzenlemeleri geçersiz kılar.
+## Tune ile ayarlama
+
+**Tune → alan → çevir → Apply** yolunu kullanın. PRINT, MOTION, EXTRUSION ve AFTER JOB grupları aynı sayfadadır. Yalnız desteklenen cihazlar ve geçerli durum verisi için kontroller görünür; aşağıdaki 17 alan en geniş kapsamı gösterir.
+
+| Grup | UI adı | Birim | Görünme koşulu | Etki |
+|---|---|---|---|---|
+| PRINT | Speed | % | Hazır yazıcı | M220 hız çarpanı |
+| PRINT | Flow | % | Aktif hotend | M221 akış çarpanı |
+| PRINT | Fan | % | Parça soğutma fanı | Fan hedefi, %0–100 |
+| PRINT | Nozzle | °C | Aktif hotend | Nozul hedefi |
+| PRINT | Bed | °C | Tabla ısıtıcısı | Tabla hedefi |
+| PRINT | Z offset | mm | Çalışma zamanı offset desteği | Oturum ayarı; kalıcı probe kalibrasyonu değildir |
+| MOTION | SCV | mm/s | Toolhead alanı bildiriyor | Kare köşe hızı |
+| MOTION | Min cruise ratio | % | Toolhead alanı bildiriyor | Minimum cruise ratio; komuta değer / 100 gönderilir |
+| EXTRUSION | Pressure advance | — | Aktif extruder PA bildiriyor | Çalışma zamanı pressure advance; UI birim göstermez |
+| EXTRUSION | PA smooth time | s | Aktif extruder smooth_time bildiriyor | Pressure advance yumuşatma aralığı |
+| EXTRUSION | Retract length | mm | firmware_retraction + durum verisi | Yazılımsal geri çekme mesafesi |
+| EXTRUSION | Retract speed | mm/s | firmware_retraction + durum verisi | Yazılımsal geri çekme hızı |
+| EXTRUSION | Unretract extra | mm | firmware_retraction + durum verisi | Geri beslemede ek uzunluk |
+| EXTRUSION | Unretract speed | mm/s | firmware_retraction + durum verisi | Yazılımsal geri besleme hızı |
+| AFTER JOB | Heaters off | On/Off | Turn_OFF_Heaters_After_Job | Yalnız politika pinini değiştirir |
+| AFTER JOB | Motors off | On/Off | Disable_Motors_After_Job | Yalnız politika pinini değiştirir |
+| AFTER JOB | Printer power off | On/Off | Power_OFF_Printer_After_Job | Yalnız politika pinini değiştirir; anında kapatmaz |
+
+Ayarlar çalışma zamanında etkilidir; kalıcı varsayılanlar için Klipper yapılandırmasını ayrıca düzenleyin. Firmware retraction ayarları G10/G11 kullanımını etkiler; slicer'ın açık ekstrüzyon hareketlerini yeniden yazmaz.
+
+Değer veya switch hemen yeni seçimi gösterir. Komut reddedilirse güncel abonelik değerine döner ve iki kez kısa kırmızı yanıp söner. Yavaş yanıt tek başına ret değildir. Eski yanıt yeni düzenlemeyi ezmez; yeniden bağlantı bekleyen düzenlemeleri geçersiz kılar. Sonuç belirsizse tekrar denemeden önce Mainsail'den kontrol edin.
+
+## MMU hatasından devam etme
+
+Happy Hare varsa aktif tool'un eşlendiği gate rengi/malzemesi gösterilir. Toolchange kaynak/hedefi bildirilen `last_tool` / `next_tool` değerleridir; bilinmeyen değerler tahmin edilmez.
+
+1. MMU kilitlenince Print'te kalırsınız; hata özeti görünür ve **Resume** yerine **MMU** çıkar.
+2. **MMU** ile tam hata okuyucusunu açın; uzun metni çevirerek kaydırın.
+3. Kurtarma için **MMU recovery**, Print'e dönmek için **Back** seçin.
+4. Fiziksel sorunu düzeltip [kurtarma adımlarını](mmu-guide_TR.md) uygulayın; uygun duruma gelince ayrıca **Resume** seçin.
+
+MMU olmayan kurulumlarda bu kontroller görünmez.
+
+## Güç kısayolu
+
+**1,2 saniye basılı tutup bırakın**; 450 ms sonrasında ilerleme görünür. Tamamlanmamış basışı bırakmak menü öğesini çalıştırmaz. İptal, Tune taslağını korur. Baskı ve duraklama sırasında güç kapatma engellenir; önce baskıyı iptal edin. Güç açma varsayılanı ayrıca **2 saniyedir**. [Güç kullanımı](user-guide_TR.md#yazıcı-gücü).
 
 ## İsteğe bağlı baskı politikası switchleri
 
@@ -44,5 +88,3 @@ Switch sadece `SET_PIN PIN=<tam isim> VALUE=0|1` gönderir. O anda ısıtıcı/m
 ```
 
 `Power_OFF_Printer_After_Job` değerini kendi baskı sonu güç makronuzda, tanımlı Moonraker güç cihazınız ve soğutma politikanızla kullanın. Tanımsız pinler, PWM pinleri ve dijital değeri bilinmeyen pinler gizlenir.
-
-Print butonlarının normal/seçili zemini ve sembolü tek library JPEG’idir. Seçim değişimi sadece eski ve yeni butonu, birer ikon ve yazı komutuyla günceller (dört çizim paketi). Pause/Resume değişimi yalnızca ortadaki butonu günceller. Buton şeridi sadece üç butonlu yerleşimden baskı sonundaki iki butonlu yerleşime geçerken temizlenir.

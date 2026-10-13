@@ -103,7 +103,7 @@ Değişiklikleri boşta ve baskı/duraklama dışında yapın. Eşleşen metadat
   <img src="assets/screens/mmu-status.png" width="240" alt="MMU durumu ve sensörler">
 </p>
 
-Nedeni bildirilen MMU hata duraklaması kurtarmayı otomatik açar. **MMU → More → Manage → Recover state** yolunu da kullanabilirsiniz. Genel görünümdeki işlem başarısız olursa ana düğme **Recover** olur; sonuç ve kurtarma seçeneklerini açar.
+Baskıda MMU hatası Print üzerinde özetlenir; **Resume** yerine **MMU** görünür. **Print → MMU → tam hata → MMU recovery** yolunu izleyin; uzun metni çevirerek kaydırın. **Back** Print'e döner. **MMU → More → Manage → Recover state** yolu da kullanılabilir. Genel görünüm işlemi başarısız olursa ana düğme **Recover** olur. [Print/Tune rehberi](print-controls_TR.md).
 
 1. Hatayı okuyun ve fiziksel filament sorununu düzeltin.
 2. Kurtarmayı veya gerçek kanal/takım/filament durumunu bildirmek için manuel durum düzenleyicisini kullanın. Manuel Apply durum bildirir; filament yüklemez veya boşaltmaz.

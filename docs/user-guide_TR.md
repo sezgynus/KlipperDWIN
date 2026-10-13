@@ -11,7 +11,13 @@
 
 Seçimi taşımak için çevirin; seçmek için basın. Sayısal değere basın, düzenlemek için çevirin ve uygulamak için tekrar basın. **Back** önceki ekrana döner. Ana ekran her sayfada dört ikon gösterir; sayfa değiştirmek için çevirmeye devam edin. Noktalar aktif sayfayı belirtir. İsteğe bağlı öğeler yazıcınızın yapılandırmasına bağlıdır.
 
-Sabit durum alanı sıcaklık/hedefleri, fanı, hız/akış bilgisini, çalışma zamanı Z offset'i ve XYZ koordinatlarını gösterir. Hız ve ekstrüzyon alanları override yüzdeleri ile gerçek hız/hacimsel akış arasında dönüşümlü gösterilir. MMU sayfaları kendi durum düzenini kullanır.
+Alt durum alanının üç satırı aşağıdadır. Hız/akış alanları iki saniyede bir çarpan ile anlık ölçüm arasında değişir. Tune, sayı düzenleyicisi, tam hata okuyucusu ve MMU sayfalarında bu alan görünmez.
+
+| Satır | Sol | Orta | Sağ |
+|---|---|---|---|
+| 1 | Nozul gerçek/hedef (°C) | Hız çarpanı (%) / anlık hız (mm/s) | Fan (%0–100) |
+| 2 | Tabla gerçek/hedef (°C) | Akış çarpanı (%) / hacimsel akış (mm³/s) | Oturum Z offset (mm) |
+| 3 | X (mm) | Y (mm) | Z (mm) |
 
 Fan simgesi panelin kendi animasyonuyla döner; hız fan yüzdesinden hesaplanır ve 10 ms aralıklara yuvarlanır. Aynı interval için yeniden komut gönderilmez; %0’da durur.
 
@@ -38,9 +44,9 @@ Eksik thumbnail veya metadata baskıyı engellemez. En fazla dört kullanılan t
   <img src="assets/screens/tune.png" width="240" alt="Tune">
 </p>
 
-Baskı ekranı dosyayı, ilerlemeyi ve geçen/kalan süreyi gösterir. Gerektiğinde **Pause**, **Resume** veya **Stop** kullanın. Baskı hızını, mevcut hotend/tabla/fan ayarlarını veya çalışma zamanı Z offset'i değiştirmek için **Tune** açın. Akış durum alanında gösterilir; LCD'de akış düzenleyicisi yoktur.
+Print önizlemeyi, ilerlemeyi, geçen/kalan süreyi, tahmini bitişi ve varsa katman bilgisini gösterir. **Pause / Resume** doğrudan çalışır; **Stop** başlangıçta **Back** seçili onay açar. Baskı bitince **Close** ile Home'a dönün.
 
-Çalışma zamanı Z offset mevcut oturumu ayarlar. Kalıcı probe offset kaydetmez. İşlem başarısızsa veya sonucu belirsizse tekrarlamadan önce Mainsail'den kontrol edin.
+**Tune** ile Speed, **Flow**, sıcaklık/fan, Z offset, SCV, minimum cruise ratio, PA/yumuşatma ve firmware retraction ayarlarını değiştirin. Alanlar yapılandırma ve durum verisine bağlıdır. AFTER JOB switchleri yalnız politika pinlerini değiştirir; baskı sonu eylemini makrolarınız belirler. Z offset kalıcı probe kalibrasyonu değildir. [Alanlar, birimler ve hata davranışları](print-controls_TR.md).
 
 ## Prepare ve Live jog
 

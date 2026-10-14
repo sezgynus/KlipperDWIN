@@ -64,6 +64,7 @@ class VisualRoundingTests(unittest.TestCase):
                         view.pd.HMI_flag.select_flag = False
                         view._focus_stop_draw(buttons_only=True)
                     else:
+                        view._focus_full_error = 'Example MMU error'
                         view._focus_error_lines = ['Example MMU error']
                         view._focus_error_scroll = view._focus_error_choice = 0
                         view._focus_error_draw()

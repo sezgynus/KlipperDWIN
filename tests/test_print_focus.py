@@ -24,7 +24,7 @@ class PrintFocusTests(unittest.TestCase):
         return v,data
 
 
-    def test_tune_apply_and_preview_backings_use_native_bitmap_without_text_assets(self):
+    def test_tune_apply_icon_and_native_preview_keep_runtime_labels(self):
         v, _ = self.view()
         v.lcd = driver()
         v._tune_edit = v.pd.print_settings()[0]
@@ -32,7 +32,8 @@ class PrintFocusTests(unittest.TestCase):
         with patch('t5uic1_driver.time.sleep'):
             v._focus_edit_draw()
         packets = v.lcd.MYSERIAL1.frames
-        self.assertGreater(sum(p[1] == 0x08 for p in packets), 0)
+        self.assertEqual(sum(p[1] == 0x23 for p in packets), 1)
+        self.assertFalse(any(p[1] == 0x08 for p in packets))
         self.assertLess(sum(p[1] == 0x05 for p in packets), 12)
         self.assertIn(b'Apply', [p[11:-4] for p in packets if p[1] == 0x11])
         v.lcd.MYSERIAL1.frames.clear()

@@ -12,7 +12,8 @@ from lcd_resources import (ICON_PRINT_TUNE, ICON_PRINT_PAUSE, ICON_PRINT_RESUME,
                            ICON_PRINT_CLOSE, PRINT_BUTTON_SELECTED,
                            ICON_STOP_BUTTON_NORMAL, ICON_STOP_BUTTON_SELECTED,
                            ICON_STOP_BUTTON_DANGER, ICON_STOP_PANEL,
-                           ICON_MMU_ERROR_SELECTED, ICON_MMU_ERROR_NORMAL)
+                           ICON_MMU_ERROR_SELECTED, ICON_MMU_ERROR_NORMAL,
+                           ICON_APPLY_BUTTON)
 
 
 @lru_cache(maxsize=64)
@@ -389,7 +390,7 @@ class PrintFocusMixin:
         self._focus_text(s.label,18,96)
         self._focus_edit_value()
         self._focus_text('Turn to adjust',80,228)
-        self._focus_round(32,284,208,36,0x063B,8)
+        show_icon(self.lcd, self.ICON, ICON_APPLY_BUTTON, 32, 284)
         self._focus_text('Apply',116,294,color=0x10C4)
 
     def _focus_edit_value(self):

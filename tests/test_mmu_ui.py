@@ -14,7 +14,11 @@ class MMUUITests(unittest.TestCase):
                      filament='unloaded', filament_pos=0, locked=False)
         view._mmu_action_item = Mock(return_value=(('action', 'load'), 'Load', '', True))
         view.pd.mmu_session.prepare = Mock()
-        with patch('ui_mmu.MMUState.from_snapshot', return_value=state) as parser:
+        # Patch the method's actual globals, which remain stable even when
+        # other test modules reload the application under isolated imports.
+        module_globals = view._mmu_items.__func__.__globals__
+        parser = Mock(return_value=state)
+        with patch.dict(module_globals, {'MMUState': Mock(from_snapshot=parser)}):
             items = view._mmu_items(state)
         parser.assert_called_once()
         self.assertEqual(view.pd.mmu_session.prepare.call_count, 4)

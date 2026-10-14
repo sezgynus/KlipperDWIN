@@ -19,6 +19,29 @@ class DisplaySettingsTests(unittest.TestCase):
             with self.assertRaises(ValueError): settings.encode(*pair)
         self.assertEqual([settings.raw_brightness(x) for x in (0, 50, 100)], [0, 128, 255])
 
+    def test_pending_flash_loads_apply_only_without_overwriting_user_drafts(self):
+        from concurrent.futures import Future
+        view = self.view()
+        view._panel_flash_lcd = view.lcd
+        view._display_dimmed = False
+        view._display_saved = (100, 0, 10)
+        view._display_values = [100, 0, 10]
+        view._display_edit = False
+        future = Future()
+        view._display_load_future = future
+        future.set_result(settings.encode(72, 12, 10))
+        view._poll_panel_flash()
+        self.assertEqual(view._display_values, [72, 12, 10])
+        self.assertEqual(view._display_saved, (72, 12, 10))
+        view.lcd.set_backlight.assert_called_with(settings.raw_brightness(72))
+        view._display_values[0] = 82
+        future = Future()
+        view._display_load_future = future
+        future.set_result(settings.encode(60, 9, 10))
+        view._poll_panel_flash()
+        self.assertEqual(view._display_values[0], 82)
+        self.assertEqual(view._display_saved, (60, 9, 10))
+
     def test_flash_is_disjoint_and_verified(self):
         lcd = driver(); record = settings.encode(72, 12)
         lcd.write_flash = Mock(); lcd.read_flash = Mock(return_value=record)

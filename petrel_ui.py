@@ -571,26 +571,51 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 options['startup_progress'] = lambda lcd, value: self._draw_boot_progress(value, lcd)
             self.lcd = T5UIC1Display(self._settings[0], handshake_timeout=1.0,
                                  handshake_attempts=1, **options)
-            if not hasattr(self, '_display_values'):
-                try:
-                    values = self.lcd.load_display_settings()
-                except (OSError, TimeoutError, T5UIC1ProtocolError):
-                    logging.warning('Unable to read display settings', exc_info=True)
-                    values = None
-                if isinstance(values, tuple) and len(values) == 2:
-                    values = values + (10,)
-                if not isinstance(values, tuple) or len(values) != 3:
-                    values = None
-                self._display_values = list(values or (100, 0, 10))
-                self._display_saved = tuple(values or (100, 0, 10))
-            if not hasattr(self, '_buzzer_values'):
-                try:
-                    values = self.lcd.load_buzzer_settings()
-                except (OSError, TimeoutError, T5UIC1ProtocolError):
-                    logging.warning('Buzzer settings unavailable; sounds disabled')
-                    values = None
-                self._buzzer_values = values if isinstance(values, BuzzerSettings) else BuzzerSettings()
-                self._buzzer_saved = self._buzzer_values
+            async_flash = (getattr(self.lcd, 'SUPPORTS_NONBLOCKING_FLASH',
+                                   None) is True)
+            if async_flash:
+                # Do not hold the UI owner during Flash reads. The defaults
+                # remain usable until the verified panel records arrive.
+                if not hasattr(self, '_display_values'):
+                    self._display_values = [100, 0, 10]
+                    self._display_saved = (100, 0, 10)
+                if not hasattr(self, '_buzzer_values'):
+                    self._buzzer_values = self._buzzer_saved = BuzzerSettings()
+                self._panel_flash_lcd = self.lcd
+                if not getattr(self, '_display_load_complete', False):
+                    self._display_load_future = self.lcd.begin_flash_read(
+                        self.lcd.DISPLAY_SETTINGS_ADDRESS,
+                        self.lcd.DISPLAY_SETTINGS_SIZE)
+                if not getattr(self, '_buzzer_load_complete', False):
+                    self._buzzer_load_future = self.lcd.begin_flash_read(
+                        buzzer_control.ADDRESS, buzzer_control.RECORD_SIZE)
+                if getattr(self, '_display_save_future', None) is not None:
+                    self._display_save_future = None
+                    self._display_save_message = 'Not saved. Press to retry'
+                if getattr(self, '_buzzer_save_future', None) is not None:
+                    self._buzzer_save_future = None
+                    self._buzzer_save_error = True
+            else:
+                if not hasattr(self, '_display_values'):
+                    try:
+                        values = self.lcd.load_display_settings()
+                    except (OSError, TimeoutError, T5UIC1ProtocolError):
+                        logging.warning('Unable to read display settings', exc_info=True)
+                        values = None
+                    if isinstance(values, tuple) and len(values) == 2:
+                        values = values + (10,)
+                    if not isinstance(values, tuple) or len(values) != 3:
+                        values = None
+                    self._display_values = list(values or (100, 0, 10))
+                    self._display_saved = tuple(values or (100, 0, 10))
+                if not hasattr(self, '_buzzer_values'):
+                    try:
+                        values = self.lcd.load_buzzer_settings()
+                    except (OSError, TimeoutError, T5UIC1ProtocolError):
+                        logging.warning('Buzzer settings unavailable; sounds disabled')
+                        values = None
+                    self._buzzer_values = values if isinstance(values, BuzzerSettings) else BuzzerSettings()
+                    self._buzzer_saved = self._buzzer_values
             self._display_last_activity = time.monotonic()
             self._display_dimmed = False
             self.lcd.set_backlight(display_settings.raw_brightness(self._display_values[0]))
@@ -737,6 +762,67 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._display_last_activity = time.monotonic()
         self.lcd.update()
 
+    def _poll_panel_flash(self):
+        """Collect completed Flash futures on the same UART-owning UI thread."""
+        if getattr(self, '_panel_flash_lcd', None) is not self.lcd:
+            return
+        changed = False
+        for kind in ('display_load', 'buzzer_load', 'display_save', 'buzzer_save'):
+            attr = '_' + kind + '_future'
+            future = getattr(self, attr, None)
+            if future is None or not future.done():
+                continue
+            setattr(self, attr, None)
+            try:
+                raw = future.result()
+                if kind == 'display_load':
+                    values = display_settings.decode(raw)
+                    if isinstance(values, tuple) and len(values) == 2:
+                        values = values + (10,)
+                    if isinstance(values, tuple) and len(values) == 3:
+                        old = self._display_saved
+                        if (tuple(self._display_values) == old
+                                and not getattr(self, '_display_edit', False)
+                                and getattr(self, '_display_save_future', None) is None):
+                            self._display_values = list(values)
+                            if not getattr(self, '_display_dimmed', False):
+                                self.lcd.set_backlight(display_settings.raw_brightness(values[0]))
+                        self._display_saved = values
+                    self._display_load_complete = True
+                elif kind == 'buzzer_load':
+                    settings = BuzzerSettings.decode(raw)
+                    if isinstance(settings, BuzzerSettings):
+                        if (self._buzzer_values == self._buzzer_saved
+                                and getattr(self, '_buzzer_save_future', None) is None):
+                            self._buzzer_values = settings
+                        self._buzzer_saved = settings
+                    self._buzzer_load_complete = True
+                elif kind == 'display_save':
+                    self._display_saved = self._display_save_target
+                    self._display_edit = False
+                    self._display_save_message = ''
+                else:
+                    self._buzzer_saved = self._buzzer_save_target
+                    self._buzzer_save_error = False
+                    self._display_save_message = ''
+            except Exception as error:
+                if kind == 'display_save':
+                    self._display_edit = True
+                    self._display_save_message = 'Not saved. Press to retry'
+                elif kind == 'buzzer_save':
+                    self._buzzer_save_error = True
+                    self._display_save_message = 'Not saved. Press to retry'
+                else:
+                    logging.warning('Could not read panel %s: %s', kind, error)
+            changed = True
+        if changed:
+            if getattr(self, 'checkkey', None) == self.DisplayMenu:
+                self.Draw_Display_Menu()
+                self.lcd.update()
+            elif getattr(self, 'checkkey', None) == self.BuzzerMenu:
+                self.Draw_Buzzer_Menu()
+                self.lcd.update()
+
     def _ui_tick(self):
         self._poll_panel_power()
         self._sync_case_light_tracking()
@@ -748,6 +834,11 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._ensure_uart()
             return
         try:
+            if getattr(self.lcd, 'SUPPORTS_NONBLOCKING_FLASH', None) is True:
+                self.lcd.poll_flash_tasks()
+                self._poll_panel_flash()
+                if self.lcd.flash_busy() and hasattr(self, '_loop'):
+                    self._loop.set_interval(.05)
             if self._power_hold_tick():
                 return
             now = time.monotonic()

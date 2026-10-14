@@ -90,6 +90,8 @@ def canvas(data=None):
     class Observer:
         def feed(self, packet):
             try:
+                if packet[1] == 0x08:
+                    raise ValueError("UI emitted unsupported bitmap command 0x08")
                 v.framebuffer.feed(packet)
             except Exception as error:
                 v._emulator_errors.append(error)

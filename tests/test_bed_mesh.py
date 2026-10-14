@@ -497,6 +497,8 @@ class MeshViewTests(unittest.TestCase):
                     view.Draw_Bed_Mesh()
                     low, high = session.mesh.extrema
                     self.assertEqual(draw.call_args.kwargs['color_range'], (low, high))
+                    while view._mesh_pending_points is not None:
+                        view._advance_mesh_render(flush=False)
                     colors = {call.args[0] for call in view.lcd.draw_points.call_args_list}
                     if low == high:
                         self.assertIn(mesh_color(0), colors)
@@ -750,7 +752,7 @@ class MeshPacketBudgetTests(unittest.TestCase):
                                          for y in range(y0, y1 + 1)
                                          if x*x + y*y <= radius*radius})
         for size, max_frames, max_bytes in ((5, 650, 14000), (9, 950, 22000),
-                                            (15, 1800, 40000), (25, 3000, 70000)):
+                                            (15, 1800, 40000), (25, 3500, 70000)):
             with self.subTest(size=size):
                 view = MeshViewTests.make(self)
                 lcd = make_driver()

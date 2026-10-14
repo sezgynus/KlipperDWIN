@@ -107,6 +107,47 @@ class PrintFocusTests(unittest.TestCase):
         view.lcd.draw_bitmap.assert_not_called()
         view.lcd.draw_text.assert_not_called()
 
+    def test_cancel_waits_through_macro_and_only_completes_on_print_status(self):
+        v, data = self.view()
+        future = Future()
+        v.pd.cancel_job = Mock(return_value=future)
+        v._show_message = Mock()
+        v._restore_action_screen = Mock()
+        v.checkkey = v.Print_window
+        v.pd.HMI_flag.select_flag = True
+        v._focus_stop_input()
+        v.pd.cancel_job.assert_called_once()
+        self.assertTrue(v._stop_waiting)
+        self.assertEqual(v._action_feedback.confirmation_timeout, None)
+        labels = [x.args[-1] for x in v.lcd.draw_text.call_args_list]
+        self.assertTrue(any('Waiting for current command' in str(x) for x in labels))
+        with patch('command_feedback.time.monotonic',
+                   return_value=v._action_feedback.started + 600):
+            self.assertFalse(v._poll_action())
+        v._show_message.assert_not_called()
+        future.set_result('ok')
+        self.assertFalse(v._poll_action())
+        self.assertTrue(v._stop_waiting)
+        data['status']['print_stats']['state'] = 'cancelled'
+        v.pd.update_variable()
+        self.assertFalse(v._poll_action())
+        self.assertFalse(v._stop_waiting)
+        v._restore_action_screen.assert_called_once()
+        v._show_message.assert_not_called()
+
+    def test_cancel_real_rejection_displays_error_and_clears_waiting(self):
+        v, _ = self.view()
+        future = Future()
+        v.pd.cancel_job = Mock(return_value=future)
+        v._show_message = Mock()
+        v.checkkey = v.Print_window
+        v.pd.HMI_flag.select_flag = True
+        v._focus_stop_input()
+        future.set_exception(RuntimeError('Moonraker rejected cancel'))
+        self.assertTrue(v._poll_action())
+        self.assertFalse(v._stop_waiting)
+        v._show_message.assert_called_once()
+
     def test_pause_direct_stop_requires_safe_confirmation(self):
         v,_=self.view();v.select_print.set(1);v.pd.pause_job=Mock(return_value=Future())
         v.Popup_window_PauseOrStop=Mock();v.HMI_Printing()

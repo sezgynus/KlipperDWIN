@@ -87,6 +87,32 @@ class FeedbackTests(unittest.TestCase):
         with patch.object(command_feedback.time, 'monotonic', return_value=result.started + 11):
             self.assertEqual(result.update(PrinterState.from_snapshot(snapshot())), 'error')
 
+    def test_state_driven_cancel_waits_for_macro_without_deadline(self):
+        future = Future()
+        seen = [False]
+        result = CommandFeedback(future, 'Cancel', 1, lambda: seen[0],
+                                 confirmation_timeout=None)
+        state = PrinterState.from_snapshot(snapshot())
+        with patch.object(command_feedback.time, 'monotonic',
+                          return_value=result.started + 3600):
+            self.assertEqual(result.update(state), 'waiting')
+        self.assertFalse(future.done())
+        seen[0] = True
+        self.assertEqual(result.update(state), 'accepted')
+        self.assertTrue(future.cancelled())
+
+    def test_state_driven_cancel_keeps_real_rpc_and_connection_errors(self):
+        state = PrinterState.from_snapshot(snapshot())
+        for case in ('rejected', 'offline'):
+            future = Future()
+            result = CommandFeedback(future, 'Cancel', state.epoch,
+                                     lambda: False, confirmation_timeout=None)
+            if case == 'rejected':
+                future.set_exception(ValueError('Moonraker rejected cancellation'))
+            self.assertEqual(result.update(state, unavailable=case == 'offline'),
+                             'error')
+            self.assertIn('check', result.message.lower())
+
     def test_confirmation_timeout_requires_finite_positive_value(self):
         for value in (0, -1, float('nan'), float('inf')):
             with self.assertRaises(ValueError):

@@ -958,6 +958,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         silent = getattr(self, '_action_silent', False)
         phase = feedback.update(self.pd.state, bool(self.pd.connection_error))
         if phase == 'accepted':
+            self._stop_waiting = False
             self._action_feedback = None
             on_accept = getattr(self, '_action_on_accept', None)
             self._action_on_accept = None
@@ -971,6 +972,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         if phase == 'waiting' and silent:
             return False
         if phase == 'error':
+            self._stop_waiting = False
             self._action_on_accept = None
             self.pd.last_command_error = None
         self._show_message(feedback.message)

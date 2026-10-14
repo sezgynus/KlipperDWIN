@@ -452,6 +452,18 @@ class PrintFocusMixin:
             self.lcd.update()
 
     def _focus_stop_draw(self, buttons_only=False):
+        if getattr(self, '_stop_waiting', False):
+            if buttons_only:
+                return
+            self.Clear_Main_Window()
+            self.Draw_Title('Stop print')
+            self._focus_round(14, 106, 244, 202, 0x2967, 10)
+            self._focus_text('Stop requested', 52, 132, self.lcd.font10x20)
+            self._focus_text('Waiting for current command...', 36, 188,
+                             self.lcd.font6x12)
+            self._focus_text('Print will stop when ready.', 42, 218,
+                             self.lcd.font6x12)
+            return
         if not buttons_only:
             self.Clear_Main_Window()
             self.Draw_Title('Stop print')
@@ -473,8 +485,13 @@ class PrintFocusMixin:
                 self._focus_stop_draw(buttons_only=True)
         elif event==self.ENCODER_DIFF_ENTER:
             if self.pd.HMI_flag.select_flag:
-                self._action('Cancel',self.pd.cancel_job,
-                             lambda:self.pd.status=='cancelled',confirmation_timeout=60,
-                             silent=True,on_accept=self._restore_action_screen)
+                future = self._action(
+                    'Cancel', self.pd.cancel_job,
+                    lambda: self.pd.status == 'cancelled',
+                    confirmation_timeout=None, silent=True,
+                    on_accept=self._restore_action_screen)
+                if future is not None:
+                    self._stop_waiting = True
+                    self._focus_stop_draw()
             else:self.Goto_PrintProcess()
         self.lcd.update()

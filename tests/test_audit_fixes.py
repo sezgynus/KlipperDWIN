@@ -55,3 +55,20 @@ class AuditRegressionTests(unittest.TestCase):
         data['status']['toolhead']['axis_maximum'][0]=200
         with self.assertRaisesRegex(ValueError,'axis range'): p.moveRelative('X',1,100)
 
+    def test_power_dispatch_rechecks_after_device_query(self):
+        data=snapshot();p=printer(data);p.client.post=Mock()
+        p.power_off_if_on();guard=p.client.post.call_args.kwargs['guard']
+        def changed(path):
+            data['status']['print_stats']['state']='printing'
+            return {'result':{'devices':[{'device':'Printer','status':'on'}]}}
+        p.client.get.side_effect=changed
+        with self.assertRaisesRegex(RuntimeError,"active operation"):guard()
+
+    def test_power_guard_blocks_each_calibration_and_modal_recovery(self):
+        p=printer(snapshot())
+        for name in ('bed_mesh','screws_tilt','probe_wizard','mmu_session'):
+            session=getattr(p,name);session.pending=Future()
+            self.assertIsNotNone(p.power_off_block_reason());session.pending=None
+        p._jog_restore='RESTORE_GCODE_STATE NAME=LCD_JOG MOVE=0'
+        self.assertIsNotNone(p.power_off_block_reason())
+

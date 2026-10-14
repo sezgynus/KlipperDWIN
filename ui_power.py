@@ -112,6 +112,9 @@ class PowerShortcutMixin:
         return True
 
     def _power_block_reason(self):
+        reason = self.pd.power_off_block_reason()
+        if reason:
+            return reason
         if self.pd.status in ('printing', 'paused', 'pausing'):
             return 'Print is active'
         if getattr(self, '_pending_start', None) or getattr(self, '_action_feedback', None) or getattr(self, '_quiet_edits', None):

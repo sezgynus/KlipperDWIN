@@ -45,7 +45,7 @@ class DispatchTests(unittest.TestCase):
     def test_home_blocks_queued_print_start_but_thermal_control_remains_allowed(self):
         source = snapshot();p = printer(source)
         p.sendGCodeObserved('G28')
-        guard = p.subscription.notify.call_args.kwargs['guard']
+        guard = p.subscription.request.call_args.kwargs['guard']
         source['status']['print_stats']['state'] = 'printing'
         self.assertFalse(guard())
         p.sendGCode = PrinterData.sendGCode.__get__(p)

@@ -1152,6 +1152,8 @@ class PrinterData:
         if self.jog_recovery_required:
             raise ValueError('Restore jog state before sending motion commands')
         guard = motion_dispatch_guard(self) if gcode.strip() == 'G28' else None
+        if gcode.strip() == 'G28':
+            return self.subscription.request('printer.gcode.script', {'script': gcode + '\nM400'}, guard=guard)
         return self.subscription.notify('printer.gcode.script', {'script': gcode}, guard=guard)
 
     def sendGCode(self, gcode, cleanup=None, report_error=True, dispatch_guard=None):

@@ -79,3 +79,8 @@ class AuditRegressionTests(unittest.TestCase):
         v.get_encoder_state.return_value=v.ENCODER_DIFF_CCW
         v._focus_edit_input();self.assertEqual(v._tune_target,0)
 
+    def test_homing_waits_for_completion_rpc(self):
+        p=printer(snapshot());p.sendGCodeObserved('G28')
+        self.assertEqual(p.subscription.request.call_args.args[1],{'script':'G28\nM400'})
+        p.subscription.notify.assert_not_called()
+

@@ -24,6 +24,24 @@ class PrintFocusTests(unittest.TestCase):
         return v,data
 
 
+    def test_tune_apply_and_preview_backings_use_native_bitmap_without_text_assets(self):
+        v, _ = self.view()
+        v.lcd = driver()
+        v._tune_edit = v.pd.print_settings()[0]
+        v._tune_target = 100
+        with patch('t5uic1_driver.time.sleep'):
+            v._focus_edit_draw()
+        packets = v.lcd.MYSERIAL1.frames
+        self.assertGreater(sum(p[1] == 0x08 for p in packets), 0)
+        self.assertLess(sum(p[1] == 0x05 for p in packets), 12)
+        self.assertIn(b'Apply', [p[11:-4] for p in packets if p[1] == 0x11])
+        v.lcd.MYSERIAL1.frames.clear()
+        with patch('t5uic1_driver.time.sleep'):
+            v._focus_print_open()
+        packets = v.lcd.MYSERIAL1.frames
+        self.assertIn(b'Preview', [p[11:-4] for p in packets if p[1] == 0x11])
+        self.assertTrue(any(p[1] == 0x08 for p in packets))
+
     def test_tune_selection_bitmap_cap_packet_budget(self):
         v, _ = self.view()
         v.lcd = driver()

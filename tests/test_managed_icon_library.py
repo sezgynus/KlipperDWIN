@@ -115,6 +115,28 @@ class ManagedIconTests(unittest.TestCase):
             self.assertTrue(icons.sync_library(lcd))
             self.assertEqual([c.args[0] for c in lcd.store_sram_as_picture.call_args_list], [3])
 
+
+    @patch('icon_library.time.sleep')
+    def test_unchanged_reconnect_reuses_pack_but_changed_sources_rebuild(self, sleep):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / '014.jpg'
+            Image.new('RGB', (24, 24), '#40aacc').save(path, 'JPEG', subsampling=2)
+            lcd, _ = self.panel()
+            icons._cached_pack.cache_clear()
+            try:
+                with patch('icon_library.Image.open', wraps=Image.open) as decoder:
+                    self.assertTrue(icons.sync_library(lcd, directory=root))
+                    initial_decodes = decoder.call_count
+                    self.assertGreater(initial_decodes, 0)
+                    self.assertFalse(icons.sync_library(lcd, directory=root))
+                    self.assertEqual(decoder.call_count, initial_decodes)
+                    Image.new('RGB', (24, 24), '#cc4433').save(path, 'JPEG', subsampling=2)
+                    self.assertTrue(icons.sync_library(lcd, directory=root))
+                    self.assertGreater(decoder.call_count, initial_decodes)
+            finally:
+                icons._cached_pack.cache_clear()
+
     def test_manifest_crc_rejects_partial_or_corrupt_metadata(self):
         raw = icons.metadata([b'x' * 32])
         self.assertEqual(icons.parse_metadata(raw), [b'x' * 32])

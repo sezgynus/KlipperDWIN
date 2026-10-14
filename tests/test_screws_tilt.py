@@ -182,6 +182,46 @@ class ViewTests(unittest.TestCase):
         self.assertLess(sum(frame[1] == 0x05 for frame in frames), 30)
         self.assertLess(sum(map(len, frames)), 2400)
 
+    def test_only_changed_corner_draws_while_unchanged_refresh_has_no_packets(self):
+        view = self.make()
+        session = view.pd.screws_tilt
+        session.start()
+        session.pending.set_result(None)
+        session.update()
+        session.pending.set_result(payload())
+        session.update()
+        view.checkkey = view.ScrewsTiltResult
+        view.Draw_Screws_Result()
+        view.lcd.reset_mock()
+        view._poll_screws_tilt()
+        view.lcd.draw_bitmap.assert_not_called()
+        view.lcd.draw_rectangle.assert_not_called()
+        view.lcd.update.assert_not_called()
+        changed = session.results['screw3']
+        session.results['screw3'] = dict(changed, z=changed['z'] + .1)
+        view._poll_screws_tilt()
+        self.assertEqual(view.lcd.draw_bitmap.call_count, 1)
+        self.assertEqual(view.lcd.draw_line.call_count, 2)
+        view.Clear_Main_Window.assert_not_called() if isinstance(view.Clear_Main_Window, Mock) else None
+        view.lcd.reset_mock()
+        view._poll_screws_tilt()
+        view.lcd.draw_bitmap.assert_not_called()
+        view.lcd.update.assert_not_called()
+
+    def test_repeated_calculation_invalidates_corner_cache(self):
+        view = self.make()
+        session = view.pd.screws_tilt
+        for _ in range(2):
+            session.start()
+            view.checkkey = view.ScrewsTiltResult
+            view._screws_result_cache = None
+            view.Draw_Screws_Result()
+            self.assertEqual(len(view._screws_result_cache['corners']), 4)
+            session.pending.set_result(None)
+            session.update()
+            session.pending.set_result(payload())
+            session.update()
+
     def test_only_success_instructions_are_green(self):
         view = self.make()
         session = view.pd.screws_tilt

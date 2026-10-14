@@ -19,6 +19,7 @@ from ui_case_light import CaseLightMixin
 from ui_power import PowerShortcutMixin
 from ui_mmu import MMUViewMixin
 from ui_buzzer import BuzzerViewMixin
+import buzzer_control
 from buzzer_control import Settings as BuzzerSettings
 from ui_screws_tilt import ScrewsTiltMixin
 from ui_bed_mesh import BedMeshMixin

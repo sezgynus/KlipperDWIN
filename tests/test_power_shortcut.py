@@ -48,6 +48,15 @@ class PowerShortcutTests(unittest.TestCase):
     def input(self, v, kind, value):
         v._process_input(InputEvent(kind, value, v.pd.state.epoch, v._uart_epoch))
 
+    def test_hold_capsule_uses_bounded_native_bitmap_packets(self):
+        v = self.view()
+        with patch('t5uic1_driver.time.sleep'):
+            v._draw_pill(v.lcd, 28, 160, 216, 98, v.lcd.Color_Bg_Window)
+        frames = v.lcd.MYSERIAL1.frames
+        self.assertLessEqual(len(frames), 8)
+        self.assertLess(sum(map(len, frames)), 1600)
+        self.assertEqual(sum(frame[1] == 0x08 for frame in frames), 6)
+
     def test_short_click_runs_once_on_release_with_no_extra_timeout(self):
         v = self.view()
         v._dispatch_input = Mock()

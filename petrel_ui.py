@@ -9,6 +9,8 @@ from info_qr import PROJECT_URL, draw_project_qr
 from system_info import wifi_signal_text
 import time
 import logging
+import math
+from functools import lru_cache
 from concurrent.futures import Future
 from command_feedback import CommandFeedback
 from threading import Lock
@@ -31,6 +33,27 @@ from gpiozero.pins.lgpio import LGPIOFactory
 from printerInterface import PrinterData
 from t5uic1_driver import T5UIC1Display, T5UIC1ProtocolError
 from lcd_resources import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY_NORMAL, ICON_DISPLAY_SELECTED, ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
+
+@lru_cache(maxsize=96)
+def _pill_edge_bitmaps(width, height):
+    """Pack capsule edge columns into native bitmap packets."""
+    radius = height // 2
+    byte_width = (radius + 7) // 8
+    left, right = [], []
+    for row in range(height):
+        dy = min(row + .5, height - row - .5)
+        inset = math.ceil(radius - math.sqrt(max(0, radius ** 2 - (radius - dy) ** 2)))
+        occupied = max(0, radius - inset)
+        mask = (1 << occupied) - 1
+        shift = byte_width * 8 - radius
+        left.append((mask << shift).to_bytes(byte_width, 'big'))
+        right.append(((mask << inset) << shift).to_bytes(byte_width, 'big'))
+    max_rows = max(1, (T5UIC1Display.MAX_DATA_LENGTH - 10) // byte_width)
+    def chunks(rows):
+        return tuple((i, b''.join(rows[i:i+max_rows]))
+                     for i in range(0, len(rows), max_rows))
+    return radius, chunks(left), chunks(right)
+
 
 def _MAX(lhs, rhs):
     if lhs > rhs:
@@ -610,13 +633,29 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             return False
 
     @staticmethod
-    def _draw_pill(lcd, x, y, width, height, color):
-        import math
-        radius = min(width, height) / 2
-        for row in range(height):
-            dy = min(row + .5, height - row - .5)
-            inset = max(0, math.ceil(radius - math.sqrt(max(0, radius**2 - (radius-dy)**2))))
-            lcd.draw_rectangle(1, color, x + inset, y + row, x + width - inset - 1, y + row)
+    def _draw_pill(lcd, x, y, width, height, color, background=None):
+        if width <= 0 or height <= 0:
+            return
+        bg = lcd.Color_Bg_Black if background is None else background
+        if width < height or height % 2:
+            # Tiny progress slices retain their old pixel geometry.
+            radius = min(width, height) / 2
+            for row in range(height):
+                dy = min(row + .5, height - row - .5)
+                inset = max(0, math.ceil(radius - math.sqrt(
+                    max(0, radius**2 - (radius-dy)**2))))
+                if width - 2*inset > 0:
+                    lcd.draw_rectangle(1, color, x+inset, y+row,
+                                       x+width-inset-1, y+row)
+            return
+        radius, left, right = _pill_edge_bitmaps(width, height)
+        if width > 2 * radius:
+            lcd.draw_rectangle(1, color, x+radius, y,
+                               x+width-radius-1, y+height-1)
+        for row, pixels in left:
+            lcd.draw_bitmap(x, y+row, radius, color, bg, pixels)
+        for row, pixels in right:
+            lcd.draw_bitmap(x+width-radius, y+row, radius, color, bg, pixels)
 
     def _draw_progress_track(self, lcd, x, y, width, value):
         self._draw_pill(lcd, x, y, width, 8, 0x39C8)
@@ -3260,7 +3299,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             choices = ((False, 'Cancel', 28, 104),) if blocked else ((False, 'Cancel', 28, 104), (True, 'Power off', 140, 104))
             for yes, label, x, width in choices:
                 fill = (0xB986 if yes else 0x19E9) if self._power_confirm_yes == yes else self.lcd.Color_Bg_Window
-                self._draw_pill(self.lcd, x, 224, width, 36, fill)
+                self._draw_pill(self.lcd, x, 224, width, 36, fill,
+                                background=self.lcd.Color_Bg_Window)
                 self.lcd.draw_text(False, False, self.lcd.font8x16,
                     0xFBAE if yes and not self._power_confirm_yes else self.lcd.Popup_Text_Color,
                     fill, x + (width - len(label) * 8) // 2, 234, label)

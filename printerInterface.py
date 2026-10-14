@@ -182,6 +182,7 @@ class PrinterData:
         self._files_loading = self._directory_loading = False
         self._file_retry_at = 0.0
         self._directory_retry_at = {}
+        self._directory_revision_key = None
         self.power_device = str(power_device).strip() or 'Printer'
         # Keep read-only Spoolman telemetry off the serialized printer-command
         # transport. A telemetry timeout must never cancel or delay user commands.
@@ -647,6 +648,10 @@ class PrinterData:
         if directory and any(part in ('', '.', '..') for part in directory.split('/')):
             raise ValueError('Invalid directory path')
         key = (self.state.epoch, self.state.file_revision, directory)
+        if self._directory_revision_key != key[:2]:
+            self._directory_cache.clear()
+            self._directory_retry_at.clear()
+            self._directory_revision_key = key[:2]
         try:
             if key not in self._directory_cache:
                 if time.monotonic() < self._directory_retry_at.get(key, 0):
@@ -667,12 +672,20 @@ class PrinterData:
                         entries.append(dict(item, path=path + ('/' if is_dir else ''), isDirectory=is_dir))
                 if len({item['path'] for item in entries}) != len(entries):
                     raise ValueError('Duplicate directory entries')
-                # Keep only the current revision, retaining directories visited in it.
-                self._directory_cache = {k: v for k, v in self._directory_cache.items() if k[:2] == key[:2]}
                 self._directory_cache[key] = entries
                 self._directory_loading = False
                 self._directory_retry_at.pop(key, None)
-            entries = list(self._directory_cache[key])
+            # Insertion-ordered cache: keep the root and current parent available
+            # while bounding memory during long sessions with many folders.
+            entries = list(self._directory_cache.pop(key))
+            self._directory_cache[key] = entries
+            parent = directory.rpartition('/')[0]
+            while len(self._directory_cache) > 64:
+                victim = next((k for k in self._directory_cache
+                               if k[2] not in ('', directory, parent)), None)
+                if victim is None:
+                    break
+                del self._directory_cache[victim]
             self._sort_files(entries)
             entries.sort(key=lambda item: not item['isDirectory'])
             return tuple(item['path'] for item in entries)
@@ -681,6 +694,9 @@ class PrinterData:
         except (MoonrakerError, KeyError, TypeError, ValueError) as error:
             self._directory_loading = False
             self._directory_retry_at[key] = time.monotonic() + 5
+            # Only the newest retry deadlines may survive in the current revision.
+            for old in list(self._directory_retry_at)[:-64]:
+                del self._directory_retry_at[old]
             self.file_error = str(error)
             self._files_loaded = False
             return ()

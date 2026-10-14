@@ -390,7 +390,7 @@ class FilePrefetchTests(unittest.TestCase):
             if 'directory?' in path:
                 return {'result': {'dirs': [], 'files': [
                     {'filename': 'part.gcode', 'metadata': 'x' * 1024}]}}
-            return {'result': {}}
+            return {'result': [] if '/files/list' in path else {}}
         result.getREST = Mock(side_effect=response)
         self.assertEqual(result.GetDirectory(''), ('part.gcode',))
         self.assertFalse(result._directory_cache)
@@ -401,7 +401,7 @@ class FilePrefetchTests(unittest.TestCase):
         item = [{'filename': 'part.gcode', 'path': 'part.gcode', 'isDirectory': False}]
         result.DIRECTORY_CACHE_BYTES = result._directory_size(item) + 64
         result.getREST = Mock(side_effect=lambda path: {'result':
-            {'dirs': [], 'files': [{'filename': 'part.gcode'}]} if 'directory?' in path else {}})
+            {'dirs': [], 'files': [{'filename': 'part.gcode'}]} if 'directory?' in path else [] if '/files/list' in path else {}})
         for directory in ('', 'one', 'one/two'):
             self.assertTrue(result.GetDirectory(directory))
             self.assertLessEqual(sum(result._directory_cache_sizes.values()), result.DIRECTORY_CACHE_BYTES)

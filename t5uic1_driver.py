@@ -263,6 +263,11 @@ class T5UIC1Display:
         payload = self._ensure_bytes(payload)
         if len(payload) > self.MAX_DATA_LENGTH:
             raise ValueError("T5UIC1 data field exceeds 248 bytes")
+        if command in (0x00, 0x31, 0x32, 0x33, 0x34):
+            # A queued reply from an earlier transaction cannot confirm this send.
+            self._frames = deque((frame for frame in self._frames if frame[0] != command),
+                                 maxlen=self.RX_FRAME_LIMIT)
+            self._protected_response_slots().pop(command, None)
         frame = self.HEADER + bytes((command,)) + payload + self.TAIL
         try:
             written = self.serial.write(frame)
@@ -344,21 +349,32 @@ class T5UIC1Display:
             else:
                 frame = _ReceivedFrame(command, payload)
                 expected = getattr(self, '_expected_response', None)
+                job = getattr(self, '_flash_job', None)
+                awaiting = job.get('awaiting') if job is not None else None
+                if awaiting is not None and command == awaiting[0]:
+                    expected = awaiting
+                if command == 0x00 and getattr(self, '_liveness_deadline', None) is not None:
+                    expected = 0x00, None
                 if (expected is not None and command == expected[0]
                         and (expected[1] is None or expected[1](payload))):
-                    # One protected matching ACK survives unrelated RX noise.
-                    if getattr(self, '_response_slot', None) is None:
-                        self._response_slot = frame
+                    # At most three active RPC kinds, one ACK slot per opcode.
+                    slots = self._protected_response_slots()
+                    if command not in slots and len(slots) < 3:
+                        slots[command] = frame
                 else:
                     if len(self._frames) == self._frames.maxlen:
                         self._rx_discarded_frames += 1
                     self._frames.append(frame)
 
+    def _protected_response_slots(self):
+        if not hasattr(self, '_response_slots'):
+            self._response_slots = {}
+        return self._response_slots
+
     def _take_response(self, command, predicate=None):
         now = time.monotonic()
-        slot = getattr(self, '_response_slot', None)
+        slot = self._protected_response_slots().pop(command, None)
         if slot is not None:
-            self._response_slot = None
             if (now - slot.received_at <= self.RX_FRAME_AGE and slot[0] == command
                     and (predicate is None or predicate(slot[1]))):
                 return slot[1]
@@ -397,7 +413,7 @@ class T5UIC1Display:
                     time.sleep(min(0.005, remaining))
         finally:
             self._expected_response = None
-            self._response_slot = None
+            self._protected_response_slots().pop(command, None)
 
     @staticmethod
     def _ok(payload):
@@ -426,7 +442,7 @@ class T5UIC1Display:
             # A response from a prior timed-out probe cannot confirm this one.
             self._frames = deque((frame for frame in self._frames
                                   if frame[0] != 0x00), maxlen=self.RX_FRAME_LIMIT)
-            self._response_slot = None
+            self._protected_response_slots().pop(0x00, None)
             self._expected_response = 0x00, None
             self._send(0x00)
             self._liveness_deadline = time.monotonic() + timeout
@@ -446,7 +462,7 @@ class T5UIC1Display:
             if time.monotonic() >= deadline:
                 self._liveness_deadline = None
                 self._expected_response = None
-                self._response_slot = None
+                self._protected_response_slots().pop(0x00, None)
                 return False
         return None
 
@@ -949,7 +965,8 @@ class T5UIC1Display:
         self._flash_state()
         self._flash_fault = error
         self._expected_response = None
-        self._response_slot = None
+        for op in (0x31, 0x32):
+            self._protected_response_slots().pop(op, None)
         jobs = ([self._flash_job] if self._flash_job is not None else [])
         jobs.extend(self._flash_queue)
         self._flash_job = None
@@ -1021,7 +1038,7 @@ class T5UIC1Display:
                             and value[3] == size)
             self._frames = deque((frame for frame in self._frames
                                   if frame[0] != op), maxlen=self.RX_FRAME_LIMIT)
-            self._response_slot = None
+            self._protected_response_slots().pop(op, None)
             self._expected_response = op, predicate
             self._send(op, payload)
             job['chunk_size'] = size

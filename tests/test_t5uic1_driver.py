@@ -353,6 +353,24 @@ class BoundedReceiveTests(unittest.TestCase):
 
 
 class ReceiveAgeAndPriorityTests(unittest.TestCase):
+    def test_flash_and_liveness_ack_slots_do_not_erase_each_other(self):
+        lcd = driver()
+        raw = bytes((lcd.MEMORY_FLASH,)) + b'OK'
+        lcd._flash_job = {'awaiting': (0x31, lambda value: value == raw)}
+        lcd.begin_liveness_probe()
+        noise = b'\xAA\x34OK' + lcd.TAIL
+        lcd.serial.chunks.append(b'\xAA\x31' + raw + lcd.TAIL + b'\xAA\x00OK' + lcd.TAIL + noise * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertTrue(lcd.poll_liveness_probe())
+        self.assertEqual(lcd._take_response(0x31), raw)
+
+    def test_prior_queued_ack_cannot_confirm_a_new_handshake(self):
+        lcd = driver()
+        lcd.serial.chunks.append(b'\xAA\x00OK' + lcd.TAIL)
+        lcd._read_available()
+        self.assertFalse(lcd.handshake(timeout=.01))
+
     def test_expected_ack_survives_later_noise(self):
         lcd = driver()
         lcd._expected_response = 0x00, None

@@ -56,15 +56,26 @@ class PrintFocusTests(unittest.TestCase):
         self.assertIn(b'Preview', [p[11:-4] for p in packets if p[1] == 0x11])
         self.assertTrue(any(p[1] == 0x08 for p in packets))
 
-    def test_tune_selection_bitmap_cap_packet_budget(self):
+    def test_tune_row_selection_uses_managed_icons_without_bitmap_caps(self):
+        from lcd_resources import ICON_TUNE_BACK_SELECTED, ICON_TUNE_ROW_SELECTED
         v, _ = self.view()
         v.lcd = driver()
         with patch('t5uic1_driver.time.sleep'):
-            v._focus_round(10, 64, 252, 20, 0x2967, 5)
-        frames = v.lcd.MYSERIAL1.frames
-        self.assertLessEqual(len(frames), 6)
-        self.assertLess(sum(map(len, frames)), 550)
-        self.assertEqual(sum(frame[1] == 0x08 for frame in frames), 2)
+            v._focus_tune_open()
+            self.assertFalse(any(frame[1] == 0x08 for frame in v.lcd.serial.frames))
+            self.assertTrue(any(frame[1] == 0x23 and frame[-5] == ICON_TUNE_BACK_SELECTED
+                                for frame in v.lcd.serial.frames))
+            v.lcd.serial.frames.clear()
+            v.select_tune.set(1)
+            v._focus_tune_tick()
+            frames = v.lcd.serial.frames
+            self.assertFalse(any(frame[1] == 0x08 for frame in frames))
+            self.assertEqual(sum(frame[1] == 0x23 and frame[-5] == ICON_TUNE_ROW_SELECTED
+                                 for frame in frames), 1)
+            self.assertLess(sum(map(len, frames)), 180)
+            frames.clear()
+            v._focus_tune_tick()
+            self.assertFalse(frames)
 
     def test_all_seventeen_settings_fit_one_screen(self):
         v,_=self.view();v._focus_tune_open()

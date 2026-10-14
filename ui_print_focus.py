@@ -13,7 +13,8 @@ from lcd_resources import (ICON_PRINT_TUNE, ICON_PRINT_PAUSE, ICON_PRINT_RESUME,
                            ICON_STOP_BUTTON_NORMAL, ICON_STOP_BUTTON_SELECTED,
                            ICON_STOP_BUTTON_DANGER, ICON_STOP_PANEL,
                            ICON_MMU_ERROR_SELECTED, ICON_MMU_ERROR_NORMAL,
-                           ICON_APPLY_BUTTON, ICON_PRINT_PENDING)
+                           ICON_APPLY_BUTTON, ICON_PRINT_PENDING,
+                           ICON_TUNE_BACK_SELECTED, ICON_TUNE_ROW_SELECTED)
 
 
 @lru_cache(maxsize=64)
@@ -362,8 +363,10 @@ class PrintFocusMixin:
             key=s.key if s else 'back'
             if cache.get(key)==token:continue
             self.lcd.draw_rectangle(1,self.lcd.Color_Bg_Black,10,y,261,y+23 if s is None else y+19)
-            bg=0x2967 if selected else self.lcd.Color_Bg_Black
-            if selected:self._focus_round(10,y,252,24 if s is None else 20,bg,5)
+            if selected:
+                show_icon(self.lcd, self.ICON,
+                          ICON_TUNE_BACK_SELECTED if s is None else ICON_TUNE_ROW_SELECTED,
+                          10, y)
             self._focus_text(s.label if s else '< Back',18,y+2)
             if s:
                 color=0xFBCB if red else 0x063B

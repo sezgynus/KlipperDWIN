@@ -11,6 +11,8 @@ BACKINGS = {
     136: (104, 36, 8, 0xB209, 0),
     137: (244, 202, 10, 0x2967, 0),
     138: (78, 36, 10, 0x2967, 0),
+    141: (252, 24, 6, 0x2967, 0),
+    142: (252, 20, 6, 0x2967, 0),
     143: (208, 36, 8, 0x063B, 0),
     144: (244, 30, 8, 0x063B, 0),
     145: (244, 30, 8, 0x2967, 0),
@@ -31,6 +33,14 @@ def render(index):
     image = Image.new('RGB', (width, height), rgb(backing))
     ImageDraw.Draw(image).rounded_rectangle((0, 0, width - 1, height - 1),
                                            radius=radius, fill=rgb(fill))
+    if index in (141, 142):
+        # Preserve smooth edges in the small row highlight itself.
+        scale = 4
+        image = Image.new('RGB', (width * scale, height * scale), rgb(backing))
+        ImageDraw.Draw(image).rounded_rectangle(
+            (0, 0, width * scale - 1, height * scale - 1),
+            radius=radius * scale, fill=rgb(fill))
+        image = image.resize((width, height), Image.Resampling.LANCZOS)
     image.save(ROOT / 'assets/icons' / f'{index:03d}.jpg', quality=95,
                subsampling=2, progressive=False)
     color = lambda value: '#%02x%02x%02x' % rgb(value)

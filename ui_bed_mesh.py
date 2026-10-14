@@ -95,9 +95,9 @@ class BedMeshMixin:
         entries = self._mesh_menu_entries()
         choice = min(getattr(self, '_mesh_menu_selection', 0), len(entries)-1)
         if event == self.ENCODER_DIFF_CW:
-            self._mesh_menu_selection = min(len(entries)-1, choice+1)
+            self._mesh_menu_selection = min(len(entries)-1, choice+getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._mesh_menu_selection = max(0, choice-1)
+            self._mesh_menu_selection = max(0, choice-getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_ENTER:
             key = entries[choice][0]
             if key == 'BACK':
@@ -345,9 +345,9 @@ class BedMeshMixin:
             return
         choice = getattr(self, '_mesh_profile_selection', 0)
         if event == self.ENCODER_DIFF_CW:
-            self._mesh_profile_selection = min(len(session.entries()), choice+1)
+            self._mesh_profile_selection = min(len(session.entries()), choice+getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._mesh_profile_selection = max(0, choice-1)
+            self._mesh_profile_selection = max(0, choice-getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_ENTER:
             if choice == 0:
                 self._return_to_mesh_menu(True)

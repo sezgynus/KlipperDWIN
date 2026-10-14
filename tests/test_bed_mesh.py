@@ -243,6 +243,27 @@ class ResponseTests(unittest.TestCase):
 
 
 class MeshViewTests(unittest.TestCase):
+    def test_batched_menu_and_profile_rotation_preserves_all_steps(self):
+        from types import SimpleNamespace
+        view = self.make()
+        view._rotation_steps = 3
+        view._mesh_menu_selection = 0
+        view._mesh_menu_entries = Mock(return_value=[('BACK', 'Back', 0)] * 6)
+        view.Draw_Bed_Mesh_Menu = Mock()
+        view.get_encoder_state.return_value = view.ENCODER_DIFF_CW
+        view.HMI_Bed_Mesh_Menu()
+        self.assertEqual(view._mesh_menu_selection, 3)
+        view.Draw_Bed_Mesh_Menu.assert_called_once()
+        view.pd.bed_mesh = SimpleNamespace(pending=None, phase='listed', entries=lambda: tuple(range(10)))
+        view._mesh_profile_selection = 0
+        view.Draw_Mesh_Profiles = Mock()
+        view.HMI_Mesh_Profiles()
+        self.assertEqual(view._mesh_profile_selection, 3)
+        view.Draw_Mesh_Profiles.assert_called_once()
+        view.get_encoder_state.return_value = view.ENCODER_DIFF_CCW
+        view.HMI_Mesh_Profiles()
+        self.assertEqual(view._mesh_profile_selection, 0)
+
     def make(self):
         view=display(data())
         view.lcd.DWIN_WIDTH=272;view.lcd.DWIN_HEIGHT=480

@@ -120,9 +120,9 @@ class ScrewsTiltMixin:
             return
         selection = getattr(self, '_screws_selection', 0)
         if event == self.ENCODER_DIFF_CW:
-            self._screws_selection = min(1, selection + 1)
+            self._screws_selection = min(1, selection + getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._screws_selection = max(0, selection - 1)
+            self._screws_selection = max(0, selection - getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_ENTER:
             if selection == 0:
                 self._return_to_mesh_menu()

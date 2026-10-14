@@ -72,3 +72,10 @@ class AuditRegressionTests(unittest.TestCase):
         p._jog_restore='RESTORE_GCODE_STATE NAME=LCD_JOG MOVE=0'
         self.assertIsNotNone(p.power_off_block_reason())
 
+    def test_heater_editor_jumps_off_gap_in_both_directions(self):
+        v=display(snapshot());v._tune_edit=next(s for s in v.pd.print_settings() if s.key.startswith('nozzle@'))
+        v._tune_target=0;v.get_encoder_state=Mock(return_value=v.ENCODER_DIFF_CW)
+        v._focus_edit_input();self.assertEqual(v._tune_target,5)
+        v.get_encoder_state.return_value=v.ENCODER_DIFF_CCW
+        v._focus_edit_input();self.assertEqual(v._tune_target,0)
+

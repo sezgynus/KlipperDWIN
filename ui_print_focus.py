@@ -342,6 +342,10 @@ class PrintFocusMixin:
         if event in (self.ENCODER_DIFF_CW,self.ENCODER_DIFF_CCW):
             delta=s.step*getattr(self,'_encoder_move_value',1)*(1 if event==self.ENCODER_DIFF_CW else -1)
             self._tune_target=round(max(s.minimum,min(s.maximum,self._tune_target+delta)),s.decimals)
+            heater = (self.pd.capabilities.active_hotend if s.key.startswith('nozzle@')
+                      else self.pd.capabilities.bed if s.key == 'bed' else None)
+            if heater and 0 < self._tune_target < heater.minimum:
+                self._tune_target = heater.minimum if delta > 0 else 0
             self._focus_edit_value()
         elif event==self.ENCODER_DIFF_ENTER:
             target=self._tune_target

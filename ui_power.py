@@ -136,6 +136,8 @@ class PowerShortcutMixin:
         if not getattr(self, '_power_hold_popup', False) or self.checkkey != self.PowerConfirm:
             return False
         self.pd.update_variable()
+        for name in ('bed_mesh','screws_tilt','probe_wizard','mmu_session'):
+            getattr(self.pd,name).update()
         self._focus_tick_quiet()
         if self.pd.state.epoch != self._power_origin_epoch:
             self._power_origin = self.MainMenu

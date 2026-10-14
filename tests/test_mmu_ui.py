@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from test_capabilities import display
 from test_mmu_control import mmu_snapshot, hardware_status, add_motor_status, add_led_status, add_multiple_units

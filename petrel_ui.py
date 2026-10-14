@@ -1280,7 +1280,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         else:
             self._encoder_move_value = 1
         batched_menu = (event.kind == 'rotate' and count > 1
-                        and self.checkkey in (self.Prepare, self.Control,
+                        and getattr(self, 'checkkey', None) in (self.Prepare, self.Control,
                                               self.TemperatureID,
                                               self.PLAPreheat, self.ABSPreheat))
         self._menu_batch_steps = count if batched_menu else 1

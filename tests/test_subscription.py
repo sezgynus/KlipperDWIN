@@ -98,6 +98,20 @@ class SubscriptionTests(unittest.TestCase):
         self.addCleanup(client.close)
         self.assertEqual(client.url, 'wss://localhost/proxy/websocket')
 
+    def test_state_reuses_frozen_settings_without_reusing_status(self):
+        from printer_state import PrinterState
+        raw = {'state': 'ready', 'epoch': 1, 'revision': 1,
+               'status': {'toolhead': {'position': [1, 2, 3, 4]}},
+               'settings': {'configfile': {'features': list(range(5000))}}}
+        previous = PrinterState.from_snapshot(raw)
+        updated = {'state': 'ready', 'epoch': 1, 'revision': 2,
+                   'status': {'toolhead': {'position': [5, 6, 7, 8]}}}
+        current = PrinterState.from_snapshot(updated,
+                                             reused_settings=previous.settings)
+        self.assertIs(current.settings, previous.settings)
+        self.assertEqual(current.status['toolhead']['position'], (5, 6, 7, 8))
+        self.assertEqual(previous.status['toolhead']['position'], (1, 2, 3, 4))
+
     def test_lifecycle_does_not_copy_large_status_or_settings(self):
         client = self.subscription()
         client._settings = {'large': {'entries': list(range(5000))}}

@@ -777,7 +777,19 @@ class PrinterData:
         presets_changed = self.refresh_mainsail_presets()
         sort_changed = self.refresh_file_sort() if self._files_loaded else False
         try:
-            state = PrinterState.from_snapshot(self.subscription.snapshot())
+            # Effective Klipper config stays stable within a websocket epoch.
+            # Avoid copying and recursively freezing the entire settings tree
+            # on every status revision; status itself remains freshly copied.
+            if isinstance(self.subscription, MoonrakerSubscription):
+                snap = self.subscription.snapshot(include_settings=False)
+                reuse = self.state.ready and snap['epoch'] == self.state.epoch
+                if not reuse:
+                    snap = self.subscription.snapshot()
+                state = PrinterState.from_snapshot(
+                    snap, reused_settings=self.state.settings if reuse else None)
+            else:
+                # Isolated/legacy transport fixtures retain the full snapshot.
+                state = PrinterState.from_snapshot(self.subscription.snapshot())
             if not state.ready:
                 self.state = state
                 self._files_loaded = False

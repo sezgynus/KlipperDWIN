@@ -101,6 +101,35 @@ class PrintFocusTests(unittest.TestCase):
         v,_=self.view();v._tune_edit=v.pd.print_settings()[0];v._tune_target=137;v.checkkey=v.TuneEdit
         self.assertTrue(v._restore_power_editor());self.assertEqual(v._tune_target,137)
 
+    def test_mmu_error_scroll_only_repaints_viewport_and_unchanged_selection_is_free(self):
+        v, data = self.view(mmu=True)
+        data['status']['mmu'].update(print_state='pause_locked',
+                                     reason_for_pause='Toolhead sensor is active. ' * 30)
+        v.pd.update_variable()
+        v._focus_error_open()
+        v.Clear_Popup_Area = Mock()
+        v.Draw_Title = Mock()
+        v.lcd.reset_mock()
+        v.get_encoder_state.return_value = v.ENCODER_DIFF_CW
+        v._focus_error_input()
+        self.assertEqual(v._focus_error_scroll, 1)
+        v.Clear_Popup_Area.assert_not_called()
+        v.Draw_Title.assert_not_called()
+        v.lcd.draw_rectangle.assert_called_once_with(
+            1, v.lcd.Color_Bg_Black, 12, 45, 260, 348)
+        v.lcd.draw_bitmap.assert_not_called()
+        v.lcd.reset_mock()
+        v._focus_error_scroll = max(0, len(v._focus_error_lines) - 15)
+        v.get_encoder_state.return_value = v.ENCODER_DIFF_CW
+        v._focus_error_input()
+        self.assertEqual(v._focus_error_choice, 1)
+        self.assertGreater(v.lcd.draw_bitmap.call_count, 0)
+        v.lcd.reset_mock()
+        v._focus_error_input()
+        v.lcd.draw_rectangle.assert_not_called()
+        v.lcd.draw_bitmap.assert_not_called()
+        v.lcd.draw_text.assert_not_called()
+
     def test_mmu_full_error_reader_recovery_and_return(self):
         v,data=self.view(mmu=True)
         data['status']['mmu'].update(print_state='pause_locked',reason_for_pause='Toolhead sensor is still active. '*30)

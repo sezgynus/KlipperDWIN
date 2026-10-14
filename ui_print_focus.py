@@ -388,33 +388,56 @@ class PrintFocusMixin:
         self._focus_error_scroll=0;self._focus_error_choice=0;self.checkkey=self.PrintErrorDetails
         self._focus_error_draw()
 
-    def _focus_error_draw(self):
-        self.Clear_Popup_Area();self.Draw_Title('MMU error')
-        lines=textwrap.wrap(self._focus_full_error,30) or ['MMU needs attention']
-        self._focus_error_lines=lines
-        for i,line in enumerate(lines[self._focus_error_scroll:self._focus_error_scroll+15]):self._focus_text(line,14,48+i*20)
-        self._focus_text('Turn: scroll full error',14,376,self.lcd.font6x12,color=0xADB5)
-        for i,label in enumerate(('MMU recovery','Back')):
-            y=410+i*34
-            self._focus_round(14,y,244,30,0x063B if self._focus_error_choice==i else 0x2967,8)
-            self._focus_text(label,(272-len(label)*8)//2,y+7,color=0x10C4 if self._focus_error_choice==i else 0xFFFF)
+    def _focus_error_draw(self, *, viewport_only=False, buttons_only=False):
+        if not viewport_only and not buttons_only:
+            self.Clear_Popup_Area()
+            self.Draw_Title('MMU error')
+            self._focus_error_lines = textwrap.wrap(self._focus_full_error, 30) or ['MMU needs attention']
+            self._focus_text('Turn: scroll full error', 14, 376,
+                             self.lcd.font6x12, color=0xADB5)
+        if not buttons_only:
+            if viewport_only:
+                self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black,
+                                        12, 45, 260, 348)
+            for i, line in enumerate(self._focus_error_lines[
+                    self._focus_error_scroll:self._focus_error_scroll + 15]):
+                self._focus_text(line, 14, 48 + i * 20)
+        if not viewport_only:
+            for i, label in enumerate(('MMU recovery', 'Back')):
+                y = 410 + i * 34
+                self._focus_round(14, y, 244, 30,
+                                  0x063B if self._focus_error_choice == i else 0x2967, 8)
+                self._focus_text(label, (272 - len(label) * 8) // 2,
+                                 y + 7, color=0x10C4 if self._focus_error_choice == i else 0xFFFF)
 
     def _focus_error_input(self):
-        event=self.get_encoder_state()
-        maximum=max(0,len(self._focus_error_lines)-15)
-        if event==self.ENCODER_DIFF_CW:
-            if self._focus_error_scroll<maximum:self._focus_error_scroll+=1
-            else:self._focus_error_choice=1
-            self._focus_error_draw()
-        elif event==self.ENCODER_DIFF_CCW:
-            if self._focus_error_choice:self._focus_error_choice=0
-            else:self._focus_error_scroll=max(0,self._focus_error_scroll-1)
-            self._focus_error_draw()
-        elif event==self.ENCODER_DIFF_ENTER:
-            if self._focus_error_choice:self.Goto_PrintProcess()
+        event = self.get_encoder_state()
+        previous_scroll = self._focus_error_scroll
+        previous_choice = self._focus_error_choice
+        maximum = max(0, len(self._focus_error_lines) - 15)
+        if event == self.ENCODER_DIFF_CW:
+            if self._focus_error_scroll < maximum:
+                self._focus_error_scroll += 1
             else:
-                self._mmu_return_print=True;self.Enter_MMU_Menu('recover')
-        self.lcd.update()
+                self._focus_error_choice = 1
+        elif event == self.ENCODER_DIFF_CCW:
+            if self._focus_error_choice:
+                self._focus_error_choice = 0
+            else:
+                self._focus_error_scroll = max(0, self._focus_error_scroll - 1)
+        elif event == self.ENCODER_DIFF_ENTER:
+            if self._focus_error_choice:
+                self.Goto_PrintProcess()
+            else:
+                self._mmu_return_print = True
+                self.Enter_MMU_Menu('recover')
+            return
+        if self._focus_error_scroll != previous_scroll:
+            self._focus_error_draw(viewport_only=True)
+            self.lcd.update()
+        elif self._focus_error_choice != previous_choice:
+            self._focus_error_draw(buttons_only=True)
+            self.lcd.update()
 
     def _focus_stop_draw(self, buttons_only=False):
         if not buttons_only:

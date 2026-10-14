@@ -49,5 +49,7 @@ After a disconnect or uncertain operation, confirm actual state and verify the p
 | Power shortcut | `test_power_shortcut.py` | 450 ms delay, 1.2 s off/2 s on distinction, incomplete hold, preserved Tune draft, active/paused print blocking |
 | JPEG/font and button sources | `test_lcd_assets.py`, `test_native_custom_icons.py` | Font ID 0, 4:2:0, identical button mask in both states, no stale selection pixels |
 | Packing/synchronization | `test_icon_library_packing.py`, `test_managed_icon_library.py` | Source/export equivalence, library 3, icons after reloading |
+| Configuration preservation | `test_install_defaults.py` | Custom preset/font/socket/screenshot settings survive configure.sh; repeated runs do not duplicate keys |
+| Documentation publication | `test_docs_screenshots.py` | Default refresh keeps panel/frame pixels aligned; frame failure preserves previous output; previews open full size |
 
 Review the [gallery](../docs/screenshots.md) and [PNG/GIF reproduction](../docs/ui-emulator.md#refresh-pngs-frames-and-gifs) for new scenarios. Heading/line counts do not prove EN/TR semantic equivalence; also inspect features, cautions, command blocks, units and image order.

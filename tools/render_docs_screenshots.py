@@ -582,7 +582,8 @@ def write_galleries():
                 if category == group:
                     url = f'assets/screens/{name}.png'
                     caption = tr if turkish else en
-                    lines.append(f'| {caption} | <img src="assets/screens/framed/{name}.png" width="176" alt="{caption}"> | [PNG]({url}) |')
+                    link_label = 'Tam boyut PNG' if turkish else 'Full-size PNG'
+                    lines.append(f'| {caption} | <a href="{url}"><img src="assets/screens/framed/{name}.png" width="176" alt="{caption}"></a> | [{link_label}]({url}) |')
             lines.append('')
         path = ROOT / 'docs' / ('screenshots_TR.md' if turkish else 'screenshots.md')
         path.write_text('\n'.join(lines), encoding='utf-8', newline='\n')
@@ -593,6 +594,8 @@ def main():
     parser.add_argument('--output-directory', type=Path, default=ROOT/'docs/assets/screens')
     parser.add_argument('--frame', action='store_true', help='Also save framed presentation copies; native PNGs remain unchanged')
     args=parser.parse_args()
+    repository_output = args.output_directory.resolve() == (ROOT/'docs/assets/screens').resolve()
+    render_frames = args.frame or repository_output
     names = [item[0] for item in SCENES]
     if len(names) != len(set(names)):
         raise SystemExit('Duplicate screenshot filenames in scene list')
@@ -613,15 +616,20 @@ def main():
                 traceback.print_exc()
         if errors:
             raise SystemExit('No images published; failed scenes: '+', '.join(n for n,_ in errors))
+        if render_frames:
+            from dwin_emulator.presentation import with_frame
+            staged_frames = output/'framed'; staged_frames.mkdir()
+            # Finish presentation copies before publishing any panel image.
+            for name in names:
+                with Image.open(output/(name+'.png')) as native:
+                    with_frame(native).save(staged_frames/(name+'.png'), optimize=True)
         for image in output.glob('*.png'):
             shutil.copyfile(image,args.output_directory/image.name)
-    if args.frame:
-        from dwin_emulator.presentation import with_frame
-        framed=args.output_directory/'framed'; framed.mkdir(exist_ok=True)
-        for name in names:
-            with Image.open(args.output_directory/(name+'.png')) as native:
-                with_frame(native).save(framed/(name+'.png'), optimize=True)
-    if args.output_directory.resolve() == (ROOT / 'docs/assets/screens').resolve():
+        if render_frames:
+            framed = args.output_directory/'framed'; framed.mkdir(exist_ok=True)
+            for image in staged_frames.glob('*.png'):
+                shutil.copyfile(image,framed/image.name)
+    if repository_output:
         write_galleries()
     print('Rendered %d real-UI emulator screenshots.'%len(SCENES))
 

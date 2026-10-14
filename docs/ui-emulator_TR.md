@@ -20,7 +20,7 @@ Ardından yeniden başlatın:
 sudo systemctl restart Petrel.service
 ```
 
-Kapatmak için `PETREL_EMULATOR=0` yapıp yeniden başlatın. Kurulum/yapılandırma tekrarlandığında mevcut açık değer korunur. Eski kurulumda bağımlılıklar eksikse:
+Kapatmak için `PETREL_EMULATOR=0` yapıp yeniden başlatın. Kurulum/yapılandırma tekrarlandığında mevcut açık değer korunur. `./configure.sh`, özel font, socket ve ekran görüntüsü klasörü anahtarlarını da korur. Eski kurulumda bağımlılıklar eksikse:
 
 ```bash
 cd ~/Petrel
@@ -109,7 +109,7 @@ Tek üretim oturumunda aynı checkout'tan bütün çıktıları yenileyin:
 ~/petrel-env/bin/python tools/render_docs_workflows.py
 ```
 
-İlk komut özgün 272×480 panel PNG'lerini ve `docs/assets/screens/framed/` içindeki 528×900 sunum kopyalarını üretir; aynı UI pikselleri çerçeveye yeniden örneklenmeden yerleştirilir. İki galeri aynı sahne kaydından, aynı menü sırasıyla yenilenir. Mevcut 76 dosya adı korunur; yeni sahneler eklenir.
+İlk komut özgün 272×480 panel PNG'lerini ve `docs/assets/screens/framed/` içindeki 528×900 sunum kopyalarını üretir; aynı UI pikselleri çerçeveye yeniden örneklenmeden yerleştirilir. İki galeri aynı sahne kaydından, aynı menü sırasıyla yenilenir. Repo içindeki varsayılan hedefe üretirken `--frame` yazılmasa da çerçeveli kopyalar yenilenir. Bütün sahneler ve çerçeveler hazırlanıp başarıyla tamamlanmadan mevcut panel dosyaları değiştirilmez. Özel `--output-directory` hedefi ise yalnız `--frame` istenirse çerçeve üretir. Mevcut 76 dosya adı korunur; yeni sahneler eklenir.
 
 İkinci/üçüncü komut Print/Tune başarı akışını özgün/çerçeveli GIF olarak üretir. Son komut güç basılı tutma/iptal/engelleme, iki kırmızı ret yanıp sönmesi, uzun MMU hatası kaydırması ve 0/1/50/100% panel-native fan animasyonu için iki biçimde GIF üretir. Özgün GIF'ler `docs/assets/`, sunum kopyaları `docs/assets/framed/` içindedir. PNG komutu bu GIF'leri yenilemez.
 

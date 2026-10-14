@@ -2,7 +2,7 @@
 
 [English](installation.md) · [Türkçe](installation_TR.md) · [Dokümantasyon](README_TR.md)
 
-Bu belge Petrel'in arayüz restorasyonu geliştirme dalı `feature/graphite-theme` ile eşleşir; çalışma tamamlandığında `master` ile birleşecektir. Mevcut temiz `~/Petrel` kopyasında kurulumdan önce `git fetch origin` ve `git switch feature/graphite-theme` kullanabilirsiniz. Update Manager `master` izlediği için bu dalı korumak istediğiniz sürece onun güncelleme/kurtarma işlemlerini kullanmayın.
+Bu belge Petrel'in arayüz restorasyonu geliştirme dalı `feature/graphite-theme` ile eşleşir; çalışma tamamlandığında `master` ile birleşecektir. Mevcut temiz `~/Petrel` kopyasında kurulumdan önce `git fetch origin` ve `git switch feature/graphite-theme` kullanabilirsiniz. Update Manager `master` izlediği için bu dalı korumak istediğiniz sürece onun güncelleme/kurtarma işlemlerini kullanmayın. Dalı koruyan adımlar [geliştirme dalını güncelleme](#geliştirme-dalını-güncelleme) bölümündedir.
 
 ## Kurulumdan önce
 
@@ -70,7 +70,7 @@ cd ~/Petrel
 ./configure.sh
 ```
 
-Mevcut değerler soruların varsayılanı olur. Kaydettikten sonra değişiklikleri uygulamak için sunulan servis yeniden başlatmasını kabul edin. Ekran parlaklığı/kısma ayarları burada değil, LCD'de **Home → Display** altında yapılır.
+Mevcut değerler soruların varsayılanı olur. Özel `PETREL_SETTINGS_FILE` yolu ve yapılandırıcının sormadığı font/socket/görüntü klasörü dahil diğer ortam ayarları korunur; aynı anahtar tekrar eklenmez. Dosya özel izinlerle atomik olarak yenilenir. Kaydettikten sonra değişiklikleri uygulamak için sunulan servis yeniden başlatmasını kabul edin. Ekran parlaklığı/kısma ayarları burada değil, LCD'de **Home → Display** altında yapılır.
 
 Yapılandırıcının sormadığı ayarlar için harici ortam dosyasını düzenleyin. `export` kullanmadan düz `KEY=value` satırları yazın:
 
@@ -91,9 +91,35 @@ Düzenleme sonrası `sudo systemctl restart Petrel.service` ile yeniden başlat�
 
 ## Güncelleme
 
+### Geliştirme dalını güncelleme
+
+`feature/graphite-theme` kullanırken Update Manager/Info güncelleme veya kurtarması yerine bu yolu izleyin. Yazıcıyı boşta bırakın; takip edilen değişiklikleri ve eklediğiniz dosyaları ayrı yere kaydedin. Önce şunları kontrol edin:
+
+```bash
+cd ~/Petrel
+git status --short
+git branch --show-current
+```
+
+`git status --short` çıktısı boş olmalı. Ardından dalı seçip servisi durdurun; güncellemeyi yalnız ileri yönde alın, installer ile bağımlılık/servis kaydını yenileyin ve çalışan servisi yeniden başlatın:
+
+```bash
+git switch feature/graphite-theme &&
+sudo systemctl stop Petrel.service &&
+git pull --ff-only origin feature/graphite-theme &&
+./install.sh &&
+sudo systemctl restart Petrel.service
+```
+
+Bir adım başarısız olursa sonraki adımlar çalışmaz; dosyaları zorla sıfırlamayın. Servis durdurulmuş olabilir: sebebi giderip tamamladıktan sonra yeniden başlatın. Kontrol için `sudo systemctl status Petrel.service --no-pager` kullanın. Özel ortam ayarları korunur; ikonlar ilk LCD bağlantısında güncellenir, font ayrıca değiştiyse [LCD fontu](lcd-assets_TR.md#lcd-fontu) adımını tekrarlayın.
+
+Dal `master` ile birleşince temiz checkout’ta `git fetch origin` ve `git switch master` kullanarak normal güncelleme yoluna dönün; bu geçici dal notları da aynı birleşmede kaldırılmalıdır.
+
+### Normal güncelleme ve eski kurulumdan geçiş
+
 Mevcut kurulum, sonraki Moonraker güncellemesinden sonra otomatik taşınır: eski updater bu sürümü indirir ve ilk servis açılışı ayrı bir geçiş işi başlatır. Ayarlar korunur, repo `~/Petrel` konumuna taşınır, `~/petrel-env` hazırlanır, `Petrel.service` kurulur ve Moonraker yeni updater kaydıyla yeniden başlatılır. Python bağımlılıkları için birkaç dakika bekleyin. Otomatik geçiş Pi üzerinde şifresiz sudo erişimi gerektirir; bu yoksa bir kez `sudo python3 ~/KlipperDWIN/petrel_migration.py --user "$USER"` çalıştırın. Mevcut bir Petrel kurulumunun üzerine yazılmaz. Servis geçişi başarısız olursa önceki kurulum geri yüklenir; ayrıntılar `journalctl -u Petrel-migration.service` içindedir.
 
-Moonraker yapılandırmasını yeniden okuduktan sonra **Mainsail → Machine → Update Manager → Petrel** yolunu kullanın. Listeyi yenileyip güncelleyin; bağımlılıklar ve servis yeniden başlatması otomatik yapılır. Update Manager `master` dalını takip eder.
+`master` kurulumunda, Moonraker yapılandırmasını yeniden okuduktan sonra **Mainsail → Machine → Update Manager → Petrel** yolunu kullanın. Listeyi yenileyip güncelleyin; bağımlılıklar ve servis yeniden başlatması otomatik yapılır. Update Manager `master` dalını takip eder.
 
 Yazıcı boşta iken LCD'deki **Info** bölümünden de Petrel güncellemelerini kontrol edip yükleyebilirsiniz. [Info ve güncellemeler](user-guide_TR.md#info-ve-güncellemeler) bölümüne bakın. Takip edilen repo dosyalarındaki yerel değişiklikler güncellemeyi engelleyebilir; kurtarma bunları silmeden önce inceleyin veya yedekleyin.
 

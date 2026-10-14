@@ -20,7 +20,7 @@ Then restart:
 sudo systemctl restart Petrel.service
 ```
 
-To disable, set `PETREL_EMULATOR=0` and restart again. Re-running installation/configuration preserves an existing enabled value. For an older installation missing dependencies:
+To disable, set `PETREL_EMULATOR=0` and restart again. Re-running installation/configuration preserves an existing enabled value. `./configure.sh` also retains your custom font, socket and screenshot-directory settings. For an older installation missing dependencies:
 
 ```bash
 cd ~/Petrel
@@ -109,7 +109,7 @@ Regenerate all outputs from the same checkout in one production session:
 ~/petrel-env/bin/python tools/render_docs_workflows.py
 ```
 
-The first command produces native 272×480 panel PNGs plus 528×900 presentation copies in `docs/assets/screens/framed/`; the UI pixels are placed in the enclosure without resampling. Both galleries regenerate from one scene registry in the same menu order. The original 76 filenames remain; new scenes are added.
+The first command produces native 272×480 panel PNGs plus 528×900 presentation copies in `docs/assets/screens/framed/`; the UI pixels are placed in the enclosure without resampling. Both galleries regenerate from one scene registry in the same menu order. The default repository destination refreshes framed copies even without `--frame`. Existing panel files are replaced only after all scenes and presentation frames finish successfully. A custom `--output-directory` produces frames only when `--frame` is requested. The original 76 filenames remain; new scenes are added.
 
 The second/third commands produce the successful Print/Tune walkthrough as native/framed GIF. The final command produces both forms of power hold/cancel/blocking, two red rejection blinks, long MMU error scrolling and 0/1/50/100% panel-native fan animation. Native GIFs go in `docs/assets/`, presentation copies in `docs/assets/framed/`. The PNG command does not refresh these GIFs.
 

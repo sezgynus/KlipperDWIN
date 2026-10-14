@@ -49,5 +49,7 @@ Bağlantı kesilmesi veya belirsiz işlem sonrası gerçek durumu doğrulayın v
 | Güç kısayolu | `test_power_shortcut.py` | 450 ms gecikme, 1.2 s kapatma/2 s açma ayrımı, yarım hold, korunmuş Tune taslağı, aktif/paused baskıda engel |
 | JPEG/font ve buton kaynakları | `test_lcd_assets.py`, `test_native_custom_icons.py` | Font ID 0, 4:2:0, iki durumda aynı buton maskesi, seçimden kalan piksel olmaması |
 | Paketleme/senkronizasyon | `test_icon_library_packing.py`, `test_managed_icon_library.py` | Kaynak/export denkliği, library 3, yeniden yüklemeden sonra ikonlar |
+| Yapılandırma koruma | `test_install_defaults.py` | configure.sh sonrasında özel preset/font/socket/görüntü klasörü korunur; tekrar çalıştırmada anahtar çoğalmaz |
+| Dokümantasyon üretimi | `test_docs_screenshots.py` | Varsayılan komutta panel/çerçeve aynı pikselleri taşır; çerçeve hatası önceki çıktıyı korur; önizleme tam boyuta açılır |
 
 Yeni senaryolar için [galeriyi](../docs/screenshots_TR.md) ve [PNG/GIF yeniden üretimini](../docs/ui-emulator_TR.md#png-çerçeve-ve-gif-yenileme) kontrol edin. Başlık/satır sayısı EN/TR anlam denkliğini kanıtlamaz; özellikler, uyarılar, komut blokları, birimler ve görsel sırası da incelenmelidir.

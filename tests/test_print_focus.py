@@ -23,6 +23,17 @@ class PrintFocusTests(unittest.TestCase):
         v.get_encoder_state=Mock(return_value=v.ENCODER_DIFF_ENTER)
         return v,data
 
+
+    def test_tune_selection_bitmap_cap_packet_budget(self):
+        v, _ = self.view()
+        v.lcd = driver()
+        with patch('t5uic1_driver.time.sleep'):
+            v._focus_round(10, 64, 252, 20, 0x2967, 5)
+        frames = v.lcd.MYSERIAL1.frames
+        self.assertLessEqual(len(frames), 6)
+        self.assertLess(sum(map(len, frames)), 550)
+        self.assertEqual(sum(frame[1] == 0x08 for frame in frames), 2)
+
     def test_all_seventeen_settings_fit_one_screen(self):
         v,_=self.view();v._focus_tune_open()
         self.assertEqual(len(v._focus_tune_rows()),18)

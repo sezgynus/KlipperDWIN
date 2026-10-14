@@ -1,6 +1,8 @@
 """Print-focused views with bounded, field-only rendering and quiet edits."""
 import time
 import textwrap
+import math
+from functools import lru_cache
 from concurrent.futures import Future
 from collections.abc import Mapping
 from graphite_theme import show_icon
@@ -8,6 +10,26 @@ from lcd_resources import (ICON_PRINT_TUNE, ICON_PRINT_PAUSE, ICON_PRINT_RESUME,
                            ICON_PRINT_STOP, ICON_PRINT_MMU, ICON_JOB_SWITCH_OFF,
                            ICON_JOB_SWITCH_ON, ICON_PRINT_TUNE_WIDE,
                            ICON_PRINT_CLOSE, PRINT_BUTTON_SELECTED)
+
+
+@lru_cache(maxsize=64)
+def _focus_round_caps(width, radius):
+    """Opaque one-bit top/bottom caps for a native bitmap fill."""
+    row_bytes = (width + 7) // 8
+    rows = []
+    for y in range(radius):
+        dx = math.isqrt(radius * radius - (radius - y) ** 2)
+        inset = radius - dx
+        bits = ((1 << (width - 2 * inset)) - 1) << inset
+        rows.append((bits << (row_bytes * 8 - width)).to_bytes(row_bytes, 'big'))
+    limit = max(1, (248 - 10) // row_bytes)
+
+    def chunks(lines):
+        return tuple((offset, b''.join(lines[offset:offset + limit]))
+                     for offset in range(0, len(lines), limit))
+    return chunks(rows), chunks(tuple(reversed(rows)))
+
+
 
 
 class PrintFocusMixin:
@@ -20,12 +42,20 @@ class PrintFocusMixin:
                            self.lcd.Color_Bg_Black if bg is None else bg, x, y, str(text))
 
     def _focus_round(self, x, y, w, h, color, radius=5):
-        # Filled circles expand into UART scanlines; use this only for infrequent panels.
+        # Two native fills plus bitmap corner caps, not 4x software circles.
+        # The graphics have no text; labels remain runtime-rendered.
+        radius = max(0, min(int(radius), w // 2, h // 2))
+        if radius == 0:
+            self.lcd.draw_rectangle(1, color, x, y, x+w-1, y+h-1)
+            return
         self.lcd.draw_rectangle(1, color, x+radius, y, x+w-radius-1, y+h-1)
         self.lcd.draw_rectangle(1, color, x, y+radius, x+w-1, y+h-radius-1)
-        for cx in (x+radius, x+w-radius-1):
-            for cy in (y+radius, y+h-radius-1):
-                self.lcd.fill_circle(color, cx, cy, radius)
+        top, bottom = _focus_round_caps(w, radius)
+        for offset, bitmap in top:
+            self.lcd.draw_bitmap(x, y+offset, w, color, self.lcd.Color_Bg_Black, bitmap)
+        for offset, bitmap in bottom:
+            self.lcd.draw_bitmap(x, y+h-radius+offset, w,
+                                 color, self.lcd.Color_Bg_Black, bitmap)
 
     @staticmethod
     def _focus_time(seconds):

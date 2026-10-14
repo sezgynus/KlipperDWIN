@@ -748,7 +748,14 @@ class PrinterData:
             print_state = job['print_stats']['state']
             position = toolhead['position']
             x, y, z, e = position[:4]
-            origin = gcm['homing_origin'][2]
+            command_position = gcm.get('position', position)
+            if len(command_position) < 4 or not all(math.isfinite(float(v)) for v in command_position[:4]):
+                raise ValueError('Invalid command position')
+            if not all(math.isfinite(float(v)) for v in position[:4]) or len(position) < 4:
+                raise ValueError('Invalid toolhead position')
+            origin = float(gcm['homing_origin'][2])
+            if not math.isfinite(origin):
+                raise ValueError('Invalid homing origin')
             absolute_moves = gcm['absolute_coordinates']
             absolute_extrude = gcm['absolute_extrude']
             speed_percent = float(gcm.get('speed_factor', 1.0)) * 100

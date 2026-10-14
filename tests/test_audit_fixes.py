@@ -39,3 +39,10 @@ class AuditRegressionTests(unittest.TestCase):
         p.set_print_setting('pin@'+name,1)
         p.sendGCode.assert_called_with('SET_PIN PIN='+name+' VALUE=1')
 
+    def test_invalid_command_position_and_origin_are_rejected(self):
+        for field,index in (('position',0),('homing_origin',2)):
+            data=snapshot();p=printer(data)
+            data['status']['gcode_move'][field][index]=float('nan')
+            self.assertFalse(p.update_variable())
+            self.assertTrue(p.connection_error)
+

@@ -23,6 +23,10 @@ class GraphiteContracts(unittest.TestCase):
             for x in (*range(71, 77), *range(192, 201)):
                 for y in range(48, 80):
                     self.assertEqual(fb.image.getpixel((x, y)), rgb565(background))
+            # No slogan fragment or matte residue below the logo's bowl.
+            for x in range(101, 106):
+                for y in range(71, 80):
+                    self.assertEqual(fb.image.getpixel((x, y)), rgb565(background))
         # The brand contains both its blue/cyan mark and a clean white wordmark.
         self.assertTrue(any(b > 180 and r < 80 for r, g, b in icon.getdata()))
         self.assertTrue(any(min(pixel) > 240 for pixel in icon.getdata()))

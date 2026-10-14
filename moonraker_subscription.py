@@ -258,6 +258,46 @@ class MoonrakerSubscription:
         """Nonblocking RPC; Future resolves on completion, never on dispatch."""
         return self.notify(method, params, completion=True, guard=guard)
 
+    def request_script_with_cleanup(self, script, cleanup, guard):
+        """Completion RPCs for acknowledged SAVE, movement and non-moving recovery."""
+        first, rest = script.split('\n', 1)
+        if not first.startswith('SAVE_GCODE_STATE NAME='):
+            raise ValueError('Motion sequence must start with SAVE_GCODE_STATE')
+        epoch = self.lifecycle()['epoch']
+        result = Future()
+        result.set_running_or_notify_cancel()
+        result.cleanup_complete = False
+
+        def same_epoch():
+            live = self.snapshot()
+            return (live['state'] == 'ready' and live['epoch'] == epoch
+                    and live['status'].get('print_stats', {}).get('state')
+                    in ('standby', 'complete', 'cancelled', 'error'))
+
+        def failed(done):
+            return done.cancelled() or done.exception() is not None
+
+        def saved(done):
+            if failed(done):
+                result.cleanup_complete = True
+                result.set_exception(MoonrakerError('Motion preparation failed'))
+                return
+            movement = self.request('printer.gcode.script', {'script': rest}, guard=guard)
+            def moved(done):
+                if not failed(done):
+                    result.cleanup_complete = True
+                    result.set_result(done.result())
+                    return
+                recovery = self.request('printer.gcode.script', {'script': cleanup}, guard=same_epoch)
+                def restored(done):
+                    result.cleanup_complete = not failed(done)
+                    result.set_exception(MoonrakerError('Motion failed; check printer'))
+                recovery.add_done_callback(restored)
+            movement.add_done_callback(moved)
+        preparation = self.request('printer.gcode.script', {'script': first}, guard=guard)
+        preparation.add_done_callback(saved)
+        return result
+
     def notify(self, method, params=None, completion=False, guard=None):
         future = Future()
         with self._lock:

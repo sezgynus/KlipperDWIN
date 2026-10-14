@@ -1230,6 +1230,8 @@ class PrinterData:
                 raise ValueError('Restore jog state before sending motion commands')
         if dispatch_guard is None and gcode.strip() in ('G28', 'G28 X Y', 'G28 X Y Z', 'M84'):
             dispatch_guard = motion_dispatch_guard(self)
+        if cleanup is not None and gcode.startswith('SAVE_GCODE_STATE NAME=LCD_PROBE_CENTER\n'):
+            return self.subscription.request_script_with_cleanup(gcode, cleanup, dispatch_guard)
         if cleanup is not None:
             return self.postREST('/printer/gcode/script', json={'script': gcode},
                                  cleanup={'script': cleanup}, report_error=report_error, dispatch_guard=dispatch_guard)

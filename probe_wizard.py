@@ -47,7 +47,7 @@ class ProbeWizard:
                 return (motion_guard() and all(a in live.get('homed_axes', '') for a in 'xyz')
                         and all(abs(live['position'][a]-self.center[a]) <= .05 for a in (0,1)))
         if action == 'center':
-            # The HTTP command worker confirms SAVE before changing modal state,
+            # Completion RPC confirms SAVE before changing modal state,
             # and sends RESTORE separately if movement fails. Never replay G1.
             self._center_restore = 'RESTORE_GCODE_STATE NAME=LCD_PROBE_CENTER MOVE=0'
             future = self.printer.sendGCode(script, cleanup=self._center_restore,

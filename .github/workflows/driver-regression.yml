@@ -36,4 +36,5 @@ jobs:
       - name: Run regression suite
         run: python -m unittest discover -s tests -v
 
-# Audit verification: fix(audit B08)
+
+# Audit verification: fix(audit B15)

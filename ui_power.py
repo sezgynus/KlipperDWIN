@@ -2,6 +2,8 @@
 import time
 from concurrent.futures import Future
 from ui_events import InputEvent
+from graphite_theme import show_icon
+from lcd_resources import ICON_POWER_HOLD_PANEL
 
 
 class PowerShortcutMixin:
@@ -89,7 +91,7 @@ class PowerShortcutMixin:
         dirty = not self._power_hold_visible
         if not self._power_hold_visible:
             self._power_hold_visible = True
-            self._draw_pill(self.lcd, 28, 160, 216, 98, self.lcd.Color_Bg_Window)
+            show_icon(self.lcd, self.ICON, ICON_POWER_HOLD_PANEL, 28, 160)
             self.lcd.draw_text(False, False, self.lcd.font8x16,
                 self.lcd.Popup_Text_Color, self.lcd.Color_Bg_Window, 80, 178, 'Hold for power')
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 44, 214, 227, 221)

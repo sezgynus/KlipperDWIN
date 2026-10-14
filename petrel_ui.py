@@ -3502,6 +3502,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             for yes, label, x, width in choices:
                 fill = (0xB986 if yes else 0x19E9) if self._power_confirm_yes == yes else self.lcd.Color_Bg_Window
                 icon = (ICON_POWER_BUTTON_OFF if yes else ICON_POWER_BUTTON_CANCEL) if self._power_confirm_yes == yes else ICON_POWER_BUTTON_NORMAL
+                self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Window, x, 224, x+width-1, 259)
                 show_theme_icon(self.lcd, self.ICON, icon, x, 224)
                 self.lcd.draw_text(False, False, self.lcd.font8x16,
                     0xFBAE if yes and not self._power_confirm_yes else self.lcd.Popup_Text_Color,

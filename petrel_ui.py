@@ -925,10 +925,14 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         event = self.get_encoder_state()
         if event not in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
             return False
-        if event == self.ENCODER_DIFF_CW:
-            selection.inc(1 + len(self._menus[menu]))
-        else:
-            selection.dec()
+        # Coalesced detents have a single final menu position. Avoid drawing
+        # each intermediate row/window on the UART owner thread.
+        steps = max(1, int(getattr(self, '_menu_batch_steps', 1)))
+        target = selection.now + (steps if event == self.ENCODER_DIFF_CW else -steps)
+        target = max(0, min(len(self._menus[menu]), target))
+        if target == selection.now:
+            return True
+        selection.set(target)
         bottom = getattr(self, index_name, self.MROWS)
         if selection.now > bottom:
             bottom = selection.now
@@ -1275,6 +1279,13 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._encoder_move_value = raw_count * min(acceleration_cap, effective_multiplier)
         else:
             self._encoder_move_value = 1
+        batched_menu = (event.kind == 'rotate' and count > 1
+                        and self.checkkey in (self.Prepare, self.Control,
+                                              self.TemperatureID,
+                                              self.PLAPreheat, self.ABSPreheat))
+        self._menu_batch_steps = count if batched_menu else 1
+        if batched_menu:
+            count = 1
         lcd = getattr(self, 'lcd', None)
         if lcd is not None:
             lcd._defer_updates = True
@@ -1297,6 +1308,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         finally:
             self._encoder_event = self.ENCODER_DIFF_NO
             self._encoder_move_value = 1
+            self._menu_batch_steps = 1
             if (lcd is not None and self.lcd is lcd
                     and not getattr(lcd, '_closed', False)):
                 lcd._defer_updates = False

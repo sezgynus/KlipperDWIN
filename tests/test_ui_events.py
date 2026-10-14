@@ -209,6 +209,24 @@ class InputRoutingTests(unittest.TestCase):
         self.assertEqual(seen, [display.ENCODER_DIFF_CW] * 3 + [display.ENCODER_DIFF_ENTER])
         self.assertEqual(display.get_encoder_state(), display.ENCODER_DIFF_NO)
 
+    def test_coalesced_prepare_navigation_draws_only_final_selection(self):
+        from test_capabilities import display, snapshot
+        view = display(snapshot())
+        view._closed = False
+        view.checkkey = view.Prepare
+        view._encoder_event = view.ENCODER_DIFF_NO
+        view._sync_input_state = Mock(return_value=True)
+        view._display_activity = Mock(return_value=False)
+        view._buzzer_feedback = Mock()
+        view._sync_case_light_tracking = Mock()
+        view.Draw_Prepare_Menu = Mock()
+        view._dispatch_input = view.HMI_Prepare
+        view._process_input(InputEvent('rotate', -4, view.pd.state.epoch))
+        self.assertEqual(view.select_prepare.now, 4)
+        view.Draw_Prepare_Menu.assert_called_once()
+        self.assertEqual(view._menu_batch_steps, 1)
+        self.assertEqual(view._encoder_event, view.ENCODER_DIFF_NO)
+
     def test_numeric_editor_consumes_accelerated_batch_once(self):
         display = self.display()
         display.checkkey = display.Move_X

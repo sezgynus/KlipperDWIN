@@ -43,7 +43,7 @@ A value or switch immediately shows the new choice. If the command is rejected, 
 
 ## Recover from an MMU error
 
-Happy Hare shows the active tool's mapped gate color/material. Toolchange source/target use reported `last_tool` / `next_tool`; unknown values are never guessed.
+Happy Hare shows the active tool’s mapped gate color/material. The toolchange source comes from top-level `last_tool`, or `toolchange.from_tool` when the top-level field is absent. The target comes from top-level `next_tool`, or `toolchange.next_tool` when absent. If the source value is missing (`None`) and the reported MMU action is outside `Idle`/`Unknown`, the reported active tool may be used as the source. The source/target change indicator is shown only for valid, distinct tool IDs; a missing target is not filled in.
 
 1. An MMU lock keeps you on Print, shows the reason and replaces **Resume** with **MMU**.
 2. Select **MMU** to open the full error reader; rotate to scroll long text.

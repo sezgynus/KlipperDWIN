@@ -43,7 +43,7 @@ Değer veya switch hemen yeni seçimi gösterir. Komut reddedilirse güncel abon
 
 ## MMU hatasından devam etme
 
-Happy Hare varsa aktif tool'un eşlendiği gate rengi/malzemesi gösterilir. Toolchange kaynak/hedefi bildirilen `last_tool` / `next_tool` değerleridir; bilinmeyen değerler tahmin edilmez.
+Happy Hare varsa aktif tool’un eşlendiği gate rengi/malzemesi gösterilir. Toolchange kaynağı üst düzey `last_tool`, bu alan yoksa `toolchange.from_tool` üzerinden okunur. Hedef üst düzey `next_tool`, bu alan yoksa `toolchange.next_tool` üzerinden okunur. Kaynak değeri eksik (`None`) ve bildirilen MMU eylemi `Idle`/`Unknown` dışında ise bildirilen aktif tool kaynak olarak kullanılabilir. Kaynak ve hedef geçerli, farklı tool ID’leri değilse kaynak/hedef değişim göstergesi çizilmez; eksik hedef tamamlanmaz.
 
 1. MMU kilitlenince Print'te kalırsınız; hata özeti görünür ve **Resume** yerine **MMU** çıkar.
 2. **MMU** ile tam hata okuyucusunu açın; uzun metni çevirerek kaydırın.

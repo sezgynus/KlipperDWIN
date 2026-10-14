@@ -15,10 +15,12 @@ Klipper'a geçtikten sonra uyumlu Ender 3 V2 ekranını yeniden kullanın: yazı
 </p>
 
 <p align="center">
-  <img src="docs/assets/screens/framed/home.png" width="220" alt="İsteğe bağlı MMU ile Petrel Home">
-  <img src="docs/assets/screens/framed/printing.png" width="220" alt="Baskı ilerlemesi ve enkoder kontrolleri">
-  <img src="docs/assets/screens/framed/tune.png" width="220" alt="Çalışma anındaki Tune ayarları">
+  <a href="docs/assets/screens/home.png"><img src="docs/assets/screens/framed/home.png" width="220" alt="İsteğe bağlı MMU ile Petrel Home"></a>
+  <a href="docs/assets/screens/printing.png"><img src="docs/assets/screens/framed/printing.png" width="220" alt="Baskı ilerlemesi ve enkoder kontrolleri"></a>
+  <a href="docs/assets/screens/tune.png"><img src="docs/assets/screens/framed/tune.png" width="220" alt="Çalışma anındaki Tune ayarları"></a>
 </p>
+
+**Tam boyut aç:** [Home](docs/assets/screens/home.png) · [Print](docs/assets/screens/printing.png) · [Tune](docs/assets/screens/tune.png).
 
 *Gerçek UI/driver kodunun örnek verilerle üretilmiş emülatör çıktısıdır; fotoğraf veya fiziksel ölçüm değildir. [Ekranları inceleyin](docs/screenshots_TR.md).*
 
@@ -66,7 +68,7 @@ cd ~/Petrel
 
 Installer bağımlılıkları, `Petrel.service` servisini, harici ayarları ve Moonraker Update Manager kaydını hazırlar. [LCD fontu ve ilk açılış kontrollerini](docs/installation_TR.md#lcd-kaynakları-ve-ilk-açılış) tamamlayın. Update Manager şu anda `master` izler; geliştirme kopyasını güncellemeden önce [güncelleme rehberini](docs/installation_TR.md#güncelleme) okuyun. Mevcut kurulumların ayarları [geçişte](docs/installation_TR.md#güncelleme) korunur.
 
-Bağlantı/enkoder/güç ayarlarını daha sonra değiştirmek için `~/Petrel` içinde `./configure.sh` çalıştırın. Gezinmek için çevirin, seçmek için basın; sayısal düzenleyicide çevirip Apply kullanın. **Back** geri döner; Home sayfaları arasında ilerlemek için çevirmeye devam edin.
+Bağlantı/enkoder/güç ayarlarını daha sonra değiştirmek için `~/Petrel` içinde `./configure.sh` çalıştırın. Gezinmek için çevirin, seçmek için basın; sayısal değerlerde çevirip yeniden basarak onaylayın. Tune düzenleyicisi **Apply** kullanır; bazı sayfalarda ayrıca **Save** gerekir. **Back** geri döner; Home sayfaları arasında ilerlemek için çevirmeye devam edin.
 
 ## Doğru rehberi bulun
 

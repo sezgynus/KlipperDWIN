@@ -15,10 +15,12 @@ Reuse the compatible Ender 3 V2 screen after moving to Klipper: choose a file, a
 </p>
 
 <p align="center">
-  <img src="docs/assets/screens/framed/home.png" width="220" alt="Petrel Home with optional MMU">
-  <img src="docs/assets/screens/framed/printing.png" width="220" alt="Print progress and encoder controls">
-  <img src="docs/assets/screens/framed/tune.png" width="220" alt="Runtime Tune controls">
+  <a href="docs/assets/screens/home.png"><img src="docs/assets/screens/framed/home.png" width="220" alt="Petrel Home with optional MMU"></a>
+  <a href="docs/assets/screens/printing.png"><img src="docs/assets/screens/framed/printing.png" width="220" alt="Print progress and encoder controls"></a>
+  <a href="docs/assets/screens/tune.png"><img src="docs/assets/screens/framed/tune.png" width="220" alt="Runtime Tune controls"></a>
 </p>
+
+**Open full size:** [Home](docs/assets/screens/home.png) · [Print](docs/assets/screens/printing.png) · [Tune](docs/assets/screens/tune.png).
 
 *Real UI/driver emulator output with example data; these are not photographs or physical measurements. [Explore the screens](docs/screenshots.md).*
 
@@ -66,7 +68,7 @@ cd ~/Petrel
 
 The installer prepares dependencies, `Petrel.service`, external settings and Moonraker Update Manager. Complete the [LCD font and first-start checks](docs/installation.md#lcd-resources-and-first-start). Update Manager currently follows `master`; read the [update guidance](docs/installation.md#update) before updating this development checkout. Existing installations preserve settings during [migration](docs/installation.md#update).
 
-To change connection/encoder/power settings later, run `./configure.sh` from `~/Petrel`. Rotate to navigate and press to select; numeric editors use rotate then Apply. **Back** returns; keep rotating to move between Home pages.
+To change connection/encoder/power settings later, run `./configure.sh` from `~/Petrel`. Rotate to navigate and press to select; confirm numeric values by rotating and pressing again. The Tune editor uses **Apply**; some pages also require **Save**. **Back** returns; keep rotating to move between Home pages.
 
 ## Find the right guide
 

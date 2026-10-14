@@ -22,7 +22,7 @@ Previews come from Moonraker and do not need a new panel asset pack. Missing thu
 
 The application now builds library 3 from [`assets/icons`](../assets/icons/README.md) and automatically uploads changed blocks at the first LCD connection after an update. Unchanged resources are skipped. Follow that guide to add JPEGs, export a pack or force a reload after reinstalling panel resources.
 
-Automatic synchronization is the normal path. For developer diagnostics only, the bundled reference `3.ICO` can be uploaded over UART:
+Automatic synchronization is the normal path. For developer diagnostics, the following command rebuilds the pack from current `assets/icons` JPEG sources and uploads it over UART; it does not read the reference ICO file:
 
 ```sh
 sudo systemctl stop Petrel.service
@@ -30,6 +30,13 @@ sudo systemctl stop Petrel.service
 ```
 
 The tool uses the configured serial port and writes slots starting at 3 (one slot per 32 KiB block). Failed writes leave the service stopped. It checks write acknowledgements, without Flash readback. Inspect the icons on the physical panel after upload.
+
+To inspect the reference export itself, pass `--file` explicitly with the service stopped. This uploads the specified file's bytes rather than rebuilding from JPEG sources; the reference export may differ or be older if sources have changed:
+
+```sh
+sudo systemctl stop Petrel.service
+~/petrel-env/bin/python ~/Petrel/tools/flash_icon_library.py --file ~/Petrel/assets/emulator/3.ICO && sudo systemctl start Petrel.service
+```
 
 For contributor artwork, `tools/pack_icon_library.py source.ICO destination.ICO --library 3` preserves JPEG images while keeping each icon within one 32 KiB block. This layout avoids splitting icons at the boundaries associated with the observed rendering faults.
 

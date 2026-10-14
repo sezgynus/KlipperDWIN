@@ -22,7 +22,7 @@ Kurulumdan sonra fiziksel ekranda menü yazılarını/ikonlarını, renkleri, ö
 
 Uygulama artık kütüphane 3'yi [`assets/icons`](../assets/icons/README_TR.md) kaynaklarından oluşturur ve güncelleme sonrası ilk LCD bağlantısında değişen blokları otomatik yükler. Değişmeyen kaynaklar atlanır. JPEG ekleme, paketi dışa aktarma ve panel kaynakları yeniden kurulduktan sonra zorla yükleme için bu kılavuzu kullanın.
 
-Normal kullanımda otomatik eşitleme yeterlidir. Yalnız geliştirici tanılaması için referans `3.ICO` paketini UART üzerinden yükleyebilirsiniz:
+Normal kullanımda otomatik eşitleme yeterlidir. Geliştirici tanılaması için aşağıdaki komut güncel `assets/icons` JPEG kaynaklarından paketi yeniden oluşturup UART üzerinden yükler; referans ICO dosyasını okumaz:
 
 ```sh
 sudo systemctl stop Petrel.service
@@ -30,6 +30,13 @@ sudo systemctl stop Petrel.service
 ```
 
 Araç yapılandırılmış seri portu kullanır ve 3’ten başlayan slotlara yazar (her 32 KiB blok için bir slot). Yazma başarısız olursa servis kapalı kalır. Yazma onayları kontrol edilir; Flash geri okuması yapılmaz. Yüklemeden sonra ikonları fiziksel panelde kontrol edin.
+
+Referans export dosyasının kendisini incelemek için servis kapalıyken açıkça `--file` verin. Aşağıdaki işlem, JPEG kaynaklarından yeniden paketlemek yerine belirtilen dosyanın baytlarını yükler; kaynaklar değiştiyse bu referans dosya farklı veya eski olabilir:
+
+```sh
+sudo systemctl stop Petrel.service
+~/petrel-env/bin/python ~/Petrel/tools/flash_icon_library.py --file ~/Petrel/assets/emulator/3.ICO && sudo systemctl start Petrel.service
+```
 
 Katkı görselleri için `tools/pack_icon_library.py kaynak.ICO hedef.ICO --library 3`, JPEG görsellerini koruyarak her ikonu tek bir 32 KiB blokta tutar. Böylece gözlenen çizim sorunlarıyla ilişkili blok sınırlarında ikonların bölünmesi önlenir.
 

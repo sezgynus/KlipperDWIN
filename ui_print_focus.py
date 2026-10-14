@@ -11,7 +11,8 @@ from lcd_resources import (ICON_PRINT_TUNE, ICON_PRINT_PAUSE, ICON_PRINT_RESUME,
                            ICON_JOB_SWITCH_ON, ICON_PRINT_TUNE_WIDE,
                            ICON_PRINT_CLOSE, PRINT_BUTTON_SELECTED,
                            ICON_STOP_BUTTON_NORMAL, ICON_STOP_BUTTON_SELECTED,
-                           ICON_STOP_BUTTON_DANGER, ICON_STOP_PANEL)
+                           ICON_STOP_BUTTON_DANGER, ICON_STOP_PANEL,
+                           ICON_MMU_ERROR_SELECTED, ICON_MMU_ERROR_NORMAL)
 
 
 @lru_cache(maxsize=64)
@@ -434,8 +435,8 @@ class PrintFocusMixin:
         if not viewport_only:
             for i, label in enumerate(('MMU recovery', 'Back')):
                 y = 410 + i * 34
-                self._focus_round(14, y, 244, 30,
-                                  0x063B if self._focus_error_choice == i else 0x2967, 8)
+                icon = ICON_MMU_ERROR_SELECTED if self._focus_error_choice == i else ICON_MMU_ERROR_NORMAL
+                show_icon(self.lcd, self.ICON, icon, 14, y)
                 self._focus_text(label, (272 - len(label) * 8) // 2,
                                  y + 7, color=0x10C4 if self._focus_error_choice == i else 0xFFFF)
 

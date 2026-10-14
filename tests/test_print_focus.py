@@ -224,7 +224,8 @@ class PrintFocusTests(unittest.TestCase):
         v.get_encoder_state.return_value = v.ENCODER_DIFF_CW
         v._focus_error_input()
         self.assertEqual(v._focus_error_choice, 1)
-        self.assertGreater(v.lcd.draw_bitmap.call_count, 0)
+        self.assertEqual(v.lcd.show_icon.call_count, 2)
+        v.lcd.draw_bitmap.assert_not_called()
         v.lcd.reset_mock()
         v._focus_error_input()
         v.lcd.draw_rectangle.assert_not_called()

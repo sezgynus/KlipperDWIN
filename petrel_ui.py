@@ -719,10 +719,15 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 return
             if (getattr(self, 'checkkey', None) == self.MMUMenu
                     and getattr(self, '_mmu_page', None) == 'home'):
+                view = getattr(self, '_mmu_filament_view', None)
+                state = getattr(self, '_mmu_animation_state', None)
+                animating = bool(view is not None and state is not None
+                                 and view.animating(state, now))
                 if hasattr(self, '_loop'):
-                    self._loop.set_interval(.05)
+                    self._loop.set_interval(.05 if animating else .5)
                 if now < getattr(self, '_mmu_status_at', 0):
-                    self._mmu_animation_tick()
+                    if animating:
+                        self._mmu_animation_tick()
                     return
                 self._mmu_status_at = now + .5
             elif getattr(self, 'checkkey', None) == self.FilePreview:

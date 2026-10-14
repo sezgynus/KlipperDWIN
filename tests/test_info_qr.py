@@ -13,13 +13,15 @@ class InfoQRTests(unittest.TestCase):
         view.lcd.reset_mock()
         view._draw_info_update_button(300, False)
         view.lcd.draw_bitmap.assert_not_called()
+        view.lcd.show_icon.assert_not_called()
         view.lcd.draw_text.assert_not_called()
         updater.label = 'Update'
         view._draw_info_update_button(300, False)
         view.lcd.draw_rectangle.assert_called_once_with(1, 0x2967, 46, 300, 226, 319)
         view.lcd.reset_mock()
         view._draw_info_update_button(300, True)
-        self.assertGreater(view.lcd.draw_bitmap.call_count, 0)
+        view.lcd.draw_bitmap.assert_not_called()
+        self.assertEqual(view.lcd.show_icon.call_count, 1)
 
 
     def test_native_qr_stays_inside_menu_at_every_scroll_position(self):

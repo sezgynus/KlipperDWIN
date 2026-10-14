@@ -157,7 +157,7 @@ class PrintFocusMixin:
         target = raw.get('next_tool',target)
         m = self._focus_mmu()
         if source is None and m and m.action.lower() not in ('idle','unknown'): source=tool
-        changing = all(isinstance(v,int) and not isinstance(v,bool) and 0<=v<m.num_gates for v in (source,target)) and source!=target
+        changing = bool(m) and all(isinstance(v,int) and not isinstance(v,bool) and 0<=v<m.num_gates for v in (source,target)) and source!=target
         token = (label,tool,self._focus_color(tool),source,target,changing)
         def draw_filament():
             if changing:

@@ -6,11 +6,18 @@ from software_update import SoftwareUpdate
 
 
 class UpdateTests(unittest.TestCase):
+    def test_update_lane_is_separate_from_normal_reads(self):
+        from test_capabilities import printer as make_printer, snapshot
+        backend = make_printer(snapshot())
+        self.assertIsNot(backend._read_worker, backend._maintenance_worker)
+        backend.close()
+
     def make(self, name='Petrel'):
         snapshot = {'state': 'ready', 'epoch': 1, 'status': {'print_stats': {'state': 'standby'}}}
         printer = SimpleNamespace(subscription=Mock(), client=SimpleNamespace(url='http://localhost:7125', headers={}), _read_worker=Mock())
         printer.subscription.snapshot.return_value = snapshot
         worker = printer._read_worker
+        printer._maintenance_worker = worker
         def submit(work):
             f = Future()
             try: f.set_result(work())

@@ -177,6 +177,9 @@ class PrinterData:
                  power_device='Printer'):
         self.client = MoonrakerClient(URL, API_Key, timeout)
         self._read_worker = ReadWorker(timeout)
+        # HTTP maintenance can wait up to 120s; never hold normal telemetry,
+        # file browsing or preset reads behind an update request.
+        self._maintenance_worker = ReadWorker(timeout=1, capacity=2)
         self._read_jobs = {}
         self._settings_save = None
         self._files_loading = self._directory_loading = False
@@ -445,6 +448,7 @@ class PrinterData:
     def close(self):
         self.subscription.close()
         self._read_worker.close()
+        self._maintenance_worker.close()
         self.spoolman_client.close()
         self.client.close()
 

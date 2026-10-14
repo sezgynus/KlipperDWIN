@@ -85,14 +85,24 @@ class PendingRequestBudgetTests(unittest.TestCase):
         client._drain_outbound()
         packet = json.loads(client._socket.send.call_args.args[0])
         self.assertEqual(packet['method'], 'printer.print.cancel')
-        self.assertFalse(client._pending_deadlines)
+        deadline = next(iter(client._pending_deadlines.values()))
         with patch('moonraker_subscription.time.monotonic',
-                   return_value=10_000_000):
+                   return_value=deadline - 1):
             client._expire_requests()
         self.assertFalse(future.done())
         self.assertEqual(len(client._pending_requests), 1)
         client._notification({'id': packet['id'], 'result': 'ok'})
         self.assertEqual(future.result(), 'ok')
+        self.assertFalse(client._pending_requests)
+
+    def test_print_cancel_has_finite_retention(self):
+        client = self.make()
+        future = client.request('printer.print.cancel')
+        client._drain_outbound()
+        deadline = next(iter(client._pending_deadlines.values()))
+        with patch('moonraker_subscription.time.monotonic', return_value=deadline + 1):
+            client._expire_requests()
+        self.assertIsInstance(future.exception(), MoonrakerError)
         self.assertFalse(client._pending_requests)
 
     def test_pending_cancel_cleans_up_on_state_acceptance_or_disconnect(self):

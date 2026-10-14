@@ -37,6 +37,7 @@ class MoonrakerSubscription:
     MAX_PENDING_REQUESTS = 64
     REQUEST_TIMEOUT = 30.0
     LONG_REQUEST_TIMEOUT = 180.0
+    CANCEL_REQUEST_TIMEOUT = 900.0
     def __init__(self, url, api_key='', timeout=5.0, connector=connect,
                  retry_delay=1.0, autostart=True):
         parts = urlsplit(url)
@@ -403,9 +404,7 @@ class MoonrakerSubscription:
         expired = []
         with self._lock:
             for request_id, future in tuple(self._pending_requests.items()):
-                # A print cancellation can be queued behind an M109/M190.
-                # It has no response deadline, but must still be discarded
-                # once the observed printer state resolves its Future.
+                # State acceptance also removes completed requests before their deadline.
                 deadline = self._pending_deadlines.get(request_id)
                 if future.done() or (deadline is not None and deadline <= now):
                     self._pending_deadlines.pop(request_id, None)
@@ -442,13 +441,11 @@ class MoonrakerSubscription:
                         self._id += 1
                         envelope['id'] = self._id
                         self._pending_requests[self._id] = future
-                        if method != 'printer.print.cancel':
-                            ttl = (self.LONG_REQUEST_TIMEOUT if method == 'printer.gcode.script'
-                                   else max(self.REQUEST_TIMEOUT, self.timeout * 4))
-                            self._pending_deadlines[self._id] = time.monotonic() + ttl
-                        # CANCEL_PRINT can wait for a blocking START_PRINT macro.
-                        # Do not time out a still-connected, active job here;
-                        # the owning UI confirms completion from print_stats.
+                        # Allow CANCEL_PRINT to wait behind heating, with finite retention.
+                        ttl = (self.CANCEL_REQUEST_TIMEOUT if method == 'printer.print.cancel'
+                               else self.LONG_REQUEST_TIMEOUT if method == 'printer.gcode.script'
+                               else max(self.REQUEST_TIMEOUT, self.timeout * 4))
+                        self._pending_deadlines[self._id] = time.monotonic() + ttl
                 connection.send(json.dumps(envelope))
                 if not completion and not future.done():
                     future.set_result(None)

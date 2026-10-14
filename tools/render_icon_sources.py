@@ -26,15 +26,9 @@ def main():
             icon_id = int(path.stem)
             button_frame = 125 <= icon_id <= 133 or 243 <= icon_id <= 247
             if button_frame:
-                # Both states share an opaque neutral perimeter and a hard
-                # silhouette. Otherwise filtered JPEG edges can retain pixels
-                # from the previous selection. Keep chroma changes inside it.
-                mask = Image.new('L', (width, height))
-                ImageDraw.Draw(mask).rounded_rectangle((0, 0, width-1, height-1), radius=8, fill=255)
-                inside = Image.new('L', (width, height))
-                ImageDraw.Draw(inside).rounded_rectangle((2, 2, width-3, height-3), radius=6, fill=255)
-                rendered.paste((41, 45, 53), mask=ImageChops.subtract(mask, inside))
-                rendered.paste((0, 0, 0), mask=ImageChops.invert(mask))
+                # Keep the SVG's antialiased round outline. Runtime clears only
+                # the changed button, so transparency cannot retain stale ink.
+                pass
             fan_frame = 235 <= icon_id <= 242
             if fan_frame:
                 # Neutral chroma prevents 4:2:0 color bleeding into the black

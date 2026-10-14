@@ -288,8 +288,8 @@ class PrintFocusTests(unittest.TestCase):
         v,_=self.view();v.lcd=driver();v._focus_draw_buttons()
         v.lcd.serial.frames.clear();v.select_print.set(1);v._focus_draw_buttons()
         frames=v.lcd.serial.frames
-        self.assertEqual([f[1] for f in frames],[0x23,0x11,0x23,0x11])
-        self.assertLess(sum(map(len,frames)),80)
+        self.assertEqual([f[1] for f in frames],[0x05,0x23,0x11,0x05,0x23,0x11])
+        self.assertLess(sum(map(len,frames)),120)
         v.lcd.serial.frames.clear();v._focus_draw_buttons()
         self.assertEqual(v.lcd.serial.frames,[])
 
@@ -297,9 +297,9 @@ class PrintFocusTests(unittest.TestCase):
         v,data=self.view();v.lcd=driver();v._focus_draw_buttons()
         data['status']['print_stats']['state']='paused';v.pd.update_variable()
         v.lcd.serial.frames.clear();v._focus_draw_buttons()
-        self.assertEqual([f[1] for f in v.lcd.serial.frames],[0x23,0x11])
+        self.assertEqual([f[1] for f in v.lcd.serial.frames],[0x05,0x23,0x11])
 
-    def test_button_states_have_identical_transparency_masks(self):
+    def test_button_states_have_round_transparent_corners(self):
         from dwin_emulator.assets import PanelAssets
         from lcd_resources import PRINT_BUTTON_SELECTED,ICON_LIBRARY_ID
         assets=PanelAssets()
@@ -309,7 +309,9 @@ class PrintFocusTests(unittest.TestCase):
                 b=assets.icon(ICON_LIBRARY_ID,selected)
                 self.assertEqual(a.size,b.size)
                 self.assertIn(a.size,((78,36),(119,36)))
-                self.assertEqual([max(p)>31 for p in a.getdata()], [max(p)>31 for p in b.getdata()])
+                for artwork in (a, b):
+                    for corner in ((0,0),(artwork.width-1,0),(0,artwork.height-1),(artwork.width-1,artwork.height-1)):
+                        self.assertLessEqual(max(artwork.getpixel(corner)),31)
 
     def test_all_button_variants_round_trip_without_pixel_residue(self):
         from dwin_emulator.assets import PanelAssets

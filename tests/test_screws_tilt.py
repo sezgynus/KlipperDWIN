@@ -165,7 +165,7 @@ class ViewTests(unittest.TestCase):
         view.HMI_Screws_Tilt()
         self.assertEqual(view.checkkey, view.BedMeshMenu)
 
-    def test_result_disks_use_native_bitmap_instead_of_scanlines(self):
+    def test_result_disks_use_supported_batched_blocks_without_bitmap(self):
         from test_t5uic1_driver import driver
         view = self.make()
         view.lcd = driver()
@@ -178,7 +178,8 @@ class ViewTests(unittest.TestCase):
         with patch('t5uic1_driver.time.sleep'):
             view.Draw_Screws_Result()
         frames = view.lcd.MYSERIAL1.frames
-        self.assertGreaterEqual(sum(frame[1] == 0x08 for frame in frames), 4)
+        self.assertFalse(any(frame[1] == 0x08 for frame in frames))
+        self.assertGreaterEqual(sum(frame[1] == 0x02 for frame in frames), 4)
         self.assertLess(sum(frame[1] == 0x05 for frame in frames), 30)
         self.assertLess(sum(map(len, frames)), 2400)
 
@@ -200,9 +201,9 @@ class ViewTests(unittest.TestCase):
         changed = session.results['screw3']
         session.results['screw3'] = dict(changed, z=changed['z'] + .1)
         view._poll_screws_tilt()
-        # Radius 23 requires two payload-limited bitmap chunks.
-        self.assertGreaterEqual(view.lcd.draw_bitmap.call_count, 1)
-        self.assertLessEqual(view.lcd.draw_bitmap.call_count, 2)
+        # A changed disk uses bounded batches of equal-sized blocks.
+        self.assertGreaterEqual(view.lcd.draw_points.call_count, 1)
+        self.assertLessEqual(view.lcd.draw_points.call_count, 20)
         self.assertEqual(view.lcd.draw_line.call_count, 2)
         view.lcd.draw_text.assert_called()
         view.lcd.reset_mock()
@@ -221,7 +222,7 @@ class ViewTests(unittest.TestCase):
         self.assertIsNone(view._screws_result_cache)
         view.lcd.reset_mock()
         view.Draw_Screws_Result()
-        self.assertGreaterEqual(view.lcd.draw_bitmap.call_count, 4)
+        self.assertGreaterEqual(view.lcd.draw_points.call_count, 4)
         view.Clear_Main_Window()
         self.assertIsNone(view._screws_result_cache)
 

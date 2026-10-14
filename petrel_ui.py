@@ -637,8 +637,11 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         if width <= 0 or height <= 0:
             return
         bg = lcd.Color_Bg_Black if background is None else background
-        if width < height or height % 2:
-            # Tiny progress slices retain their old pixel geometry.
+        if width < height:
+            # Early progress values must still have a visible, valid fill.
+            lcd.draw_rectangle(1, color, x, y, x+width-1, y+height-1)
+            return
+        if height % 2:
             radius = min(width, height) / 2
             for row in range(height):
                 dy = min(row + .5, height - row - .5)

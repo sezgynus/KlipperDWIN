@@ -29,7 +29,7 @@ class BootSplashTests(unittest.TestCase):
         v._show_message.assert_not_called()
         frames = v.lcd.serial.frames
         self.assertTrue(frames)
-        self.assertTrue(all(f[1] in (0x00, 0x05, 0x11, 0x27, 0x28, 0x3D) for f in frames))
+        self.assertTrue(all(f[1] in (0x00, 0x05, 0x08, 0x11, 0x27, 0x28, 0x3D) for f in frames))
         for frame in frames:
             if frame[1] == 0x05:
                 x0,y0,x1,y1 = [int.from_bytes(frame[i:i+2], 'big') for i in (5,7,9,11)]
@@ -37,6 +37,13 @@ class BootSplashTests(unittest.TestCase):
                 self.assertLessEqual(x1, 255)
                 self.assertGreaterEqual(y0, 290)
                 self.assertLessEqual(y1, 339)
+            elif frame[1] == 0x08:
+                x = int.from_bytes(frame[2:4], 'big')
+                y = int.from_bytes(frame[4:6], 'big')
+                width = int.from_bytes(frame[6:8], 'big')
+                self.assertGreaterEqual(x, 16)
+                self.assertLessEqual(x + width - 1, 255)
+                self.assertTrue(290 <= y <= 339)
             elif frame[1] == 0x11:
                 self.assertEqual(int.from_bytes(frame[9:11], 'big'), 322)
                 self.assertIn(b'Waiting for printer...', frame)

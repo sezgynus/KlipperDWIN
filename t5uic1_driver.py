@@ -30,6 +30,7 @@ class T5UIC1TimeoutError(TimeoutError):
 
 
 class T5UIC1Display:
+    SUPPORTS_NONBLOCKING_LIVENESS = True
     HEADER = b"\xAA"
     TAIL = b"\xCC\x33\xC3\x3C"
 
@@ -362,6 +363,37 @@ class T5UIC1Display:
             except T5UIC1TimeoutError:
                 return False
             return payload == b"OK"
+
+    def begin_liveness_probe(self, timeout=0.5):
+        """Send one handshake; never wait for its ACK on the UI owner."""
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("timeout must be positive")
+        if getattr(self, '_liveness_deadline', None) is not None:
+            return
+        with self._transaction_lock:
+            # A response from a prior timed-out probe cannot confirm this one.
+            self._frames = deque(((op, payload) for op, payload in self._frames
+                                  if op != 0x00), maxlen=self.RX_FRAME_LIMIT)
+            self._send(0x00)
+            self._liveness_deadline = time.monotonic() + timeout
+
+    def poll_liveness_probe(self):
+        """None: pending/no probe, True: ACK, False: invalid/expired ACK."""
+        deadline = getattr(self, '_liveness_deadline', None)
+        if deadline is None:
+            return None
+        with self._transaction_lock:
+            self._read_available()
+            for _ in range(len(self._frames)):
+                op, payload = self._frames.popleft()
+                if op == 0x00:
+                    self._liveness_deadline = None
+                    return payload == b"OK"
+                self._frames.append((op, payload))
+            if time.monotonic() >= deadline:
+                self._liveness_deadline = None
+                return False
+        return None
 
     def load_display_settings(self):
         """Read the dedicated 0x0100..0x010F Data Flash record."""

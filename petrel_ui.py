@@ -751,18 +751,29 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             if self._power_hold_tick():
                 return
             now = time.monotonic()
+            incremental_probe = (getattr(self.lcd,
+                                          'SUPPORTS_NONBLOCKING_LIVENESS', None) is True)
             if now >= getattr(self, '_next_uart_probe', 0):
                 self._next_uart_probe = now + 2.0
-                if self.lcd.handshake(timeout=0.5):
-                    self._uart_probe_failures = 0
+                if incremental_probe:
+                    self.lcd.begin_liveness_probe(timeout=0.5)
                 else:
+                    result = self.lcd.handshake(timeout=0.5)
+                    if result:
+                        self._uart_probe_failures = 0
+                    else:
+                        self._uart_probe_failures = getattr(self, '_uart_probe_failures', 0) + 1
+            if incremental_probe:
+                result = self.lcd.poll_liveness_probe()
+                if result is True:
+                    self._uart_probe_failures = 0
+                elif result is False:
                     self._uart_probe_failures = getattr(self, '_uart_probe_failures', 0) + 1
-                    logging.warning('LCD liveness probe failed (%d/2)',
-                                    self._uart_probe_failures)
-                    if self._uart_probe_failures >= 2:
-                        logging.warning('LCD liveness lost; reconnecting')
-                        self._uart_failed()
-                        return
+            if getattr(self, '_uart_probe_failures', 0):
+                if self._uart_probe_failures >= 2:
+                    logging.warning('LCD liveness lost; reconnecting')
+                    self._uart_failed()
+                    return
             if self._power_popup_tick():
                 return
             if getattr(self, '_boot_active', False):
@@ -805,6 +816,9 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                     self._advance_mesh_render()
                 else:
                     self._mesh_pending_points = None
+            if incremental_probe and getattr(self.lcd, '_liveness_deadline', None) is not None:
+                if hasattr(self, '_loop'):
+                    self._loop.set_interval(.05)
             self._display_idle_tick()
             if self._draw_header_clock():
                 self.lcd.update()

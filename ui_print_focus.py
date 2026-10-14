@@ -1,7 +1,6 @@
 """Print-focused views with bounded, field-only rendering and quiet edits."""
 import time
 import textwrap
-import math
 from concurrent.futures import Future
 from collections.abc import Mapping
 from lcd_resources import ICON_PREVIEW_BACKING

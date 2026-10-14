@@ -55,7 +55,7 @@ class PrintFocusTests(unittest.TestCase):
         packets = v.lcd.MYSERIAL1.frames
         self.assertIn(b'Preview', [p[11:-4] for p in packets if p[1] == 0x11])
         self.assertFalse(any(p[1] == 0x08 for p in packets))
-        self.assertTrue(any(p[1] == 0x23 and p[3] == 152 for p in packets))
+        self.assertTrue(any(p[1] == 0x23 and p[-5] == 152 for p in packets))
 
     def test_tune_row_selection_uses_managed_icons_without_bitmap_caps(self):
         from lcd_resources import ICON_TUNE_BACK_SELECTED, ICON_TUNE_ROW_SELECTED

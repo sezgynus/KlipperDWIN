@@ -11,8 +11,6 @@ from info_qr import PROJECT_URL, draw_project_qr
 from system_info import wifi_signal_text
 import time
 import logging
-import math
-from functools import lru_cache
 from concurrent.futures import Future
 from command_feedback import CommandFeedback
 from threading import Lock

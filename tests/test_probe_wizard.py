@@ -18,6 +18,11 @@ class ProbeTests(unittest.TestCase):
     def printer(self):
         result = printer(data())
         result.subscription.request.side_effect = lambda *a, **k: Future()
+        def center_future(*args, **kwargs):
+            future = Future()
+            future.cleanup_complete = True
+            return future
+        result.sendGCode.side_effect = center_future
         return result
 
     def status(self, result, active, pending=None):
@@ -44,13 +49,15 @@ class ProbeTests(unittest.TestCase):
     def test_start_centers_probe_before_calibration_and_homes_when_needed(self):
         result = self.printer()
         future = result.probe_wizard.start()
-        script = result.subscription.request.call_args.args[1]['script']
+        script = result.sendGCode.call_args.args[0]
         self.assertIn('G1 X125.000 Y130.000', script)
+        self.assertIn('SAVE_GCODE_STATE', script)
+        self.assertIn('RESTORE_GCODE_STATE', result.sendGCode.call_args.kwargs['cleanup'])
         self.assertLess(script.index('G1 Z5.000'), script.index('G1 X'))
         self.assertNotIn('PROBE_CALIBRATE', script)
         future.set_result('ok')
         result.probe_wizard.update()
-        self.assertEqual(result.subscription.request.call_count, 1)
+        self.assertEqual(result.subscription.request.call_count, 0)
         self.status(result, False)
         result.probe_wizard.update()
         result.subscription.request.assert_called_with('printer.gcode.script', {'script':'PROBE_CALIBRATE'}, guard=ANY)
@@ -133,7 +140,7 @@ class ProbeTests(unittest.TestCase):
         result.update_variable()
         result.probe_wizard.update()
         self.assertEqual(result.probe_wizard.phase, 'interrupted')
-        self.assertEqual(result.subscription.request.call_count, 2)
+        self.assertEqual(result.subscription.request.call_count, 1)
         with self.assertRaises(ValueError):
             result.probe_wizard.testz(.1)
 
@@ -167,8 +174,7 @@ class ProbeRegressionTests(unittest.TestCase):
         result = self.printer()
         self.status(result, False, {'bed_mesh default': {'points': 'old'}})
         result.probe_wizard.start()
-        self.assertIn('G1 X125.000 Y130.000', result.subscription.request.call_args.args[1]['script'])
-        result.sendGCode.assert_not_called()
+        self.assertIn('G1 X125.000 Y130.000', result.sendGCode.call_args.args[0])
 
     def test_long_probe_start_is_not_failed_after_http_timeout(self):
         result = self.printer()
@@ -267,12 +273,12 @@ class RepeatedProbeStepTests(unittest.TestCase):
             result.probe_wizard.update()
             self.assertEqual(result.probe_wizard.phase, 'active' if active else 'error')
             self.assertIsNone(result.probe_wizard.pending)
-            self.assertEqual(result.subscription.request.call_count, 3)
+            self.assertEqual(result.subscription.request.call_count, 2)
             if active:
                 result.probe_wizard.update()
-                self.assertEqual(result.subscription.request.call_count, 3)
+                self.assertEqual(result.subscription.request.call_count, 2)
                 result.probe_wizard.testz('-')
-                self.assertEqual(result.subscription.request.call_count, 4)
+                self.assertEqual(result.subscription.request.call_count, 3)
 
 
 class ProbeCenterSafetyTests(unittest.TestCase):
@@ -287,10 +293,10 @@ class ProbeCenterSafetyTests(unittest.TestCase):
         result.subscription.snapshot.return_value = source; result.update_variable()
         future = result.probe_wizard.start()
         self.assertEqual(result.probe_wizard.center, (150,130))
-        self.assertIn('G1 X150.000 Y130.000', result.subscription.request.call_args.args[1]['script'])
+        self.assertIn('G1 X150.000 Y130.000', result.sendGCode.call_args.args[0])
         future.set_result('ok')
         result.probe_wizard.update()
-        self.assertEqual(result.subscription.request.call_count, 1)
+        self.assertEqual(result.subscription.request.call_count, 0)
         source['status']['toolhead']['position'][:2] = (150,130)
         result.update_variable(); result.probe_wizard.update()
         guard = result.subscription.request.call_args.kwargs['guard']
@@ -329,9 +335,9 @@ class ProbeCenterSafetyTests(unittest.TestCase):
         self.assertEqual(result.subscription.request.call_count, 1)
         source['status']['toolhead']['homed_axes'] = 'xyz'
         result.update_variable(); result.probe_wizard.update()
-        self.assertEqual(result.subscription.request.call_count, 2)
-        self.assertIn('G1 X125.000 Y130.000',result.subscription.request.call_args.args[1]['script'])
-        self.assertNotIn('PROBE_CALIBRATE',result.subscription.request.call_args.args[1]['script'])
+        self.assertEqual(result.subscription.request.call_count, 1)
+        self.assertIn('G1 X125.000 Y130.000', result.sendGCode.call_args.args[0])
+        self.assertNotIn('PROBE_CALIBRATE', result.sendGCode.call_args.args[0])
 
 
 class LevelingNavigationTests(unittest.TestCase):
@@ -355,3 +361,89 @@ class LevelingNavigationTests(unittest.TestCase):
         self.assertEqual([entry[0] for entry in view._mesh_menu_entries()], ['BACK','PROBE'])
         absent = display(snapshot())
         self.assertNotIn('LEVEL', [entry[0] for entry in absent._home_entries()])
+
+class ProbeCenterRestoreTests(unittest.TestCase):
+    def setup_printer(self, effects):
+        import json
+        from moonraker_client import MoonrakerClient
+        from test_regressions import backend
+        result = ProbeTests.printer(self)
+        result.sendGCode = backend.PrinterData.sendGCode.__get__(result)
+        opener = Mock()
+        opener.open.side_effect = effects
+        result.client = MoonrakerClient(opener=opener, timeout=.1)
+        self.addCleanup(result.client.close)
+        return result, opener
+
+    @staticmethod
+    def scripts(opener):
+        import json
+        return [json.loads(call.args[0].data)['script'] for call in opener.open.call_args_list]
+
+    def test_center_motion_failure_restores_modal_state_without_replay(self):
+        from moonraker_client import MoonrakerError
+        from test_moonraker_client import response
+        result, opener = self.setup_printer([response({'result': 'ok'}),
+            response({'error': {'message': 'move rejected'}}), response({'result': 'ok'})])
+        future = result.probe_wizard.start()
+        with self.assertRaises(MoonrakerError):
+            future.result(2)
+        result.probe_wizard.update()
+        scripts = self.scripts(opener)
+        self.assertEqual(len(scripts), 3)
+        self.assertTrue(scripts[0].startswith('SAVE_GCODE_STATE NAME='))
+        self.assertEqual(scripts[2], 'RESTORE_GCODE_STATE NAME=LCD_PROBE_CENTER MOVE=0')
+        self.assertEqual(sum('G1 X125.000 Y130.000' in script for script in scripts), 1)
+        self.assertFalse(result.jog_recovery_required)
+
+    def test_save_failure_does_not_mutate_or_require_recovery(self):
+        from urllib.error import URLError
+        from moonraker_client import MoonrakerError
+        result, opener = self.setup_printer([URLError('save failed')])
+        future = result.probe_wizard.start()
+        with self.assertRaises(MoonrakerError):
+            future.result(2)
+        result.probe_wizard.update()
+        self.assertEqual(len(self.scripts(opener)), 1)
+        self.assertFalse(result.jog_recovery_required)
+
+    def test_failed_restore_requires_explicit_recovery(self):
+        from urllib.error import URLError
+        from moonraker_client import MoonrakerError
+        from test_moonraker_client import response
+        result, opener = self.setup_printer([response({'result': 'ok'}),
+            URLError('move failed'), URLError('restore failed'), response({'result': 'ok'})])
+        future = result.probe_wizard.start()
+        with self.assertRaises(MoonrakerError):
+            future.result(2)
+        result.probe_wizard.update()
+        self.assertTrue(result.jog_recovery_required)
+        self.assertIn('Recovery', result.probe_wizard.message)
+        self.assertEqual(len(self.scripts(opener)), 3)
+        result.restore_jog_state().result(2)
+        self.assertFalse(result.jog_recovery_required)
+        self.assertEqual(len(self.scripts(opener)), 4)
+
+    def test_epoch_change_never_restores_to_different_connection(self):
+        from urllib.error import URLError
+        from moonraker_client import MoonrakerError
+        from test_moonraker_client import response
+        result, opener = self.setup_printer([])
+        count = 0
+        def respond(*args, **kwargs):
+            nonlocal count
+            count += 1
+            if count == 1:
+                return response({'result': 'ok'})
+            source = data()
+            source['epoch'] = 2
+            result.subscription.snapshot.return_value = source
+            raise URLError('disconnected')
+        opener.open.side_effect = respond
+        future = result.probe_wizard.start()
+        with self.assertRaises(MoonrakerError):
+            future.result(2)
+        result.probe_wizard.update()
+        self.assertEqual(opener.open.call_count, 2)
+        self.assertTrue(result.jog_recovery_required)
+

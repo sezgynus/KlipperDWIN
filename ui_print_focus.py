@@ -107,7 +107,13 @@ class PrintFocusMixin:
     def _focus_buttons(self):
         terminal = self.pd.status in ('complete', 'cancelled')
         middle = 'MMU' if self._focus_error() else ('Resume' if self._focus_paused() else 'Pause')
-        return [('Tune', ICON_PRINT_TUNE_WIDE), ('Close', ICON_PRINT_CLOSE)] if terminal else [('Tune',ICON_PRINT_TUNE), (middle, {'Pause':ICON_PRINT_PAUSE,'Resume':ICON_PRINT_RESUME,'MMU':ICON_PRINT_MMU}[middle]), ('Stop',ICON_PRINT_STOP)]
+        return ([('Tune', ICON_PRINT_TUNE_WIDE), ('Close', ICON_PRINT_CLOSE)]
+                if terminal else
+                [('Tune', ICON_PRINT_TUNE),
+                 (middle, {'Pause': ICON_PRINT_PAUSE, 'Resume': ICON_PRINT_RESUME,
+                           'MMU': ICON_PRINT_MMU}[middle]),
+                 ('Stopping' if getattr(self, '_stop_waiting', False) else 'Stop',
+                  ICON_PRINT_STOP)])
 
     def _focus_paused(self):
         pending = getattr(self, '_quiet_edits', {}).get('pause')
@@ -115,7 +121,8 @@ class PrintFocusMixin:
 
     def _focus_draw_buttons(self):
         buttons = self._focus_buttons()
-        self.select_print.now = min(self.select_print.now, len(buttons)-1)
+        limit = len(buttons) - (2 if buttons[-1][0] == 'Stopping' else 1)
+        self.select_print.now = min(self.select_print.now, limit)
         width = 119 if len(buttons) == 2 else 78
         shape = (len(buttons), width)
         cache = getattr(self, '_focus_button_render', {})
@@ -126,8 +133,10 @@ class PrintFocusMixin:
             cache = {}
             self._focus_button_shape = shape
         for i, (label, normal) in enumerate(buttons):
-            selected = self.select_print.now == i
-            color = 0xFBCB if label == 'Stop' and not selected else self.lcd.Color_White
+            disabled = label == 'Stopping'
+            selected = self.select_print.now == i and not disabled
+            color = (0x7BEF if disabled else 0xFBCB if label == 'Stop'
+                     and not selected else self.lcd.Color_White)
             start = getattr(self, '_quiet_blinks', {}).get('pause')
             if i == 1 and start is not None and int((time.monotonic()-start)/.2)%2 == 0:
                 color = 0xFBCB
@@ -209,7 +218,9 @@ class PrintFocusMixin:
         blink=start is not None and int((time.monotonic()-start)/.2)%2==0
         buttons=(tuple(self._focus_buttons()),self.select_print.now,blink)
         if self._focus_render.get('buttons')!=buttons:
-            self._focus_draw_buttons();self._focus_render['buttons']=buttons
+            self._focus_draw_buttons()
+            self._focus_render['buttons'] = (tuple(self._focus_buttons()),
+                                             self.select_print.now, blink)
         if force:
             self._focus_round(14,90,88,88,0x2967,8)
             self._focus_text('Preview',30,124,self.lcd.font6x12,color=0xADB5)
@@ -241,10 +252,14 @@ class PrintFocusMixin:
         event=self.get_encoder_state()
         if event in (self.ENCODER_DIFF_CW,self.ENCODER_DIFF_CCW):
             delta=1 if event==self.ENCODER_DIFF_CW else -1
-            self.select_print.now=max(0,min(len(self._focus_buttons())-1,self.select_print.now+delta))
+            buttons = self._focus_buttons()
+            limit = len(buttons) - (2 if buttons[-1][0] == 'Stopping' else 1)
+            self.select_print.now = max(0, min(limit, self.select_print.now + delta))
             self._focus_draw_buttons()
         elif event==self.ENCODER_DIFF_ENTER:
             label=self._focus_buttons()[self.select_print.now][0]
+            if label == 'Stopping':
+                return  # Inactive control: never re-submit cancellation.
             if label=='Tune':
                 self.checkkey=self.Tune;self.select_tune.reset();self._focus_tune_open()
             elif label=='MMU':
@@ -452,18 +467,6 @@ class PrintFocusMixin:
             self.lcd.update()
 
     def _focus_stop_draw(self, buttons_only=False):
-        if getattr(self, '_stop_waiting', False):
-            if buttons_only:
-                return
-            self.Clear_Main_Window()
-            self.Draw_Title('Stop print')
-            self._focus_round(14, 106, 244, 202, 0x2967, 10)
-            self._focus_text('Stop requested', 52, 132, self.lcd.font10x20)
-            self._focus_text('Waiting for current command...', 36, 188,
-                             self.lcd.font6x12)
-            self._focus_text('Print will stop when ready.', 42, 218,
-                             self.lcd.font6x12)
-            return
         if not buttons_only:
             self.Clear_Main_Window()
             self.Draw_Title('Stop print')
@@ -492,6 +495,8 @@ class PrintFocusMixin:
                     on_accept=self._restore_action_screen)
                 if future is not None:
                     self._stop_waiting = True
-                    self._focus_stop_draw()
+                    # The print dashboard remains live; only Stop becomes
+                    # 'Stopping' and cannot be selected or pressed again.
+                    self.Goto_PrintProcess()
             else:self.Goto_PrintProcess()
         self.lcd.update()

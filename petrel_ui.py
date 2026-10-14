@@ -466,6 +466,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._mmu_endless_draft = None
         self._mmu_spool_draft = None
         self._action_feedback = None
+        self._stop_waiting = False
         self._pending_start = None
         self._start_error_visible = False
         self._acknowledged_terminal = None

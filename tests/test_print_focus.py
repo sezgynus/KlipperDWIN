@@ -119,8 +119,13 @@ class PrintFocusTests(unittest.TestCase):
         v.pd.cancel_job.assert_called_once()
         self.assertTrue(v._stop_waiting)
         self.assertEqual(v._action_feedback.confirmation_timeout, None)
+        self.assertEqual(v.checkkey, v.PrintProcess)
+        self.assertEqual(v._focus_buttons()[-1][0], 'Stopping')
         labels = [x.args[-1] for x in v.lcd.draw_text.call_args_list]
-        self.assertTrue(any('Waiting for current command' in str(x) for x in labels))
+        self.assertIn('Stopping', labels)
+        self.assertFalse(any('Waiting for current command' in str(x)
+                             for x in labels))
+        self.assertLessEqual(v.select_print.now, 1)
         with patch('command_feedback.time.monotonic',
                    return_value=v._action_feedback.started + 600):
             self.assertFalse(v._poll_action())
@@ -134,6 +139,41 @@ class PrintFocusTests(unittest.TestCase):
         self.assertFalse(v._stop_waiting)
         v._restore_action_screen.assert_called_once()
         v._show_message.assert_not_called()
+
+    def test_stopping_button_is_inactive_unselectable_and_live_status_updates(self):
+        v, data = self.view()
+        future = Future()
+        v.pd.cancel_job = Mock(return_value=future)
+        v.pd.HMI_flag.select_flag = True
+        v.checkkey = v.Print_window
+        v.select_print.now = 2
+        v._focus_stop_input()
+        self.assertEqual(v.checkkey, v.PrintProcess)
+        self.assertEqual(v.select_print.now, 1)
+        self.assertEqual(v._focus_buttons()[-1][0], 'Stopping')
+        v.lcd.reset_mock()
+        v._focus_draw_buttons()
+        self.assertEqual(v.select_print.now, 1)
+        self.assertNotEqual(v._focus_button_render[2][2], True)
+        self.assertEqual(v._focus_button_render[2][3], 0x7BEF)
+
+        # Even direct encoder dispatch may not trigger a second cancel.
+        v.get_encoder_state.return_value = v.ENCODER_DIFF_CW
+        v._focus_print_input()
+        self.assertEqual(v.select_print.now, 0)
+        v.get_encoder_state.return_value = v.ENCODER_DIFF_ENTER
+        v.select_print.now = 2  # Also guard out-of-band/stale selection.
+        v._focus_print_input()
+        v.pd.cancel_job.assert_called_once()
+
+        # The dashboard keeps refreshing instead of showing a waiting page.
+        v.select_print.now = 1
+        v.lcd.reset_mock()
+        data['status']['virtual_sdcard']['progress'] = .60
+        v.pd.update_variable()
+        v._focus_print_tick()
+        self.assertEqual(v.checkkey, v.PrintProcess)
+        self.assertEqual(v._focus_buttons()[-1][0], 'Stopping')
 
     def test_cancel_real_rejection_displays_error_and_clears_waiting(self):
         v, _ = self.view()

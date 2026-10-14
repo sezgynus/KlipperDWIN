@@ -73,7 +73,7 @@ def settings(printer):
                 add(field, label, 'EXTRUSION', raw[field], low, high, step, decimals, unit)
     for name, label in JOB_PINS:
         obj = 'output_pin '+name
-        config = state.settings.get(obj)
+        config = state.settings.get(obj.casefold(), state.settings.get(obj))
         raw = data.get(obj, {})
         if obj in state.objects and isinstance(config, Mapping) and not config.get('pwm', False) and raw.get('value') in (0, 1):
             add('pin@'+name, label, 'AFTER JOB', raw['value'], 0, 1, toggle=True)

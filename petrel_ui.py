@@ -742,6 +742,13 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 blink = bool(getattr(self, '_quiet_blinks', {}))
                 loading = self.checkkey == self.PrintProcess and hasattr(self, '_thumbnail_cache') and self._thumbnail_cache.has_work()
                 self._loop.set_interval(.1 if blink else (.05 if loading else .5))
+            if getattr(self, '_mesh_pending_points', None) is not None:
+                if self.checkkey == self.BedMeshScreen:
+                    if hasattr(self, '_loop'):
+                        self._loop.set_interval(.02)
+                    self._advance_mesh_render()
+                else:
+                    self._mesh_pending_points = None
             self._display_idle_tick()
             if self._draw_header_clock():
                 self.lcd.update()

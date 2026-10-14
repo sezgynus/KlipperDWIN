@@ -476,8 +476,7 @@ class MeshViewTests(unittest.TestCase):
                     view.Draw_Bed_Mesh()
                     low, high = session.mesh.extrema
                     self.assertEqual(draw.call_args.kwargs['color_range'], (low, high))
-                    colors = {call.args[1] for call in view.lcd.draw_rectangle.call_args_list
-                              if call.args[0] == 1 and call.args[3] < 300}
+                    colors = {call.args[3] for call in view.lcd.draw_bitmap.call_args_list}
                     if low == high:
                         self.assertIn(mesh_color(0), colors)
                     else:
@@ -711,3 +710,38 @@ class MeshSubmenuNavigationTests(unittest.TestCase):
         self.assertEqual(view.checkkey,view.BedMeshMenu)
         self.assertEqual(view._mesh_menu_selection,1)
         view.pd.subscription.request.assert_not_called()
+
+
+class MeshPacketBudgetTests(unittest.TestCase):
+    def test_disk_bitmap_is_protocol_sized_and_fits_mesh_budget(self):
+        from test_t5uic1_driver import driver as make_driver
+        from ui_bed_mesh import _mesh_disk_bitmap
+        for radius in (4, 5, 13, 23):
+            width, chunks = _mesh_disk_bitmap(radius, -radius, -radius, radius, radius)
+            self.assertEqual(width, 2 * radius + 1)
+            self.assertLessEqual(max(len(data) + 10 for _, data in chunks), 248)
+        for size, max_frames, max_bytes in ((5, 200, 5000), (9, 250, 11000),
+                                            (15, 500, 20000), (25, 900, 40000)):
+            with self.subTest(size=size):
+                view = MeshViewTests.make(self)
+                lcd = make_driver()
+                view.lcd = lcd
+                points = {(x, y): (x+y-size) * .02
+                          for x in range(size) for y in range(size)}
+                with patch('t5uic1_driver.time.sleep'):
+                    view._draw_mesh_grid(size, size, points)
+                frames = lcd.MYSERIAL1.frames
+                self.assertLess(len(frames), max_frames)
+                self.assertLess(sum(map(len, frames)), max_bytes)
+                self.assertTrue(any(frame[1] == 0x08 for frame in frames))
+
+    def test_large_mesh_yields_between_bounded_batches(self):
+        view = MeshViewTests.make(self)
+        points = {(x, y): .01 for x in range(25) for y in range(25)}
+        view._draw_mesh_grid(25, 25, points, render_later=True)
+        before = view.lcd.draw_bitmap.call_count
+        self.assertLessEqual(before, 12)
+        self.assertIsNotNone(view._mesh_pending_points)
+        view._advance_mesh_render()
+        self.assertLessEqual(view.lcd.draw_bitmap.call_count - before, 12)
+        view.lcd.update.assert_called_once()

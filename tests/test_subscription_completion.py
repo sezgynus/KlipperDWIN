@@ -1,6 +1,6 @@
 import json
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from moonraker_subscription import MoonrakerSubscription
 from moonraker_client import MoonrakerError
@@ -56,3 +56,47 @@ class CompletionTransportTests(unittest.TestCase):
             future.result()
         self.assertFalse(client._completion_requests)
         self.assertFalse(client._pending_requests)
+
+class PendingRequestBudgetTests(unittest.TestCase):
+    make = CompletionTransportTests.make
+
+    def test_outstanding_budget_bounds_unanswered_requests(self):
+        client = self.make()
+        first = None
+        for _ in range(200):
+            future = client.request('printer.objects.query', {'objects': {'toolhead': None}})
+            if first is None:
+                first = future
+            client._drain_outbound()
+        self.assertEqual(len(client._pending_requests), client.MAX_PENDING_REQUESTS)
+        self.assertEqual(len(client._pending_deadlines), client.MAX_PENDING_REQUESTS)
+        self.assertEqual(client._socket.send.call_count, client.MAX_PENDING_REQUESTS)
+        self.assertFalse(first.done())
+        client._fail_outbound('connection closed')
+        with self.assertRaises(MoonrakerError):
+            first.result()
+        self.assertFalse(client._pending_requests)
+        self.assertFalse(client._pending_deadlines)
+
+    def test_ttl_expiry_releases_future_and_ignores_late_response(self):
+        client = self.make()
+        future = client.request('printer.objects.query')
+        client._drain_outbound()
+        request_id, deadline = next(iter(client._pending_deadlines.items()))
+        with patch('moonraker_subscription.time.monotonic', return_value=deadline + 1):
+            client._drain_outbound()
+        with self.assertRaisesRegex(MoonrakerError, 'timed out'):
+            future.result()
+        self.assertFalse(client._pending_requests)
+        self.assertFalse(client._pending_deadlines)
+        client._notification({'id': request_id, 'result': 'late'})
+        self.assertTrue(future.done())
+
+    def test_cancelled_requests_leave_no_deadline(self):
+        client = self.make()
+        future = client.request('printer.objects.query')
+        client._drain_outbound()
+        self.assertTrue(future.cancel())
+        client._drain_outbound()
+        self.assertFalse(client._pending_requests)
+        self.assertFalse(client._pending_deadlines)

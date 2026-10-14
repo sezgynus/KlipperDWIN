@@ -12,6 +12,7 @@ import struct
 import time
 import unicodedata
 from collections import deque
+from concurrent.futures import Future
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from threading import Lock
 
@@ -31,6 +32,7 @@ class T5UIC1TimeoutError(TimeoutError):
 
 class T5UIC1Display:
     SUPPORTS_NONBLOCKING_LIVENESS = True
+    SUPPORTS_NONBLOCKING_FLASH = True
     HEADER = b"\xAA"
     TAIL = b"\xCC\x33\xC3\x3C"
 
@@ -199,6 +201,8 @@ class T5UIC1Display:
         if not getattr(self, "_closed", False):
             self._closed = True
             self.serial.close()
+            if getattr(self, '_flash_job', None) is not None or getattr(self, '_flash_queue', None):
+                self._flash_abort(OSError('LCD disconnected during Flash transaction'))
             observer = getattr(self, '_packet_observer', None)
             if observer is not None:
                 observer.disconnect_panel()
@@ -838,6 +842,145 @@ class T5UIC1Display:
 
     def write_flash(self, address, data, *, timeout=1.25):
         self.write_memory(self.MEMORY_FLASH, address, data, timeout=timeout)
+
+    def _flash_state(self):
+        # Lazy initialization also supports isolated driver instances in tests.
+        if not hasattr(self, '_flash_queue'):
+            self._flash_queue = deque()
+            self._flash_job = None
+            self._flash_fault = None
+
+    def _flash_submit(self, address, value, verify):
+        self._flash_state()
+        limit = self.FLASH_USABLE_SIZE
+        size = len(value) if verify else value
+        if (not isinstance(address, int) or not isinstance(size, int)
+                or size <= 0 or not 0 <= address < limit
+                or address + size > limit):
+            raise ValueError('Flash transaction exceeds usable memory')
+        future = Future()
+        if self._closed:
+            future.set_exception(OSError('LCD disconnected'))
+        elif self._flash_fault is not None:
+            future.set_exception(self._flash_fault)
+        elif len(self._flash_queue) + int(self._flash_job is not None) >= 4:
+            future.set_exception(RuntimeError('Flash request queue full'))
+        else:
+            self._flash_queue.append({
+                'address': address, 'length': size,
+                'data': value if verify else None, 'future': future,
+                'stage': 'write' if verify else 'read', 'offset': 0,
+                'buffer': bytearray(), 'awaiting': None, 'deadline': 0.0,
+                'chunk_size': 0, 'timeout': 1.25 if verify else 1.0,
+            })
+        return future
+
+    def begin_flash_read(self, address, length):
+        """Schedule a Flash read and return a Future; the UI owner must poll."""
+        return self._flash_submit(address, length, False)
+
+    def begin_flash_write_verified(self, address, data):
+        """Schedule write, ACK, readback verification without waiting for ACK."""
+        raw = self._ensure_bytes(data)
+        return self._flash_submit(address, raw, True)
+
+    def flash_busy(self):
+        self._flash_state()
+        return bool(self._flash_job or self._flash_queue)
+
+    def _flash_abort(self, error):
+        self._flash_state()
+        self._flash_fault = error
+        jobs = ([self._flash_job] if self._flash_job is not None else [])
+        jobs.extend(self._flash_queue)
+        self._flash_job = None
+        self._flash_queue.clear()
+        for job in jobs:
+            future = job['future']
+            if not future.done():
+                future.set_exception(error)
+
+    def poll_flash_tasks(self):
+        """Advance at most one Flash packet/ACK, with no sleep or ACK spin.
+
+        Only the UI thread invokes this method, preserving sole UART ownership.
+        Failed/ambiguous transactions invalidate the queue until reconnect.
+        """
+        self._flash_state()
+        if self._flash_fault is not None:
+            return False
+        if self._flash_job is None:
+            if not self._flash_queue:
+                return False
+            self._flash_job = self._flash_queue.popleft()
+        job = self._flash_job
+        if job['future'].cancelled():
+            self._flash_abort(RuntimeError('Cancelled Flash transaction'))
+            return False
+        try:
+            if job['awaiting'] is not None:
+                self._read_available()
+                matched = None
+                op, predicate = job['awaiting']
+                for _ in range(len(self._frames)):
+                    cmd, payload = self._frames.popleft()
+                    if cmd == op:
+                        if predicate(payload):
+                            matched = payload
+                            break
+                        # Invalid or stale ACK for this opcode is never success.
+                        continue
+                    self._frames.append((cmd, payload))
+                if matched is None:
+                    if time.monotonic() >= job['deadline']:
+                        raise T5UIC1TimeoutError('Flash operation timed out')
+                    return True
+                job['awaiting'] = None
+                job['offset'] += job['chunk_size']
+                if job['stage'] == 'read':
+                    job['buffer'].extend(matched[4:])
+                if job['offset'] >= job['length']:
+                    if job['stage'] == 'write':
+                        job['stage'], job['offset'] = 'read', 0
+                    else:
+                        result = bytes(job['buffer'])
+                        if job['data'] is not None and result != job['data']:
+                            raise T5UIC1ProtocolError('Flash verification mismatch')
+                        job['future'].set_result(result)
+                        self._flash_job = None
+                return True
+
+            # Send only one packet per UI tick. Never send an unrelated
+            # write while waiting for an ACK from a previous chunk.
+            remaining = job['length'] - job['offset']
+            address = job['address'] + job['offset']
+            if job['stage'] == 'write':
+                chunk = job['data'][job['offset']:
+                                    job['offset'] + self.MEMORY_WRITE_CHUNK]
+                op, payload = 0x31, bytes((self.MEMORY_FLASH,)) + self._word(address) + chunk
+                predicate = lambda value: value == bytes((self.MEMORY_FLASH,)) + b'OK'
+                size = len(chunk)
+            else:
+                size = min(self.MEMORY_READ_CHUNK, remaining)
+                op, payload = (0x32, bytes((self.MEMORY_FLASH,))
+                               + self._word(address) + bytes((size,)))
+                def predicate(value):
+                    return (len(value) == 4 + size and value[0] == self.MEMORY_FLASH
+                            and int.from_bytes(value[1:3], 'big') == address
+                            and value[3] == size)
+            self._frames = deque(((cmd, raw) for cmd, raw in self._frames
+                                  if cmd != op), maxlen=self.RX_FRAME_LIMIT)
+            self._send(op, payload)
+            job['chunk_size'] = size
+            job['awaiting'] = op, predicate
+            job['deadline'] = time.monotonic() + job['timeout']
+            return True
+        except (OSError, RuntimeError, ValueError) as error:
+            self._flash_abort(error)
+            # I/O errors still reach the main UART reconnect handler.
+            if self._closed:
+                raise
+            return False
 
     def read_flash(self, address, length, *, timeout=1.0):
         return self.read_memory(self.MEMORY_FLASH, address, length, timeout=timeout)

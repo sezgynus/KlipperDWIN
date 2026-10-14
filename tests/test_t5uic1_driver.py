@@ -200,6 +200,62 @@ class T5UIC1DriverPackets(unittest.TestCase):
             ],
         )
 
+    def test_async_flash_read_never_waits_for_missing_ack(self):
+        from unittest.mock import patch
+        lcd = driver()
+        task = lcd.begin_flash_read(0x0100, 16)
+        with patch('t5uic1_driver.time.sleep') as sleeper, \
+                patch('t5uic1_driver.time.monotonic', return_value=10.0):
+            self.assertTrue(lcd.poll_flash_tasks())
+            self.assertTrue(lcd.poll_flash_tasks())
+            self.assertFalse(task.done())
+            self.assertEqual(len(lcd.serial.frames), 1)
+            self.assertTrue(all(x.args == (0.001,) for x in sleeper.call_args_list))
+            self.assertTrue(lcd.flash_busy())
+        raw = bytes(range(16))
+        lcd.serial.chunks.append(b'\\xAA\\x32\\xA5\\x01\\x00\\x10' + raw
+                                 + T5UIC1Display.TAIL)
+        lcd.poll_flash_tasks()
+        self.assertEqual(task.result(), raw)
+        self.assertFalse(lcd.flash_busy())
+
+    def test_async_flash_write_verifies_readback_in_order(self):
+        lcd = driver()
+        raw = bytes(range(16))
+        task = lcd.begin_flash_write_verified(0x0100, raw)
+        lcd.poll_flash_tasks()
+        self.assertEqual(lcd.serial.frames[-1][1], 0x31)
+        self.assertFalse(task.done())
+        lcd.serial.chunks.append(b'\\xAA\\x31\\xA5OK' + T5UIC1Display.TAIL)
+        lcd.poll_flash_tasks()
+        self.assertFalse(task.done())
+        lcd.poll_flash_tasks()
+        self.assertEqual(lcd.serial.frames[-1][1], 0x32)
+        lcd.serial.chunks.append(b'\\xAA\\x32\\xA5\\x01\\x00\\x10'
+                                 + raw + T5UIC1Display.TAIL)
+        lcd.poll_flash_tasks()
+        self.assertEqual(task.result(), raw)
+        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x31, 0x32])
+
+    def test_flash_timeout_and_bad_verification_do_not_commit(self):
+        from unittest.mock import patch
+        lcd = driver()
+        first = lcd.begin_flash_write_verified(0x0100, b'1234')
+        second = lcd.begin_flash_read(0x0200, 2)
+        with patch('t5uic1_driver.time.monotonic', return_value=10):
+            lcd.poll_flash_tasks()
+        with patch('t5uic1_driver.time.monotonic', return_value=20):
+            lcd.poll_flash_tasks()
+        with self.assertRaises(TimeoutError):
+            first.result()
+        with self.assertRaises(TimeoutError):
+            second.result()
+        self.assertEqual(len(lcd.serial.frames), 1)
+        self.assertFalse(lcd.flash_busy())
+        rejected = lcd.begin_flash_read(0x0100, 4)
+        with self.assertRaises(TimeoutError):
+            rejected.result()
+
     def test_flash_write_picture_write_and_orientation_ack_parsing(self):
         lcd = driver()
         lcd.serial.chunks.append(b"\xAA\x31\xA5OK" + T5UIC1Display.TAIL)

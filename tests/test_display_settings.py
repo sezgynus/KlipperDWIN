@@ -91,6 +91,45 @@ class DisplaySettingsTests(unittest.TestCase):
         self.step(view, view.ENCODER_DIFF_ENTER)
         self.assertEqual(view._display_saved, (50, 60, 10))
 
+    def test_async_display_save_commits_only_after_flash_verified(self):
+        from concurrent.futures import Future
+        view = self.view()
+        view.lcd.SUPPORTS_NONBLOCKING_FLASH = True
+        view.lcd.DISPLAY_SETTINGS_ADDRESS = 0x100
+        future = Future()
+        view.lcd.begin_flash_write_verified.return_value = future
+        self.step(view, view.ENCODER_DIFF_ENTER)
+        self.step(view, view.ENCODER_DIFF_CW)
+        self.step(view, view.ENCODER_DIFF_ENTER)
+        view.lcd.begin_flash_write_verified.assert_called_once_with(
+            0x100, settings.encode(51, 0, 10))
+        view.lcd.save_display_settings.assert_not_called()
+        self.assertEqual(view._display_saved, (50, 0, 10))
+        self.assertEqual(view._display_save_message, 'Saving...')
+        self.step(view, view.ENCODER_DIFF_CW)
+        self.assertEqual(view._display_values, [51, 0, 10])
+        future.set_result(settings.encode(51, 0, 10))
+        view._poll_panel_flash()
+        self.assertEqual(view._display_saved, (51, 0, 10))
+        self.assertFalse(view._display_edit)
+        self.assertIsNone(view._display_save_future)
+
+    def test_async_display_save_failure_keeps_retryable_draft(self):
+        from concurrent.futures import Future
+        view = self.view()
+        view.lcd.SUPPORTS_NONBLOCKING_FLASH = True
+        view.lcd.DISPLAY_SETTINGS_ADDRESS = 0x100
+        future = Future()
+        view.lcd.begin_flash_write_verified.return_value = future
+        view._display_edit = True
+        view._display_values = [61, 0, 10]
+        self.step(view, view.ENCODER_DIFF_ENTER)
+        future.set_exception(TimeoutError('ACK lost'))
+        view._poll_panel_flash()
+        self.assertEqual(view._display_saved, (50, 0, 10))
+        self.assertTrue(view._display_edit)
+        self.assertIn('Not saved', view._display_save_message)
+
     def test_idle_dim_and_wake_never_write_flash(self):
         view = self.view(); view._display_values = [50, 1, 10]
         view._display_last_activity = 100

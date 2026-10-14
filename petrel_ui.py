@@ -1804,6 +1804,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
 
     def HMI_Display_Menu(self):
         event = self.get_encoder_state()
+        if (getattr(self, '_display_save_future', None) is not None
+                or getattr(self, '_buzzer_save_future', None) is not None):
+            # Do not accept another editor value while Flash ACK is pending.
+            return
         if self._buzzer_display_input(event):
             return
         selection = getattr(self, '_display_selection', 0)
@@ -1830,10 +1834,21 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 try:
                     values = tuple(self._display_values)
                     if values != self._display_saved:
-                        self.lcd.save_display_settings(*values)
-                        self._display_saved = values
-                    self._display_edit = False
-                    self._display_save_message = ''
+                        if getattr(self.lcd, 'SUPPORTS_NONBLOCKING_FLASH', None) is True:
+                            record = display_settings.encode(*values)
+                            self._display_save_target = values
+                            self._panel_flash_lcd = self.lcd
+                            self._display_save_future = self.lcd.begin_flash_write_verified(
+                                self.lcd.DISPLAY_SETTINGS_ADDRESS, record)
+                            self._display_save_message = 'Saving...'
+                        else:
+                            self.lcd.save_display_settings(*values)
+                            self._display_saved = values
+                            self._display_edit = False
+                            self._display_save_message = ''
+                    else:
+                        self._display_edit = False
+                        self._display_save_message = ''
                 except (OSError, TimeoutError, T5UIC1ProtocolError):
                     self._display_save_message = 'Not saved. Press to retry'
             else:

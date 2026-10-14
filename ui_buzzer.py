@@ -26,9 +26,21 @@ class BuzzerViewMixin:
             self._buzzer_player.play(settings, kind)
 
     def _save_buzzer(self, values):
+        if getattr(self, '_buzzer_save_future', None) is not None:
+            raise RuntimeError('Buzzer save already pending')
         if values != getattr(self, '_buzzer_saved', None):
-            self.lcd.save_buzzer_settings(values)
-        self._buzzer_values = self._buzzer_saved = values
+            if getattr(self.lcd, 'SUPPORTS_NONBLOCKING_FLASH', None) is True:
+                self._buzzer_save_target = values
+                self._panel_flash_lcd = self.lcd
+                self._buzzer_save_future = self.lcd.begin_flash_write_verified(
+                    self.lcd.BUZZER_SETTINGS_ADDRESS, values.encode())
+                self._display_save_message = 'Saving...'
+                self._buzzer_values = values
+            else:
+                self.lcd.save_buzzer_settings(values)
+                self._buzzer_values = self._buzzer_saved = values
+        else:
+            self._buzzer_values = values
         player = getattr(self, '_buzzer_player', None)
         if player is not None:
             player.cancel()
@@ -43,6 +55,8 @@ class BuzzerViewMixin:
         return rows
 
     def _buzzer_display_input(self, event):
+        if getattr(self, '_buzzer_save_future', None) is not None:
+            return True
         if event == self.ENCODER_DIFF_NO:
             return False
         selection = getattr(self, '_display_selection', 0)
@@ -97,6 +111,8 @@ class BuzzerViewMixin:
         self._draw_list_menu(title, entries, self._buzzer_selection)
 
     def HMI_Buzzer_Menu(self):
+        if getattr(self, '_buzzer_save_future', None) is not None:
+            return
         event = self.get_encoder_state()
         names = ('',) + self._buzzer_outputs()
         selection = getattr(self, '_buzzer_selection', 0)

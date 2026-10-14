@@ -102,6 +102,24 @@ class BuzzerMenuTests(unittest.TestCase):
         self.assertEqual(view._buzzer_values.output, '')
         self.assertEqual(len(view._buzzer_rows()), 1)
 
+    def test_async_buzzer_save_requires_verified_flash(self):
+        from concurrent.futures import Future
+        view = self.view()
+        view.lcd.SUPPORTS_NONBLOCKING_FLASH = True
+        view.lcd.BUZZER_SETTINGS_ADDRESS = ADDRESS
+        future = Future()
+        view.lcd.begin_flash_write_verified.return_value = future
+        chosen = Settings('Buzzer', 70, 4, 1)
+        view._save_buzzer(chosen)
+        view.lcd.begin_flash_write_verified.assert_called_once_with(
+            ADDRESS, chosen.encode())
+        self.assertNotEqual(view._buzzer_saved, chosen)
+        view._poll_panel_flash()
+        self.assertNotEqual(view._buzzer_saved, chosen)
+        future.set_result(chosen.encode())
+        view._poll_panel_flash()
+        self.assertEqual(view._buzzer_saved, chosen)
+
     def test_scroll_volume_tones_and_only_confirmed_settings_write_flash(self):
         view = self.view(); view._buzzer_values = view._buzzer_saved = Settings('Buzzer')
         view._display_selection = 5

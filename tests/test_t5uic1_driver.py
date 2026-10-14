@@ -213,7 +213,7 @@ class T5UIC1DriverPackets(unittest.TestCase):
             self.assertTrue(all(x.args == (0.001,) for x in sleeper.call_args_list))
             self.assertTrue(lcd.flash_busy())
         raw = bytes(range(16))
-        lcd.serial.chunks.append(b'\\xAA\\x32\\xA5\\x01\\x00\\x10' + raw
+        lcd.serial.chunks.append(b'\xAA\x32\xA5\x01\x00\x10' + raw
                                  + T5UIC1Display.TAIL)
         lcd.poll_flash_tasks()
         self.assertEqual(task.result(), raw)
@@ -226,12 +226,12 @@ class T5UIC1DriverPackets(unittest.TestCase):
         lcd.poll_flash_tasks()
         self.assertEqual(lcd.serial.frames[-1][1], 0x31)
         self.assertFalse(task.done())
-        lcd.serial.chunks.append(b'\\xAA\\x31\\xA5OK' + T5UIC1Display.TAIL)
+        lcd.serial.chunks.append(b'\xAA\x31\xA5OK' + T5UIC1Display.TAIL)
         lcd.poll_flash_tasks()
         self.assertFalse(task.done())
         lcd.poll_flash_tasks()
         self.assertEqual(lcd.serial.frames[-1][1], 0x32)
-        lcd.serial.chunks.append(b'\\xAA\\x32\\xA5\\x01\\x00\\x10'
+        lcd.serial.chunks.append(b'\xAA\x32\xA5\x01\x00\x10'
                                  + raw + T5UIC1Display.TAIL)
         lcd.poll_flash_tasks()
         self.assertEqual(task.result(), raw)

@@ -3038,7 +3038,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self.Clear_Main_Window()
 
         if self.pd.mmu is None:
-            show_theme_icon(self.lcd, self.ICON, self.ICON_LOGO, 71, 52)
+            show_theme_icon(self.lcd, self.ICON, self.ICON_LOGO, 71, 48)
         else:
             self.Draw_MMU_Status()
         self._drawn_mmu_state = copy.deepcopy(self.pd.mmu)
@@ -3410,7 +3410,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 4, 31, 268, 125)
                 self._home_mmu_layout = None
                 if mmu_state is None:
-                    show_theme_icon(self.lcd, self.ICON, self.ICON_LOGO, 71, 52)
+                    show_theme_icon(self.lcd, self.ICON, self.ICON_LOGO, 71, 48)
             if mmu_state is not None and mmu_state != getattr(self, '_drawn_mmu_state', None):
                 self.Draw_MMU_Status()
             self._drawn_mmu_state = copy.deepcopy(mmu_state)

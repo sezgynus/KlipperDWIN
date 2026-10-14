@@ -251,7 +251,7 @@ class PrintFocusMixin:
     def _focus_print_input(self):
         event=self.get_encoder_state()
         if event in (self.ENCODER_DIFF_CW,self.ENCODER_DIFF_CCW):
-            delta=1 if event==self.ENCODER_DIFF_CW else -1
+            delta=getattr(self,"_rotation_steps",1)*(1 if event==self.ENCODER_DIFF_CW else -1)
             buttons = self._focus_buttons()
             limit = len(buttons) - (2 if buttons[-1][0] == 'Stopping' else 1)
             self.select_print.now = max(0, min(limit, self.select_print.now + delta))
@@ -365,7 +365,7 @@ class PrintFocusMixin:
     def _focus_tune_input(self):
         event=self.get_encoder_state();rows=self._focus_tune_rows()
         if event in (self.ENCODER_DIFF_CW,self.ENCODER_DIFF_CCW):
-            self.select_tune.now=max(0,min(len(rows)-1,self.select_tune.now+(1 if event==self.ENCODER_DIFF_CW else -1)))
+            self.select_tune.now=max(0,min(len(rows)-1,self.select_tune.now+getattr(self,"_rotation_steps",1)*(1 if event==self.ENCODER_DIFF_CW else -1)))
             self._focus_tune_tick()
         elif event==self.ENCODER_DIFF_ENTER:
             s=rows[self.select_tune.now][0]
@@ -443,15 +443,15 @@ class PrintFocusMixin:
         previous_choice = self._focus_error_choice
         maximum = max(0, len(self._focus_error_lines) - 15)
         if event == self.ENCODER_DIFF_CW:
-            if self._focus_error_scroll < maximum:
-                self._focus_error_scroll += 1
-            else:
-                self._focus_error_choice = 1
+            target = self._focus_error_scroll + getattr(self,'_rotation_steps',1)
+            self._focus_error_scroll = min(maximum,target)
+            if target > maximum: self._focus_error_choice = 1
         elif event == self.ENCODER_DIFF_CCW:
+            steps = getattr(self,'_rotation_steps',1)
             if self._focus_error_choice:
                 self._focus_error_choice = 0
-            else:
-                self._focus_error_scroll = max(0, self._focus_error_scroll - 1)
+                steps -= 1
+            self._focus_error_scroll = max(0,self._focus_error_scroll-steps)
         elif event == self.ENCODER_DIFF_ENTER:
             if self._focus_error_choice:
                 self.Goto_PrintProcess()
@@ -462,7 +462,7 @@ class PrintFocusMixin:
         if self._focus_error_scroll != previous_scroll:
             self._focus_error_draw(viewport_only=True)
             self.lcd.update()
-        elif self._focus_error_choice != previous_choice:
+        if self._focus_error_choice != previous_choice:
             self._focus_error_draw(buttons_only=True)
             self.lcd.update()
 

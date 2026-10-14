@@ -26,3 +26,10 @@ class CoordinateValidationTests(unittest.TestCase):
             data['status']['gcode_move']['homing_origin'] = values
             self.assertFalse(p.update_variable(), values)
             self.assertTrue(p.connection_error)
+
+class NavigationBatchTests(unittest.TestCase):
+    def test_selection_batch_clamps_in_one_operation(self):
+        from test_regressions import ui
+        s = ui.select_t(); s.batch_steps = 1000
+        s.inc(18); self.assertEqual(s.now,17)
+        s.dec(); self.assertEqual(s.now,0)

@@ -82,12 +82,12 @@ class select_t:
 
     def dec(self):
         if (self.now):
-            self.now -= 1
+            self.now = max(0,self.now-getattr(self,"batch_steps",1))
         return self.changed()
 
     def inc(self, v):
         if (self.now < (v - 1)):
-            self.now += 1
+            self.now = min(v-1,self.now+getattr(self,"batch_steps",1))
         else:
             self.now = (v - 1)
         return self.changed()
@@ -1398,13 +1398,16 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._encoder_move_value = raw_count * min(acceleration_cap, effective_multiplier)
         else:
             self._encoder_move_value = 1
-        batched_menu = (event.kind == 'rotate' and count > 1
-                        and getattr(self, 'checkkey', None) in (self.Prepare, self.Control,
-                                              self.TemperatureID,
-                                              self.PLAPreheat, self.ABSPreheat))
-        self._menu_batch_steps = count if batched_menu else 1
-        if batched_menu:
-            count = 1
+        self._rotation_steps = abs(event.value) if event.kind == 'rotate' else 1
+        self._menu_batch_steps = self._rotation_steps
+        if event.kind == 'rotate':
+            if acceleration_cap == 1:
+                self._encoder_move_value = self._rotation_steps
+            count = 1  # One bounded handler invocation per physical input batch.
+        for name in self.SELECTIONS:
+            selection = getattr(self, name, None)
+            if isinstance(selection, select_t):
+                selection.batch_steps = self._rotation_steps
         lcd = getattr(self, 'lcd', None)
         if lcd is not None:
             lcd._defer_updates = True
@@ -1427,7 +1430,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         finally:
             self._encoder_event = self.ENCODER_DIFF_NO
             self._encoder_move_value = 1
-            self._menu_batch_steps = 1
+            self._menu_batch_steps = self._rotation_steps = 1
+            for name in self.SELECTIONS:
+                selection = getattr(self, name, None)
+                if isinstance(selection, select_t): selection.batch_steps = 1
             if (lcd is not None and self.lcd is lcd
                     and not getattr(lcd, '_closed', False)):
                 lcd._defer_updates = False
@@ -1817,7 +1823,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         selection = getattr(self, '_display_selection', 0)
         editing = getattr(self, '_display_edit', False)
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-            delta = 1 if event == self.ENCODER_DIFF_CW else -1
+            delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
             if editing:
                 index = selection - 1
                 self._display_values[index] = max(0, min(60 if index == 1 else 100,
@@ -1872,12 +1878,12 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
             self._software_updater().cancel_confirmation()
         if event == self.ENCODER_DIFF_CW:
-            self._info_scroll = min(max_scroll, current + 1)
+            self._info_scroll = min(max_scroll, current + getattr(self,"_rotation_steps",1))
             if self._info_scroll == current:
                 return
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_CCW:
-            self._info_scroll = max(0, current - 1)
+            self._info_scroll = max(0, current - getattr(self,"_rotation_steps",1))
             if self._info_scroll == current:
                 return
             self.Draw_Info_Menu()
@@ -2488,9 +2494,9 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._probe_selection = max(0, min(getattr(self, '_probe_selection', 0), max(0, len(options) - 1)))
         event = self.get_encoder_state()
         if event == self.ENCODER_DIFF_CW and options:
-            self._probe_selection = min(len(options) - 1, self._probe_selection + 1)
+            self._probe_selection = min(len(options) - 1, self._probe_selection + getattr(self,"_rotation_steps",1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._probe_selection = max(0, self._probe_selection - 1)
+            self._probe_selection = max(0, self._probe_selection - getattr(self,"_rotation_steps",1))
         elif event == self.ENCODER_DIFF_ENTER and options and not wizard.pending:
             try:
                 self._probe_ui_error = None

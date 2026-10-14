@@ -203,10 +203,10 @@ class InputRoutingTests(unittest.TestCase):
     def test_each_rotation_step_is_preserved(self):
         display = self.display()
         seen = []
-        display._dispatch_input.side_effect = lambda: seen.append(display.get_encoder_state())
+        display._dispatch_input.side_effect = lambda: seen.append((display.get_encoder_state(), display._rotation_steps))
         display._process_input(InputEvent('rotate', -3, 1))
         display._process_input(InputEvent('press', 1, 1))
-        self.assertEqual(seen, [display.ENCODER_DIFF_CW] * 3 + [display.ENCODER_DIFF_ENTER])
+        self.assertEqual(seen, [(display.ENCODER_DIFF_CW,3), (display.ENCODER_DIFF_ENTER,1)])
         self.assertEqual(display.get_encoder_state(), display.ENCODER_DIFF_NO)
 
     def test_coalesced_prepare_navigation_draws_only_final_selection(self):
@@ -290,7 +290,7 @@ class InputRoutingTests(unittest.TestCase):
         display = self.display()
         display.button = Mock(is_pressed=True)
         seen = []
-        display._dispatch_input.side_effect = lambda: seen.append(display.get_encoder_state())
+        display._dispatch_input.side_effect = lambda: seen.append((display.get_encoder_state(), display._rotation_steps))
         display._process_input(InputEvent('rotate', 1, 1))
         self.assertEqual(seen, [display.ENCODER_DIFF_CCW])
 

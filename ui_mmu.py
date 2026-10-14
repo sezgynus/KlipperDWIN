@@ -772,7 +772,7 @@ class MMUViewMixin:
             keys = tuple(item[0] for item in items)
             same = window is not None and window[:3] == (page, first_y, visible) and window[4] == keys
             start = window[3] if same else 0
-            start = max(0, min(start, max(0, self._mmu_selection - 1)), self._mmu_selection - visible)
+            start = max(0, min(start, max(0, self._mmu_selection - getattr(self,"_rotation_steps",1))), self._mmu_selection - visible)
             delta = start - window[3] if same else 0
             if delta and abs(delta) < visible:
                 # Remove the old highlight before moving the LCD pixels.
@@ -832,7 +832,7 @@ class MMUViewMixin:
                     self._mmu_edit = None
                     self._mmu_notice = 'MMU changed; reopen editor'
                 elif event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                    delta = 1 if event == self.ENCODER_DIFF_CW else -1
+                    delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
                     tool = edit[1]
                     self._mmu_map_draft[tool] = max(0, min(m.num_gates - 1, self._mmu_map_draft[tool] + delta))
             elif edit == ('endless', 'enabled'):
@@ -846,11 +846,11 @@ class MMUViewMixin:
                     self._mmu_edit = None
                     self._mmu_notice = 'MMU changed; reopen editor'
                 elif event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                    delta = 1 if event == self.ENCODER_DIFF_CW else -1
+                    delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
                     self._mmu_spool_draft = max(1, self._mmu_spool_draft + delta)
             elif m and event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                delta = 1 if event == self.ENCODER_DIFF_CW else -1
-                self._mmu_manual[edit] = (not self._mmu_manual[edit] if edit == 'loaded'
+                delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
+                self._mmu_manual[edit] = ((not self._mmu_manual[edit] if getattr(self,'_rotation_steps',1)%2 else self._mmu_manual[edit]) if edit == 'loaded'
                     else max(0, min(m.num_gates - 1, self._mmu_manual[edit] + delta)))
             self.Draw_MMU_Menu()
             return
@@ -861,9 +861,9 @@ class MMUViewMixin:
             return
         self._mmu_selection = min(self._mmu_selection, len(items))
         if event == self.ENCODER_DIFF_CW:
-            self._mmu_selection = min(len(items), self._mmu_selection + 1)
+            self._mmu_selection = min(len(items), self._mmu_selection + getattr(self,"_rotation_steps",1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._mmu_selection = max(0, self._mmu_selection - 1)
+            self._mmu_selection = max(0, self._mmu_selection - getattr(self,"_rotation_steps",1))
         elif event == self.ENCODER_DIFF_ENTER:
             if self._mmu_selection == 0:
                 self._mmu_back()

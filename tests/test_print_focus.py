@@ -11,6 +11,19 @@ from thumbnail_preview import image_jpeg
 
 
 class PrintFocusTests(unittest.TestCase):
+    def test_pending_label_fits_without_overlapping_an_action_icon(self):
+        from lcd_resources import ICON_PRINT_PENDING
+        v, _ = self.view()
+        v.lcd = driver()
+        v._stop_waiting = True
+        v._focus_draw_buttons()
+        frames = v.lcd.serial.frames
+        text = next(frame for frame in frames if frame[1] == 0x11 and frame[11:-4] == b'Stopping')
+        x = int.from_bytes(text[7:9], 'big')
+        self.assertGreaterEqual(x, 180)
+        self.assertLessEqual(x + len('Stopping') * 8, 258)
+        self.assertTrue(any(frame[1] == 0x23 and frame[-5] == ICON_PRINT_PENDING for frame in frames))
+
     def view(self, mmu=False):
         data=test_print_tuning.PrintTuningTests().data()
         data['status']['print_stats'].update(state='printing',filename='part.gcode',print_duration=120,info={'current_layer':85,'total_layer':200})

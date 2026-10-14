@@ -13,7 +13,7 @@ from lcd_resources import (ICON_PRINT_TUNE, ICON_PRINT_PAUSE, ICON_PRINT_RESUME,
                            ICON_STOP_BUTTON_NORMAL, ICON_STOP_BUTTON_SELECTED,
                            ICON_STOP_BUTTON_DANGER, ICON_STOP_PANEL,
                            ICON_MMU_ERROR_SELECTED, ICON_MMU_ERROR_NORMAL,
-                           ICON_APPLY_BUTTON)
+                           ICON_APPLY_BUTTON, ICON_PRINT_PENDING)
 
 
 @lru_cache(maxsize=64)
@@ -154,9 +154,10 @@ class PrintFocusMixin:
             if not layout_changed:
                 self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, x, 312, x+width-1, 347)
             show_icon(self.lcd, self.ICON,
-                      PRINT_BUTTON_SELECTED[normal] if selected else normal, x, 312)
-            char_width = 8 if len(label)*8+20 <= width else 6
-            text_x = x + (width-(len(label)*char_width+20))//2 + 20
+                      ICON_PRINT_PENDING if disabled else PRINT_BUTTON_SELECTED[normal] if selected else normal, x, 312)
+            char_width = 8 if disabled or len(label)*8 <= width-32 else 6
+            text_x = (x + (width-len(label)*8)//2 if disabled else
+                      x + max(31, (width-(len(label)*char_width+20))//2 + 20))
             self._focus_text(label, text_x, 322 if char_width == 8 else 324,
                              font=self.lcd.font8x16 if char_width == 8 else self.lcd.font6x12,
                              color=color)

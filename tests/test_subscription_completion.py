@@ -69,9 +69,9 @@ class PendingRequestBudgetTests(unittest.TestCase):
             if first is None:
                 first = future
             client._drain_outbound()
-        self.assertEqual(len(client._pending_requests), client.MAX_PENDING_REQUESTS)
-        self.assertEqual(len(client._pending_deadlines), client.MAX_PENDING_REQUESTS)
-        self.assertEqual(client._socket.send.call_count, client.MAX_PENDING_REQUESTS)
+        self.assertEqual(len(client._pending_requests), client.MAX_PENDING_REQUESTS - 1)
+        self.assertEqual(len(client._pending_deadlines), client.MAX_PENDING_REQUESTS - 1)
+        self.assertEqual(client._socket.send.call_count, client.MAX_PENDING_REQUESTS - 1)
         self.assertFalse(first.done())
         client._fail_outbound('connection closed')
         with self.assertRaises(MoonrakerError):
@@ -85,14 +85,24 @@ class PendingRequestBudgetTests(unittest.TestCase):
         client._drain_outbound()
         packet = json.loads(client._socket.send.call_args.args[0])
         self.assertEqual(packet['method'], 'printer.print.cancel')
-        self.assertFalse(client._pending_deadlines)
+        deadline = next(iter(client._pending_deadlines.values()))
         with patch('moonraker_subscription.time.monotonic',
-                   return_value=10_000_000):
+                   return_value=deadline - 1):
             client._expire_requests()
         self.assertFalse(future.done())
         self.assertEqual(len(client._pending_requests), 1)
         client._notification({'id': packet['id'], 'result': 'ok'})
         self.assertEqual(future.result(), 'ok')
+        self.assertFalse(client._pending_requests)
+
+    def test_print_cancel_has_finite_retention(self):
+        client = self.make()
+        future = client.request('printer.print.cancel')
+        client._drain_outbound()
+        deadline = next(iter(client._pending_deadlines.values()))
+        with patch('moonraker_subscription.time.monotonic', return_value=deadline + 1):
+            client._expire_requests()
+        self.assertIsInstance(future.exception(), MoonrakerError)
         self.assertFalse(client._pending_requests)
 
     def test_pending_cancel_cleans_up_on_state_acceptance_or_disconnect(self):
@@ -157,3 +167,24 @@ class OutboundWakeupTests(unittest.TestCase):
         future = client.request('printer.emergency_stop')
         self.assertTrue(written.wait(.5))
         self.assertFalse(future.done())
+
+class EmergencyPriorityTests(CompletionTransportTests):
+    def test_reserved_slot_bypasses_full_normal_queue(self):
+        c = self.make()
+        for _ in range(31): c.notify('printer.gcode.script',{'script':'M400'})
+        self.assertIsNotNone(c.notify('printer.gcode.script').exception())
+        emergency = c.request('printer.emergency_stop')
+        c._drain_outbound()
+        first = json.loads(c._socket.send.call_args_list[0].args[0])
+        self.assertEqual(first['method'],'printer.emergency_stop')
+        self.assertFalse(emergency.done())
+
+    def test_reconnect_inside_guard_cannot_redirect_command(self):
+        c = self.make(); old = c._socket; new = Mock()
+        def guard():
+            c._epoch += 1; c._socket = new
+            return True
+        f = c.notify('printer.gcode.script',{'script':'G1 X1'},guard=guard)
+        c._drain_outbound()
+        self.assertIsNotNone(f.exception())
+        old.send.assert_not_called(); new.send.assert_not_called()

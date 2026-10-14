@@ -86,7 +86,17 @@ def canvas(data=None):
     v = display(data or sample())
     v.lcd = driver()
     v.framebuffer = Framebuffer(PanelAssets())
-    v.lcd._packet_observer = v.framebuffer
+    v._emulator_errors = []
+    class Observer:
+        def feed(self, packet):
+            try:
+                if packet[1] == 0x08:
+                    raise ValueError("UI emitted unsupported bitmap command 0x08")
+                v.framebuffer.feed(packet)
+            except Exception as error:
+                v._emulator_errors.append(error)
+                raise
+    v.lcd._packet_observer = Observer()
     v.lcd.clear(0)
     v.get_encoder_state = Mock(return_value=v.ENCODER_DIFF_NO)
     v._offline = False
@@ -114,9 +124,14 @@ def canvas(data=None):
 
 
 def finish(v, dashboard=True):
+    # Capture the settled screen, as the owner loop does over successive ticks.
+    while getattr(v, '_mesh_pending_points', None) is not None:
+        v._advance_mesh_render(flush=False)
     if dashboard:
         v.Draw_Status_Area(False)
     v.lcd.update()
+    if v._emulator_errors:
+        raise RuntimeError('Emulator failed to render a packet') from v._emulator_errors[0]
     return v.framebuffer.snapshot()[0]
 
 
@@ -548,6 +563,57 @@ WORKFLOWS = [
 ]
 for name, group, en, tr in WORKFLOWS:
     scene(name,group,en,tr)(lambda name=name: finish(workflow_view(name), dashboard=False))
+
+
+def print_focus(selection, **state):
+    view = printing(return_view=True, **state)
+    view.select_print.set(selection)
+    view._focus_draw_buttons()
+    return finish(view)
+
+
+for name, selection, state in (
+        ('printing-focus-tune', 0, {}), ('printing-focus-pause', 1, {}),
+        ('printing-focus-stop', 2, {}), ('printing-focus-resume', 1, {'paused': True}),
+        ('printing-focus-mmu', 1, {'paused': True, 'mmu': True, 'error': True}),
+        ('printing-focus-close', 1, {'complete': True})):
+    scene(name, 'printing', 'Print control selection: ' + name.rsplit('-', 1)[-1],
+          'Baskı kontrol seçimi: ' + name.rsplit('-', 1)[-1])(
+              lambda selection=selection, state=state: print_focus(selection, **state))
+
+
+@scene('power-off-selected', 'controls', 'Power off selected', 'Güç kapatma seçili')
+def power_selected():
+    view = canvas()
+    view._power_confirm_yes = True
+    view._power_hold_popup = True
+    view._power_blocked = None
+    view._draw_power_confirmation()
+    return finish(view)
+
+
+@scene('stop-danger-selected', 'printing', 'Stop selected', 'Baskı durdurma seçili')
+def stop_selected():
+    view = workflow_view('stop-confirm')
+    view.pd.HMI_flag.select_flag = True
+    view._focus_stop_draw(buttons_only=True)
+    return finish(view)
+
+
+@scene('error-back-selected', 'printing', 'MMU error Back selected', 'MMU hatasında geri seçili')
+def error_back_selected():
+    view = workflow_view('error-full')
+    view._focus_error_choice = 1
+    view._focus_error_draw(buttons_only=True)
+    return finish(view, dashboard=False)
+
+
+@scene('printing-stopping', 'printing', 'Print cancellation pending', 'Baskı iptali bekleniyor')
+def print_stopping():
+    view = printing(return_view=True)
+    view._stop_waiting = True
+    view._focus_draw_buttons()
+    return finish(view)
 
 # Follow menu navigation rather than source registration order.
 MENU_ORDER = {

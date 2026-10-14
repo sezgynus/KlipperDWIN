@@ -75,7 +75,7 @@ class BuzzerViewMixin:
             return True
         if selection >= 5 and getattr(self, '_display_edit', False):
             if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                delta = 1 if event == self.ENCODER_DIFF_CW else -1
+                delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
                 value = self._buzzer_settings()
                 field = ('volume', 'click', 'encoder')[selection - 5]
                 current = getattr(value, field)
@@ -117,7 +117,7 @@ class BuzzerViewMixin:
         names = ('',) + self._buzzer_outputs()
         selection = getattr(self, '_buzzer_selection', 0)
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-            delta = 1 if event == self.ENCODER_DIFF_CW else -1
+            delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
             self._buzzer_selection = max(0, min(len(names), selection + delta))
         elif event == self.ENCODER_DIFF_ENTER:
             if selection:

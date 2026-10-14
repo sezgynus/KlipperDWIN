@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Render text-free button backings for the managed DWIN JPEG/ICO library."""
+import argparse
+from pathlib import Path
+from PIL import Image, ImageDraw
+
+ROOT = Path(__file__).resolve().parents[1]
+BACKINGS = {
+    134: (104, 36, 8, 0x39C8, 0),
+    135: (104, 36, 8, 0x063B, 0),
+    136: (104, 36, 8, 0xB209, 0),
+    137: (244, 202, 10, 0x2967, 0),
+    138: (78, 36, 10, 0x2967, 0),
+    139: (244, 38, 7, 0x2967, 0),
+    140: (244, 38, 7, 0x40E5, 0),
+    141: (252, 24, 6, 0x2967, 0),
+    142: (252, 20, 6, 0x2967, 0),
+    143: (208, 36, 8, 0x063B, 0),
+    144: (244, 30, 8, 0x063B, 0),
+    145: (244, 30, 8, 0x2967, 0),
+    146: (216, 98, 49, 0x2967, 0),
+    147: (208, 28, 14, 0x063B, 0),
+    148: (208, 28, 14, 0x2967, 0),
+    149: (104, 36, 18, 0x2967, 0),
+    150: (104, 36, 18, 0x19E9, 0),
+    151: (104, 36, 18, 0xB986, 0),
+    152: (88, 88, 8, 0x2967, 0),
+    153: (8, 8, 4, 0x39C8, 0),
+    154: (8, 8, 4, 0x063B, 0),
+}
+
+def rgb(value):
+    r, g, b = value >> 11, (value >> 5) & 63, value & 31
+    return (r << 3 | r >> 2, g << 2 | g >> 4, b << 3 | b >> 2)
+
+def render(index):
+    width, height, radius, fill, backing = BACKINGS[index]
+    image = Image.new('RGB', (width, height), rgb(backing))
+    ImageDraw.Draw(image).rounded_rectangle((0, 0, width - 1, height - 1),
+                                           radius=radius, fill=rgb(fill))
+    if index in (141, 142):
+        # Preserve smooth edges in the small row highlight itself.
+        scale = 4
+        image = Image.new('RGB', (width * scale, height * scale), rgb(backing))
+        ImageDraw.Draw(image).rounded_rectangle(
+            (0, 0, width * scale - 1, height * scale - 1),
+            radius=radius * scale, fill=rgb(fill))
+        image = image.resize((width, height), Image.Resampling.LANCZOS)
+    image.save(ROOT / 'assets/icons' / f'{index:03d}.jpg', quality=95,
+               subsampling=2, progressive=False)
+    color = lambda value: '#%02x%02x%02x' % rgb(value)
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+           f'viewBox="0 0 {width} {height}"><rect width="{width}" height="{height}" '
+           f'fill="{color(backing)}"/><rect width="{width}" height="{height}" '
+           f'rx="{radius}" fill="{color(fill)}"/></svg>\n')
+    (ROOT / 'assets/icon-source' / f'{index:03d}.svg').write_text(svg)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('ids', type=int, nargs='*')
+    args = parser.parse_args()
+    for index in args.ids or BACKINGS:
+        render(index)

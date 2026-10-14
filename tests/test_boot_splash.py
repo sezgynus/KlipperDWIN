@@ -29,7 +29,7 @@ class BootSplashTests(unittest.TestCase):
         v._show_message.assert_not_called()
         frames = v.lcd.serial.frames
         self.assertTrue(frames)
-        self.assertTrue(all(f[1] in (0x00, 0x05, 0x08, 0x11, 0x27, 0x28, 0x3D) for f in frames))
+        self.assertTrue(all(f[1] in (0x00, 0x05, 0x23, 0x11, 0x27, 0x28, 0x3D) for f in frames))
         for frame in frames:
             if frame[1] == 0x05:
                 x0,y0,x1,y1 = [int.from_bytes(frame[i:i+2], 'big') for i in (5,7,9,11)]

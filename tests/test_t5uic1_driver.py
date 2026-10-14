@@ -351,3 +351,51 @@ class BoundedReceiveTests(unittest.TestCase):
         self.assertEqual(lcd.rx_discard_counts()['aux'], 500 - T5UIC1Display.AUX_RX_LIMIT)
         self.assertEqual(lcd.poll_aux_data(), b'xy')
 
+
+class ReceiveAgeAndPriorityTests(unittest.TestCase):
+    def test_flash_and_liveness_ack_slots_do_not_erase_each_other(self):
+        lcd = driver()
+        raw = bytes((lcd.MEMORY_FLASH,)) + b'OK'
+        lcd._flash_job = {'awaiting': (0x31, lambda value: value == raw)}
+        lcd.begin_liveness_probe()
+        noise = b'\xAA\x34OK' + lcd.TAIL
+        lcd.serial.chunks.append(b'\xAA\x31' + raw + lcd.TAIL + b'\xAA\x00OK' + lcd.TAIL + noise * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertTrue(lcd.poll_liveness_probe())
+        self.assertEqual(lcd._take_response(0x31), raw)
+
+    def test_prior_queued_ack_cannot_confirm_a_new_handshake(self):
+        lcd = driver()
+        lcd.serial.chunks.append(b'\xAA\x00OK' + lcd.TAIL)
+        lcd._read_available()
+        self.assertFalse(lcd.handshake(timeout=.01))
+
+    def test_expected_ack_survives_later_noise(self):
+        lcd = driver()
+        lcd._expected_response = 0x00, None
+        ack = b'\xAA\x00OK' + lcd.TAIL
+        noise = b'\xAA\x34OK' + lcd.TAIL
+        lcd.serial.chunks.append(ack + noise * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertEqual(lcd._take_response(0x00), b'OK')
+        self.assertLessEqual(len(lcd._frames), lcd.RX_FRAME_LIMIT)
+
+    def test_old_ack_and_aux_data_expire(self):
+        from unittest.mock import patch
+        lcd = driver()
+        with patch('t5uic1_driver.time.monotonic', return_value=10):
+            lcd.serial.chunks.append(b'\xAA\x00OK' + lcd.TAIL + b'\xAA\x3A\x02xy' + lcd.TAIL)
+            lcd._read_available()
+        with patch('t5uic1_driver.time.monotonic', return_value=20):
+            self.assertIsNone(lcd._take_response(0x00))
+            self.assertIsNone(lcd.poll_aux_data())
+
+    def test_async_liveness_ack_survives_noise(self):
+        lcd = driver()
+        lcd.begin_liveness_probe()
+        lcd.serial.chunks.append(b'\xAA\x00OK' + lcd.TAIL + (b'\xAA\x34OK' + lcd.TAIL) * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertTrue(lcd.poll_liveness_probe())

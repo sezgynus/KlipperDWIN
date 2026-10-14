@@ -1,7 +1,9 @@
 import copy
+from dataclasses import replace
 import logging
 import math
 import re
+import sys
 import time
 import uuid
 from urllib.parse import quote
@@ -179,7 +181,7 @@ class PrinterData:
         self._read_worker = ReadWorker(timeout)
         # HTTP maintenance can wait up to 120s; never hold normal telemetry,
         # file browsing or preset reads behind an update request.
-        self._maintenance_worker = ReadWorker(timeout=1, capacity=2)
+        self._maintenance_worker = ReadWorker(timeout=1, capacity=2, queue_timeout=120)
         self._read_jobs = {}
         self._settings_save = None
         self._files_loading = self._directory_loading = False
@@ -262,6 +264,7 @@ class PrinterData:
         self.file_sort_revision = 0
         self._file_sort_refresh_at = 0.0
         self._directory_cache = {}
+        self._preset_original = copy.deepcopy(self.material_preset)
         self.subscription = MoonrakerSubscription(URL, API_Key, timeout)
         self.probe_wizard = ProbeWizard(self)
         self.screws_tilt = ScrewsTiltSession(self)
@@ -400,6 +403,7 @@ class PrinterData:
                     presets.append(material_preset_t.from_mainsail(item, preset_id))
                 except (ValueError, TypeError) as error:
                     logging.warning('Ignoring invalid Mainsail preset %s: %s', preset_id, error)
+            self._preset_original = copy.deepcopy(presets)
             self._preset_baseline = self._preset_signature(presets)
             if not presets:
                 changed = bool(self.material_preset)
@@ -644,6 +648,23 @@ class PrinterData:
         if not self._files_loaded or key not in self._directory_cache:
             self.GetDirectory('')
 
+    DIRECTORY_CACHE_BYTES = 2 * 1024 * 1024
+
+    @staticmethod
+    def _directory_size(entries):
+        # Include Python container/string overhead, not just serialized JSON bytes.
+        pending = [entries]
+        size = 0
+        while pending:
+            value = pending.pop()
+            size += sys.getsizeof(value)
+            if isinstance(value, dict):
+                pending.extend(value.keys())
+                pending.extend(value.values())
+            elif isinstance(value, (list, tuple)):
+                pending.extend(value)
+        return size
+
     def GetDirectory(self, directory=''):
         self._directory_loading = False
         self.GetFiles()
@@ -652,8 +673,14 @@ class PrinterData:
         if directory and any(part in ('', '.', '..') for part in directory.split('/')):
             raise ValueError('Invalid directory path')
         key = (self.state.epoch, self.state.file_revision, directory)
+        sizes = getattr(self, '_directory_cache_sizes', {})
+        self._directory_cache_sizes = sizes
+        for old in tuple(sizes):
+            if old not in self._directory_cache:
+                del sizes[old]
         if self._directory_revision_key != key[:2]:
             self._directory_cache.clear()
+            sizes.clear()
             self._directory_retry_at.clear()
             self._directory_revision_key = key[:2]
         try:
@@ -676,20 +703,27 @@ class PrinterData:
                         entries.append(dict(item, path=path + ('/' if is_dir else ''), isDirectory=is_dir))
                 if len({item['path'] for item in entries}) != len(entries):
                     raise ValueError('Duplicate directory entries')
-                self._directory_cache[key] = entries
+                size = self._directory_size(entries)
+                if size <= self.DIRECTORY_CACHE_BYTES:
+                    self._directory_cache[key] = entries
+                    sizes[key] = size
                 self._directory_loading = False
                 self._directory_retry_at.pop(key, None)
             # Insertion-ordered cache: keep the root and current parent available
             # while bounding memory during long sessions with many folders.
-            entries = list(self._directory_cache.pop(key))
-            self._directory_cache[key] = entries
+            if key in self._directory_cache:
+                entries = self._directory_cache.pop(key)
+                self._directory_cache[key] = entries
             parent = directory.rpartition('/')[0]
-            while len(self._directory_cache) > 64:
+            retained = sum(sizes.values())
+            while len(self._directory_cache) > 64 or retained > self.DIRECTORY_CACHE_BYTES:
                 victim = next((k for k in self._directory_cache
                                if k[2] not in ('', directory, parent)), None)
                 if victim is None:
-                    break
+                    # Byte limit wins even when only root/current/parent remain.
+                    victim = next(iter(self._directory_cache))
                 del self._directory_cache[victim]
+                retained -= sizes.pop(victim, 0)
             self._sort_files(entries)
             entries.sort(key=lambda item: not item['isDirectory'])
             return tuple(item['path'] for item in entries)
@@ -769,6 +803,7 @@ class PrinterData:
             try:
                 self._settings_save.result()
                 self._preset_baseline = self._preset_saved_signature
+                self._preset_original = self._preset_save_original
                 self.settings_error = None
             except Exception as error:
                 self.settings_error = str(error)
@@ -780,15 +815,20 @@ class PrinterData:
             # Effective Klipper config stays stable within a websocket epoch.
             # Avoid copying and recursively freezing the entire settings tree
             # on every status revision; status itself remains freshly copied.
-            if getattr(self.subscription, '_supports_settings_elision', None) is True:
+            lifecycle_reader = getattr(self.subscription,'lifecycle',None)
+            life = lifecycle_reader() if callable(lifecycle_reader) else None
+            same_revision = (isinstance(life,dict) and self.state.ready
+                             and life.get('state') == 'ready'
+                             and life.get('epoch') == self.state.epoch
+                             and life.get('revision') == self.state.revision)
+            if same_revision:
+                state = replace(self.state, file_revision=life.get('file_revision',self.state.file_revision))
+            elif getattr(self.subscription, '_supports_settings_elision', None) is True:
                 snap = self.subscription.snapshot(include_settings=False)
                 reuse = self.state.ready and snap['epoch'] == self.state.epoch
-                if not reuse:
-                    snap = self.subscription.snapshot()
-                state = PrinterState.from_snapshot(
-                    snap, reused_settings=self.state.settings if reuse else None)
+                if not reuse: snap = self.subscription.snapshot()
+                state = PrinterState.from_snapshot(snap,reused_settings=self.state.settings if reuse else None)
             else:
-                # Isolated/legacy transport fixtures retain the full snapshot.
                 state = PrinterState.from_snapshot(self.subscription.snapshot())
             if not state.ready:
                 self.state = state
@@ -796,22 +836,28 @@ class PrinterData:
                 self.connection_error = state.error or 'Klipper is not ready'
                 return False
             data = state.status
-            caps = PrinterCapabilities.from_state(state)
+            th = state.status['toolhead']
+            caps_key = (state.epoch,id(state.settings),state.objects,th.get('extruder'),
+                        tuple(th.get('axis_minimum',())),tuple(th.get('axis_maximum',())))
+            caps = (self.capabilities if caps_key == getattr(self,'_caps_cache_key',None)
+                    else PrinterCapabilities.from_state(state))
             gcm = data['gcode_move']
             toolhead = data['toolhead']
             # Validate required fields before committing the snapshot.
             job = {'virtual_sdcard': data['virtual_sdcard'], 'print_stats': data['print_stats']}
             print_state = job['print_stats']['state']
-            position = toolhead['position']
-            x, y, z, e = position[:4]
-            command_position = gcm.get('position', position)
-            if len(command_position) < 4 or not all(math.isfinite(float(v)) for v in command_position[:4]):
-                raise ValueError('Invalid command position')
-            if not all(math.isfinite(float(v)) for v in position[:4]) or len(position) < 4:
-                raise ValueError('Invalid toolhead position')
-            origin = float(gcm['homing_origin'][2])
-            if not math.isfinite(origin):
-                raise ValueError('Invalid homing origin')
+            def finite_coordinates(values, count, label):
+                if (not isinstance(values, (list, tuple)) or len(values) < count
+                        or any(isinstance(v, bool) for v in values[:count])):
+                    raise ValueError('Invalid ' + label)
+                result = tuple(float(v) for v in values[:count])
+                if not all(math.isfinite(v) for v in result):
+                    raise ValueError('Invalid ' + label)
+                return result
+            position = finite_coordinates(toolhead['position'], 4, 'toolhead position')
+            x, y, z, e = position
+            finite_coordinates(gcm.get('position', position), 4, 'command position')
+            origin = finite_coordinates(gcm['homing_origin'], 3, 'homing origin')[2]
             absolute_moves = gcm['absolute_coordinates']
             absolute_extrude = gcm['absolute_extrude']
             speed_percent = float(gcm.get('speed_factor', 1.0)) * 100
@@ -915,6 +961,7 @@ class PrinterData:
         changed = state != self.state or spoolman_changed or presets_changed or sort_changed
         self.state = state
         self.capabilities = caps
+        self._caps_cache_key = caps_key
         self._apply_capabilities(caps)
         self.SHORT_BUILD_VERSION = state.software_version
         if state.epoch != self._file_epoch:
@@ -1230,6 +1277,8 @@ class PrinterData:
                 raise ValueError('Restore jog state before sending motion commands')
         if dispatch_guard is None and gcode.strip() in ('G28', 'G28 X Y', 'G28 X Y Z', 'M84'):
             dispatch_guard = motion_dispatch_guard(self)
+        if cleanup is not None and gcode.startswith('SAVE_GCODE_STATE NAME=LCD_PROBE_CENTER\n'):
+            return self.subscription.request_script_with_cleanup(gcode, cleanup, dispatch_guard)
         if cleanup is not None:
             return self.postREST('/printer/gcode/script', json={'script': gcode},
                                  cleanup={'script': cleanup}, report_error=report_error, dispatch_guard=dispatch_guard)
@@ -1279,6 +1328,14 @@ class PrinterData:
         preset = self.material_preset[index]
         return self.preHeat(preset.bed_temp, preset.hotend_temp)
 
+    def discard_preset_edits(self, profile):
+        if self._settings_save is not None:
+            raise ValueError('Wait for preset save before discarding edits')
+        if not 0 <= profile < len(self._preset_original):
+            raise ValueError('Preset is no longer available')
+        self.material_preset[profile] = copy.deepcopy(self._preset_original[profile])
+        self._preset_refresh_at = 0.0
+
     def save_settings(self):
         if self.presets_from_mainsail:
             if self._settings_save is not None and not self._settings_save.done():
@@ -1298,6 +1355,7 @@ class PrinterData:
                 for payload in writes:
                     self.client.post('/server/database/item', payload).result(timeout=self.client.timeout + 1)
                 return True
+            self._preset_save_original = copy.deepcopy(self.material_preset)
             self._preset_saved_signature = self._preset_signature(self.material_preset)
             self._settings_save = self._read_worker.submit(save)
             return self._settings_save
@@ -1307,6 +1365,7 @@ class PrinterData:
             self.settings_error = str(error)
             logging.error('Cannot save presets to %s: %s', self.preset_store.path, error)
             return False
+        self._preset_original = copy.deepcopy(self.material_preset)
         self.settings_error = None
         return True
 

@@ -30,6 +30,20 @@ class T5UIC1TimeoutError(TimeoutError):
     """Raised when an expected T5UIC1 response is not received in time."""
 
 
+class _ReceivedFrame(tuple):
+    def __new__(cls, command, payload):
+        frame = super().__new__(cls, (command, payload))
+        frame.received_at = time.monotonic()
+        return frame
+
+
+class _AuxFrame(bytes):
+    def __new__(cls, payload):
+        frame = super().__new__(cls, payload)
+        frame.received_at = time.monotonic()
+        return frame
+
+
 class T5UIC1Display:
     SUPPORTS_NONBLOCKING_LIVENESS = True
     SUPPORTS_NONBLOCKING_FLASH = True
@@ -110,6 +124,7 @@ class T5UIC1Display:
     DWIN_FONT_STAT = FONT_10X20
     DWIN_FONT_HEAD = FONT_10X20
 
+    RX_FRAME_AGE = 5.0
     RX_FRAME_LIMIT = 64
     AUX_RX_LIMIT = 64
 
@@ -248,6 +263,11 @@ class T5UIC1Display:
         payload = self._ensure_bytes(payload)
         if len(payload) > self.MAX_DATA_LENGTH:
             raise ValueError("T5UIC1 data field exceeds 248 bytes")
+        if command in (0x00, 0x31, 0x32, 0x33, 0x34):
+            # A queued reply from an earlier transaction cannot confirm this send.
+            self._frames = deque((frame for frame in self._frames if frame[0] != command),
+                                 maxlen=self.RX_FRAME_LIMIT)
+            self._protected_response_slots().pop(command, None)
         frame = self.HEADER + bytes((command,)) + payload + self.TAIL
         try:
             written = self.serial.write(frame)
@@ -323,13 +343,53 @@ class T5UIC1Display:
             if command == 0x3A:
                 if len(self._aux_rx) == self._aux_rx.maxlen:
                     self._rx_discarded_aux += 1
-                self._aux_rx.append(payload[1:])
+                self._aux_rx.append(_AuxFrame(payload[1:]))
             elif command == 0xFF:
                 self._crc_errors += 1
             else:
-                if len(self._frames) == self._frames.maxlen:
-                    self._rx_discarded_frames += 1
-                self._frames.append((command, payload))
+                frame = _ReceivedFrame(command, payload)
+                expected = getattr(self, '_expected_response', None)
+                job = getattr(self, '_flash_job', None)
+                awaiting = job.get('awaiting') if job is not None else None
+                if awaiting is not None and command == awaiting[0]:
+                    expected = awaiting
+                if command == 0x00 and getattr(self, '_liveness_deadline', None) is not None:
+                    expected = 0x00, None
+                if (expected is not None and command == expected[0]
+                        and (expected[1] is None or expected[1](payload))):
+                    # At most three active RPC kinds, one ACK slot per opcode.
+                    slots = self._protected_response_slots()
+                    if command not in slots and len(slots) < 3:
+                        slots[command] = frame
+                else:
+                    if len(self._frames) == self._frames.maxlen:
+                        self._rx_discarded_frames += 1
+                    self._frames.append(frame)
+
+    def _protected_response_slots(self):
+        if not hasattr(self, '_response_slots'):
+            self._response_slots = {}
+        return self._response_slots
+
+    def _take_response(self, command, predicate=None):
+        now = time.monotonic()
+        slot = self._protected_response_slots().pop(command, None)
+        if slot is not None:
+            if (now - slot.received_at <= self.RX_FRAME_AGE and slot[0] == command
+                    and (predicate is None or predicate(slot[1]))):
+                return slot[1]
+        matched = None
+        for _ in range(len(self._frames)):
+            frame = self._frames.popleft()
+            if now - getattr(frame, 'received_at', now) > self.RX_FRAME_AGE:
+                self._rx_discarded_frames += 1
+                continue
+            op, payload = frame
+            if matched is None and op == command and (predicate is None or predicate(payload)):
+                matched = payload
+                continue
+            self._frames.append(frame)
+        return matched
 
     def rx_discard_counts(self):
         """Dropped oldest unmatched replies and auxiliary frames under RX pressure."""
@@ -339,18 +399,21 @@ class T5UIC1Display:
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("timeout must be positive")
         deadline = time.monotonic() + timeout
-        while True:
-            for _ in range(len(self._frames)):
-                frame_command, payload = self._frames.popleft()
-                if frame_command == command and (predicate is None or predicate(payload)):
+        self._expected_response = command, predicate
+        try:
+            while True:
+                payload = self._take_response(command, predicate)
+                if payload is not None:
                     return payload
-                self._frames.append((frame_command, payload))
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise T5UIC1TimeoutError(f"Timed out waiting for opcode 0x{command:02X}")
-            self._read_available()
-            if not getattr(self.serial, "in_waiting", 0):
-                time.sleep(min(0.005, remaining))
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise T5UIC1TimeoutError(f"Timed out waiting for opcode 0x{command:02X}")
+                self._read_available()
+                if not getattr(self.serial, "in_waiting", 0):
+                    time.sleep(min(0.005, remaining))
+        finally:
+            self._expected_response = None
+            self._protected_response_slots().pop(command, None)
 
     @staticmethod
     def _ok(payload):
@@ -377,8 +440,10 @@ class T5UIC1Display:
             return
         with self._transaction_lock:
             # A response from a prior timed-out probe cannot confirm this one.
-            self._frames = deque(((op, payload) for op, payload in self._frames
-                                  if op != 0x00), maxlen=self.RX_FRAME_LIMIT)
+            self._frames = deque((frame for frame in self._frames
+                                  if frame[0] != 0x00), maxlen=self.RX_FRAME_LIMIT)
+            self._protected_response_slots().pop(0x00, None)
+            self._expected_response = 0x00, None
             self._send(0x00)
             self._liveness_deadline = time.monotonic() + timeout
 
@@ -389,14 +454,15 @@ class T5UIC1Display:
             return None
         with self._transaction_lock:
             self._read_available()
-            for _ in range(len(self._frames)):
-                op, payload = self._frames.popleft()
-                if op == 0x00:
-                    self._liveness_deadline = None
-                    return payload == b"OK"
-                self._frames.append((op, payload))
+            payload = self._take_response(0x00)
+            if payload is not None:
+                self._liveness_deadline = None
+                self._expected_response = None
+                return payload == b"OK"
             if time.monotonic() >= deadline:
                 self._liveness_deadline = None
+                self._expected_response = None
+                self._protected_response_slots().pop(0x00, None)
                 return False
         return None
 
@@ -456,7 +522,13 @@ class T5UIC1Display:
 
     def poll_aux_data(self):
         self._read_available()
-        return self._aux_rx.popleft() if self._aux_rx else None
+        now = time.monotonic()
+        while self._aux_rx:
+            frame = self._aux_rx.popleft()
+            if now - getattr(frame, 'received_at', now) <= self.RX_FRAME_AGE:
+                return bytes(frame)
+            self._rx_discarded_aux += 1
+        return None
 
     def poll_crc_error(self):
         self._read_available()
@@ -892,6 +964,9 @@ class T5UIC1Display:
     def _flash_abort(self, error):
         self._flash_state()
         self._flash_fault = error
+        self._expected_response = None
+        for op in (0x31, 0x32):
+            self._protected_response_slots().pop(op, None)
         jobs = ([self._flash_job] if self._flash_job is not None else [])
         jobs.extend(self._flash_queue)
         self._flash_job = None
@@ -921,22 +996,14 @@ class T5UIC1Display:
         try:
             if job['awaiting'] is not None:
                 self._read_available()
-                matched = None
                 op, predicate = job['awaiting']
-                for _ in range(len(self._frames)):
-                    cmd, payload = self._frames.popleft()
-                    if cmd == op:
-                        if predicate(payload):
-                            matched = payload
-                            break
-                        # Invalid or stale ACK for this opcode is never success.
-                        continue
-                    self._frames.append((cmd, payload))
+                matched = self._take_response(op, predicate)
                 if matched is None:
                     if time.monotonic() >= job['deadline']:
                         raise T5UIC1TimeoutError('Flash operation timed out')
                     return True
                 job['awaiting'] = None
+                self._expected_response = None
                 job['offset'] += job['chunk_size']
                 if job['stage'] == 'read':
                     job['buffer'].extend(matched[4:])
@@ -969,8 +1036,10 @@ class T5UIC1Display:
                     return (len(value) == 4 + size and value[0] == self.MEMORY_FLASH
                             and int.from_bytes(value[1:3], 'big') == address
                             and value[3] == size)
-            self._frames = deque(((cmd, raw) for cmd, raw in self._frames
-                                  if cmd != op), maxlen=self.RX_FRAME_LIMIT)
+            self._frames = deque((frame for frame in self._frames
+                                  if frame[0] != op), maxlen=self.RX_FRAME_LIMIT)
+            self._protected_response_slots().pop(op, None)
+            self._expected_response = op, predicate
             self._send(op, payload)
             job['chunk_size'] = size
             job['awaiting'] = op, predicate

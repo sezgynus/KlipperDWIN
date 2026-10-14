@@ -11,6 +11,19 @@ from thumbnail_preview import image_jpeg
 
 
 class PrintFocusTests(unittest.TestCase):
+    def test_pending_label_fits_without_overlapping_an_action_icon(self):
+        from lcd_resources import ICON_PRINT_PENDING
+        v, _ = self.view()
+        v.lcd = driver()
+        v._stop_waiting = True
+        v._focus_draw_buttons()
+        frames = v.lcd.serial.frames
+        text = next(frame for frame in frames if frame[1] == 0x11 and frame[11:-4] == b'Stopping')
+        x = int.from_bytes(text[7:9], 'big')
+        self.assertGreaterEqual(x, 180)
+        self.assertLessEqual(x + len('Stopping') * 8, 258)
+        self.assertTrue(any(frame[1] == 0x23 and frame[-5] == ICON_PRINT_PENDING for frame in frames))
+
     def view(self, mmu=False):
         data=test_print_tuning.PrintTuningTests().data()
         data['status']['print_stats'].update(state='printing',filename='part.gcode',print_duration=120,info={'current_layer':85,'total_layer':200})
@@ -24,7 +37,7 @@ class PrintFocusTests(unittest.TestCase):
         return v,data
 
 
-    def test_tune_apply_and_preview_backings_use_native_bitmap_without_text_assets(self):
+    def test_tune_apply_and_preview_icons_keep_runtime_labels(self):
         v, _ = self.view()
         v.lcd = driver()
         v._tune_edit = v.pd.print_settings()[0]
@@ -32,7 +45,8 @@ class PrintFocusTests(unittest.TestCase):
         with patch('t5uic1_driver.time.sleep'):
             v._focus_edit_draw()
         packets = v.lcd.MYSERIAL1.frames
-        self.assertGreater(sum(p[1] == 0x08 for p in packets), 0)
+        self.assertEqual(sum(p[1] == 0x23 for p in packets), 1)
+        self.assertFalse(any(p[1] == 0x08 for p in packets))
         self.assertLess(sum(p[1] == 0x05 for p in packets), 12)
         self.assertIn(b'Apply', [p[11:-4] for p in packets if p[1] == 0x11])
         v.lcd.MYSERIAL1.frames.clear()
@@ -40,17 +54,29 @@ class PrintFocusTests(unittest.TestCase):
             v._focus_print_open()
         packets = v.lcd.MYSERIAL1.frames
         self.assertIn(b'Preview', [p[11:-4] for p in packets if p[1] == 0x11])
-        self.assertTrue(any(p[1] == 0x08 for p in packets))
+        self.assertFalse(any(p[1] == 0x08 for p in packets))
+        self.assertTrue(any(p[1] == 0x23 and p[-5] == 152 for p in packets))
 
-    def test_tune_selection_bitmap_cap_packet_budget(self):
+    def test_tune_row_selection_uses_managed_icons_without_bitmap_caps(self):
+        from lcd_resources import ICON_TUNE_BACK_SELECTED, ICON_TUNE_ROW_SELECTED
         v, _ = self.view()
         v.lcd = driver()
         with patch('t5uic1_driver.time.sleep'):
-            v._focus_round(10, 64, 252, 20, 0x2967, 5)
-        frames = v.lcd.MYSERIAL1.frames
-        self.assertLessEqual(len(frames), 6)
-        self.assertLess(sum(map(len, frames)), 550)
-        self.assertEqual(sum(frame[1] == 0x08 for frame in frames), 2)
+            v._focus_tune_open()
+            self.assertFalse(any(frame[1] == 0x08 for frame in v.lcd.serial.frames))
+            self.assertTrue(any(frame[1] == 0x23 and frame[-5] == ICON_TUNE_BACK_SELECTED
+                                for frame in v.lcd.serial.frames))
+            v.lcd.serial.frames.clear()
+            v.select_tune.set(1)
+            v._focus_tune_tick()
+            frames = v.lcd.serial.frames
+            self.assertFalse(any(frame[1] == 0x08 for frame in frames))
+            self.assertEqual(sum(frame[1] == 0x23 and frame[-5] == ICON_TUNE_ROW_SELECTED
+                                 for frame in frames), 1)
+            self.assertLess(sum(map(len, frames)), 180)
+            frames.clear()
+            v._focus_tune_tick()
+            self.assertFalse(frames)
 
     def test_all_seventeen_settings_fit_one_screen(self):
         v,_=self.view();v._focus_tune_open()
@@ -95,15 +121,17 @@ class PrintFocusTests(unittest.TestCase):
         view.pd.HMI_flag.select_flag = False
         view._focus_stop_draw()
         view.lcd.reset_mock()
+        view.Clear_Main_Window = Mock()
         view.get_encoder_state.return_value = view.ENCODER_DIFF_CW
         view._focus_stop_input()
-        view.Clear_Main_Window = Mock()
         self.assertTrue(view.pd.HMI_flag.select_flag)
-        self.assertEqual(view.lcd.draw_bitmap.call_count, 4)
+        self.assertEqual(view.lcd.show_icon.call_count, 2)
+        view.lcd.draw_bitmap.assert_not_called()
         self.assertEqual(view.lcd.draw_text.call_count, 2)
         view.Clear_Main_Window.assert_not_called()
         view.lcd.reset_mock()
         view._focus_stop_input()
+        view.lcd.show_icon.assert_not_called()
         view.lcd.draw_bitmap.assert_not_called()
         view.lcd.draw_text.assert_not_called()
 
@@ -222,7 +250,8 @@ class PrintFocusTests(unittest.TestCase):
         v.get_encoder_state.return_value = v.ENCODER_DIFF_CW
         v._focus_error_input()
         self.assertEqual(v._focus_error_choice, 1)
-        self.assertGreater(v.lcd.draw_bitmap.call_count, 0)
+        self.assertEqual(v.lcd.show_icon.call_count, 2)
+        v.lcd.draw_bitmap.assert_not_called()
         v.lcd.reset_mock()
         v._focus_error_input()
         v.lcd.draw_rectangle.assert_not_called()
@@ -246,14 +275,17 @@ class PrintFocusTests(unittest.TestCase):
         v.lcd.reset_mock()
         v._focus_state_panel('Loading filament', '')
         v.lcd.draw_bitmap.assert_not_called()
+        v.lcd.show_icon.assert_not_called()
         v.lcd.draw_rectangle.assert_called_once_with(1, 0x2967, 22, 270, 253, 300)
         self.assertEqual(v.lcd.draw_text.call_count, 2)
         v.lcd.reset_mock()
         v._focus_state_panel('Sensor failed', 'Sensor failed')
-        self.assertGreater(v.lcd.draw_bitmap.call_count, 0)
+        v.lcd.draw_bitmap.assert_not_called()
+        self.assertEqual(v.lcd.show_icon.call_count, 1)
         v.lcd.reset_mock()
         v._focus_state_panel('Other error', 'Other error')
         v.lcd.draw_bitmap.assert_not_called()
+        v.lcd.show_icon.assert_not_called()
 
     def test_print_render_has_no_work_when_unchanged(self):
         v,_=self.view();v._focus_print_open();v.lcd.reset_mock()
@@ -284,8 +316,8 @@ class PrintFocusTests(unittest.TestCase):
         v,_=self.view();v.lcd=driver();v._focus_draw_buttons()
         v.lcd.serial.frames.clear();v.select_print.set(1);v._focus_draw_buttons()
         frames=v.lcd.serial.frames
-        self.assertEqual([f[1] for f in frames],[0x23,0x11,0x23,0x11])
-        self.assertLess(sum(map(len,frames)),80)
+        self.assertEqual([f[1] for f in frames],[0x05,0x23,0x11,0x05,0x23,0x11])
+        self.assertLess(sum(map(len,frames)),120)
         v.lcd.serial.frames.clear();v._focus_draw_buttons()
         self.assertEqual(v.lcd.serial.frames,[])
 
@@ -293,9 +325,9 @@ class PrintFocusTests(unittest.TestCase):
         v,data=self.view();v.lcd=driver();v._focus_draw_buttons()
         data['status']['print_stats']['state']='paused';v.pd.update_variable()
         v.lcd.serial.frames.clear();v._focus_draw_buttons()
-        self.assertEqual([f[1] for f in v.lcd.serial.frames],[0x23,0x11])
+        self.assertEqual([f[1] for f in v.lcd.serial.frames],[0x05,0x23,0x11])
 
-    def test_button_states_have_identical_transparency_masks(self):
+    def test_button_states_have_round_transparent_corners(self):
         from dwin_emulator.assets import PanelAssets
         from lcd_resources import PRINT_BUTTON_SELECTED,ICON_LIBRARY_ID
         assets=PanelAssets()
@@ -305,7 +337,9 @@ class PrintFocusTests(unittest.TestCase):
                 b=assets.icon(ICON_LIBRARY_ID,selected)
                 self.assertEqual(a.size,b.size)
                 self.assertIn(a.size,((78,36),(119,36)))
-                self.assertEqual([max(p)>31 for p in a.getdata()], [max(p)>31 for p in b.getdata()])
+                for artwork in (a, b):
+                    for corner in ((0,0),(artwork.width-1,0),(0,artwork.height-1),(artwork.width-1,artwork.height-1)):
+                        self.assertLessEqual(max(artwork.getpixel(corner)),31)
 
     def test_all_button_variants_round_trip_without_pixel_residue(self):
         from dwin_emulator.assets import PanelAssets

@@ -1,5 +1,7 @@
 from lcd_resources import ICON_ACCELERATION, ICON_BRIGHTNESS, ICON_BUZZER, ICON_CLICK_TONE, ICON_CORNER_SPEED, ICON_CRUISE_RATIO, ICON_DIM_BRIGHTNESS, ICON_ENCODER_TONE, ICON_FLOW, ICON_IDLE_DIM, ICON_LIGHT, ICON_LIVE_JOG, ICON_MOTION, ICON_MOTOR_OFF, ICON_PREHEAT_PROFILE, ICON_VELOCITY, ICON_VOLUME
 from graphite_theme import show_icon as show_theme_icon
+from lcd_resources import ICON_POWER_BUTTON_NORMAL, ICON_POWER_BUTTON_CANCEL, ICON_POWER_BUTTON_OFF
+from lcd_resources import ICON_INFO_UPDATE_SELECTED, ICON_INFO_UPDATE_NORMAL
 from lcd_resources import ICON_FAN_FIRST, ICON_FAN_LAST, ICON_LIBRARY_ID, ICON_CHECKBOX_EMPTY, ICON_CHECKBOX_CHECKED
 import display_settings
 import copy
@@ -9,8 +11,6 @@ from info_qr import PROJECT_URL, draw_project_qr
 from system_info import wifi_signal_text
 import time
 import logging
-import math
-from functools import lru_cache
 from concurrent.futures import Future
 from command_feedback import CommandFeedback
 from threading import Lock
@@ -34,27 +34,6 @@ from gpiozero.pins.lgpio import LGPIOFactory
 from printerInterface import PrinterData
 from t5uic1_driver import T5UIC1Display, T5UIC1ProtocolError
 from lcd_resources import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY_NORMAL, ICON_DISPLAY_SELECTED, ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
-
-@lru_cache(maxsize=96)
-def _pill_edge_bitmaps(width, height):
-    """Pack capsule edge columns into native bitmap packets."""
-    radius = height // 2
-    byte_width = (radius + 7) // 8
-    left, right = [], []
-    for row in range(height):
-        dy = min(row + .5, height - row - .5)
-        inset = math.ceil(radius - math.sqrt(max(0, radius ** 2 - (radius - dy) ** 2)))
-        occupied = max(0, radius - inset)
-        mask = (1 << occupied) - 1
-        shift = byte_width * 8 - radius
-        left.append((mask << shift).to_bytes(byte_width, 'big'))
-        right.append(((mask << inset) << shift).to_bytes(byte_width, 'big'))
-    max_rows = max(1, (T5UIC1Display.MAX_DATA_LENGTH - 10) // byte_width)
-    def chunks(rows):
-        return tuple((i, b''.join(rows[i:i+max_rows]))
-                     for i in range(0, len(rows), max_rows))
-    return radius, chunks(left), chunks(right)
-
 
 def _MAX(lhs, rhs):
     if lhs > rhs:
@@ -82,12 +61,12 @@ class select_t:
 
     def dec(self):
         if (self.now):
-            self.now -= 1
+            self.now = max(0,self.now-getattr(self,"batch_steps",1))
         return self.changed()
 
     def inc(self, v):
         if (self.now < (v - 1)):
-            self.now += 1
+            self.now = min(v-1,self.now+getattr(self,"batch_steps",1))
         else:
             self.now = (v - 1)
         return self.changed()
@@ -668,39 +647,19 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._uart_failed()
             return False
 
-    @staticmethod
-    def _draw_pill(lcd, x, y, width, height, color, background=None):
-        if width <= 0 or height <= 0:
-            return
-        bg = lcd.Color_Bg_Black if background is None else background
-        if width < height:
-            # Early progress values must still have a visible, valid fill.
-            lcd.draw_rectangle(1, color, x, y, x+width-1, y+height-1)
-            return
-        if height % 2:
-            radius = min(width, height) / 2
-            for row in range(height):
-                dy = min(row + .5, height - row - .5)
-                inset = max(0, math.ceil(radius - math.sqrt(
-                    max(0, radius**2 - (radius-dy)**2))))
-                if width - 2*inset > 0:
-                    lcd.draw_rectangle(1, color, x+inset, y+row,
-                                       x+width-inset-1, y+row)
-            return
-        radius, left, right = _pill_edge_bitmaps(width, height)
-        if width > 2 * radius:
-            lcd.draw_rectangle(1, color, x+radius, y,
-                               x+width-radius-1, y+height-1)
-        for row, pixels in left:
-            lcd.draw_bitmap(x, y+row, radius, color, bg, pixels)
-        for row, pixels in right:
-            lcd.draw_bitmap(x+width-radius, y+row, radius, color, bg, pixels)
-
     def _draw_progress_track(self, lcd, x, y, width, value):
-        self._draw_pill(lcd, x, y, width, 8, 0x39C8)
+        # Text-free managed caps work on panels without opcode 0x08.
+        from lcd_resources import ICON_PROGRESS_TRACK, ICON_PROGRESS_FILL
+        def capsule(length, color, icon):
+            length = min(width, max(8, length))
+            show_theme_icon(lcd, self.ICON, icon, x, y)
+            if length > 8:
+                show_theme_icon(lcd, self.ICON, icon, x + length - 8, y)
+                lcd.draw_rectangle(1, color, x + 4, y, x + length - 5, y + 7)
+        capsule(width, 0x39C8, ICON_PROGRESS_TRACK)
         filled = max(0, min(width, round(width * value / 100)))
         if filled:
-            self._draw_pill(lcd, x, y, filled, 8, 0x063B)
+            capsule(filled, 0x063B, ICON_PROGRESS_FILL)
 
     def _draw_boot_progress(self, value, lcd=None, message=None):
         lcd = self.lcd if lcd is None else lcd
@@ -1019,6 +978,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 key = 'PRESET:' + str(index)
                 self._menus['temperature'].append((key, preset.name + ' settings', self.ICON_PLAPreheat))
         self._menus['preheat'].append(('SAVE', 'Save settings', self.ICON_WriteEEPROM))
+        self._menus['preheat'].append(('CANCEL', 'Discard changes', self.ICON_Back))
         if heat or self.pd.HAS_FAN:
             self._menus['control'].append(('TEMP', 'Temperature', self.ICON_Temperature))
         self._menus['control'].append(('MOVE', 'Motion', self.ICON_Motion))
@@ -1397,13 +1357,16 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._encoder_move_value = raw_count * min(acceleration_cap, effective_multiplier)
         else:
             self._encoder_move_value = 1
-        batched_menu = (event.kind == 'rotate' and count > 1
-                        and getattr(self, 'checkkey', None) in (self.Prepare, self.Control,
-                                              self.TemperatureID,
-                                              self.PLAPreheat, self.ABSPreheat))
-        self._menu_batch_steps = count if batched_menu else 1
-        if batched_menu:
-            count = 1
+        self._rotation_steps = abs(event.value) if event.kind == 'rotate' else 1
+        self._menu_batch_steps = self._rotation_steps
+        if event.kind == 'rotate':
+            if acceleration_cap == 1:
+                self._encoder_move_value = self._rotation_steps
+            count = 1  # One bounded handler invocation per physical input batch.
+        for name in self.SELECTIONS:
+            selection = getattr(self, name, None)
+            if isinstance(selection, select_t):
+                selection.batch_steps = self._rotation_steps
         lcd = getattr(self, 'lcd', None)
         if lcd is not None:
             lcd._defer_updates = True
@@ -1426,7 +1389,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         finally:
             self._encoder_event = self.ENCODER_DIFF_NO
             self._encoder_move_value = 1
-            self._menu_batch_steps = 1
+            self._menu_batch_steps = self._rotation_steps = 1
+            for name in self.SELECTIONS:
+                selection = getattr(self, name, None)
+                if isinstance(selection, select_t): selection.batch_steps = 1
             if (lcd is not None and self.lcd is lcd
                     and not getattr(lcd, '_closed', False)):
                 lcd._defer_updates = False
@@ -1816,7 +1782,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         selection = getattr(self, '_display_selection', 0)
         editing = getattr(self, '_display_edit', False)
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-            delta = 1 if event == self.ENCODER_DIFF_CW else -1
+            delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
             if editing:
                 index = selection - 1
                 self._display_values[index] = max(0, min(60 if index == 1 else 100,
@@ -1871,12 +1837,12 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
             self._software_updater().cancel_confirmation()
         if event == self.ENCODER_DIFF_CW:
-            self._info_scroll = min(max_scroll, current + 1)
+            self._info_scroll = min(max_scroll, current + getattr(self,"_rotation_steps",1))
             if self._info_scroll == current:
                 return
             self.Draw_Info_Menu()
         elif event == self.ENCODER_DIFF_CCW:
-            self._info_scroll = max(0, current - 1)
+            self._info_scroll = max(0, current - getattr(self,"_rotation_steps",1))
             if self._info_scroll == current:
                 return
             self.Draw_Info_Menu()
@@ -2184,7 +2150,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self.Draw_Temperature_Menu()
         else:
             key = self._menus['preheat'][selection.now - 1][0]
-            if key == 'SAVE':
+            if key == 'CANCEL':
+                self.pd.discard_preset_edits(profile)
+                draw()
+            elif key == 'SAVE':
                 future = self.pd.save_settings()
                 if isinstance(future, Future):
                     self._action('Save presets', lambda: future, silent=True,
@@ -2484,9 +2453,9 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._probe_selection = max(0, min(getattr(self, '_probe_selection', 0), max(0, len(options) - 1)))
         event = self.get_encoder_state()
         if event == self.ENCODER_DIFF_CW and options:
-            self._probe_selection = min(len(options) - 1, self._probe_selection + 1)
+            self._probe_selection = min(len(options) - 1, self._probe_selection + getattr(self,"_rotation_steps",1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._probe_selection = max(0, self._probe_selection - 1)
+            self._probe_selection = max(0, self._probe_selection - getattr(self,"_rotation_steps",1))
         elif event == self.ENCODER_DIFF_ENTER and options and not wizard.pending:
             try:
                 self._probe_ui_error = None
@@ -2866,7 +2835,9 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         token = (id(self.lcd), y, bool(selected), label)
         previous = getattr(self, '_info_update_render', None)
         if previous is None or previous[:3] != token[:3]:
-            self._draw_pill(self.lcd, 32, y - 4, 208, 28, backing)
+            icon = ICON_INFO_UPDATE_SELECTED if selected else ICON_INFO_UPDATE_NORMAL
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 32, y-4, 239, y+23)
+            show_theme_icon(self.lcd, self.ICON, icon, 32, y - 4)
         elif previous[3] != label:
             # Interior only: preserve curved edges when the updater label changes.
             self.lcd.draw_rectangle(1, backing, 46, y, 226, y + 19)
@@ -3067,7 +3038,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self.Clear_Main_Window()
 
         if self.pd.mmu is None:
-            show_theme_icon(self.lcd, self.ICON, self.ICON_LOGO, 71, 52)
+            show_theme_icon(self.lcd, self.ICON, self.ICON_LOGO, 71, 48)
         else:
             self.Draw_MMU_Status()
         self._drawn_mmu_state = copy.deepcopy(self.pd.mmu)
@@ -3439,7 +3410,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 4, 31, 268, 125)
                 self._home_mmu_layout = None
                 if mmu_state is None:
-                    show_theme_icon(self.lcd, self.ICON, self.ICON_LOGO, 71, 52)
+                    show_theme_icon(self.lcd, self.ICON, self.ICON_LOGO, 71, 48)
             if mmu_state is not None and mmu_state != getattr(self, '_drawn_mmu_state', None):
                 self.Draw_MMU_Status()
             self._drawn_mmu_state = copy.deepcopy(mmu_state)
@@ -3488,8 +3459,9 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             choices = ((False, 'Cancel', 28, 104),) if blocked else ((False, 'Cancel', 28, 104), (True, 'Power off', 140, 104))
             for yes, label, x, width in choices:
                 fill = (0xB986 if yes else 0x19E9) if self._power_confirm_yes == yes else self.lcd.Color_Bg_Window
-                self._draw_pill(self.lcd, x, 224, width, 36, fill,
-                                background=self.lcd.Color_Bg_Window)
+                icon = (ICON_POWER_BUTTON_OFF if yes else ICON_POWER_BUTTON_CANCEL) if self._power_confirm_yes == yes else ICON_POWER_BUTTON_NORMAL
+                self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Window, x, 224, x+width-1, 259)
+                show_theme_icon(self.lcd, self.ICON, icon, x, 224)
                 self.lcd.draw_text(False, False, self.lcd.font8x16,
                     0xFBAE if yes and not self._power_confirm_yes else self.lcd.Popup_Text_Color,
                     fill, x + (width - len(label) * 8) // 2, 234, label)

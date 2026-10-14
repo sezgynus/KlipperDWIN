@@ -44,19 +44,28 @@ def point_label(z, columns):
 
 
 @lru_cache(maxsize=128)
-def _mesh_disk_bitmap(radius, x0, y0, x1, y1):
-    """Prepack a monochrome disk into protocol-sized bitmap chunks."""
-    width = x1 - x0 + 1
-    row_bytes = (width + 7) // 8
-    max_rows = max(1, (T5UIC1Display.MAX_DATA_LENGTH - 10) // row_bytes)
-    rows = []
-    for dy in range(y0, y1 + 1):
-        dx = math.isqrt(radius * radius - dy * dy)
+def _mesh_disk_blocks(radius, x0, y0, x1, y1):
+    """Coalesce exact disk spans into batches of supported 1..15 pixel blocks."""
+    rectangles = []
+    for y in range(y0, y1 + 1):
+        dx = math.isqrt(radius * radius - y * y)
         left, right = max(x0, -dx), min(x1, dx)
-        bits = ((1 << (right - left + 1)) - 1) << (x1 - right) if right >= left else 0
-        rows.append((bits << (row_bytes * 8 - width)).to_bytes(row_bytes, 'big'))
-    return width, tuple((i, b''.join(rows[i:i + max_rows]))
-                        for i in range(0, len(rows), max_rows))
+        if left > right:
+            continue
+        if rectangles and rectangles[-1][:2] == (left, right) and rectangles[-1][3] == y - 1:
+            left, right, top, _ = rectangles.pop()
+            rectangles.append((left, right, top, y))
+        else:
+            rectangles.append((left, right, y, y))
+    groups = {}
+    for left, right, top, bottom in rectangles:
+        for y in range(top, bottom + 1, 15):
+            height = min(15, bottom - y + 1)
+            for x in range(left, right + 1, 15):
+                width = min(15, right - x + 1)
+                groups.setdefault((width, height), []).append((x, y))
+    return tuple((width, height, tuple(points))
+                 for (width, height), points in groups.items())
 
 
 class BedMeshMixin:
@@ -95,9 +104,9 @@ class BedMeshMixin:
         entries = self._mesh_menu_entries()
         choice = min(getattr(self, '_mesh_menu_selection', 0), len(entries)-1)
         if event == self.ENCODER_DIFF_CW:
-            self._mesh_menu_selection = min(len(entries)-1, choice+1)
+            self._mesh_menu_selection = min(len(entries)-1, choice+getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._mesh_menu_selection = max(0, choice-1)
+            self._mesh_menu_selection = max(0, choice-getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_ENTER:
             key = entries[choice][0]
             if key == 'BACK':
@@ -153,8 +162,6 @@ class BedMeshMixin:
             self.lcd.draw_rectangle(0, self.lcd.Color_White, x-2, 303, x+101, 345)
 
     def _draw_mesh_disk(self, cx, cy, color, radius, clip=None):
-        # Opcode 0x08 replaces O(radius) scanline UART frames with a compact
-        # two-color bitmap. A large disk is split at the protocol payload limit.
         x0 = y0 = -radius
         x1 = y1 = radius
         if clip is not None:
@@ -163,12 +170,15 @@ class BedMeshMixin:
             x1, y1 = min(x1, right - cx), min(y1, bottom - cy)
         if x0 > x1 or y0 > y1:
             return
-        width, chunks = _mesh_disk_bitmap(radius, x0, y0, x1, y1)
-        for offset, data in chunks:
-            self.lcd.draw_bitmap(cx + x0, cy + y0 + offset, width,
-                                 color, self.lcd.Color_Bg_Black, data)
+        self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black,
+                                cx + x0, cy + y0, cx + x1, cy + y1)
+        limit = (T5UIC1Display.MAX_DATA_LENGTH - 4) // 4
+        for width, height, points in _mesh_disk_blocks(radius, x0, y0, x1, y1):
+            for start in range(0, len(points), limit):
+                self.lcd.draw_points(color, width, height,
+                    tuple((cx + x, cy + y) for x, y in points[start:start + limit]))
 
-    def _advance_mesh_render(self, budget=12, flush=True):
+    def _advance_mesh_render(self, budget=2, flush=True):
         """Render at most one short batch; return control to the UI event loop."""
         work = getattr(self, '_mesh_pending_points', None)
         if work is None:
@@ -345,9 +355,9 @@ class BedMeshMixin:
             return
         choice = getattr(self, '_mesh_profile_selection', 0)
         if event == self.ENCODER_DIFF_CW:
-            self._mesh_profile_selection = min(len(session.entries()), choice+1)
+            self._mesh_profile_selection = min(len(session.entries()), choice+getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._mesh_profile_selection = max(0, choice-1)
+            self._mesh_profile_selection = max(0, choice-getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_ENTER:
             if choice == 0:
                 self._return_to_mesh_menu(True)

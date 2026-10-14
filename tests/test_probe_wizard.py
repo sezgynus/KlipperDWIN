@@ -363,87 +363,61 @@ class LevelingNavigationTests(unittest.TestCase):
         self.assertNotIn('LEVEL', [entry[0] for entry in absent._home_entries()])
 
 class ProbeCenterRestoreTests(unittest.TestCase):
-    def setup_printer(self, effects):
+    def setup_printer(self):
         import json
-        from moonraker_client import MoonrakerClient
+        from moonraker_subscription import MoonrakerSubscription
         from test_regressions import backend
-        result = ProbeTests.printer(self)
-        result.sendGCode = backend.PrinterData.sendGCode.__get__(result)
-        opener = Mock()
-        opener.open.side_effect = effects
-        result.client = MoonrakerClient(opener=opener, timeout=.1)
-        self.addCleanup(result.client.close)
-        return result, opener
+        p = ProbeTests.printer(self)
+        snapshot_reader = p.subscription.snapshot
+        ws = MoonrakerSubscription('http://localhost:7125', autostart=False)
+        self.addCleanup(ws.close)
+        ws._state, ws._epoch = 'ready', p.state.epoch
+        ws._socket = Mock()
+        ws.snapshot = snapshot_reader
+        p.subscription = ws
+        p.sendGCode = backend.PrinterData.sendGCode.__get__(p)
+        return p, ws
 
-    @staticmethod
-    def scripts(opener):
+    def reply(self, ws, error=False):
         import json
-        return [json.loads(call.args[0].data)['script'] for call in opener.open.call_args_list]
+        ws._drain_outbound()
+        packet = json.loads(ws._socket.send.call_args.args[0])
+        ws._notification(dict(id=packet['id'], **({'error': {}} if error else {'result': 'ok'})))
+        return packet['params']['script']
 
-    def test_center_motion_failure_restores_modal_state_without_replay(self):
-        from moonraker_client import MoonrakerError
-        from test_moonraker_client import response
-        result, opener = self.setup_printer([response({'result': 'ok'}),
-            response({'error': {'message': 'move rejected'}}), response({'result': 'ok'})])
-        future = result.probe_wizard.start()
-        with self.assertRaises(MoonrakerError):
-            future.result(2)
-        result.probe_wizard.update()
-        scripts = self.scripts(opener)
-        self.assertEqual(len(scripts), 3)
-        self.assertTrue(scripts[0].startswith('SAVE_GCODE_STATE NAME='))
-        self.assertEqual(scripts[2], 'RESTORE_GCODE_STATE NAME=LCD_PROBE_CENTER MOVE=0')
-        self.assertEqual(sum('G1 X125.000 Y130.000' in script for script in scripts), 1)
-        self.assertFalse(result.jog_recovery_required)
+    def test_failed_movement_restores_without_replay(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.assertTrue(self.reply(ws).startswith('SAVE_GCODE_STATE'))
+        self.assertIn('G1 X', self.reply(ws, error=True))
+        self.assertEqual(self.reply(ws), 'RESTORE_GCODE_STATE NAME=LCD_PROBE_CENTER MOVE=0')
+        self.assertIsNotNone(f.exception()); self.assertTrue(f.cleanup_complete)
+        p.probe_wizard.update(); self.assertFalse(p.jog_recovery_required)
 
-    def test_save_failure_does_not_mutate_or_require_recovery(self):
-        from urllib.error import URLError
-        from moonraker_client import MoonrakerError
-        result, opener = self.setup_printer([URLError('save failed')])
-        future = result.probe_wizard.start()
-        with self.assertRaises(MoonrakerError):
-            future.result(2)
-        result.probe_wizard.update()
-        self.assertEqual(len(self.scripts(opener)), 1)
-        self.assertFalse(result.jog_recovery_required)
+    def test_failed_save_never_sends_movement(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.reply(ws, error=True); ws._drain_outbound()
+        self.assertEqual(ws._socket.send.call_count, 1)
+        self.assertTrue(f.cleanup_complete)
 
-    def test_failed_restore_requires_explicit_recovery(self):
-        from urllib.error import URLError
-        from moonraker_client import MoonrakerError
-        from test_moonraker_client import response
-        result, opener = self.setup_printer([response({'result': 'ok'}),
-            URLError('move failed'), URLError('restore failed'), response({'result': 'ok'})])
-        future = result.probe_wizard.start()
-        with self.assertRaises(MoonrakerError):
-            future.result(2)
-        result.probe_wizard.update()
-        self.assertTrue(result.jog_recovery_required)
-        self.assertIn('Recovery', result.probe_wizard.message)
-        self.assertEqual(len(self.scripts(opener)), 3)
-        result.restore_jog_state().result(2)
-        self.assertFalse(result.jog_recovery_required)
-        self.assertEqual(len(self.scripts(opener)), 4)
+    def test_failed_restore_retains_recovery(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.reply(ws); self.reply(ws, error=True); self.reply(ws, error=True)
+        self.assertFalse(f.cleanup_complete)
+        p.probe_wizard.update(); self.assertTrue(p.jog_recovery_required)
 
-    def test_epoch_change_never_restores_to_different_connection(self):
-        from urllib.error import URLError
-        from moonraker_client import MoonrakerError
-        from test_moonraker_client import response
-        result, opener = self.setup_printer([])
-        count = 0
-        def respond(*args, **kwargs):
-            nonlocal count
-            count += 1
-            if count == 1:
-                return response({'result': 'ok'})
-            source = data()
-            source['epoch'] = 2
-            result.subscription.snapshot.return_value = source
-            raise URLError('disconnected')
-        opener.open.side_effect = respond
-        future = result.probe_wizard.start()
-        with self.assertRaises(MoonrakerError):
-            future.result(2)
-        result.probe_wizard.update()
-        self.assertEqual(opener.open.call_count, 2)
-        self.assertTrue(result.jog_recovery_required)
+    def test_epoch_change_never_restores_new_connection(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.reply(ws); self.reply(ws, error=True)
+        ws._epoch += 1
+        ws.snapshot.return_value['epoch'] += 1
+        ws._drain_outbound()
+        self.assertEqual(ws._socket.send.call_count, 2)
+        self.assertFalse(f.cleanup_complete)
 
+    def test_long_center_does_not_use_http_timeout(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.reply(ws); ws._drain_outbound()
+        with patch('moonraker_subscription.time.monotonic', return_value=10):
+            ws._expire_requests()
+        self.assertFalse(f.done())
+        p.client.post.assert_not_called()

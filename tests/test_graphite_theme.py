@@ -10,6 +10,28 @@ from icon_library import metadata, parse_metadata, MAX_BLOCKS, METADATA_ADDRESS,
 
 
 class GraphiteContracts(unittest.TestCase):
+    def test_petrel_wordmark_keeps_empty_matte_filtered_on_any_background(self):
+        from dwin_emulator.assets import rgb565
+        assets = PanelAssets()
+        icon = assets.icon(3, 0)
+        self.assertEqual(icon.size, (130, 32))
+        for background in (0x2125, 0x0000, 0xFFFF):
+            fb = Framebuffer(assets)
+            fb.image.paste(rgb565(background), (0, 0, 272, 480))
+            # Exercise exactly the compositing mode used by show_theme_icon.
+            fb._paste(icon, 71, 48, 0x20)
+            for x in (*range(71, 77), *range(192, 201)):
+                for y in range(48, 80):
+                    self.assertEqual(fb.image.getpixel((x, y)), rgb565(background))
+            # No slogan fragment or matte residue below the logo's bowl.
+            for x in range(101, 106):
+                for y in range(71, 80):
+                    self.assertEqual(fb.image.getpixel((x, y)), rgb565(background))
+        # The brand contains both its blue/cyan mark and a clean white wordmark.
+        self.assertTrue(any(b > 180 and r < 80 for r, g, b in icon.getdata()))
+        self.assertTrue(any(min(pixel) > 240 for pixel in icon.getdata()))
+
+
     def test_continue_label_is_centered_inside_its_card_in_both_states(self):
         v = display(snapshot())
         v.lcd = driver()

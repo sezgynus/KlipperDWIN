@@ -10,6 +10,19 @@ from ui_events import InputEvent
 
 
 class PowerShortcutTests(unittest.TestCase):
+    def test_popup_buttons_use_two_icons_and_runtime_labels(self):
+        v = self.view()
+        v._power_hold_popup = True
+        v._power_blocked = None
+        v._power_confirm_yes = False
+        with patch('t5uic1_driver.time.sleep'):
+            v._draw_power_confirmation(buttons_only=True)
+        frames = v.lcd.serial.frames
+        self.assertEqual([frame[1] for frame in frames], [0x05, 0x23, 0x11, 0x05, 0x23, 0x11])
+        self.assertLess(sum(map(len, frames)), 140)
+        self.assertEqual([frame[11:-4] for frame in frames if frame[1] == 0x11],
+                         [b'Cancel', b'Power off'])
+
     def view(self):
         v = display(snapshot())
         v.lcd = driver()
@@ -48,14 +61,24 @@ class PowerShortcutTests(unittest.TestCase):
     def input(self, v, kind, value):
         v._process_input(InputEvent(kind, value, v.pd.state.epoch, v._uart_epoch))
 
-    def test_hold_capsule_uses_bounded_native_bitmap_packets(self):
+    def test_hold_capsule_uses_one_managed_icon_with_runtime_text(self):
         v = self.view()
-        with patch('t5uic1_driver.time.sleep'):
-            v._draw_pill(v.lcd, 28, 160, 216, 98, v.lcd.Color_Bg_Window)
-        frames = v.lcd.MYSERIAL1.frames
-        self.assertLessEqual(len(frames), 8)
-        self.assertLess(sum(map(len, frames)), 1600)
-        self.assertEqual(sum(frame[1] == 0x08 for frame in frames), 6)
+        self.gesture(v, 1.3)
+        # Exercise the actual hold overlay rather than the unrelated pill helper.
+        v._power_hold_started = 0
+        v._power_hold_epoch = v.pd.state.epoch
+        v._power_hold_visible = False
+        v._power_hold_pixels = 0
+        v._power_hold_ready = False
+        v.checkkey = v.Control
+        v.lcd.serial.frames.clear()
+        with patch('ui_power.time.monotonic', return_value=.85):
+            v._power_hold_tick()
+        frames = v.lcd.serial.frames
+        self.assertEqual(sum(frame[1] == 0x23 for frame in frames), 1)
+        self.assertFalse(any(frame[1] == 0x08 for frame in frames))
+        self.assertIn(b'Hold for power', [frame[11:-4] for frame in frames if frame[1] == 0x11])
+        self.assertLess(sum(map(len, frames)), 160)
 
     def test_short_click_runs_once_on_release_with_no_extra_timeout(self):
         v = self.view()
@@ -116,7 +139,8 @@ class PowerShortcutTests(unittest.TestCase):
         v.Draw_Popup_Bkgd_105.assert_not_called()
         frames = list(v.lcd.serial.frames)
         self.assertLess(len(frames), 12)
-        self.assertEqual(sum(f[1] == 0x08 for f in frames), 4)
+        self.assertEqual(sum(f[1] == 0x23 for f in frames), 2)
+        self.assertFalse(any(f[1] == 0x08 for f in frames))
         v.lcd.serial.frames.clear()
         self.input(v, 'rotate', -1)
         self.assertFalse(v.lcd.serial.frames)

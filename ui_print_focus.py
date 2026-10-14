@@ -1,35 +1,20 @@
 """Print-focused views with bounded, field-only rendering and quiet edits."""
 import time
 import textwrap
-import math
-from functools import lru_cache
 from concurrent.futures import Future
 from collections.abc import Mapping
+from lcd_resources import ICON_PREVIEW_BACKING
 from graphite_theme import show_icon
 from lcd_resources import (ICON_PRINT_TUNE, ICON_PRINT_PAUSE, ICON_PRINT_RESUME,
                            ICON_PRINT_STOP, ICON_PRINT_MMU, ICON_JOB_SWITCH_OFF,
                            ICON_JOB_SWITCH_ON, ICON_PRINT_TUNE_WIDE,
-                           ICON_PRINT_CLOSE, PRINT_BUTTON_SELECTED)
-
-
-@lru_cache(maxsize=64)
-def _focus_round_caps(width, radius):
-    """Opaque one-bit top/bottom caps for a native bitmap fill."""
-    row_bytes = (width + 7) // 8
-    rows = []
-    for y in range(radius):
-        dx = math.isqrt(radius * radius - (radius - y) ** 2)
-        inset = radius - dx
-        bits = ((1 << (width - 2 * inset)) - 1) << inset
-        rows.append((bits << (row_bytes * 8 - width)).to_bytes(row_bytes, 'big'))
-    limit = max(1, (248 - 10) // row_bytes)
-
-    def chunks(lines):
-        return tuple((offset, b''.join(lines[offset:offset + limit]))
-                     for offset in range(0, len(lines), limit))
-    return chunks(rows), chunks(tuple(reversed(rows)))
-
-
+                           ICON_PRINT_CLOSE, PRINT_BUTTON_SELECTED,
+                           ICON_STOP_BUTTON_NORMAL, ICON_STOP_BUTTON_SELECTED,
+                           ICON_STOP_BUTTON_DANGER, ICON_STOP_PANEL,
+                           ICON_MMU_ERROR_SELECTED, ICON_MMU_ERROR_NORMAL,
+                           ICON_APPLY_BUTTON, ICON_PRINT_PENDING,
+                           ICON_TUNE_BACK_SELECTED, ICON_TUNE_ROW_SELECTED,
+                           ICON_PRINT_STATUS_NORMAL, ICON_PRINT_STATUS_ERROR)
 
 
 class PrintFocusMixin:
@@ -40,22 +25,6 @@ class PrintFocusMixin:
         self.lcd.draw_text(False, False, self.lcd.font8x16 if font is None else font,
                            self.lcd.Color_White if color is None else color,
                            self.lcd.Color_Bg_Black if bg is None else bg, x, y, str(text))
-
-    def _focus_round(self, x, y, w, h, color, radius=5):
-        # Two native fills plus bitmap corner caps, not 4x software circles.
-        # The graphics have no text; labels remain runtime-rendered.
-        radius = max(0, min(int(radius), w // 2, h // 2))
-        if radius == 0:
-            self.lcd.draw_rectangle(1, color, x, y, x+w-1, y+h-1)
-            return
-        self.lcd.draw_rectangle(1, color, x+radius, y, x+w-radius-1, y+h-1)
-        self.lcd.draw_rectangle(1, color, x, y+radius, x+w-1, y+h-radius-1)
-        top, bottom = _focus_round_caps(w, radius)
-        for offset, bitmap in top:
-            self.lcd.draw_bitmap(x, y+offset, w, color, self.lcd.Color_Bg_Black, bitmap)
-        for offset, bitmap in bottom:
-            self.lcd.draw_bitmap(x, y+h-radius+offset, w,
-                                 color, self.lcd.Color_Bg_Black, bitmap)
 
     @staticmethod
     def _focus_time(seconds):
@@ -126,7 +95,8 @@ class PrintFocusMixin:
         width = 119 if len(buttons) == 2 else 78
         shape = (len(buttons), width)
         cache = getattr(self, '_focus_button_render', {})
-        if shape != getattr(self, '_focus_button_shape', None):
+        layout_changed = shape != getattr(self, '_focus_button_shape', None)
+        if layout_changed:
             # A layout transition can leave the old third button behind.
             # Ordinary selections/state changes never erase the control strip.
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 14, 311, 258, 349)
@@ -144,10 +114,18 @@ class PrintFocusMixin:
             if cache.get(i) == token:
                 continue
             x = 14+i*(width+5)
+            # Clear this button only: filtered JPEG corners must not retain
+            # the previous selection's color or label pixels.
+            if not layout_changed:
+                self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, x, 312, x+width-1, 347)
             show_icon(self.lcd, self.ICON,
-                      PRINT_BUTTON_SELECTED[normal] if selected else normal, x, 312)
-            text_x = x + (width-(len(label)*8+20))//2 + 20
-            self._focus_text(label, text_x, 322, color=color)
+                      ICON_PRINT_PENDING if disabled else PRINT_BUTTON_SELECTED[normal] if selected else normal, x, 312)
+            char_width = 8 if disabled or len(label)*8 <= width-32 else 6
+            text_x = (x + (width-len(label)*8)//2 if disabled else
+                      x + max(31, (width-(len(label)*char_width+20))//2 + 20))
+            self._focus_text(label, text_x, 322 if char_width == 8 else 324,
+                             font=self.lcd.font8x16 if char_width == 8 else self.lcd.font6x12,
+                             color=color)
             cache[i] = token
         self._focus_button_render = cache
 
@@ -222,7 +200,7 @@ class PrintFocusMixin:
             self._focus_render['buttons'] = (tuple(self._focus_buttons()),
                                              self.select_print.now, blink)
         if force:
-            self._focus_round(14,90,88,88,0x2967,8)
+            show_icon(self.lcd, self.ICON, ICON_PREVIEW_BACKING, 14, 90)
             self._focus_text('Preview',30,124,self.lcd.font6x12,color=0xADB5)
         self._sync_thumbnail_cache()
         key=getattr(self,'_print_thumbnail_key',None)
@@ -237,7 +215,10 @@ class PrintFocusMixin:
     def _focus_state_panel(self, state, error):
         background = 0x40E5 if error else 0x2967
         if self._focus_render.get('state_backing') != background:
-            self._focus_round(14, 266, 244, 38, background, 7)
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 14, 266, 257, 303)
+            show_icon(self.lcd, self.ICON,
+                      ICON_PRINT_STATUS_ERROR if error else ICON_PRINT_STATUS_NORMAL,
+                      14, 266)
             self._focus_render['state_backing'] = background
         else:
             # Keep round edges intact. Clear only the two dynamic text lines.
@@ -251,7 +232,7 @@ class PrintFocusMixin:
     def _focus_print_input(self):
         event=self.get_encoder_state()
         if event in (self.ENCODER_DIFF_CW,self.ENCODER_DIFF_CCW):
-            delta=1 if event==self.ENCODER_DIFF_CW else -1
+            delta=getattr(self,"_rotation_steps",1)*(1 if event==self.ENCODER_DIFF_CW else -1)
             buttons = self._focus_buttons()
             limit = len(buttons) - (2 if buttons[-1][0] == 'Stopping' else 1)
             self.select_print.now = max(0, min(limit, self.select_print.now + delta))
@@ -349,8 +330,10 @@ class PrintFocusMixin:
             key=s.key if s else 'back'
             if cache.get(key)==token:continue
             self.lcd.draw_rectangle(1,self.lcd.Color_Bg_Black,10,y,261,y+23 if s is None else y+19)
-            bg=0x2967 if selected else self.lcd.Color_Bg_Black
-            if selected:self._focus_round(10,y,252,24 if s is None else 20,bg,5)
+            if selected:
+                show_icon(self.lcd, self.ICON,
+                          ICON_TUNE_BACK_SELECTED if s is None else ICON_TUNE_ROW_SELECTED,
+                          10, y)
             self._focus_text(s.label if s else '< Back',18,y+2)
             if s:
                 color=0xFBCB if red else 0x063B
@@ -365,7 +348,7 @@ class PrintFocusMixin:
     def _focus_tune_input(self):
         event=self.get_encoder_state();rows=self._focus_tune_rows()
         if event in (self.ENCODER_DIFF_CW,self.ENCODER_DIFF_CCW):
-            self.select_tune.now=max(0,min(len(rows)-1,self.select_tune.now+(1 if event==self.ENCODER_DIFF_CW else -1)))
+            self.select_tune.now=max(0,min(len(rows)-1,self.select_tune.now+getattr(self,"_rotation_steps",1)*(1 if event==self.ENCODER_DIFF_CW else -1)))
             self._focus_tune_tick()
         elif event==self.ENCODER_DIFF_ENTER:
             s=rows[self.select_tune.now][0]
@@ -386,7 +369,7 @@ class PrintFocusMixin:
         self._focus_text(s.label,18,96)
         self._focus_edit_value()
         self._focus_text('Turn to adjust',80,228)
-        self._focus_round(32,284,208,36,0x063B,8)
+        show_icon(self.lcd, self.ICON, ICON_APPLY_BUTTON, 32, 284)
         self._focus_text('Apply',116,294,color=0x10C4)
 
     def _focus_edit_value(self):
@@ -432,8 +415,9 @@ class PrintFocusMixin:
         if not viewport_only:
             for i, label in enumerate(('MMU recovery', 'Back')):
                 y = 410 + i * 34
-                self._focus_round(14, y, 244, 30,
-                                  0x063B if self._focus_error_choice == i else 0x2967, 8)
+                icon = ICON_MMU_ERROR_SELECTED if self._focus_error_choice == i else ICON_MMU_ERROR_NORMAL
+                self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 14, y, 257, y+29)
+                show_icon(self.lcd, self.ICON, icon, 14, y)
                 self._focus_text(label, (272 - len(label) * 8) // 2,
                                  y + 7, color=0x10C4 if self._focus_error_choice == i else 0xFFFF)
 
@@ -443,15 +427,15 @@ class PrintFocusMixin:
         previous_choice = self._focus_error_choice
         maximum = max(0, len(self._focus_error_lines) - 15)
         if event == self.ENCODER_DIFF_CW:
-            if self._focus_error_scroll < maximum:
-                self._focus_error_scroll += 1
-            else:
-                self._focus_error_choice = 1
+            target = self._focus_error_scroll + getattr(self,'_rotation_steps',1)
+            self._focus_error_scroll = min(maximum,target)
+            if target > maximum: self._focus_error_choice = 1
         elif event == self.ENCODER_DIFF_CCW:
+            steps = getattr(self,'_rotation_steps',1)
             if self._focus_error_choice:
                 self._focus_error_choice = 0
-            else:
-                self._focus_error_scroll = max(0, self._focus_error_scroll - 1)
+                steps -= 1
+            self._focus_error_scroll = max(0,self._focus_error_scroll-steps)
         elif event == self.ENCODER_DIFF_ENTER:
             if self._focus_error_choice:
                 self.Goto_PrintProcess()
@@ -462,7 +446,7 @@ class PrintFocusMixin:
         if self._focus_error_scroll != previous_scroll:
             self._focus_error_draw(viewport_only=True)
             self.lcd.update()
-        elif self._focus_error_choice != previous_choice:
+        if self._focus_error_choice != previous_choice:
             self._focus_error_draw(buttons_only=True)
             self.lcd.update()
 
@@ -470,13 +454,15 @@ class PrintFocusMixin:
         if not buttons_only:
             self.Clear_Main_Window()
             self.Draw_Title('Stop print')
-            self._focus_round(14,106,244,202,0x2967,10)
+            show_icon(self.lcd, self.ICON, ICON_STOP_PANEL, 14, 106)
             self._focus_text('Cancel this print?',36,132,self.lcd.font10x20)
             self._focus_text('The print cannot resume.',40,184)
         for yes,label,x in ((False,'Back',26),(True,'Stop',142)):
             selected=bool(self.pd.HMI_flag.select_flag)==yes
-            color=0xB209 if yes and selected else (0x063B if selected else 0x39C8)
-            self._focus_round(x,244,104,36,color,8)
+            icon = ICON_STOP_BUTTON_DANGER if yes and selected else (
+                ICON_STOP_BUTTON_SELECTED if selected else ICON_STOP_BUTTON_NORMAL)
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Window, x, 244, x+103, 279)
+            show_icon(self.lcd, self.ICON, icon, x, 244)
             self._focus_text(label,x+36,254)
 
     def _focus_stop_input(self):

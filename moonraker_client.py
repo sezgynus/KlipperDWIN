@@ -134,6 +134,7 @@ class MoonrakerClient:
                 future.cancel()
             elif future.set_running_or_notify_cancel():
                 mutated = False
+                dispatched = False
                 future.cleanup_complete = False
                 try:
                     if guard is not None and not guard():
@@ -144,11 +145,13 @@ class MoonrakerClient:
                         first, rest = payload['script'].split('\n', 1)
                         if not first.startswith('SAVE_GCODE_STATE NAME='):
                             raise MoonrakerError('Jog preparation must save state')
+                        dispatched = True
                         self.request('POST', path, {'script': first})
                         if guard is not None and not guard():
                             raise MoonrakerError('Connection changed after jog preparation')
                         payload = {'script': rest}
                         mutated = True
+                    dispatched = True
                     result = self.request('POST', path, payload)
                     future.cleanup_complete = True
                     future.set_result(result)
@@ -167,8 +170,9 @@ class MoonrakerClient:
                             future.cleanup_complete = False
                     # A timed-out POST is ambiguous. Never replay it or execute
                     # dependent commands that were queued behind it.
-                    with self._lock:
-                        self._discard_pending('Cancelled after preceding command failure')
+                    if dispatched:
+                        with self._lock:
+                            self._discard_pending('Cancelled after preceding command failure')
                     future.set_exception(exc)
             if report_error:
                 self.command_results.put((path, future))

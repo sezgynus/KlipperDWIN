@@ -1051,7 +1051,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
 
     def _button_pressed(self):
         # A zero hold time makes the press edge itself request printer power.
-        if getattr(self, 'power_on_hold_ms', 2000) == 0:
+        if getattr(self, 'power_on_hold_ms', 2000) == 0 and getattr(self, '_relay_status', None) != 'on':
             self._request_power_on()
         self._power_button_down()
 

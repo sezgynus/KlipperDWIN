@@ -8,15 +8,19 @@ from test_mmu_control import mmu_snapshot, hardware_status, add_motor_status, ad
 
 class MMUUITests(unittest.TestCase):
     def test_home_prepare_reuses_one_parsed_mmu_snapshot(self):
-        from mmu_control import MMUState
         view, _ = self.make()
         view._mmu_page = 'home'
-        state = view.pd.mmu_session.state
-        with patch('ui_mmu.MMUState.from_snapshot', wraps=MMUState.from_snapshot) as parser:
+        state = Mock(ttg_map=(0, 1, 2, 3), gate=0, tool=0,
+                     filament='unloaded', filament_pos=0, locked=False)
+        view._mmu_action_item = Mock(return_value=(('action', 'load'), 'Load', '', True))
+        view.pd.mmu_session.prepare = Mock()
+        with patch('ui_mmu.MMUState.from_snapshot', return_value=state) as parser:
             items = view._mmu_items(state)
-        self.assertEqual(parser.call_count, 1)
-        self.assertEqual(len([item for item in items if item[0][0] == 'tool']),
-                         len(state.ttg_map))
+        parser.assert_called_once()
+        self.assertEqual(view.pd.mmu_session.prepare.call_count, 4)
+        self.assertTrue(all(call.kwargs['parsed_state'] is state
+                            for call in view.pd.mmu_session.prepare.call_args_list))
+        self.assertEqual(len([item for item in items if item[0][0] == 'tool']), 4)
 
 
     def make(self, **changes):

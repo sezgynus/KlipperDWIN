@@ -1019,6 +1019,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 key = 'PRESET:' + str(index)
                 self._menus['temperature'].append((key, preset.name + ' settings', self.ICON_PLAPreheat))
         self._menus['preheat'].append(('SAVE', 'Save settings', self.ICON_WriteEEPROM))
+        self._menus['preheat'].append(('CANCEL', 'Discard changes', self.ICON_Back))
         if heat or self.pd.HAS_FAN:
             self._menus['control'].append(('TEMP', 'Temperature', self.ICON_Temperature))
         self._menus['control'].append(('MOVE', 'Motion', self.ICON_Motion))
@@ -2184,7 +2185,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self.Draw_Temperature_Menu()
         else:
             key = self._menus['preheat'][selection.now - 1][0]
-            if key == 'SAVE':
+            if key == 'CANCEL':
+                self.pd.discard_preset_edits(profile)
+                draw()
+            elif key == 'SAVE':
                 future = self.pd.save_settings()
                 if isinstance(future, Future):
                     self._action('Save presets', lambda: future, silent=True,

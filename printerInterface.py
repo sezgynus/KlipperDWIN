@@ -262,6 +262,7 @@ class PrinterData:
         self.file_sort_revision = 0
         self._file_sort_refresh_at = 0.0
         self._directory_cache = {}
+        self._preset_original = copy.deepcopy(self.material_preset)
         self.subscription = MoonrakerSubscription(URL, API_Key, timeout)
         self.probe_wizard = ProbeWizard(self)
         self.screws_tilt = ScrewsTiltSession(self)
@@ -400,6 +401,7 @@ class PrinterData:
                     presets.append(material_preset_t.from_mainsail(item, preset_id))
                 except (ValueError, TypeError) as error:
                     logging.warning('Ignoring invalid Mainsail preset %s: %s', preset_id, error)
+            self._preset_original = copy.deepcopy(presets)
             self._preset_baseline = self._preset_signature(presets)
             if not presets:
                 changed = bool(self.material_preset)
@@ -769,6 +771,7 @@ class PrinterData:
             try:
                 self._settings_save.result()
                 self._preset_baseline = self._preset_saved_signature
+                self._preset_original = self._preset_save_original
                 self.settings_error = None
             except Exception as error:
                 self.settings_error = str(error)
@@ -1281,6 +1284,14 @@ class PrinterData:
         preset = self.material_preset[index]
         return self.preHeat(preset.bed_temp, preset.hotend_temp)
 
+    def discard_preset_edits(self, profile):
+        if self._settings_save is not None:
+            raise ValueError('Wait for preset save before discarding edits')
+        if not 0 <= profile < len(self._preset_original):
+            raise ValueError('Preset is no longer available')
+        self.material_preset[profile] = copy.deepcopy(self._preset_original[profile])
+        self._preset_refresh_at = 0.0
+
     def save_settings(self):
         if self.presets_from_mainsail:
             if self._settings_save is not None and not self._settings_save.done():
@@ -1300,6 +1311,7 @@ class PrinterData:
                 for payload in writes:
                     self.client.post('/server/database/item', payload).result(timeout=self.client.timeout + 1)
                 return True
+            self._preset_save_original = copy.deepcopy(self.material_preset)
             self._preset_saved_signature = self._preset_signature(self.material_preset)
             self._settings_save = self._read_worker.submit(save)
             return self._settings_save
@@ -1309,6 +1321,7 @@ class PrinterData:
             self.settings_error = str(error)
             logging.error('Cannot save presets to %s: %s', self.preset_store.path, error)
             return False
+        self._preset_original = copy.deepcopy(self.material_preset)
         self.settings_error = None
         return True
 

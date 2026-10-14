@@ -3,6 +3,12 @@
 ICON_LIBRARY_ID = 3
 ICON_LIBRARY_FILENAME = "3.ICO"
 
+# Text-free managed backings; labels are rendered separately for localization.
+ICON_STOP_BUTTON_NORMAL = 134
+ICON_STOP_BUTTON_SELECTED = 135
+ICON_STOP_BUTTON_DANGER = 136
+ICON_STOP_PANEL = 137
+
 # Custom JPEG source IDs in the managed icon library.
 ICON_MMU_HOME_NORMAL = 100
 ICON_MMU_HOME_SELECTED = 101

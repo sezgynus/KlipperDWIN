@@ -9,7 +9,9 @@ from graphite_theme import show_icon
 from lcd_resources import (ICON_PRINT_TUNE, ICON_PRINT_PAUSE, ICON_PRINT_RESUME,
                            ICON_PRINT_STOP, ICON_PRINT_MMU, ICON_JOB_SWITCH_OFF,
                            ICON_JOB_SWITCH_ON, ICON_PRINT_TUNE_WIDE,
-                           ICON_PRINT_CLOSE, PRINT_BUTTON_SELECTED)
+                           ICON_PRINT_CLOSE, PRINT_BUTTON_SELECTED,
+                           ICON_STOP_BUTTON_NORMAL, ICON_STOP_BUTTON_SELECTED,
+                           ICON_STOP_BUTTON_DANGER, ICON_STOP_PANEL)
 
 
 @lru_cache(maxsize=64)
@@ -470,13 +472,14 @@ class PrintFocusMixin:
         if not buttons_only:
             self.Clear_Main_Window()
             self.Draw_Title('Stop print')
-            self._focus_round(14,106,244,202,0x2967,10)
+            show_icon(self.lcd, self.ICON, ICON_STOP_PANEL, 14, 106)
             self._focus_text('Cancel this print?',36,132,self.lcd.font10x20)
             self._focus_text('The print cannot resume.',40,184)
         for yes,label,x in ((False,'Back',26),(True,'Stop',142)):
             selected=bool(self.pd.HMI_flag.select_flag)==yes
-            color=0xB209 if yes and selected else (0x063B if selected else 0x39C8)
-            self._focus_round(x,244,104,36,color,8)
+            icon = ICON_STOP_BUTTON_DANGER if yes and selected else (
+                ICON_STOP_BUTTON_SELECTED if selected else ICON_STOP_BUTTON_NORMAL)
+            show_icon(self.lcd, self.ICON, icon, x, 244)
             self._focus_text(label,x+36,254)
 
     def _focus_stop_input(self):

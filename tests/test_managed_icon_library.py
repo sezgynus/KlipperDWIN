@@ -22,7 +22,7 @@ class ManagedIconTests(unittest.TestCase):
         table = {i: (o, p) for i, e, o, p in entries(data)}
         self.assertEqual(table[10], (32768, large))
         self.assertEqual(table[11], (4096, small))
-        validate_block_layout(data, 7)
+        validate_block_layout(data, 3)
         self.assertEqual(data[32767], 0)
         self.assertEqual(data[65535], 0)
 
@@ -180,4 +180,4 @@ class ManagedIconTests(unittest.TestCase):
         self.assertEqual(data, (root / 'assets/emulator/3.ICO').read_bytes())
         for index, entry, offset, payload in entries(data):
             self.assertEqual(payload, (root / 'assets/icons' / f'{index:03d}.jpg').read_bytes())
-        validate_block_layout(data, 7)
+        validate_block_layout(data, 3)

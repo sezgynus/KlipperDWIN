@@ -95,15 +95,17 @@ class PrintFocusTests(unittest.TestCase):
         view.pd.HMI_flag.select_flag = False
         view._focus_stop_draw()
         view.lcd.reset_mock()
+        view.Clear_Main_Window = Mock()
         view.get_encoder_state.return_value = view.ENCODER_DIFF_CW
         view._focus_stop_input()
-        view.Clear_Main_Window = Mock()
         self.assertTrue(view.pd.HMI_flag.select_flag)
-        self.assertEqual(view.lcd.draw_bitmap.call_count, 4)
+        self.assertEqual(view.lcd.show_icon.call_count, 2)
+        view.lcd.draw_bitmap.assert_not_called()
         self.assertEqual(view.lcd.draw_text.call_count, 2)
         view.Clear_Main_Window.assert_not_called()
         view.lcd.reset_mock()
         view._focus_stop_input()
+        view.lcd.show_icon.assert_not_called()
         view.lcd.draw_bitmap.assert_not_called()
         view.lcd.draw_text.assert_not_called()
 

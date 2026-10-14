@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class IconLibraryPackingTests(TestCase):
     def test_all_bundled_icons_decode_and_stay_inside_one_block(self):
         data = (ROOT / 'assets/emulator/3.ICO').read_bytes()
-        validate_block_layout(data, 7)
+        validate_block_layout(data, 3)
         self.assertEqual(pack(data), data)
         for index, entry, offset, payload in entries(data):
             with self.subTest(icon=index):
@@ -31,7 +31,7 @@ class IconLibraryPackingTests(TestCase):
             data[index * 16:(index + 1) * 16] = entry
             data.extend(payload)
         with self.assertRaisesRegex(ValueError, 'crosses'):
-            validate_block_layout(data, 7)
+            validate_block_layout(data, 3)
         with self.assertRaisesRegex(ValueError, 'crosses'):
             validate_upload(data)
         validate_upload(data, allow_cross_block=True)

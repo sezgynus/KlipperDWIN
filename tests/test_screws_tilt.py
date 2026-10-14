@@ -210,6 +210,21 @@ class ViewTests(unittest.TestCase):
         view.lcd.draw_bitmap.assert_not_called()
         view.lcd.update.assert_not_called()
 
+    def test_popup_and_clear_invalidate_cached_result_before_return(self):
+        view = self.make()
+        session = view.pd.screws_tilt
+        session.start()
+        view.checkkey = view.ScrewsTiltResult
+        view.Draw_Screws_Result()
+        view.lcd.reset_mock()
+        view.Clear_Popup_Area()
+        self.assertIsNone(view._screws_result_cache)
+        view.lcd.reset_mock()
+        view.Draw_Screws_Result()
+        self.assertGreaterEqual(view.lcd.draw_bitmap.call_count, 4)
+        view.Clear_Main_Window()
+        self.assertIsNone(view._screws_result_cache)
+
     def test_repeated_calculation_invalidates_corner_cache(self):
         view = self.make()
         session = view.pd.screws_tilt

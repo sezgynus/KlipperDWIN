@@ -3089,10 +3089,14 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
 
     def Clear_Main_Window(self):
         self._info_render_scroll = None
+        self._screws_result_cache = None
         self.Clear_Title_Bar()
         self.Clear_Menu_Area()
 
     def Clear_Popup_Area(self):
+        # Popup overwrites previously cached screw graphics; power-cancel
+        # must repaint all four corners when returning to that screen.
+        self._screws_result_cache = None
         self._sync_fan_animation(False)
         self._list_render = None
         self._status_layout = None

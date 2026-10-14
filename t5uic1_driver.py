@@ -285,7 +285,6 @@ class T5UIC1Display:
                 # A developer observer must never interrupt the physical LCD.
                 logging.exception('LCD packet observer failed')
         self._needs_update = True
-        time.sleep(0.001)
         return frame
 
     def _read_available(self):

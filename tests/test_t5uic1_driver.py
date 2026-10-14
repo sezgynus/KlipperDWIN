@@ -200,6 +200,16 @@ class T5UIC1DriverPackets(unittest.TestCase):
             ],
         )
 
+    def test_async_buzzer_uses_the_same_flash_address_as_legacy_record(self):
+        from buzzer_control import ADDRESS, Settings
+        lcd = driver()
+        self.assertEqual(lcd.BUZZER_SETTINGS_ADDRESS, ADDRESS)
+        value = Settings('Buzzer', 70, 4, 1).encode()
+        future = lcd.begin_flash_write_verified(lcd.BUZZER_SETTINGS_ADDRESS, value)
+        lcd.poll_flash_tasks()
+        self.assertEqual(int.from_bytes(lcd.serial.frames[-1][3:5], 'big'), ADDRESS)
+        self.assertFalse(future.done())
+
     def test_async_flash_read_never_waits_for_missing_ack(self):
         from unittest.mock import patch
         lcd = driver()

@@ -57,6 +57,7 @@ class T5UIC1Display:
 
     DISPLAY_SETTINGS_ADDRESS = 0x0100
     DISPLAY_SETTINGS_SIZE = display_settings.RECORD_SIZE
+    BUZZER_SETTINGS_ADDRESS = buzzer_control.ADDRESS
 
     FONT_SIZES = (
         (6, 12), (8, 16), (10, 20), (12, 24), (14, 28),

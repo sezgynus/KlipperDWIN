@@ -35,3 +35,5 @@ jobs:
         run: python -m compileall -q .
       - name: Run regression suite
         run: python -m unittest discover -s tests -v
+
+# Audit verification: fix(audit B08)

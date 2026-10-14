@@ -2715,15 +2715,31 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
 
     def _draw_info_update_button(self, y, selected):
         updater = self._software_updater()
-        background = 0x063B if selected else 0x2967
+        backing = 0x063B if selected else 0x2967
         foreground = 0x10C4 if selected else self.lcd.Color_White
-        self._draw_pill(self.lcd, 32, y - 4, 208, 28, background)
         label = T5UIC1Display._panel_text(updater.label)[:25]
-        self.lcd.draw_text(False, False, self.lcd.font8x16, foreground,
-                           background, (272 - len(label) * 8) // 2, y+2, label)
+        token = (id(self.lcd), y, bool(selected), label)
+        previous = getattr(self, '_info_update_render', None)
+        if previous is None or previous[:3] != token[:3]:
+            self._draw_pill(self.lcd, 32, y - 4, 208, 28, backing)
+        elif previous[3] != label:
+            # Interior only: preserve curved edges when the updater label changes.
+            self.lcd.draw_rectangle(1, backing, 46, y, 226, y + 19)
+        if previous is None or previous != token:
+            self.lcd.draw_text(False, False, self.lcd.font8x16, foreground,
+                               backing, (272 - len(label) * 8) // 2, y + 2, label)
+        self._info_update_render = token
+        message = (updater.phase, updater.message)
+        if getattr(self, '_info_update_message', None) == (y, message):
+            return
+        self._info_update_message = (y, message)
+        if y - 48 >= 92:
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black,
+                                    23, y - 48, 249, y - 8)
         if not updater.message or updater.phase in ('checking', 'updating', 'restarting', 'recovering'):
             return
-        color = {'current': 0x07E0, 'available': 0xFFE0, 'dirty': 0xFFE0, 'confirm_recovery': 0xFFE0}.get(updater.phase, 0xF800)
+        color = {'current': 0x07E0, 'available': 0xFFE0, 'dirty': 0xFFE0,
+                 'confirm_recovery': 0xFFE0}.get(updater.phase, 0xF800)
         lines = textwrap.wrap(T5UIC1Display._panel_text(updater.message), width=28)[:2]
         first_y = y - (40 if len(lines) > 1 else 32)
         for index, text in enumerate(lines):
@@ -2732,6 +2748,19 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 self.lcd.draw_text(False, False, self.lcd.font8x16, color,
                                    self.lcd.Color_Bg_Black,
                                    (272 - len(text) * 8) // 2, line_y, text)
+
+    def _refresh_info_update_button(self):
+        items = self._info_items()
+        for index, (kind, _, _) in enumerate(items):
+            if kind != 'update':
+                continue
+            y = 92 + (index + 9 - getattr(self, '_info_scroll', 0)) * 24
+            if 92 <= y < 356:
+                self._draw_info_update_button(
+                    y, getattr(self, '_info_scroll', 0)
+                    == max(0, len(items) + 9 - 11))
+                self.lcd.update()
+            break
 
     def _software_updater(self):
         if not hasattr(self, '_software_update'):
@@ -2802,6 +2831,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                     self.Draw_Menu_Cursor(0)
         else:
             self.Clear_Main_Window()
+            self._info_update_render = None
+            self._info_update_message = None
             self.Draw_Title('Info')
             self.Draw_Back_First(self._info_scroll < max_scroll)
         qr_repair = False
@@ -3175,9 +3206,13 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         info_update = False
         if self.checkkey == self.Info:
             info_update = self._software_updater().poll()
-        if self.checkkey == self.Info and (self.pd.refresh_system_info() or info_update):
-            self.Draw_Info_Menu()
-            self.lcd.update()
+        if self.checkkey == self.Info:
+            system_changed = self.pd.refresh_system_info()
+            if system_changed:
+                self.Draw_Info_Menu()
+                self.lcd.update()
+            elif info_update:
+                self._refresh_info_update_button()
         if self._poll_print_start() or getattr(self, '_start_error_visible', False):
             return
         if self.checkkey == self.SelectFile and (

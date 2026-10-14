@@ -1136,7 +1136,12 @@ class PrinterData:
             raise ValueError('Case light brightness out of range')
         if 'output_pin case_light' not in snapshot['objects']:
             raise ValueError('Case light output pin unavailable')
-        scale = float(snapshot['settings'].get('output_pin case_light', {}).get('scale', 1))
+        settings = snapshot['settings'].get('output_pin case_light', {})
+        if str(settings.get('pwm', False)).lower() not in ('true', '1'):
+            if percent not in (0, 100):
+                raise ValueError('Digital case light supports only on/off')
+            return self.sendGCodeObserved('SET_PIN PIN=case_light VALUE={:.6f}'.format(percent / 100))
+        scale = float(settings.get('scale', 1))
         if not math.isfinite(scale) or scale <= 0:
             raise ValueError('Invalid case light scale')
         return self.sendGCodeObserved('SET_PIN PIN=case_light VALUE={:.6f}'.format(percent * scale / 100))

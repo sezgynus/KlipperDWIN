@@ -130,7 +130,8 @@ class PrintFocusMixin:
         width = 119 if len(buttons) == 2 else 78
         shape = (len(buttons), width)
         cache = getattr(self, '_focus_button_render', {})
-        if shape != getattr(self, '_focus_button_shape', None):
+        layout_changed = shape != getattr(self, '_focus_button_shape', None)
+        if layout_changed:
             # A layout transition can leave the old third button behind.
             # Ordinary selections/state changes never erase the control strip.
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 14, 311, 258, 349)
@@ -150,7 +151,8 @@ class PrintFocusMixin:
             x = 14+i*(width+5)
             # Clear this button only: filtered JPEG corners must not retain
             # the previous selection's color or label pixels.
-            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, x, 312, x+width-1, 347)
+            if not layout_changed:
+                self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, x, 312, x+width-1, 347)
             show_icon(self.lcd, self.ICON,
                       PRINT_BUTTON_SELECTED[normal] if selected else normal, x, 312)
             char_width = 8 if len(label)*8+20 <= width else 6

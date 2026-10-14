@@ -416,11 +416,13 @@ class PrintFocusMixin:
                 self._mmu_return_print=True;self.Enter_MMU_Menu('recover')
         self.lcd.update()
 
-    def _focus_stop_draw(self):
-        self.Clear_Main_Window();self.Draw_Title('Stop print')
-        self._focus_round(14,106,244,202,0x2967,10)
-        self._focus_text('Cancel this print?',36,132,self.lcd.font10x20)
-        self._focus_text('The print cannot resume.',40,184)
+    def _focus_stop_draw(self, buttons_only=False):
+        if not buttons_only:
+            self.Clear_Main_Window()
+            self.Draw_Title('Stop print')
+            self._focus_round(14,106,244,202,0x2967,10)
+            self._focus_text('Cancel this print?',36,132,self.lcd.font10x20)
+            self._focus_text('The print cannot resume.',40,184)
         for yes,label,x in ((False,'Back',26),(True,'Stop',142)):
             selected=bool(self.pd.HMI_flag.select_flag)==yes
             color=0xB209 if yes and selected else (0x063B if selected else 0x39C8)
@@ -430,8 +432,10 @@ class PrintFocusMixin:
     def _focus_stop_input(self):
         event=self.get_encoder_state()
         if event in (self.ENCODER_DIFF_CW,self.ENCODER_DIFF_CCW):
-            self.pd.HMI_flag.select_flag=event==self.ENCODER_DIFF_CW
-            self._focus_stop_draw()
+            selected = event == self.ENCODER_DIFF_CW
+            if bool(self.pd.HMI_flag.select_flag) != selected:
+                self.pd.HMI_flag.select_flag = selected
+                self._focus_stop_draw(buttons_only=True)
         elif event==self.ENCODER_DIFF_ENTER:
             if self.pd.HMI_flag.select_flag:
                 self._action('Cancel',self.pd.cancel_job,

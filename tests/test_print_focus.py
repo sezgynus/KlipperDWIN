@@ -70,6 +70,25 @@ class PrintFocusTests(unittest.TestCase):
         v._focus_submit('speed',140,lambda:Future());data['epoch']+=1;v.pd.update_variable();v._focus_tick_quiet()
         self.assertFalse(v._quiet_edits)
 
+
+    def test_stop_selection_redraws_only_buttons_and_unchanged_is_free(self):
+        view, _ = self.view()
+        view.checkkey = view.Print_window
+        view.pd.HMI_flag.select_flag = False
+        view._focus_stop_draw()
+        view.lcd.reset_mock()
+        view.get_encoder_state.return_value = view.ENCODER_DIFF_CW
+        view._focus_stop_input()
+        view.Clear_Main_Window = Mock()
+        self.assertTrue(view.pd.HMI_flag.select_flag)
+        self.assertEqual(view.lcd.draw_bitmap.call_count, 4)
+        self.assertEqual(view.lcd.draw_text.call_count, 2)
+        view.Clear_Main_Window.assert_not_called()
+        view.lcd.reset_mock()
+        view._focus_stop_input()
+        view.lcd.draw_bitmap.assert_not_called()
+        view.lcd.draw_text.assert_not_called()
+
     def test_pause_direct_stop_requires_safe_confirmation(self):
         v,_=self.view();v.select_print.set(1);v.pd.pause_job=Mock(return_value=Future())
         v.Popup_window_PauseOrStop=Mock();v.HMI_Printing()

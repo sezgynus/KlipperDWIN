@@ -982,8 +982,31 @@ class PrinterData:
             raise ValueError('A print is already active')
         return self.postREST('/printer/print/start', json={'filename': path})
 
-    def cancel_job(self): #fixed
-        return self.postREST('/printer/print/cancel', json=None)
+    def cancel_job(self):
+        """Submit cancellation over WebSocket; retain real RPC errors.
+
+        The response can be delayed by blocking Klipper macros.  HTTP's
+        five-second timeout would incorrectly report a submitted cancel as
+        failed, potentially prompting an unsafe duplicate request.
+        """
+        snapshot = self.subscription.snapshot()
+        if (self.connection_error or not self.state.ready
+                or snapshot['state'] != 'ready'
+                or snapshot['epoch'] != self.state.epoch):
+            future = Future()
+            future.set_exception(MoonrakerError('Printer connection is not ready'))
+            return future
+        epoch = snapshot['epoch']
+        filename = snapshot['status'].get('print_stats', {}).get('filename')
+
+        def still_same_job():
+            current = self.subscription.snapshot()
+            stats = current['status'].get('print_stats', {})
+            return (current['state'] == 'ready' and current['epoch'] == epoch
+                    and stats.get('filename') == filename
+                    and stats.get('state') in ('printing', 'paused', 'pausing'))
+
+        return self.subscription.request('printer.print.cancel', guard=still_same_job)
 
     def pause_job(self, report_error=True): #fixed
         return self.postREST('/printer/print/pause', json=None, **({} if report_error else {'report_error': False}))

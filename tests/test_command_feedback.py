@@ -146,9 +146,14 @@ class FeedbackTests(unittest.TestCase):
         result = self.display().pd
         future = Future()
         result.postREST = Mock(return_value=future)
+        result.subscription.request = Mock(return_value=future)
         result.sendGCode = Mock(return_value=future)
-        for action in (result.pause_job, result.resume_job, result.cancel_job):
+        for action in (result.pause_job, result.resume_job):
             self.assertIs(action(), future)
+        self.assertIs(result.cancel_job(), future)
+        result.subscription.request.assert_called_once()
+        self.assertEqual(result.subscription.request.call_args.args[0],
+                         'printer.print.cancel')
         self.assertIs(result.setZOffset(.1), future)
 
     def test_cooldown_combines_heaters_and_fan(self):

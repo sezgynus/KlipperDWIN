@@ -79,6 +79,35 @@ class PendingRequestBudgetTests(unittest.TestCase):
         self.assertFalse(client._pending_requests)
         self.assertFalse(client._pending_deadlines)
 
+    def test_print_cancel_waits_through_long_macro_without_false_timeout(self):
+        client = self.make()
+        future = client.request('printer.print.cancel')
+        client._drain_outbound()
+        packet = json.loads(client._socket.send.call_args.args[0])
+        self.assertEqual(packet['method'], 'printer.print.cancel')
+        self.assertFalse(client._pending_deadlines)
+        with patch('moonraker_subscription.time.monotonic',
+                   return_value=10_000_000):
+            client._expire_requests()
+        self.assertFalse(future.done())
+        self.assertEqual(len(client._pending_requests), 1)
+        client._notification({'id': packet['id'], 'result': 'ok'})
+        self.assertEqual(future.result(), 'ok')
+        self.assertFalse(client._pending_requests)
+
+    def test_pending_cancel_cleans_up_on_state_acceptance_or_disconnect(self):
+        client = self.make()
+        future = client.request('printer.print.cancel')
+        client._drain_outbound()
+        self.assertTrue(future.cancel())
+        client._expire_requests()
+        self.assertFalse(client._pending_requests)
+        second = client.request('printer.print.cancel')
+        client._drain_outbound()
+        client._fail_outbound('offline')
+        with self.assertRaises(MoonrakerError):
+            second.result()
+
     def test_ttl_expiry_releases_future_and_ignores_late_response(self):
         client = self.make()
         future = client.request('printer.objects.query')

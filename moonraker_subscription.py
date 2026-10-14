@@ -354,12 +354,15 @@ class MoonrakerSubscription:
         now = time.monotonic()
         expired = []
         with self._lock:
-            for request_id, deadline in tuple(self._pending_deadlines.items()):
-                future = self._pending_requests.get(request_id)
-                if deadline <= now or future is None or future.done():
+            for request_id, future in tuple(self._pending_requests.items()):
+                # A print cancellation can be queued behind an M109/M190.
+                # It has no response deadline, but must still be discarded
+                # once the observed printer state resolves its Future.
+                deadline = self._pending_deadlines.get(request_id)
+                if future.done() or (deadline is not None and deadline <= now):
                     self._pending_deadlines.pop(request_id, None)
                     self._pending_requests.pop(request_id, None)
-                    if future is not None and not future.done():
+                    if not future.done():
                         expired.append(future)
         for future in expired:
             future.set_exception(MoonrakerError('Moonraker request timed out'))
@@ -388,9 +391,13 @@ class MoonrakerSubscription:
                         self._id += 1
                         envelope['id'] = self._id
                         self._pending_requests[self._id] = future
-                        ttl = (self.LONG_REQUEST_TIMEOUT if method == 'printer.gcode.script'
-                               else max(self.REQUEST_TIMEOUT, self.timeout * 4))
-                        self._pending_deadlines[self._id] = time.monotonic() + ttl
+                        if method != 'printer.print.cancel':
+                            ttl = (self.LONG_REQUEST_TIMEOUT if method == 'printer.gcode.script'
+                                   else max(self.REQUEST_TIMEOUT, self.timeout * 4))
+                            self._pending_deadlines[self._id] = time.monotonic() + ttl
+                        # CANCEL_PRINT can wait for a blocking START_PRINT macro.
+                        # Do not time out a still-connected, active job here;
+                        # the owning UI confirms completion from print_stats.
                 self._socket.send(json.dumps(envelope))
                 if not completion and not future.done():
                     future.set_result(None)

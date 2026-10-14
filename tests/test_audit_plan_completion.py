@@ -3,6 +3,38 @@ import unittest
 from types import SimpleNamespace
 from concurrent.futures import Future
 from test_capabilities import printer, snapshot
+from unittest.mock import Mock, patch
+
+class ManagedBackingTests(unittest.TestCase):
+    def test_info_backing_and_label_have_independent_updates(self):
+        from test_capabilities import display
+        from test_t5uic1_driver import driver
+        view = display(snapshot())
+        view.lcd = driver()
+        updater = SimpleNamespace(label='Check updates', phase='idle', message='')
+        view._software_updater = Mock(return_value=updater)
+        with patch('t5uic1_driver.time.sleep'):
+            view._draw_info_update_button(180, True)
+            frames = view.lcd.serial.frames
+            self.assertEqual(sum(frame[1] == 0x23 for frame in frames), 1)
+            self.assertFalse(any(frame[1] == 0x08 for frame in frames))
+            self.assertIn(b'Check updates', [frame[11:-4] for frame in frames if frame[1] == 0x11])
+            frames.clear()
+            view._draw_info_update_button(180, True)
+            self.assertFalse(frames)
+            updater.label = 'Checking'
+            view._draw_info_update_button(180, True)
+            self.assertFalse(any(frame[1] == 0x23 for frame in frames))
+            self.assertIn(b'Checking', [frame[11:-4] for frame in frames if frame[1] == 0x11])
+
+    def test_all_button_backing_sources_contain_only_shapes(self):
+        from pathlib import Path
+        import xml.etree.ElementTree as ET
+        from tools.render_button_backings import BACKINGS
+        root = Path(__file__).resolve().parents[1]
+        for index in BACKINGS:
+            svg = ET.parse(root / 'assets/icon-source' / f'{index:03d}.svg')
+            self.assertEqual({node.tag.rsplit('}', 1)[-1] for node in svg.iter()}, {'svg', 'rect'})
 
 class PresetDraftTests(unittest.TestCase):
     def test_discard_restores_only_selected_profile(self):

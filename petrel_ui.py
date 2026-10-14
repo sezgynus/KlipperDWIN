@@ -1,6 +1,7 @@
 from lcd_resources import ICON_ACCELERATION, ICON_BRIGHTNESS, ICON_BUZZER, ICON_CLICK_TONE, ICON_CORNER_SPEED, ICON_CRUISE_RATIO, ICON_DIM_BRIGHTNESS, ICON_ENCODER_TONE, ICON_FLOW, ICON_IDLE_DIM, ICON_LIGHT, ICON_LIVE_JOG, ICON_MOTION, ICON_MOTOR_OFF, ICON_PREHEAT_PROFILE, ICON_VELOCITY, ICON_VOLUME
 from graphite_theme import show_icon as show_theme_icon
 from lcd_resources import ICON_POWER_BUTTON_NORMAL, ICON_POWER_BUTTON_CANCEL, ICON_POWER_BUTTON_OFF
+from lcd_resources import ICON_INFO_UPDATE_SELECTED, ICON_INFO_UPDATE_NORMAL
 from lcd_resources import ICON_FAN_FIRST, ICON_FAN_LAST, ICON_LIBRARY_ID, ICON_CHECKBOX_EMPTY, ICON_CHECKBOX_CHECKED
 import display_settings
 import copy
@@ -2877,7 +2878,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         token = (id(self.lcd), y, bool(selected), label)
         previous = getattr(self, '_info_update_render', None)
         if previous is None or previous[:3] != token[:3]:
-            self._draw_pill(self.lcd, 32, y - 4, 208, 28, backing)
+            icon = ICON_INFO_UPDATE_SELECTED if selected else ICON_INFO_UPDATE_NORMAL
+            show_theme_icon(self.lcd, self.ICON, icon, 32, y - 4)
         elif previous[3] != label:
             # Interior only: preserve curved edges when the updater label changes.
             self.lcd.draw_rectangle(1, backing, 46, y, 226, y + 19)

@@ -3290,15 +3290,17 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         attr = custom.get(self.checkkey)
         return attr is not None and getattr(self, attr, 0) == 0
 
-    def _draw_power_confirmation(self):
-        self.Clear_Popup_Area()
-        self.Draw_Title('Power')
-        self.Draw_Popup_Bkgd_105()
+    def _draw_power_confirmation(self, buttons_only=False):
+        if not buttons_only:
+            self.Clear_Popup_Area()
+            self.Draw_Title('Power')
+            self.Draw_Popup_Bkgd_105()
         if getattr(self, '_power_hold_popup', False):
             blocked = getattr(self, '_power_blocked', None)
-            self.lcd.draw_text(False, False, self.lcd.font8x16, self.lcd.Popup_Text_Color,
-                self.lcd.Color_Bg_Window, (272 - len(blocked or 'Power off printer?') * 8) // 2,
-                150, blocked or 'Power off printer?')
+            if not buttons_only:
+                self.lcd.draw_text(False, False, self.lcd.font8x16, self.lcd.Popup_Text_Color,
+                    self.lcd.Color_Bg_Window, (272 - len(blocked or 'Power off printer?') * 8) // 2,
+                    150, blocked or 'Power off printer?')
             choices = ((False, 'Cancel', 28, 104),) if blocked else ((False, 'Cancel', 28, 104), (True, 'Power off', 140, 104))
             for yes, label, x, width in choices:
                 fill = (0xB986 if yes else 0x19E9) if self._power_confirm_yes == yes else self.lcd.Color_Bg_Window
@@ -3369,8 +3371,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                     return True
                 self._power_blocked = self._power_block_reason()
                 if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                    self._power_confirm_yes = event == self.ENCODER_DIFF_CW and not self._power_blocked
-                    self._draw_power_confirmation()
+                    selection = event == self.ENCODER_DIFF_CW and not self._power_blocked
+                    if selection != self._power_confirm_yes:
+                        self._power_confirm_yes = selection
+                        self._draw_power_confirmation(buttons_only=True)
                 elif event == self.ENCODER_DIFF_ENTER:
                     if self._power_confirm_yes and not self._power_blocked:
                         self._power_off_future = self.pd.power_off_if_on()

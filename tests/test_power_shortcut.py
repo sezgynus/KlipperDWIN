@@ -102,6 +102,28 @@ class PowerShortcutTests(unittest.TestCase):
         v._dispatch_input.assert_not_called()
         self.assertEqual(v.checkkey,v.Control)
 
+    def test_power_selection_draws_buttons_without_erasing_popup(self):
+        v = self.view()
+        self.gesture(v, 1.3)
+        v.Clear_Popup_Area = Mock()
+        v.Draw_Title = Mock()
+        v.Draw_Popup_Bkgd_105 = Mock()
+        v.lcd.serial.frames.clear()
+        self.input(v, 'rotate', -1)
+        self.assertTrue(v._power_confirm_yes)
+        v.Clear_Popup_Area.assert_not_called()
+        v.Draw_Title.assert_not_called()
+        v.Draw_Popup_Bkgd_105.assert_not_called()
+        frames = list(v.lcd.serial.frames)
+        self.assertLess(len(frames), 12)
+        self.assertEqual(sum(f[1] == 0x08 for f in frames), 4)
+        v.lcd.serial.frames.clear()
+        self.input(v, 'rotate', -1)
+        self.assertFalse(v.lcd.serial.frames)
+        self.input(v, 'rotate', 1)
+        self.assertFalse(v._power_confirm_yes)
+        self.assertLess(len(v.lcd.serial.frames), 12)
+
     def test_separate_rotation_and_click_confirm_once(self):
         v=self.view();self.gesture(v,1.3)
         self.input(v,'rotate',-1)  # Native encoder CW.

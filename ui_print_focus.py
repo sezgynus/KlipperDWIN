@@ -201,7 +201,10 @@ class PrintFocusMixin:
         self._focus_field('filament',token,128,232,130,25,draw_filament)
         error = self._focus_error()
         state = error or (m.action if m and m.action.lower() not in ('idle','unknown') else ('Happy Hare ready' if m else 'Single extruder'))
-        self._focus_field('state',(state,error,self.pd.status),14,266,244,38,lambda:self._focus_state_panel(state,error))
+        state_key = (state, error, self.pd.status)
+        if self._focus_render.get('state') != state_key:
+            self._focus_state_panel(state, error)
+            self._focus_render['state'] = state_key
         start=getattr(self,'_quiet_blinks',{}).get('pause')
         blink=start is not None and int((time.monotonic()-start)/.2)%2==0
         buttons=(tuple(self._focus_buttons()),self.select_print.now,blink)
@@ -220,10 +223,19 @@ class PrintFocusMixin:
                 self.lcd.show_sram_jpeg(14,90,address,background=False,enhanced=True)
                 self._focus_preview_drawn=(key,address)
 
-    def _focus_state_panel(self,state,error):
-        self._focus_round(14,266,244,38,0x40E5 if error else 0x2967,7)
-        self._focus_text(('MMU: '+state)[:28] if error else self.pd.status.capitalize(),24,272,self.lcd.font6x12,color=0xFBCB if error else 0xFFFF)
-        self._focus_text('Click MMU to read / recover' if error else state[:29],24,287,self.lcd.font6x12,color=0xADB5)
+    def _focus_state_panel(self, state, error):
+        background = 0x40E5 if error else 0x2967
+        if self._focus_render.get('state_backing') != background:
+            self._focus_round(14, 266, 244, 38, background, 7)
+            self._focus_render['state_backing'] = background
+        else:
+            # Keep round edges intact. Clear only the two dynamic text lines.
+            self.lcd.draw_rectangle(1, background, 22, 270, 253, 300)
+        self._focus_text(('MMU: ' + state)[:28] if error
+                         else self.pd.status.capitalize(), 24, 272,
+                         self.lcd.font6x12, color=0xFBCB if error else 0xFFFF)
+        self._focus_text('Click MMU to read / recover' if error else state[:29],
+                         24, 287, self.lcd.font6x12, color=0xADB5)
 
     def _focus_print_input(self):
         event=self.get_encoder_state()

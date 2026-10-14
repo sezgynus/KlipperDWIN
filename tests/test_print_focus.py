@@ -140,6 +140,22 @@ class PrintFocusTests(unittest.TestCase):
         v.Goto_PrintProcess=Mock();v._mmu_history=[];v.pd.mmu_session.pending=None;v._mmu_back()
         v.Goto_PrintProcess.assert_called_once();self.assertFalse(v._mmu_return_print)
 
+    def test_status_text_changes_do_not_redraw_rounded_backing(self):
+        v, _ = self.view()
+        v._focus_render = {}
+        v._focus_state_panel('Idle', '')
+        v.lcd.reset_mock()
+        v._focus_state_panel('Loading filament', '')
+        v.lcd.draw_bitmap.assert_not_called()
+        v.lcd.draw_rectangle.assert_called_once_with(1, 0x2967, 22, 270, 253, 300)
+        self.assertEqual(v.lcd.draw_text.call_count, 2)
+        v.lcd.reset_mock()
+        v._focus_state_panel('Sensor failed', 'Sensor failed')
+        self.assertGreater(v.lcd.draw_bitmap.call_count, 0)
+        v.lcd.reset_mock()
+        v._focus_state_panel('Other error', 'Other error')
+        v.lcd.draw_bitmap.assert_not_called()
+
     def test_print_render_has_no_work_when_unchanged(self):
         v,_=self.view();v._focus_print_open();v.lcd.reset_mock()
         v._focus_print_tick();v.lcd.draw_rectangle.assert_not_called();v.lcd.draw_text.assert_not_called()

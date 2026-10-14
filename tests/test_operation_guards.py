@@ -32,8 +32,12 @@ class DispatchTests(unittest.TestCase):
             p = printer(source)
             p.subscription.request.return_value = Future()
             p.subscription.responses_since.return_value = (0, ())
+            if name == 'probe_wizard':
+                p.sendGCode = PrinterData.sendGCode.__get__(p)
+                p.client.post.return_value = Future()
             getattr(p, name).start()
-            call = p.subscription.request.call_args
+            call = (p.client.post.call_args if name == 'probe_wizard'
+                    else p.subscription.request.call_args)
             guard = call.kwargs['guard']
             self.assertTrue(guard())
             source['status']['print_stats']['state'] = 'paused'

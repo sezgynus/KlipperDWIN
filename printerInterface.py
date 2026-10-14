@@ -180,7 +180,7 @@ class PrinterData:
         self._read_worker = ReadWorker(timeout)
         # HTTP maintenance can wait up to 120s; never hold normal telemetry,
         # file browsing or preset reads behind an update request.
-        self._maintenance_worker = ReadWorker(timeout=1, capacity=2)
+        self._maintenance_worker = ReadWorker(timeout=1, capacity=2, queue_timeout=120)
         self._read_jobs = {}
         self._settings_save = None
         self._files_loading = self._directory_loading = False

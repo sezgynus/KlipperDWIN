@@ -2,6 +2,7 @@
 
 from spool_view import SpoolView
 from mmu_filament_view import MMUFilamentView, filament_color
+from mmu_control import MMUState
 
 class MMUViewMixin:
     @staticmethod
@@ -272,9 +273,14 @@ class MMUViewMixin:
             tools = []
             if m:
                 snapshot = self.pd.subscription.snapshot()
+                parsed = MMUState.from_snapshot(snapshot)
                 for tool, gate in enumerate(m.ttg_map):
                     try:
-                        self.pd.mmu_session.prepare('change', gate=gate, tool=tool, snapshot=snapshot)
+                        if parsed is None:
+                            raise ValueError('MMU unavailable')
+                        self.pd.mmu_session.prepare(
+                            'change', gate=gate, tool=tool, snapshot=snapshot,
+                            parsed_state=parsed)
                         enabled = not (m.tool == tool and m.filament == 'loaded')
                     except ValueError:
                         enabled = False

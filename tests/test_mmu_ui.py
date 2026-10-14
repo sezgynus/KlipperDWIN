@@ -7,6 +7,18 @@ from test_mmu_control import mmu_snapshot, hardware_status, add_motor_status, ad
 
 
 class MMUUITests(unittest.TestCase):
+    def test_home_prepare_reuses_one_parsed_mmu_snapshot(self):
+        from mmu_control import MMUState
+        view, _ = self.make()
+        view._mmu_page = 'home'
+        state = view.pd.mmu_session.state
+        with patch('ui_mmu.MMUState.from_snapshot', wraps=MMUState.from_snapshot) as parser:
+            items = view._mmu_items(state)
+        self.assertEqual(parser.call_count, 1)
+        self.assertEqual(len([item for item in items if item[0][0] == 'tool']),
+                         len(state.ttg_map))
+
+
     def make(self, **changes):
         data = mmu_snapshot(**changes)
         view = display(data)

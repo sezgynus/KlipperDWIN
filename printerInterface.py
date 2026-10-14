@@ -780,7 +780,7 @@ class PrinterData:
             # Effective Klipper config stays stable within a websocket epoch.
             # Avoid copying and recursively freezing the entire settings tree
             # on every status revision; status itself remains freshly copied.
-            if isinstance(self.subscription, MoonrakerSubscription):
+            if getattr(self.subscription, '_supports_settings_elision', None) is True:
                 snap = self.subscription.snapshot(include_settings=False)
                 reuse = self.state.ready and snap['epoch'] == self.state.epoch
                 if not reuse:

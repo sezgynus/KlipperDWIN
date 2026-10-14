@@ -86,6 +86,7 @@ class MoonrakerSubscription:
         self._response_serial = 0
         self._last_receive = time.monotonic()
         self._last_ping = time.monotonic()
+        self._supports_settings_elision = True
         self._thread = Thread(target=self._run, name='moonraker-status', daemon=True)
         # Sending on a separate socket writer avoids waiting for an idle
         # recv_data timeout. websocket-client serializes send and ping itself.

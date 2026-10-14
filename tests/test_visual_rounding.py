@@ -20,6 +20,10 @@ class VisualRoundingTests(unittest.TestCase):
         view._power_blocked = None
         return view
 
+    def capture(self, view):
+        view.lcd.update()
+        return view.framebuffer.snapshot()[0]
+
     def test_power_artwork_has_filtered_corners_and_no_opaque_matte(self):
         assets = PanelAssets()
         for index in (146, 149, 150, 151):
@@ -34,14 +38,14 @@ class VisualRoundingTests(unittest.TestCase):
             view = self.view()
             view._power_confirm_yes = False
             view._draw_power_confirmation()
-            before = view.framebuffer.snapshot()[0]
+            before = self.capture(view)
             view._power_confirm_yes = True
             view._draw_power_confirmation(buttons_only=True)
             fresh = self.view()
             fresh._power_confirm_yes = True
             fresh._draw_power_confirmation()
             self.assertIsNone(ImageChops.difference(
-                view.framebuffer.snapshot()[0], fresh.framebuffer.snapshot()[0]).getbbox())
+                self.capture(view), self.capture(fresh)).getbbox())
             view._power_confirm_yes = False
             view._draw_power_confirmation(buttons_only=True)
-            self.assertIsNone(ImageChops.difference(before, view.framebuffer.snapshot()[0]).getbbox())
+            self.assertIsNone(ImageChops.difference(before, self.capture(view)).getbbox())

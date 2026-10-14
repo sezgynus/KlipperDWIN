@@ -23,13 +23,11 @@ class ScrewsTiltMixin:
         base_z = next((v['z'] for v in session.results.values() if v['is_base']), 0)
         for key, x, y, _ in session.corners:
             value = session.results.get(key)
-            # Scanlines avoid the slow point-by-point legacy circle fill.
+            # Native bitmap disks avoid one serial frame per scanline.
             delta = 0 if value is None else value['z'] - base_z
             color = 0x7BEF if value is None else 0x07E0 if abs(delta) < .025 else 0xF800 if delta > 0 else 0x001F
             radius = 14 if value is None else max(5, min(23, round(14 + delta * 45)))
-            for dy in range(-radius, radius + 1):
-                dx = int((radius * radius - dy * dy) ** .5)
-                self.lcd.draw_rectangle(1, color, x - dx, y + dy, x + dx, y + dy)
+            self._draw_mesh_disk(x, y, color, radius)
             labels = ('...',) if value is None else ('Base',) if value['is_base'] else (value['sign'], value['adjust'])
             ty = 62 if y < 166 else 235
             for line, label in enumerate(labels):

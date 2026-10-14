@@ -165,6 +165,23 @@ class ViewTests(unittest.TestCase):
         view.HMI_Screws_Tilt()
         self.assertEqual(view.checkkey, view.BedMeshMenu)
 
+    def test_result_disks_use_native_bitmap_instead_of_scanlines(self):
+        from test_t5uic1_driver import driver
+        view = self.make()
+        view.lcd = driver()
+        session = view.pd.screws_tilt
+        session.start()
+        session.pending.set_result(None)
+        session.update()
+        session.pending.set_result(payload())
+        session.update()
+        with patch('t5uic1_driver.time.sleep'):
+            view.Draw_Screws_Result()
+        frames = view.lcd.MYSERIAL1.frames
+        self.assertGreaterEqual(sum(frame[1] == 0x08 for frame in frames), 4)
+        self.assertLess(sum(frame[1] == 0x05 for frame in frames), 30)
+        self.assertLess(sum(map(len, frames)), 2400)
+
     def test_only_success_instructions_are_green(self):
         view = self.make()
         session = view.pd.screws_tilt

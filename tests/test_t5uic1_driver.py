@@ -54,7 +54,7 @@ class T5UIC1DriverPackets(unittest.TestCase):
     def test_liveness_probe_never_sleeps_for_missing_response(self):
         from unittest.mock import patch
         lcd = driver()
-        with patch('t5uic1_driver.time.sleep', side_effect=AssertionError('blocked')):
+        with patch('t5uic1_driver.time.sleep') as sleep:
             with patch('t5uic1_driver.time.monotonic', return_value=10):
                 lcd.begin_liveness_probe(timeout=.5)
                 self.assertIsNone(lcd.poll_liveness_probe())
@@ -67,6 +67,7 @@ class T5UIC1DriverPackets(unittest.TestCase):
                 lcd.begin_liveness_probe(timeout=.5)
             with patch('t5uic1_driver.time.monotonic', return_value=20.6):
                 self.assertFalse(lcd.poll_liveness_probe())
+            self.assertTrue(all(call.args == (.001,) for call in sleep.call_args_list))
 
 
     def frame(self, operation):

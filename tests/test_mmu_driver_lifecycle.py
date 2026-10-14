@@ -36,7 +36,7 @@ class MMUDriverLifecycleTests(unittest.TestCase):
         v._mmu_canvas_page = None
         v.lcd = packets.lcd()
         old = v.lcd
-        old.handshake = Mock(return_value=False)
+        old.handshake = Mock(side_effect=AssertionError('blocking probe called'))
         v._closed = False
         v._settings = ('/dev/fake',)
         v._display_values = [100, 0]
@@ -49,8 +49,13 @@ class MMUDriverLifecycleTests(unittest.TestCase):
         now = time.monotonic()
         with patch.object(application.ui.time, 'monotonic', return_value=now):
             v._ui_tick()
+        with patch.object(application.ui.time, 'monotonic', return_value=now + .6):
+            v._ui_tick()  # First unanswered heartbeat expires without blocking.
         with patch.object(application.ui.time, 'monotonic', return_value=now + 3):
-            v._ui_tick()
+            v._ui_tick()  # Second heartbeat request.
+        with patch.object(application.ui.time, 'monotonic', return_value=now + 3.6):
+            v._ui_tick()  # Second expiry triggers reconnect.
+        old.handshake.assert_not_called()
         self.assertFalse(v._uart_online)
         self.assertTrue(old._closed)
         restored = packets.lcd()

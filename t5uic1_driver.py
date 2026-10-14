@@ -106,6 +106,9 @@ class T5UIC1Display:
     DWIN_FONT_STAT = FONT_10X20
     DWIN_FONT_HEAD = FONT_10X20
 
+    RX_FRAME_LIMIT = 64
+    AUX_RX_LIMIT = 64
+
     _FIXED_RX_PAYLOAD = {
         0x00: 2,  # "OK"
         0x31: 3,  # Flash write: A5 "OK"
@@ -136,8 +139,10 @@ class T5UIC1Display:
         self._needs_update = True
         self._defer_updates = False
         self._rx = bytearray()
-        self._frames = deque()
-        self._aux_rx = deque()
+        self._frames = deque(maxlen=self.RX_FRAME_LIMIT)
+        self._aux_rx = deque(maxlen=self.AUX_RX_LIMIT)
+        self._rx_discarded_frames = 0
+        self._rx_discarded_aux = 0
         self._crc_errors = 0
         self._transaction_lock = Lock()
         self._packet_observer = packet_observer
@@ -310,11 +315,19 @@ class T5UIC1Display:
             payload = bytes(self._rx[2:2 + payload_length])
             del self._rx[:total]
             if command == 0x3A:
+                if len(self._aux_rx) == self._aux_rx.maxlen:
+                    self._rx_discarded_aux += 1
                 self._aux_rx.append(payload[1:])
             elif command == 0xFF:
                 self._crc_errors += 1
             else:
+                if len(self._frames) == self._frames.maxlen:
+                    self._rx_discarded_frames += 1
                 self._frames.append((command, payload))
+
+    def rx_discard_counts(self):
+        """Dropped oldest unmatched replies and auxiliary frames under RX pressure."""
+        return {'responses': self._rx_discarded_frames, 'aux': self._rx_discarded_aux}
 
     def _wait_response(self, command, timeout, predicate=None):
         if not math.isfinite(timeout) or timeout <= 0:

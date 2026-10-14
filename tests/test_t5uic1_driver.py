@@ -40,8 +40,10 @@ def driver():
     result._needs_update = True
     result._defer_updates = False
     result._rx = bytearray()
-    result._frames = deque()
-    result._aux_rx = deque()
+    result._frames = deque(maxlen=T5UIC1Display.RX_FRAME_LIMIT)
+    result._aux_rx = deque(maxlen=T5UIC1Display.AUX_RX_LIMIT)
+    result._rx_discarded_frames = 0
+    result._rx_discarded_aux = 0
     result._crc_errors = 0
     from threading import Lock
     result._transaction_lock = Lock()
@@ -240,3 +242,27 @@ class T5UIC1DriverPackets(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class BoundedReceiveTests(unittest.TestCase):
+    def test_unmatched_reply_flood_keeps_bounded_scan_and_delayed_valid_reply(self):
+        lcd = driver()
+        noise = b'\\xAA\\x34OK' + T5UIC1Display.TAIL
+        lcd.serial.chunks.append(noise * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertEqual(len(lcd._frames), T5UIC1Display.RX_FRAME_LIMIT)
+        self.assertEqual(lcd.rx_discard_counts()['responses'], 500 - T5UIC1Display.RX_FRAME_LIMIT)
+        lcd.serial.chunks.append(b'\\xAA\\x00OK' + T5UIC1Display.TAIL)
+        self.assertEqual(lcd._wait_response(0x00, .1), b'OK')
+        self.assertLessEqual(len(lcd._frames), T5UIC1Display.RX_FRAME_LIMIT)
+
+    def test_unconsumed_aux_frames_have_fixed_budget(self):
+        lcd = driver()
+        frame = b'\\xAA\\x3A\\x02xy' + T5UIC1Display.TAIL
+        lcd.serial.chunks.append(frame * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertEqual(len(lcd._aux_rx), T5UIC1Display.AUX_RX_LIMIT)
+        self.assertEqual(lcd.rx_discard_counts()['aux'], 500 - T5UIC1Display.AUX_RX_LIMIT)
+        self.assertEqual(lcd.poll_aux_data(), b'xy')
+

@@ -3,7 +3,8 @@ import unittest
 from unittest.mock import Mock
 
 from test_capabilities import printer, snapshot
-from moonraker_client import MoonrakerError
+from test_regressions import backend
+MoonrakerError = backend.MoonrakerError
 
 
 class DirectoryCacheBudgetTests(unittest.TestCase):

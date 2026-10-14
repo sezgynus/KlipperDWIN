@@ -246,19 +246,19 @@ if __name__ == "__main__":
 class BoundedReceiveTests(unittest.TestCase):
     def test_unmatched_reply_flood_keeps_bounded_scan_and_delayed_valid_reply(self):
         lcd = driver()
-        noise = b'\\xAA\\x34OK' + T5UIC1Display.TAIL
+        noise = b'\xAA\x34OK' + T5UIC1Display.TAIL
         lcd.serial.chunks.append(noise * 500)
         while lcd.serial.in_waiting:
             lcd._read_available()
         self.assertEqual(len(lcd._frames), T5UIC1Display.RX_FRAME_LIMIT)
         self.assertEqual(lcd.rx_discard_counts()['responses'], 500 - T5UIC1Display.RX_FRAME_LIMIT)
-        lcd.serial.chunks.append(b'\\xAA\\x00OK' + T5UIC1Display.TAIL)
+        lcd.serial.chunks.append(b'\xAA\x00OK' + T5UIC1Display.TAIL)
         self.assertEqual(lcd._wait_response(0x00, .1), b'OK')
         self.assertLessEqual(len(lcd._frames), T5UIC1Display.RX_FRAME_LIMIT)
 
     def test_unconsumed_aux_frames_have_fixed_budget(self):
         lcd = driver()
-        frame = b'\\xAA\\x3A\\x02xy' + T5UIC1Display.TAIL
+        frame = b'\xAA\x3A\x02xy' + T5UIC1Display.TAIL
         lcd.serial.chunks.append(frame * 500)
         while lcd.serial.in_waiting:
             lcd._read_available()

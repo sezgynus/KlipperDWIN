@@ -158,7 +158,7 @@ class PrintFocusTests(unittest.TestCase):
         self.assertEqual(v._focus_button_render[2][3], 0x7BEF)
 
         # Even direct encoder dispatch may not trigger a second cancel.
-        v.get_encoder_state.return_value = v.ENCODER_DIFF_CW
+        v.get_encoder_state.return_value = v.ENCODER_DIFF_CCW
         v._focus_print_input()
         self.assertEqual(v.select_print.now, 0)
         v.get_encoder_state.return_value = v.ENCODER_DIFF_ENTER

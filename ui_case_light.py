@@ -30,7 +30,7 @@ class CaseLightMixin:
         if screen == self.PowerConfirm and getattr(self, '_power_origin', None) == self.CaseLight:
             enabled = True
         enabled = enabled and getattr(self, '_uart_online', True)
-        snapshot = self.pd.subscription.snapshot()
+        snapshot = self._ui_lifecycle()
         key = (bool(enabled), snapshot['epoch'], getattr(self, '_uart_epoch', 0))
         if key == getattr(self, '_case_light_tracking_key', None):
             return

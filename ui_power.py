@@ -15,7 +15,7 @@ class PowerShortcutMixin:
                     or now - self._last_press < self.ENCODER_WAIT_ENTER / 1000):
                 return
             self._last_press = self._button_started_at = now
-            snapshot = self.pd.subscription.snapshot()
+            snapshot = self._ui_lifecycle()
             self._button_origin = (snapshot['epoch'], getattr(self, '_uart_epoch', 0))
             self._button_can_power_off = (
                 getattr(self, '_uart_online', True)
@@ -79,7 +79,7 @@ class PowerShortcutMixin:
         started = getattr(self, '_power_hold_started', None)
         if started is None:
             return False
-        if self.pd.subscription.snapshot()['epoch'] != self._power_hold_epoch:
+        if self._ui_lifecycle()['epoch'] != self._power_hold_epoch:
             self._clear_power_hold()
             self.lcd.update()
             return False

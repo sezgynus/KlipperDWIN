@@ -3,7 +3,7 @@ import socket
 from collections import deque
 from threading import Event
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from moonraker_client import MoonrakerError
 from moonraker_subscription import MoonrakerSubscription
@@ -97,6 +97,19 @@ class SubscriptionTests(unittest.TestCase):
         client = MoonrakerSubscription('https://localhost/proxy/', autostart=False)
         self.addCleanup(client.close)
         self.assertEqual(client.url, 'wss://localhost/proxy/websocket')
+
+    def test_lifecycle_does_not_copy_large_status_or_settings(self):
+        client = self.subscription()
+        client._settings = {'large': {'entries': list(range(5000))}}
+        client._status = {'toolhead': {'position': list(range(5000))}}
+        with patch('moonraker_subscription.copy.deepcopy',
+                   side_effect=AssertionError('unexpected deep copy')):
+            quick = client.lifecycle()
+        self.assertEqual(quick['epoch'], client.snapshot()['epoch'])
+        self.assertNotIn('status', quick)
+        self.assertNotIn('settings', quick)
+        raw = client.snapshot(include_settings=False)
+        self.assertNotIn('settings', raw)
 
     def test_partial_delta_preserves_other_fields_and_objects(self):
         client = self.subscription()

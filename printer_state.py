@@ -25,13 +25,14 @@ class PrinterState:
     status: Mapping = field(default_factory=lambda: MappingProxyType({}))
 
     @classmethod
-    def from_snapshot(cls, snapshot):
+    def from_snapshot(cls, snapshot, reused_settings=None):
         return cls(connection=snapshot['state'], error=snapshot.get('error'),
                    epoch=snapshot.get('epoch', 0), revision=snapshot.get('revision', 0),
                    file_revision=snapshot.get('file_revision', 0),
                    software_version=snapshot.get('software_version', 'unknown'),
                    objects=tuple(snapshot.get('objects', ())),
-                   settings=freeze(snapshot.get('settings', {})),
+                   settings=(reused_settings if reused_settings is not None
+                             else freeze(snapshot.get('settings', {}))),
                    status=freeze(snapshot.get('status', {})))
 
     @property

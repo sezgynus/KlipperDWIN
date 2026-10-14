@@ -476,12 +476,21 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self.last_cardpercentValue = 101
         self.next_rts_update_ms = 0
 
+    def _ui_lifecycle(self):
+        reader = getattr(self.pd.subscription, 'lifecycle', None)
+        if callable(reader):
+            value = reader()
+            if isinstance(value, dict) and 'epoch' in value:
+                return value
+        # Test doubles and legacy subscriptions retain their normal snapshot.
+        return self.pd.subscription.snapshot()
+
     def _poll_panel_power(self):
         monitor = getattr(self, '_power_monitor', None)
         if monitor is None:
             return
         status = monitor.poll()
-        snapshot = self.pd.subscription.snapshot()
+        snapshot = self._ui_lifecycle()
         device = self.pd.power_device.casefold()
         notified = snapshot.get('power_devices', {}).get(device)
         if monitor.available is False:
@@ -1233,7 +1242,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         if (not getattr(self, '_uart_online', True)
                 or event.ui_epoch != getattr(self, '_uart_epoch', 0)):
             return
-        snapshot = self.pd.subscription.snapshot()
+        snapshot = self._ui_lifecycle()
         if ((snapshot['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu) or snapshot['epoch'] != event.epoch
                 or self._closed):
             if event.kind == 'button_release' and getattr(self, '_power_hold_started', None) is not None:
@@ -1291,7 +1300,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             lcd._defer_updates = True
         try:
             for _ in range(count):
-                current = self.pd.subscription.snapshot()
+                current = self._ui_lifecycle()
                 if ((current['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu)
                         or current['epoch'] != event.epoch):
                     break

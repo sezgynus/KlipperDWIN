@@ -95,15 +95,27 @@ class MoonrakerSubscription:
             self._writer_thread.start()
             self._thread.start()
 
-    def snapshot(self):
+    def lifecycle(self):
+        """Small coherent read for UI routing, relay state and epoch guards."""
         with self._lock:
             return {'state': self._state, 'error': self._error,
-                    'status': copy.deepcopy(self._status),
-                    'objects': list(self._objects), 'revision': self._revision, 'epoch': self._epoch,
-                    'software_version': self._software_version, 'settings': copy.deepcopy(self._settings),
+                    'revision': self._revision, 'epoch': self._epoch,
                     'file_revision': self._file_revision,
                     'power_devices': dict(self._power_devices),
                     'power_off_serial': dict(self._power_off_serial)}
+
+    def snapshot(self, include_settings=True):
+        with self._lock:
+            result = {'state': self._state, 'error': self._error,
+                      'status': copy.deepcopy(self._status),
+                      'objects': list(self._objects), 'revision': self._revision,
+                      'epoch': self._epoch, 'software_version': self._software_version,
+                      'file_revision': self._file_revision,
+                      'power_devices': dict(self._power_devices),
+                      'power_off_serial': dict(self._power_off_serial)}
+            if include_settings:
+                result['settings'] = copy.deepcopy(self._settings)
+            return result
 
     def set_case_light_tracking(self, enabled, callback=None):
         """Replace the subscription while retaining every baseline printer object."""

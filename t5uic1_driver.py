@@ -238,7 +238,11 @@ class T5UIC1Display:
         if len(payload) > self.MAX_DATA_LENGTH:
             raise ValueError("T5UIC1 data field exceeds 248 bytes")
         frame = self.HEADER + bytes((command,)) + payload + self.TAIL
-        written = self.serial.write(frame)
+        try:
+            written = self.serial.write(frame)
+        except OSError:
+            self.close()
+            raise
         if written != len(frame):
             self.close()
             raise IOError("Incomplete LCD frame write")
@@ -256,10 +260,14 @@ class T5UIC1Display:
     def _read_available(self):
         if self._closed:
             raise RuntimeError("LCD is closed")
-        waiting = int(getattr(self.serial, "in_waiting", 0) or 0)
-        if waiting:
-            self._rx.extend(self.serial.read(min(waiting, 4096)))
-            self._parse_rx()
+        try:
+            waiting = int(getattr(self.serial, "in_waiting", 0) or 0)
+            if waiting:
+                self._rx.extend(self.serial.read(min(waiting, 4096)))
+                self._parse_rx()
+        except OSError:
+            self.close()
+            raise
 
     def _parse_rx(self):
         while True:

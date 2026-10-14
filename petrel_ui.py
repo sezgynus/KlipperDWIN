@@ -37,27 +37,6 @@ from printerInterface import PrinterData
 from t5uic1_driver import T5UIC1Display, T5UIC1ProtocolError
 from lcd_resources import ICON_FOLDER, ICON_MCU, ICON_MACHINE, ICON_HOST, ICON_SOFTWARE, ICON_POWER, ICON_DISPLAY_NORMAL, ICON_DISPLAY_SELECTED, ICON_MMU_HOME_NORMAL, ICON_MMU_HOME_SELECTED
 
-@lru_cache(maxsize=96)
-def _pill_edge_bitmaps(width, height):
-    """Pack capsule edge columns into native bitmap packets."""
-    radius = height // 2
-    byte_width = (radius + 7) // 8
-    left, right = [], []
-    for row in range(height):
-        dy = min(row + .5, height - row - .5)
-        inset = math.ceil(radius - math.sqrt(max(0, radius ** 2 - (radius - dy) ** 2)))
-        occupied = max(0, radius - inset)
-        mask = (1 << occupied) - 1
-        shift = byte_width * 8 - radius
-        left.append((mask << shift).to_bytes(byte_width, 'big'))
-        right.append(((mask << inset) << shift).to_bytes(byte_width, 'big'))
-    max_rows = max(1, (T5UIC1Display.MAX_DATA_LENGTH - 10) // byte_width)
-    def chunks(rows):
-        return tuple((i, b''.join(rows[i:i+max_rows]))
-                     for i in range(0, len(rows), max_rows))
-    return radius, chunks(left), chunks(right)
-
-
 def _MAX(lhs, rhs):
     if lhs > rhs:
         return lhs
@@ -670,39 +649,19 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._uart_failed()
             return False
 
-    @staticmethod
-    def _draw_pill(lcd, x, y, width, height, color, background=None):
-        if width <= 0 or height <= 0:
-            return
-        bg = lcd.Color_Bg_Black if background is None else background
-        if width < height:
-            # Early progress values must still have a visible, valid fill.
-            lcd.draw_rectangle(1, color, x, y, x+width-1, y+height-1)
-            return
-        if height % 2:
-            radius = min(width, height) / 2
-            for row in range(height):
-                dy = min(row + .5, height - row - .5)
-                inset = max(0, math.ceil(radius - math.sqrt(
-                    max(0, radius**2 - (radius-dy)**2))))
-                if width - 2*inset > 0:
-                    lcd.draw_rectangle(1, color, x+inset, y+row,
-                                       x+width-inset-1, y+row)
-            return
-        radius, left, right = _pill_edge_bitmaps(width, height)
-        if width > 2 * radius:
-            lcd.draw_rectangle(1, color, x+radius, y,
-                               x+width-radius-1, y+height-1)
-        for row, pixels in left:
-            lcd.draw_bitmap(x, y+row, radius, color, bg, pixels)
-        for row, pixels in right:
-            lcd.draw_bitmap(x+width-radius, y+row, radius, color, bg, pixels)
-
     def _draw_progress_track(self, lcd, x, y, width, value):
-        self._draw_pill(lcd, x, y, width, 8, 0x39C8)
+        # Text-free managed caps work on panels without opcode 0x08.
+        from lcd_resources import ICON_PROGRESS_TRACK, ICON_PROGRESS_FILL
+        def capsule(length, color, icon):
+            length = min(width, max(8, length))
+            show_theme_icon(lcd, self.ICON, icon, x, y)
+            if length > 8:
+                show_theme_icon(lcd, self.ICON, icon, x + length - 8, y)
+                lcd.draw_rectangle(1, color, x + 4, y, x + length - 5, y + 7)
+        capsule(width, 0x39C8, ICON_PROGRESS_TRACK)
         filled = max(0, min(width, round(width * value / 100)))
         if filled:
-            self._draw_pill(lcd, x, y, filled, 8, 0x063B)
+            capsule(filled, 0x063B, ICON_PROGRESS_FILL)
 
     def _draw_boot_progress(self, value, lcd=None, message=None):
         lcd = self.lcd if lcd is None else lcd

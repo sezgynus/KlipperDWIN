@@ -377,6 +377,9 @@ class PrinterData:
 
     def refresh_mainsail_presets(self, force=False):
         now = time.monotonic()
+        baseline = getattr(self, '_preset_baseline', None)
+        if baseline is not None and baseline != self._preset_signature(self.material_preset):
+            return False  # Keep the local draft until its explicit Save succeeds.
         if self._settings_save is not None:
             return False
         if not force and now < self._preset_refresh_at:
@@ -393,6 +396,7 @@ class PrinterData:
                     presets.append(material_preset_t.from_mainsail(item, preset_id))
                 except (ValueError, TypeError) as error:
                     logging.warning('Ignoring invalid Mainsail preset %s: %s', preset_id, error)
+            self._preset_baseline = self._preset_signature(presets)
             if not presets:
                 changed = bool(self.material_preset)
                 if changed:
@@ -744,6 +748,7 @@ class PrinterData:
         if self._settings_save is not None and self._settings_save.done():
             try:
                 self._settings_save.result()
+                self._preset_baseline = self._preset_saved_signature
                 self.settings_error = None
             except Exception as error:
                 self.settings_error = str(error)
@@ -1233,6 +1238,7 @@ class PrinterData:
                 for payload in writes:
                     self.client.post('/server/database/item', payload).result(timeout=self.client.timeout + 1)
                 return True
+            self._preset_saved_signature = self._preset_signature(self.material_preset)
             self._settings_save = self._read_worker.submit(save)
             return self._settings_save
         try:

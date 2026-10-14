@@ -647,8 +647,12 @@ class CapabilityMenuTests(unittest.TestCase):
             result._software_update = Mock(label='Checking...', phase=phase, message='Please wait...')
             result.lcd.draw_text.reset_mock()
             result._draw_info_update_button(332, True)
-            self.assertEqual(result.lcd.draw_text.call_count, 1)
-            self.assertEqual(result.lcd.draw_text.call_args.args[-1], 'Checking...')
+            # The label is unchanged for later busy phases; no redundant UART text.
+            if phase == 'checking':
+                self.assertEqual(result.lcd.draw_text.call_count, 1)
+                self.assertEqual(result.lcd.draw_text.call_args.args[-1], 'Checking...')
+            else:
+                result.lcd.draw_text.assert_not_called()
         result._software_update = Mock(label='Check for updates', phase='error',
                                       message='Update unconfirmed; check Mainsail')
         result.lcd.draw_text.reset_mock()

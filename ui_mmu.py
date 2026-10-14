@@ -772,7 +772,7 @@ class MMUViewMixin:
             keys = tuple(item[0] for item in items)
             same = window is not None and window[:3] == (page, first_y, visible) and window[4] == keys
             start = window[3] if same else 0
-            start = max(0, min(start, max(0, self._mmu_selection - getattr(self,"_rotation_steps",1))), self._mmu_selection - visible)
+            start = max(0, min(start, max(0, self._mmu_selection - 1)), self._mmu_selection - visible)
             delta = start - window[3] if same else 0
             if delta and abs(delta) < visible:
                 # Remove the old highlight before moving the LCD pixels.

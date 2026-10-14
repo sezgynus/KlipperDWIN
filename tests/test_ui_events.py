@@ -292,7 +292,7 @@ class InputRoutingTests(unittest.TestCase):
         seen = []
         display._dispatch_input.side_effect = lambda: seen.append((display.get_encoder_state(), display._rotation_steps))
         display._process_input(InputEvent('rotate', 1, 1))
-        self.assertEqual(seen, [display.ENCODER_DIFF_CCW])
+        self.assertEqual(seen, [(display.ENCODER_DIFF_CCW,1)])
 
     def test_disconnect_mid_rotation_batch_discards_remaining_steps(self):
         display = self.display()

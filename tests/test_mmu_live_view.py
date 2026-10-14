@@ -184,5 +184,5 @@ class LiveMMUViewTests(unittest.TestCase):
             with patch.object(time, 'monotonic', return_value=now):
                 view._ui_tick()
         self.assertEqual(view.EachMomentUpdate.call_count, 2)
-        self.assertEqual(view._mmu_animation_tick.call_count, 2)
-        view._loop.set_interval.assert_called_with(.05)
+        self.assertEqual(view._mmu_animation_tick.call_count, 0)
+        view._loop.set_interval.assert_called_with(.5)

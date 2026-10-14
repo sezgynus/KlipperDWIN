@@ -14,7 +14,8 @@ from lcd_resources import (ICON_PRINT_TUNE, ICON_PRINT_PAUSE, ICON_PRINT_RESUME,
                            ICON_STOP_BUTTON_DANGER, ICON_STOP_PANEL,
                            ICON_MMU_ERROR_SELECTED, ICON_MMU_ERROR_NORMAL,
                            ICON_APPLY_BUTTON, ICON_PRINT_PENDING,
-                           ICON_TUNE_BACK_SELECTED, ICON_TUNE_ROW_SELECTED)
+                           ICON_TUNE_BACK_SELECTED, ICON_TUNE_ROW_SELECTED,
+                           ICON_PRINT_STATUS_NORMAL, ICON_PRINT_STATUS_ERROR)
 
 
 @lru_cache(maxsize=64)
@@ -251,7 +252,10 @@ class PrintFocusMixin:
     def _focus_state_panel(self, state, error):
         background = 0x40E5 if error else 0x2967
         if self._focus_render.get('state_backing') != background:
-            self._focus_round(14, 266, 244, 38, background, 7)
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 14, 266, 257, 303)
+            show_icon(self.lcd, self.ICON,
+                      ICON_PRINT_STATUS_ERROR if error else ICON_PRINT_STATUS_NORMAL,
+                      14, 266)
             self._focus_render['state_backing'] = background
         else:
             # Keep round edges intact. Clear only the two dynamic text lines.

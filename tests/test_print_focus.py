@@ -274,14 +274,17 @@ class PrintFocusTests(unittest.TestCase):
         v.lcd.reset_mock()
         v._focus_state_panel('Loading filament', '')
         v.lcd.draw_bitmap.assert_not_called()
+        v.lcd.show_icon.assert_not_called()
         v.lcd.draw_rectangle.assert_called_once_with(1, 0x2967, 22, 270, 253, 300)
         self.assertEqual(v.lcd.draw_text.call_count, 2)
         v.lcd.reset_mock()
         v._focus_state_panel('Sensor failed', 'Sensor failed')
-        self.assertGreater(v.lcd.draw_bitmap.call_count, 0)
+        v.lcd.draw_bitmap.assert_not_called()
+        self.assertEqual(v.lcd.show_icon.call_count, 1)
         v.lcd.reset_mock()
         v._focus_state_panel('Other error', 'Other error')
         v.lcd.draw_bitmap.assert_not_called()
+        v.lcd.show_icon.assert_not_called()
 
     def test_print_render_has_no_work_when_unchanged(self):
         v,_=self.view();v._focus_print_open();v.lcd.reset_mock()

@@ -3,12 +3,30 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+from types import SimpleNamespace
 from PIL import Image, ImageChops
 from tools import render_docs_screenshots as renderer
 
 
 class DocumentationPublicationTests(unittest.TestCase):
+    def test_finish_waits_for_mesh_drawing_and_rejects_emulator_errors(self):
+        image = Image.new('RGB', (272, 480))
+        view = SimpleNamespace(_mesh_pending_points=object(), _emulator_errors=[],
+                               lcd=Mock(), framebuffer=Mock())
+        slices = [False, True]
+        def advance(**kwargs):
+            if slices.pop(0):
+                view._mesh_pending_points = None
+        view._advance_mesh_render = Mock(side_effect=advance)
+        view.framebuffer.snapshot.return_value = (image, 1)
+        self.assertIs(renderer.finish(view, dashboard=False), image)
+        self.assertEqual(view._advance_mesh_render.call_count, 2)
+        view.lcd.update.assert_called_once()
+        view._emulator_errors.append(ValueError('Unsupported packet'))
+        with self.assertRaisesRegex(RuntimeError, 'Emulator failed'):
+            renderer.finish(view, dashboard=False)
+
     def invoke(self, root, color, *arguments):
         scene = ('example', 'printing', 'Example', 'Örnek',
                  lambda: Image.new('RGB', (272, 480), color))

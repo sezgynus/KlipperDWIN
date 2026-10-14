@@ -31,3 +31,11 @@ class AuditRegressionTests(unittest.TestCase):
             self.assertTrue(lcd._closed)
             lcd.serial.close.assert_called_once()
 
+    def test_job_pin_lowercase_configuration_retains_command_spelling(self):
+        data=snapshot();name='Turn_OFF_Heaters_After_Job';obj='output_pin '+name
+        data['objects'].append(obj);data['settings'][obj.casefold()]={'pwm':False}
+        data['status'][obj]={'value':0};p=printer(data)
+        self.assertIn('pin@'+name,[s.key for s in p.print_settings()])
+        p.set_print_setting('pin@'+name,1)
+        p.sendGCode.assert_called_with('SET_PIN PIN='+name+' VALUE=1')
+

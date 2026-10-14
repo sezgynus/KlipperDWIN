@@ -18,3 +18,11 @@ class PresetDraftTests(unittest.TestCase):
     def test_pending_save_cannot_be_discarded(self):
         p = printer(snapshot()); p._settings_save = Future()
         with self.assertRaises(ValueError): p.discard_preset_edits(0)
+
+class CoordinateValidationTests(unittest.TestCase):
+    def test_all_origin_axes_and_malformed_arrays_are_rejected(self):
+        for values in ([float('nan'), 0, 0], [0, float('inf'), 0], [0, 0], None, [True, 0, 0]):
+            data = snapshot(); p = printer(data)
+            data['status']['gcode_move']['homing_origin'] = values
+            self.assertFalse(p.update_variable(), values)
+            self.assertTrue(p.connection_error)

@@ -993,11 +993,13 @@ class PrinterData:
         value, speed = float(value), float(speed)
         if not math.isfinite(value) or not math.isfinite(speed) or speed <= 0:
             raise ValueError('Invalid jog value or speed')
-        state = self.state
+        snapshot = self.subscription.snapshot()
+        state = PrinterState.from_snapshot(snapshot)
         if not state.ready or self.connection_error:
             raise ValueError('Printer is unavailable')
         if state.status['print_stats']['state'] in ('printing', 'paused', 'pausing'):
             raise ValueError('Jogging is unavailable during a print')
+        caps = PrinterCapabilities.from_state(state)
         toolhead = state.status['toolhead']
         # Use command-space position before transforms such as bed mesh.
         position = state.status['gcode_move']['position']
@@ -1008,7 +1010,7 @@ class PrinterData:
         delta = value - current if absolute else value
         target = current + delta
         if axis == 'E':
-            heater = self.capabilities.active_hotend
+            heater = caps.active_hotend
             if heater is None or not state.status.get(heater.name, {}).get('can_extrude', False):
                 raise ValueError('Extruder is unavailable or too cold')
             if abs(delta) > heater.max_extrude_distance:
@@ -1016,7 +1018,7 @@ class PrinterData:
         else:
             if axis.lower() not in toolhead.get('homed_axes', ''):
                 raise ValueError('Axis must be homed before jogging')
-            if not self.capabilities.axis_minimum[index] <= target <= self.capabilities.axis_maximum[index]:
+            if not caps.axis_minimum[index] <= target <= caps.axis_maximum[index]:
                 raise ValueError('Jog exceeds configured axis range')
         max_velocity = float(toolhead['max_velocity'])
         if axis == 'Z':
@@ -1037,7 +1039,7 @@ class PrinterData:
             self._jog_restore = restore
         try:
             dispatch_guard = motion_dispatch_guard(self, owner='jog', position=True,
-                                                   extrusion=heater.name if axis == 'E' else None)
+                                                   extrusion=heater.name if axis == 'E' else None, initial=snapshot)
             future = self.sendGCode(script, cleanup=restore, report_error=False, dispatch_guard=dispatch_guard)
         except Exception:
             # Submission failed before sending anything.

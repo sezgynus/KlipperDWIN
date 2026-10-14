@@ -46,3 +46,12 @@ class AuditRegressionTests(unittest.TestCase):
             self.assertFalse(p.update_variable())
             self.assertTrue(p.connection_error)
 
+    def test_jog_uses_live_position_and_live_bounds(self):
+        data=snapshot();p=printer(data)
+        data['status']['gcode_move']['position'][0]=250
+        with self.assertRaisesRegex(ValueError,'axis range'): p.moveRelative('X',1,100)
+        p.sendGCode.assert_not_called()
+        data['status']['gcode_move']['position'][0]=200
+        data['status']['toolhead']['axis_maximum'][0]=200
+        with self.assertRaisesRegex(ValueError,'axis range'): p.moveRelative('X',1,100)
+

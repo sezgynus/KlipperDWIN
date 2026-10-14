@@ -25,15 +25,11 @@ class ScrewsTiltMixin:
             self.lcd.draw_line(0x7BEF, max(25, x - 24), y, min(247, x + 24), y)
             self.lcd.draw_line(0x7BEF, x, max(55, y - 24), x, min(277, y + 24))
             ty = 62 if y < 166 else 235
-            tx = 52 if x < 136 else 52
-            # Long labels are right-aligned against x=220 on the right.
-            x0, x1 = (52, 221) if x > 136 else (52, 221)
-            # The labels are outside the disk; clear their own rows only.
-            # Redrawing them after the dot preserves the local grid.
+            # Labels sit inward of each corner and must not leave old text.
+            x0, x1 = (52, 150) if x < 136 else (120, 221)
             for row in (ty, ty + 20):
                 self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black,
-                                        x0 if x < 136 else 120, row,
-                                        150 if x < 136 else x1, row + 15)
+                                        x0, row, x1, row + 15)
         delta = 0 if value is None else value['z'] - base_z
         color = (0x7BEF if value is None else 0x07E0 if abs(delta) < .025
                  else 0xF800 if delta > 0 else 0x001F)

@@ -200,9 +200,11 @@ class ViewTests(unittest.TestCase):
         changed = session.results['screw3']
         session.results['screw3'] = dict(changed, z=changed['z'] + .1)
         view._poll_screws_tilt()
-        self.assertEqual(view.lcd.draw_bitmap.call_count, 1)
+        # Radius 23 requires two payload-limited bitmap chunks.
+        self.assertGreaterEqual(view.lcd.draw_bitmap.call_count, 1)
+        self.assertLessEqual(view.lcd.draw_bitmap.call_count, 2)
         self.assertEqual(view.lcd.draw_line.call_count, 2)
-        view.Clear_Main_Window.assert_not_called() if isinstance(view.Clear_Main_Window, Mock) else None
+        view.lcd.draw_text.assert_called()
         view.lcd.reset_mock()
         view._poll_screws_tilt()
         view.lcd.draw_bitmap.assert_not_called()

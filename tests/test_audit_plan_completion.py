@@ -33,3 +33,14 @@ class NavigationBatchTests(unittest.TestCase):
         s = ui.select_t(); s.batch_steps = 1000
         s.inc(18); self.assertEqual(s.now,17)
         s.dec(); self.assertEqual(s.now,0)
+
+class SnapshotReuseTests(unittest.TestCase):
+    def test_unchanged_revision_skips_snapshot_copy_but_updates_file_revision(self):
+        data = snapshot(); p = printer(data)
+        p.subscription.lifecycle.return_value = dict(state='ready',epoch=p.state.epoch,revision=p.state.revision,file_revision=9)
+        p.subscription.snapshot.reset_mock()
+        self.assertTrue(p.update_variable())
+        p.subscription.snapshot.assert_not_called()
+        self.assertEqual(p.state.file_revision,9)
+        p.subscription.lifecycle.return_value['revision'] += 1
+        p.update_variable(); p.subscription.snapshot.assert_called()

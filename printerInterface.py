@@ -1,4 +1,5 @@
 import copy
+from dataclasses import replace
 import logging
 import math
 import re
@@ -783,15 +784,20 @@ class PrinterData:
             # Effective Klipper config stays stable within a websocket epoch.
             # Avoid copying and recursively freezing the entire settings tree
             # on every status revision; status itself remains freshly copied.
-            if getattr(self.subscription, '_supports_settings_elision', None) is True:
+            lifecycle_reader = getattr(self.subscription,'lifecycle',None)
+            life = lifecycle_reader() if callable(lifecycle_reader) else None
+            same_revision = (isinstance(life,dict) and self.state.ready
+                             and life.get('state') == 'ready'
+                             and life.get('epoch') == self.state.epoch
+                             and life.get('revision') == self.state.revision)
+            if same_revision:
+                state = replace(self.state, file_revision=life.get('file_revision',self.state.file_revision))
+            elif getattr(self.subscription, '_supports_settings_elision', None) is True:
                 snap = self.subscription.snapshot(include_settings=False)
                 reuse = self.state.ready and snap['epoch'] == self.state.epoch
-                if not reuse:
-                    snap = self.subscription.snapshot()
-                state = PrinterState.from_snapshot(
-                    snap, reused_settings=self.state.settings if reuse else None)
+                if not reuse: snap = self.subscription.snapshot()
+                state = PrinterState.from_snapshot(snap,reused_settings=self.state.settings if reuse else None)
             else:
-                # Isolated/legacy transport fixtures retain the full snapshot.
                 state = PrinterState.from_snapshot(self.subscription.snapshot())
             if not state.ready:
                 self.state = state
@@ -799,7 +805,11 @@ class PrinterData:
                 self.connection_error = state.error or 'Klipper is not ready'
                 return False
             data = state.status
-            caps = PrinterCapabilities.from_state(state)
+            th = state.status['toolhead']
+            caps_key = (state.epoch,id(state.settings),state.objects,th.get('extruder'),
+                        tuple(th.get('axis_minimum',())),tuple(th.get('axis_maximum',())))
+            caps = (self.capabilities if caps_key == getattr(self,'_caps_cache_key',None)
+                    else PrinterCapabilities.from_state(state))
             gcm = data['gcode_move']
             toolhead = data['toolhead']
             # Validate required fields before committing the snapshot.
@@ -920,6 +930,7 @@ class PrinterData:
         changed = state != self.state or spoolman_changed or presets_changed or sort_changed
         self.state = state
         self.capabilities = caps
+        self._caps_cache_key = caps_key
         self._apply_capabilities(caps)
         self.SHORT_BUILD_VERSION = state.software_version
         if state.epoch != self._file_epoch:

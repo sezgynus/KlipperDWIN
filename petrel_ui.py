@@ -1,5 +1,6 @@
 from lcd_resources import ICON_ACCELERATION, ICON_BRIGHTNESS, ICON_BUZZER, ICON_CLICK_TONE, ICON_CORNER_SPEED, ICON_CRUISE_RATIO, ICON_DIM_BRIGHTNESS, ICON_ENCODER_TONE, ICON_FLOW, ICON_IDLE_DIM, ICON_LIGHT, ICON_LIVE_JOG, ICON_MOTION, ICON_MOTOR_OFF, ICON_PREHEAT_PROFILE, ICON_VELOCITY, ICON_VOLUME
 from graphite_theme import show_icon as show_theme_icon
+from lcd_resources import ICON_POWER_BUTTON_NORMAL, ICON_POWER_BUTTON_CANCEL, ICON_POWER_BUTTON_OFF
 from lcd_resources import ICON_FAN_FIRST, ICON_FAN_LAST, ICON_LIBRARY_ID, ICON_CHECKBOX_EMPTY, ICON_CHECKBOX_CHECKED
 import display_settings
 import copy
@@ -3498,8 +3499,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             choices = ((False, 'Cancel', 28, 104),) if blocked else ((False, 'Cancel', 28, 104), (True, 'Power off', 140, 104))
             for yes, label, x, width in choices:
                 fill = (0xB986 if yes else 0x19E9) if self._power_confirm_yes == yes else self.lcd.Color_Bg_Window
-                self._draw_pill(self.lcd, x, 224, width, 36, fill,
-                                background=self.lcd.Color_Bg_Window)
+                icon = (ICON_POWER_BUTTON_OFF if yes else ICON_POWER_BUTTON_CANCEL) if self._power_confirm_yes == yes else ICON_POWER_BUTTON_NORMAL
+                show_theme_icon(self.lcd, self.ICON, icon, x, 224)
                 self.lcd.draw_text(False, False, self.lcd.font8x16,
                     0xFBAE if yes and not self._power_confirm_yes else self.lcd.Popup_Text_Color,
                     fill, x + (width - len(label) * 8) // 2, 234, label)

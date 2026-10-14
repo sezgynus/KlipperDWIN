@@ -10,6 +10,19 @@ from ui_events import InputEvent
 
 
 class PowerShortcutTests(unittest.TestCase):
+    def test_popup_buttons_use_two_icons_and_runtime_labels(self):
+        v = self.view()
+        v._power_hold_popup = True
+        v._power_blocked = None
+        v._power_confirm_yes = False
+        with patch('t5uic1_driver.time.sleep'):
+            v._draw_power_confirmation(buttons_only=True)
+        frames = v.lcd.serial.frames
+        self.assertEqual([frame[1] for frame in frames], [0x23, 0x11, 0x23, 0x11])
+        self.assertLess(sum(map(len, frames)), 140)
+        self.assertEqual([frame[11:-4] for frame in frames if frame[1] == 0x11],
+                         [b'Cancel', b'Power off'])
+
     def view(self):
         v = display(snapshot())
         v.lcd = driver()

@@ -49,7 +49,7 @@ ASVC_FILE="$MOONRAKER_DATA_DIR/moonraker.asvc"
 
 echo "Installing system dependencies..."
 sudo apt-get update
-sudo apt-get install -y git python3-venv python3-dev build-essential
+sudo apt-get install -y git python3-venv python3-dev build-essential liblgpio-dev swig
 
 echo "Preparing Python environment..."
 if [[ ! -x "$VENV_DIR/bin/python" ]]; then

@@ -92,8 +92,13 @@ class ScrewsTiltMixin:
                   (recommendation['sign'], recommendation['adjust']))
         if center != cache['center']:
             if cache['center'] is not None:
+                # Clearing the centered message also erases the grid's vertical
+                # edges at x=25 and x=247. Restore only those two segments,
+                # keeping the frame continuous without redrawing the screen.
                 self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black,
                                         12, 123, 260, 188)
+                self.lcd.draw_line(0x7BEF, 25, 123, 25, 188)
+                self.lcd.draw_line(0x7BEF, 247, 123, 247, 188)
             self._screws_center(session)
             cache['center'] = center
             changed = True

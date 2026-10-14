@@ -183,6 +183,44 @@ class ViewTests(unittest.TestCase):
         self.assertLess(sum(frame[1] == 0x05 for frame in frames), 30)
         self.assertLess(sum(map(len, frames)), 2400)
 
+    def test_center_refresh_restores_vertical_grid_edges(self):
+        from unittest.mock import call
+
+        view = self.make()
+        session = view.pd.screws_tilt
+        session.start()
+        view.checkkey = view.ScrewsTiltResult
+        view.Draw_Screws_Result()  # Show the pending measurement message.
+
+        # The next result refresh erases the central text backing. Both grid
+        # edges must be restored after that erase and before the new text.
+        session.pending = None
+        session.phase = 'complete'
+        session.message = ''
+        session.leveled = True
+        view.lcd.reset_mock()
+        view.Draw_Screws_Result()
+
+        calls = view.lcd.mock_calls
+        erase = call.draw_rectangle(1, view.lcd.Color_Bg_Black,
+                                    12, 123, 260, 188)
+        self.assertIn(erase, calls)
+        text_index = next(i for i, event in enumerate(calls)
+                          if event[0] == 'draw_text')
+        for x in (25, 247):
+            stroke = call.draw_line(0x7BEF, x, 123, x, 188)
+            self.assertIn(stroke, calls)
+            self.assertLess(calls.index(erase), calls.index(stroke))
+            self.assertLess(calls.index(stroke), text_index)
+        self.assertEqual(view.lcd.draw_line.call_count, 2)
+
+        # Unchanged state still sends no redundant drawing commands.
+        view.lcd.reset_mock()
+        view.Draw_Screws_Result()
+        view.lcd.draw_line.assert_not_called()
+        view.lcd.draw_rectangle.assert_not_called()
+        view.lcd.update.assert_not_called()
+
     def test_only_changed_corner_draws_while_unchanged_refresh_has_no_packets(self):
         view = self.make()
         session = view.pd.screws_tilt

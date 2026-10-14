@@ -1,6 +1,6 @@
 """Pixel contracts for transparent artwork and selection transitions."""
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from PIL import ImageChops
 from test_capabilities import display, snapshot
 from test_t5uic1_driver import driver
@@ -48,4 +48,38 @@ class VisualRoundingTests(unittest.TestCase):
                 self.capture(view), self.capture(fresh)).getbbox())
             view._power_confirm_yes = False
             view._draw_power_confirmation(buttons_only=True)
+            self.assertIsNone(ImageChops.difference(before, self.capture(view)).getbbox())
+
+    def test_stop_and_mmu_error_round_trips_leave_no_previous_selection(self):
+        with patch('t5uic1_driver.time.sleep'):
+            for kind in ('stop', 'mmu'):
+                with self.subTest(kind=kind):
+                    view = self.view()
+                    if kind == 'stop':
+                        view.pd.HMI_flag.select_flag = False
+                        view._focus_stop_draw()
+                        before = self.capture(view)
+                        view.pd.HMI_flag.select_flag = True
+                        view._focus_stop_draw(buttons_only=True)
+                        view.pd.HMI_flag.select_flag = False
+                        view._focus_stop_draw(buttons_only=True)
+                    else:
+                        view._focus_error_lines = ['Example MMU error']
+                        view._focus_error_scroll = view._focus_error_choice = 0
+                        view._focus_error_draw()
+                        before = self.capture(view)
+                        view._focus_error_choice = 1
+                        view._focus_error_draw(buttons_only=True)
+                        view._focus_error_choice = 0
+                        view._focus_error_draw(buttons_only=True)
+                    self.assertIsNone(ImageChops.difference(before, self.capture(view)).getbbox())
+
+    def test_info_selection_round_trip_preserves_the_initial_pixels(self):
+        with patch('t5uic1_driver.time.sleep'):
+            view = self.view()
+            view._software_update = Mock(phase='current', label='Check for updates', message='')
+            view._draw_info_update_button(332, False)
+            before = self.capture(view)
+            view._draw_info_update_button(332, True)
+            view._draw_info_update_button(332, False)
             self.assertIsNone(ImageChops.difference(before, self.capture(view)).getbbox())

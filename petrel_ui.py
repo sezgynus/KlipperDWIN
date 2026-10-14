@@ -2879,6 +2879,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         previous = getattr(self, '_info_update_render', None)
         if previous is None or previous[:3] != token[:3]:
             icon = ICON_INFO_UPDATE_SELECTED if selected else ICON_INFO_UPDATE_NORMAL
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 32, y-4, 239, y+23)
             show_theme_icon(self.lcd, self.ICON, icon, 32, y - 4)
         elif previous[3] != label:
             # Interior only: preserve curved edges when the updater label changes.

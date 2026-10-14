@@ -445,6 +445,7 @@ class PrintFocusMixin:
             for i, label in enumerate(('MMU recovery', 'Back')):
                 y = 410 + i * 34
                 icon = ICON_MMU_ERROR_SELECTED if self._focus_error_choice == i else ICON_MMU_ERROR_NORMAL
+                self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 14, y, 257, y+29)
                 show_icon(self.lcd, self.ICON, icon, 14, y)
                 self._focus_text(label, (272 - len(label) * 8) // 2,
                                  y + 7, color=0x10C4 if self._focus_error_choice == i else 0xFFFF)
@@ -489,6 +490,7 @@ class PrintFocusMixin:
             selected=bool(self.pd.HMI_flag.select_flag)==yes
             icon = ICON_STOP_BUTTON_DANGER if yes and selected else (
                 ICON_STOP_BUTTON_SELECTED if selected else ICON_STOP_BUTTON_NORMAL)
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Window, x, 244, x+103, 279)
             show_icon(self.lcd, self.ICON, icon, x, 244)
             self._focus_text(label,x+36,254)
 

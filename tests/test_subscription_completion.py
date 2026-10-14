@@ -1,5 +1,6 @@
 import json
 import unittest
+from threading import Event
 from unittest.mock import Mock, patch
 
 from moonraker_subscription import MoonrakerSubscription
@@ -100,3 +101,30 @@ class PendingRequestBudgetTests(unittest.TestCase):
         client._drain_outbound()
         self.assertFalse(client._pending_requests)
         self.assertFalse(client._pending_deadlines)
+
+
+class OutboundWakeupTests(unittest.TestCase):
+    def test_writer_dispatches_on_idle_connection_without_receive_polling(self):
+        client = MoonrakerSubscription('http://localhost:7125', autostart=False)
+        self.addCleanup(client.close)
+        client._state = 'ready'
+        written = Event()
+        client._socket = Mock()
+        client._socket.send.side_effect = lambda payload: written.set()
+        client._writer_thread.start()
+        future = client.request('printer.gcode.script', {'script': 'BED_MESH_CALIBRATE'})
+        self.assertTrue(written.wait(.5), 'outbound writer waited for an inbound frame')
+        self.assertFalse(future.done())
+        self.assertEqual(len(client._pending_requests), 1)
+
+    def test_emergency_request_is_woken_with_idle_receiver(self):
+        client = MoonrakerSubscription('http://localhost:7125', autostart=False)
+        self.addCleanup(client.close)
+        client._state = 'ready'
+        written = Event()
+        client._socket = Mock()
+        client._socket.send.side_effect = lambda payload: written.set()
+        client._writer_thread.start()
+        future = client.request('printer.emergency_stop')
+        self.assertTrue(written.wait(.5))
+        self.assertFalse(future.done())

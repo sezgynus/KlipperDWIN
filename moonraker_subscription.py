@@ -77,6 +77,7 @@ class MoonrakerSubscription:
         self._subscribing = False
         self._buffered = []
         self._outbound = Queue(maxsize=32)
+        self._outbound_wakeup = Event()
         self._completion_requests = set()
         self._pending_requests = {}
         self._pending_deadlines = {}
@@ -86,7 +87,12 @@ class MoonrakerSubscription:
         self._last_receive = time.monotonic()
         self._last_ping = time.monotonic()
         self._thread = Thread(target=self._run, name='moonraker-status', daemon=True)
+        # Sending on a separate socket writer avoids waiting for an idle
+        # recv_data timeout. websocket-client serializes send and ping itself.
+        self._writer_thread = Thread(target=self._writer_loop, name='moonraker-writer',
+                                     daemon=True)
         if autostart:
+            self._writer_thread.start()
             self._thread.start()
 
     def snapshot(self):
@@ -257,6 +263,7 @@ class MoonrakerSubscription:
                 return future
         try:
             self._outbound.put_nowait((future, epoch, method, params or {}, guard))
+            self._outbound_wakeup.set()
         except Full:
             with self._lock:
                 self._completion_requests.discard(future)
@@ -308,6 +315,27 @@ class MoonrakerSubscription:
             future.set_exception(exc if isinstance(exc, MoonrakerError)
                                  else MoonrakerError('WebSocket command dispatch failed'))
         return future
+
+    def _writer_loop(self):
+        while not self._stop.is_set():
+            self._outbound_wakeup.wait()
+            self._outbound_wakeup.clear()
+            if self._stop.is_set():
+                break
+            try:
+                self._drain_outbound()
+            except MoonrakerError:
+                # A failed send invalidates this socket epoch, but must never
+                # kill the writer for subsequent reconnections.
+                self._fail_outbound('Moonraker WebSocket send failed')
+                self._invalidate('Moonraker WebSocket send failed')
+                with self._lock:
+                    connection = self._socket
+                if connection is not None:
+                    try:
+                        connection.close()
+                    except Exception:
+                        pass
 
     def _expire_requests(self):
         now = time.monotonic()
@@ -492,7 +520,7 @@ class MoonrakerSubscription:
                     if receive_timeout != desired_timeout:
                         connection.settimeout(desired_timeout)
                         receive_timeout = desired_timeout
-                    self._drain_outbound()
+                    self._expire_requests()
                     message = self._receive()
                     if message is not None:
                         self._notification(message)
@@ -518,6 +546,7 @@ class MoonrakerSubscription:
 
     def close(self):
         self._stop.set()
+        self._outbound_wakeup.set()
         self._fail_outbound('Moonraker subscription is closed')
         with self._lock:
             connection = self._socket
@@ -528,4 +557,6 @@ class MoonrakerSubscription:
                 pass
         if self._thread.is_alive():
             self._thread.join(timeout=self.timeout + 1)
+        if self._writer_thread.is_alive():
+            self._writer_thread.join(timeout=self.timeout + 1)
         self._invalidate('Moonraker subscription is closed')

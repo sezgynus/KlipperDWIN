@@ -5,19 +5,31 @@
 ## Gezinme ve durum alanı
 
 <p align="center">
-  <img src="assets/screens/home.png" width="220" alt="Ana ekran, birinci sayfa">
-  <img src="assets/screens/home-page-2.png" width="220" alt="Ana ekran, ikinci sayfa">
+  <img src="assets/screens/framed/home.png" width="360" alt="Ana ekran, birinci sayfa">
+  <img src="assets/screens/framed/home-page-2.png" width="360" alt="Ana ekran, ikinci sayfa">
 </p>
 
 Seçimi taşımak için çevirin; seçmek için basın. Sayısal değere basın, düzenlemek için çevirin ve uygulamak için tekrar basın. **Back** önceki ekrana döner. Ana ekran her sayfada dört ikon gösterir; sayfa değiştirmek için çevirmeye devam edin. Noktalar aktif sayfayı belirtir. İsteğe bağlı öğeler yazıcınızın yapılandırmasına bağlıdır.
 
-Sabit durum alanı sıcaklık/hedefleri, fanı, hız/akış bilgisini, çalışma zamanı Z offset'i ve XYZ koordinatlarını gösterir. Hız ve ekstrüzyon alanları override yüzdeleri ile gerçek hız/hacimsel akış arasında dönüşümlü gösterilir. MMU sayfaları kendi durum düzenini kullanır.
+Alt durum alanının üç satırı aşağıdadır. Hız/akış alanları iki saniyede bir çarpan ile anlık ölçüm arasında değişir. Tune, sayı düzenleyicisi, tam hata okuyucusu ve MMU sayfalarında bu alan görünmez.
+
+| Satır | Sol | Orta | Sağ |
+|---|---|---|---|
+| 1 | Nozul gerçek/hedef (°C) | Hız çarpanı (%) / anlık hız (mm/s) | Fan (%0–100) |
+| 2 | Tabla gerçek/hedef (°C) | Akış çarpanı (%) / hacimsel akış (mm³/s) | Oturum Z offset (mm) |
+| 3 | X (mm) | Y (mm) | Z (mm) |
+
+Fan simgesi panelin kendi animasyonuyla döner; hız fan yüzdesinden hesaplanır ve 10 ms aralıklara yuvarlanır. Aynı interval için yeniden komut gönderilmez; %0’da durur.
+
+![Fan 0, 1, 50 ve 100 yüzde iken panel-native animasyon örneği](assets/framed/fan-animation-demo.gif)
+
+Örnek verilerle gerçek UI emülatörü çıktısıdır.
 
 ## Baskı seçme ve başlatma
 
 <p align="center">
-  <img src="assets/screens/print-file.png" width="240" alt="Dosya tarayıcısı">
-  <img src="assets/screens/print-preview.png" width="240" alt="Model ve filament önizlemesi">
+  <img src="assets/screens/framed/print-file.png" width="360" alt="Dosya tarayıcısı">
+  <img src="assets/screens/framed/print-preview.png" width="360" alt="Model ve filament önizlemesi">
 </p>
 
 1. **Home → Print** açın. Klasör veya G-code dosyası seçin. Klasörler önce gelir; **Back** bir üst klasöre, kök klasörde ise ana ekrana döner.
@@ -31,21 +43,21 @@ Eksik thumbnail veya metadata baskıyı engellemez. En fazla dört kullanılan t
 ## Baskı ve Tune
 
 <p align="center">
-  <img src="assets/screens/printing.png" width="240" alt="Baskı ilerlemesi ve kontroller">
-  <img src="assets/screens/printing-paused.png" width="240" alt="Duraklatılmış baskı">
-  <img src="assets/screens/tune.png" width="240" alt="Tune">
+  <img src="assets/screens/framed/printing.png" width="360" alt="Baskı ilerlemesi ve kontroller">
+  <img src="assets/screens/framed/printing-paused.png" width="360" alt="Duraklatılmış baskı">
+  <img src="assets/screens/framed/tune.png" width="360" alt="Tune">
 </p>
 
-Baskı ekranı dosyayı, ilerlemeyi ve geçen/kalan süreyi gösterir. Gerektiğinde **Pause**, **Resume** veya **Stop** kullanın. Baskı hızını, mevcut hotend/tabla/fan ayarlarını veya çalışma zamanı Z offset'i değiştirmek için **Tune** açın. Akış durum alanında gösterilir; LCD'de akış düzenleyicisi yoktur.
+Print önizlemeyi, ilerlemeyi, geçen/kalan süreyi, tahmini bitişi ve varsa katman bilgisini gösterir. **Pause / Resume** doğrudan çalışır; **Stop** başlangıçta **Back** seçili onay açar. Baskı bitince **Close** ile Home'a dönün.
 
-Çalışma zamanı Z offset mevcut oturumu ayarlar. Kalıcı probe offset kaydetmez. İşlem başarısızsa veya sonucu belirsizse tekrarlamadan önce Mainsail'den kontrol edin.
+**Tune** ile Speed, **Flow**, sıcaklık/fan, Z offset, SCV, minimum cruise ratio, PA/yumuşatma ve firmware retraction ayarlarını değiştirin. Alanlar yapılandırma ve durum verisine bağlıdır. AFTER JOB switchleri yalnız politika pinlerini değiştirir; baskı sonu eylemini makrolarınız belirler. Z offset kalıcı probe kalibrasyonu değildir. [Alanlar, birimler ve hata davranışları](print-controls_TR.md).
 
 ## Prepare ve Live jog
 
 <p align="center">
-  <img src="assets/screens/prepare.png" width="240" alt="Prepare menüsü">
-  <img src="assets/screens/move.png" width="240" alt="Move, Live jog kapalı">
-  <img src="assets/screens/move-live-jog.png" width="240" alt="Move, Live jog açık">
+  <img src="assets/screens/framed/prepare.png" width="360" alt="Prepare menüsü">
+  <img src="assets/screens/framed/move.png" width="360" alt="Move, Live jog kapalı">
+  <img src="assets/screens/framed/move-live-jog.png" width="360" alt="Move, Live jog açık">
 </p>
 
 **Prepare → Home** yazıcıyı home eder. **Disable steppers** motorları bırakır. **Runtime Z offset** mevcut oturumun offset'ini değiştirir.
@@ -57,9 +69,9 @@ Baskı ekranı dosyayı, ilerlemeyi ve geçen/kalan süreyi gösterir. Gerektiğ
 ## Sıcaklık ve ön ısıtma presetleri
 
 <p align="center">
-  <img src="assets/screens/temperature.png" width="240" alt="Sıcaklık kontrolleri">
-  <img src="assets/screens/preheat-settings.png" width="240" alt="Preset düzenleme ve kaydetme">
-  <img src="assets/screens/prepare-preheat.png" width="240" alt="Prepare içinde adlandırılmış ön ısıtma presetleri">
+  <img src="assets/screens/framed/temperature.png" width="360" alt="Sıcaklık kontrolleri">
+  <img src="assets/screens/framed/preheat-settings.png" width="360" alt="Preset düzenleme ve kaydetme">
+  <img src="assets/screens/framed/prepare-preheat.png" width="360" alt="Prepare içinde adlandırılmış ön ısıtma presetleri">
 </p>
 
 - **Prepare → Preheat [ad]** preset'i uygular. **Cooldown** ısıtıcıları kapatır.
@@ -71,8 +83,8 @@ Mevcutsa preset adları ve ısıtıcı hedefleri Mainsail ile paylaşılır; LCD
 ## Çalışma zamanı hareket sınırları
 
 <p align="center">
-  <img src="assets/screens/control.png" width="240" alt="Control menüsü">
-  <img src="assets/screens/motion-runtime.png" width="240" alt="Çalışma zamanı hareket sınırları">
+  <img src="assets/screens/framed/control.png" width="360" alt="Control menüsü">
+  <img src="assets/screens/framed/motion-runtime.png" width="360" alt="Çalışma zamanı hareket sınırları">
 </p>
 
 Maksimum hız, maksimum ivme, square-corner velocity ve destekleniyorsa minimum cruise ratio için **Control → Motion** açın. Alana basın, çevirin ve uygulamak için basın. Değişiklikler çalışma zamanı ayarlarıdır; kalıcı varsayılan istiyorsanız Klipper yapılandırmasını ayrıca düzenleyin.
@@ -82,11 +94,11 @@ Maksimum hız, maksimum ivme, square-corner velocity ve destekleniyorsa minimum 
 Klipper'ın `[screws_tilt_adjust]` yapılandırmasında probe ve dört ayrı köşe vidası gerektirir.
 
 <p align="center">
-  <img src="assets/screens/screws-tilt.png" width="220" alt="Vida ayarını hesaplama">
-  <img src="assets/screens/screws-tilt-probing.png" width="220" alt="Köşeler ölçülüyor">
-  <img src="assets/screens/screws-tilt-reading-results.png" width="220" alt="Sonuçlar okunuyor">
-  <img src="assets/screens/screws-tilt-adjust.png" width="220" alt="Vida yönleri ve dönüş miktarları">
-  <img src="assets/screens/screws-tilt-success.png" width="220" alt="Köşeler düzeltildi">
+  <img src="assets/screens/framed/screws-tilt.png" width="360" alt="Vida ayarını hesaplama">
+  <img src="assets/screens/framed/screws-tilt-probing.png" width="360" alt="Köşeler ölçülüyor">
+  <img src="assets/screens/framed/screws-tilt-reading-results.png" width="360" alt="Sonuçlar okunuyor">
+  <img src="assets/screens/framed/screws-tilt-adjust.png" width="360" alt="Vida yönleri ve dönüş miktarları">
+  <img src="assets/screens/framed/screws-tilt-success.png" width="360" alt="Köşeler düzeltildi">
 </p>
 
 1. **Leveling → Screws Tilt Adjust → Calculate** açın. Eksik eksenler ölçümden önce home edilir.
@@ -99,9 +111,9 @@ Vidaları siz ayarlarsınız; ekran ölçüm ve yönlendirme yapar. Bu işlem ya
 ## Bed mesh ve kayıtlı profiller
 
 <p align="center">
-  <img src="assets/screens/leveling.png" width="220" alt="Leveling menüsü">
-  <img src="assets/screens/mesh-calibrating.png" width="220" alt="Nokta nokta canlı ölçüm">
-  <img src="assets/screens/mesh-results.png" width="220" alt="Ölçüm sonucu, Save ve Continue">
+  <img src="assets/screens/framed/leveling.png" width="360" alt="Leveling menüsü">
+  <img src="assets/screens/framed/mesh-calibrating.png" width="360" alt="Nokta nokta canlı ölçüm">
+  <img src="assets/screens/framed/mesh-results.png" width="360" alt="Ölçüm sonucu, Save ve Continue">
 </p>
 
 **Home → Leveling → Bed Mesh** açın. Probe yapılandırılmışsa **Calibrate** eksik eksenleri home edip tablayı ölçer. Ölçüm sonrası renkli yükseklik haritasını ve minimum/maksimum Z değerlerini inceleyin.
@@ -113,10 +125,10 @@ Vidaları siz ayarlarsınız; ekran ölçüm ve yönlendirme yapar. Bu işlem ya
 - **Mesh Viewer**, Current Mesh veya kayıtlı profilleri incelemenizi sağlar. Görüntülemek profil yüklemez, yazıcıyı hareket ettirmez ve aktif mesh'i değiştirmez. Düşük Y haritanın altındadır.
 
 <p align="center">
-  <img src="assets/screens/bed-mesh.png" width="240" alt="Bed Mesh menüsü">
-  <img src="assets/screens/mesh-profiles.png" width="240" alt="Kayıtlı mesh profilleri">
-  <img src="assets/screens/mesh-viewer.png" width="240" alt="Default mesh yükseklik haritası">
-  <img src="assets/screens/mesh-pei.png" width="240" alt="Mesh yükseklik haritası">
+  <img src="assets/screens/framed/bed-mesh.png" width="360" alt="Bed Mesh menüsü">
+  <img src="assets/screens/framed/mesh-profiles.png" width="360" alt="Kayıtlı mesh profilleri">
+  <img src="assets/screens/framed/mesh-viewer.png" width="360" alt="Default mesh yükseklik haritası">
+  <img src="assets/screens/framed/mesh-pei.png" width="360" alt="Mesh yükseklik haritası">
 </p>
 
 **Ölçüm sırasında Cancel → Stop acil durdurmadır:** Klipper shutdown durumuna girer. Kurtarmak için web konsolundan `FIRMWARE_RESTART` kullanın. Ölçümün sürmesini istiyorsanız onayı iptal edin.
@@ -124,9 +136,9 @@ Vidaları siz ayarlarsınız; ekran ölçüm ve yönlendirme yapar. Bu işlem ya
 ## Probe offset kalibrasyonu
 
 <p align="center">
-  <img src="assets/screens/probe-calibration.png" width="220" alt="Kalibrasyonu başlatma">
-  <img src="assets/screens/probe-calibration-active.png" width="220" alt="Dört hareket düğmesi ve canlı Z">
-  <img src="assets/screens/probe-calibration-accepted.png" width="220" alt="Kabul edilen ofseti kaydetme">
+  <img src="assets/screens/framed/probe-calibration.png" width="360" alt="Kalibrasyonu başlatma">
+  <img src="assets/screens/framed/probe-calibration-active.png" width="360" alt="Dört hareket düğmesi ve canlı Z">
+  <img src="assets/screens/framed/probe-calibration-accepted.png" width="360" alt="Kabul edilen ofseti kaydetme">
 </p>
 
 1. Kalibrasyon için tablayı boşaltın. Ekran gerektiğinde XYZ eksenlerini home eder, güvenli geçiş için Z’yi yükseltir ve probu yapılandırılmış tabla merkezine götürür.
@@ -141,7 +153,7 @@ Baskı durmuş olmalıdır. Bekleyen yapılandırma değişiklikleri kalibrasyon
 
 Üst bar, Raspberry Pi'nin yerel sistem saatini **SS:DD** biçiminde gösterir.
 
-<p align="center"><img src="assets/screens/display.png" width="240" alt="Parlaklık ve boşta kısma"></p>
+<p align="center"><img src="assets/screens/framed/display.png" width="360" alt="Parlaklık ve boşta kısma"></p>
 
 **Home → Display** açın:
 
@@ -158,9 +170,9 @@ Boşta kısma sonrası ilk encoder hareketi veya tıklama, menü işlemi yapmada
 ### Buzzer ve tuş sesleri
 
 <p align="center">
-  <img src="assets/screens/buzzer.png" width="220" alt="Buzzer çıkışını seçme">
-  <img src="assets/screens/display-sound-settings.png" width="220" alt="Display altındaki ses seçenekleri">
-  <img src="assets/screens/display-volume-edit.png" width="220" alt="Ses seviyesini düzenleme">
+  <img src="assets/screens/framed/buzzer.png" width="360" alt="Buzzer çıkışını seçme">
+  <img src="assets/screens/framed/display-sound-settings.png" width="360" alt="Display altındaki ses seçenekleri">
+  <img src="assets/screens/framed/display-volume-edit.png" width="360" alt="Ses seviyesini düzenleme">
 </p>
 
 Yapılandırılmış `[pwm_cycle_time ad]` çıkışlarından birini veya **Disabled** seçmek için **Display → Buzzer** açın. Seçime basınca kaydedilir ve Display’e dönülür. Kullanılabilir bir çıkış seçiliyken **Volume**, **Click tone** ve **Encoder tone**, Display’de Buzzer’ın altında görünür.
@@ -170,7 +182,7 @@ Ses ayarına basın, çevirmeyle değiştirin ve tekrar basarak kaydedin. Ses se
 ## Bakım
 
 <p align="center">
-  <img src="assets/screens/maintenance.png" width="220" alt="Bakım menüsü">
+  <img src="assets/screens/framed/maintenance.png" width="360" alt="Bakım menüsü">
 </p>
 
 **Home → Maintenance**, Info’dan önceki menüdür. Şimdilik yalnızca **Back** seçeneğini içerir; bu seçenek ana menüde aynı ikona döner.
@@ -178,19 +190,21 @@ Ses ayarına basın, çevirmeyle değiştirin ve tekrar basarak kaydedin. Ses se
 ## Info ve güncellemeler
 
 <p align="center">
-  <img src="assets/screens/info-overview.png" width="220" alt="Makine, Wi-Fi ve host">
-  <img src="assets/screens/info-mcu-details.png" width="220" alt="MCU durumu">
-  <img src="assets/screens/info-mcu-overview.png" width="220" alt="MCU ve yazılım bölümleri">
-  <img src="assets/screens/info-software.png" width="220" alt="Yazılım sürümleri">
+  <img src="assets/screens/framed/info-overview.png" width="360" alt="Makine, Wi-Fi ve host">
+  <img src="assets/screens/framed/info-mcu-details.png" width="360" alt="MCU durumu">
+  <img src="assets/screens/framed/info-mcu-overview.png" width="360" alt="MCU ve yazılım bölümleri">
+  <img src="assets/screens/framed/info-software.png" width="360" alt="Yazılım sürümleri">
 </p>
 
 **Home → Info** veya **Control → Info** açın; Machine, Host, MCUs ve Software bölümlerini kaydırmak için çevirin. Yazıcı boyutlarını, ağ/IP'yi, Wi-Fi adını/sinyalini, CPU/RAM/sıcaklığı, MCU bağlantısını/yükünü/sıcaklığını ve kurulu yazılım sürümlerini kontrol edin. Bulunamayan değerlerde `N/A` veya kullanılamıyor durumu gösterilir. MCU sıcaklığı yapılandırılmış `temperature_mcu` kaynağı, Wi-Fi ayrıntıları Linux `iw` gerektirir.
 
 <p align="center">
-  <img src="assets/screens/info-project.png" width="220" alt="Proje QR ve güncelleme kontrolü">
-  <img src="assets/screens/info-update-checking.png" width="220" alt="Güncelleme kontrol ediliyor">
-  <img src="assets/screens/info-update-current.png" width="220" alt="Güncel">
+  <img src="assets/screens/framed/info-project.png" width="360" alt="Proje QR ve güncelleme kontrolü">
+  <img src="assets/screens/framed/info-update-checking.png" width="360" alt="Güncelleme kontrol ediliyor">
+  <img src="assets/screens/framed/info-update-current.png" width="360" alt="Güncel">
 </p>
+
+`feature/graphite-theme` kullanıyorsanız dalı korumak için [geliştirme dalı güncelleme adımlarını](installation_TR.md#geliştirme-dalını-güncelleme) izleyin; aşağıdaki Update/Soft recovery yolu `master` kurulumları içindir.
 
 Repoyu açmak için proje QR kodunu tarayın. LCD'den güncellemek için:
 
@@ -202,7 +216,7 @@ Repo kirli veya geçersizse **Soft recovery**, ikinci bir **Confirm recovery** a
 
 ## Kabin ışığı
 
-<p align="center"><img src="assets/screens/case-light.png" width="240" alt="Case Light"></p>
+<p align="center"><img src="assets/screens/framed/case-light.png" width="360" alt="Case Light"></p>
 
 **Control → Case Light**, yapılandırılmış `output_pin case_light` için görünür. On/Off kullanın ve PWM parlaklığı %0–100 ayarlayın. On son pozitif parlaklığı, bilinmiyorsa %100'ü geri getirir. Makro gerekmez.
 
@@ -220,13 +234,19 @@ cycle_time: 0.01
 ## Yazıcı gücü
 
 <p align="center">
-  <img src="assets/screens/power-confirm.png" width="220" alt="Güç kapatma onayı">
+  <img src="assets/screens/framed/power-confirm.png" width="360" alt="Güç kapatma onayı">
 </p>
 
 Moonraker güç aygıtı adını `./configure.sh` ile ayarlayın. Açmak için encoder düğmesini basılı tutun; varsayılan süre **2 saniye**. Pi/servis ve Moonraker erişilebilir kaldığı sürece Klipper veya ekran çevrimdışıyken de çalışır.
 
-Kapatmak için ilk menü öğesinden (MMU sayfalarında Back) saat yönünün tersine çevirerek sağ üst güç ikonuna odaklanın. **Turn off printer?** açmak için basın; **başlangıçta Yes seçilidir**. Yapılandırılmış aygıtı kapatmak için Yes onaylayın veya dönmek için No seçin.
+Her ekrandan kapatma onayına ulaşmak için encoder düğmesini **1,2 saniye basılı tutup bırakın**. İlk 450 ms boyunca gösterge çıkmaz; ardından küçük **Hold for power** penceresi açılır ve içindeki çubuk dolar. **Cancel başlangıçta seçilidir**; saat yönünde çevirerek **Power off** seçin ve ayrı bir kısa basışla onaylayın. Cancel aynı ekrana ve kaydedilmemiş düzenleme değerine döner. Baskı, duraklatılmış baskı veya süren işlem sırasında kapatma engellenir. Kısa basış bırakıldığı anda çalışır; ek bekleme yoktur. 450 ms–1,2 saniye arasında bırakılan yarım uzun basış menüyü tetiklemez.
 
 Pi çalışmaya devam ederken röle yazıcı ve ekranı birlikte besliyorsa, yeniden güç açıldığında ilk ana ekran sayfasına dönülür. Menüleri kullanmadan önce açılışın bitmesini bekleyin.
 
 Yapılandırılmış Moonraker güç cihazı açıldığında Petrel, LCD için 150 ms aralıklarla bloklamayan handshake denemelerini başlatır. Bu cihaz yoksa aynı hızlı bağlantı penceresini Klipper’ın hazır duruma geçmesi tetikler. 10 saniye yanıt alınamazsa handshake istekleri 5 saniye aralığa döner. Bağlantısı doğrulanan panel, sabit 750 ms uyanma beklemesi olmadan kullanılır.
+
+### Güç akış örneği
+
+![Güç için basılı tutma, bırakma, yarım basışın iptali ve aktif baskı engeli](assets/framed/power-shortcut-demo.gif)
+
+Örnek verilerle gerçek UI emülatörü çıktısıdır. [Özgün panel PNG'leri](screenshots_TR.md) ve [yeniden üretim](ui-emulator_TR.md#png-çerçeve-ve-gif-yenileme).

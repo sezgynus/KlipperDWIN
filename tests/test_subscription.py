@@ -3,7 +3,7 @@ import socket
 from collections import deque
 from threading import Event
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from moonraker_client import MoonrakerError
 from moonraker_subscription import MoonrakerSubscription
@@ -97,6 +97,33 @@ class SubscriptionTests(unittest.TestCase):
         client = MoonrakerSubscription('https://localhost/proxy/', autostart=False)
         self.addCleanup(client.close)
         self.assertEqual(client.url, 'wss://localhost/proxy/websocket')
+
+    def test_state_reuses_frozen_settings_without_reusing_status(self):
+        from printer_state import PrinterState
+        raw = {'state': 'ready', 'epoch': 1, 'revision': 1,
+               'status': {'toolhead': {'position': [1, 2, 3, 4]}},
+               'settings': {'configfile': {'features': list(range(5000))}}}
+        previous = PrinterState.from_snapshot(raw)
+        updated = {'state': 'ready', 'epoch': 1, 'revision': 2,
+                   'status': {'toolhead': {'position': [5, 6, 7, 8]}}}
+        current = PrinterState.from_snapshot(updated,
+                                             reused_settings=previous.settings)
+        self.assertIs(current.settings, previous.settings)
+        self.assertEqual(current.status['toolhead']['position'], (5, 6, 7, 8))
+        self.assertEqual(previous.status['toolhead']['position'], (1, 2, 3, 4))
+
+    def test_lifecycle_does_not_copy_large_status_or_settings(self):
+        client = self.subscription()
+        client._settings = {'large': {'entries': list(range(5000))}}
+        client._status = {'toolhead': {'position': list(range(5000))}}
+        with patch('moonraker_subscription.copy.deepcopy',
+                   side_effect=AssertionError('unexpected deep copy')):
+            quick = client.lifecycle()
+        self.assertEqual(quick['epoch'], client.snapshot()['epoch'])
+        self.assertNotIn('status', quick)
+        self.assertNotIn('settings', quick)
+        raw = client.snapshot(include_settings=False)
+        self.assertNotIn('settings', raw)
 
     def test_partial_delta_preserves_other_fields_and_objects(self):
         client = self.subscription()

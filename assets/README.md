@@ -20,6 +20,8 @@ Changed boot artwork is uploaded automatically to picture slot 0 on the first LC
 
 Put baseline JPEG icons in [`assets/icons`](icons/README.md), with the icon ID in each filename. The application packs and uploads changed resources on its first LCD connection after an update. The packer reuses block gaps and never uses a block's final byte. The emulator uses the same sources.
 
+Print buttons, switches, fan frames, source licenses and the distinction between current package size and reserved space are documented in the [icon source guide](icons/README.md#print-buttons-switches-and-fan-artwork).
+
 ## Screenshots
 
 User-interface screenshots belong in `docs/assets/screens/`, not this artwork folder. Follow the [capture guide](../docs/ui-emulator.md) and preserve original 272×480 PNG output.
@@ -34,4 +36,4 @@ sudo systemctl stop Petrel.service
 sudo systemctl start Petrel.service
 ```
 
-The tool reads the configured UART, rebuilds library 7 and reloads its blocks. Display settings are preserved.
+The tool reads the configured UART, rebuilds library 3 and reloads its blocks. Display settings are preserved.

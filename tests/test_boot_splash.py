@@ -29,7 +29,7 @@ class BootSplashTests(unittest.TestCase):
         v._show_message.assert_not_called()
         frames = v.lcd.serial.frames
         self.assertTrue(frames)
-        self.assertTrue(all(f[1] in (0x00, 0x05, 0x11, 0x28, 0x3D) for f in frames))
+        self.assertTrue(all(f[1] in (0x00, 0x05, 0x23, 0x11, 0x27, 0x28, 0x3D) for f in frames))
         for frame in frames:
             if frame[1] == 0x05:
                 x0,y0,x1,y1 = [int.from_bytes(frame[i:i+2], 'big') for i in (5,7,9,11)]
@@ -37,6 +37,13 @@ class BootSplashTests(unittest.TestCase):
                 self.assertLessEqual(x1, 255)
                 self.assertGreaterEqual(y0, 290)
                 self.assertLessEqual(y1, 339)
+            elif frame[1] == 0x08:
+                x = int.from_bytes(frame[2:4], 'big')
+                y = int.from_bytes(frame[4:6], 'big')
+                width = int.from_bytes(frame[6:8], 'big')
+                self.assertGreaterEqual(x, 16)
+                self.assertLessEqual(x + width - 1, 255)
+                self.assertTrue(290 <= y <= 339)
             elif frame[1] == 0x11:
                 self.assertEqual(int.from_bytes(frame[9:11], 'big'), 322)
                 self.assertIn(b'Waiting for printer...', frame)
@@ -45,7 +52,7 @@ class BootSplashTests(unittest.TestCase):
         v = self.view()
         v._draw_boot_progress(70)
         frame = next(f for f in v.lcd.serial.frames if f[1] == 0x28)
-        self.assertEqual(frame[6:11], bytes((0xC0, 7, 250, 254, 10)))
+        self.assertEqual(frame[6:11], bytes((0xC0, 3, 250, 254, 10)))
         self.assertEqual(int.from_bytes(frame[4:6], 'big'), 320)
         text = next(f for f in v.lcd.serial.frames if f[1] == 0x11)
         self.assertEqual(int.from_bytes(text[7:9], 'big'), int.from_bytes(frame[2:4], 'big')+24)
@@ -70,7 +77,7 @@ class BootSplashTests(unittest.TestCase):
             self.assertFalse(stop[6] & 0x80)
             self.assertEqual(int.from_bytes(stop[2:4], 'big'), old_x)
             clear_i = next(i for i,f in enumerate(frames)
-                           if f[1] == 0x05 and int.from_bytes(f[7:9], 'big') == 320)
+                           if f[1] == 0x27)
             self.assertLess(stop_i, clear_i)
             self.assertLess(clear_i, start_i)
             old_x = (272-(len(message)*8+24))//2
@@ -188,13 +195,15 @@ class BootSplashTests(unittest.TestCase):
 
         with patch.object(uart.serial_module, 'Serial', return_value=port, create=True), \
                 patch.object(T5UIC1Display, '_startup_sync_icons', synchronized), \
-                patch('boot_artwork.sync'):
+                patch('boot_artwork.sync'), \
+                patch.object(T5UIC1Display, '_startup_animation_library', return_value=3):
             lcd = T5UIC1Display('/dev/fake', wake_delay=0, startup_progress=progress)
         self.addCleanup(lcd.close)
         self.assertEqual(stages, [40, 70])
         opcodes = [frame[1] for frame in port.frames]
         self.assertNotIn(0x25, opcodes)
-        self.assertFalse(set(opcodes) & {0x01, 0x27})
+        self.assertNotIn(0x01, opcodes)
+        self.assertTrue(all(f[2] & 1 == 0 for f in port.frames if f[1] == 0x27))
         self.assertIn(0x22, opcodes)
         self.assertNotIn(0x26, opcodes)
 

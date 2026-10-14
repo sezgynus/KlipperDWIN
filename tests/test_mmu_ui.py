@@ -1,12 +1,32 @@
 from concurrent.futures import Future
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from test_capabilities import display
 from test_mmu_control import mmu_snapshot, hardware_status, add_motor_status, add_led_status, add_multiple_units
 
 
 class MMUUITests(unittest.TestCase):
+    def test_home_prepare_reuses_one_parsed_mmu_snapshot(self):
+        view, _ = self.make()
+        view._mmu_page = 'home'
+        state = Mock(ttg_map=(0, 1, 2, 3), gate=0, tool=0,
+                     filament='unloaded', filament_pos=0, locked=False)
+        view._mmu_action_item = Mock(return_value=(('action', 'load'), 'Load', '', True))
+        view.pd.mmu_session.prepare = Mock()
+        # Patch the method's actual globals, which remain stable even when
+        # other test modules reload the application under isolated imports.
+        module_globals = view._mmu_items.__func__.__globals__
+        parser = Mock(return_value=state)
+        with patch.dict(module_globals, {'MMUState': Mock(from_snapshot=parser)}):
+            items = view._mmu_items(state)
+        parser.assert_called_once()
+        self.assertEqual(view.pd.mmu_session.prepare.call_count, 4)
+        self.assertTrue(all(call.kwargs['parsed_state'] is state
+                            for call in view.pd.mmu_session.prepare.call_args_list))
+        self.assertEqual(len([item for item in items if item[0][0] == 'tool']), 4)
+
+
     def make(self, **changes):
         data = mmu_snapshot(**changes)
         view = display(data)
@@ -598,7 +618,7 @@ class MMUUITests(unittest.TestCase):
 
     def test_home_uses_full_canvas_but_keeps_original_dashboard_untouched(self):
         v, _ = self.make()
-        self.assertIn((1, 0x0000, 0, 0, 271, 479), [c.args for c in v.lcd.draw_rectangle.call_args_list])
+        self.assertIn((1, 0x2125, 0, 0, 271, 479), [c.args for c in v.lcd.draw_rectangle.call_args_list])
         self.assertIn('T2 > G2', self.strings(v))
         self.assertIn('Loaded', self.strings(v))
         v.lcd.reset_mock()
@@ -794,13 +814,13 @@ class MMUUITests(unittest.TestCase):
         v._present_print_state()
         self.assertEqual(v.checkkey, v.MMUMenu)
 
-    def test_mmu_error_pause_routes_directly_to_recovery(self):
+    def test_mmu_error_pause_stays_on_print_with_recovery_button(self):
         v, data = self.make(print_state='pause_locked', reason_for_pause='Filament missing')
         v.checkkey = v.PrintProcess
         v.pd.status = 'paused'
         v._present_print_state()
-        self.assertEqual(v.checkkey, v.MMUMenu)
-        self.assertEqual(v._mmu_page, 'recover')
+        self.assertEqual(v.checkkey, v.PrintProcess)
+        self.assertEqual(v._focus_buttons()[1][0], 'MMU')
 
     def test_all_page_primitives_stay_inside_lcd(self):
         v, _ = self.make()
@@ -882,7 +902,7 @@ class MMUUITests(unittest.TestCase):
         with patch.object(ui, 'T5UIC1Display', return_value=port):
             self.assertTrue(v._ensure_uart())
         self.assertEqual(v._mmu_page, 'gates')
-        self.assertIn((1,0x0000,0,0,271,479), [c.args for c in port.draw_rectangle.call_args_list])
+        self.assertIn((1,0x2125,0,0,271,479), [c.args for c in port.draw_rectangle.call_args_list])
         self.assertIn('G0 PLA', [c.args[-1] for c in port.draw_text.call_args_list])
         v.pd.subscription.request.assert_not_called()
 
@@ -916,5 +936,5 @@ class MMUUITests(unittest.TestCase):
         v.EachMomentUpdate()
         self.assertEqual(v.checkkey,v.MMUMenu)
         self.assertIn('201/205 C', self.strings(v))
-        self.assertNotIn((1,0x0000,0,0,271,479), [c.args for c in v.lcd.draw_rectangle.call_args_list])
+        self.assertNotIn((1,0x2125,0,0,271,479), [c.args for c in v.lcd.draw_rectangle.call_args_list])
         self.assertFalse(any(c.args[3] == v.STATUS_Y for c in v.lcd.draw_rectangle.call_args_list))

@@ -88,6 +88,39 @@ class CaseLightLiveTests(unittest.TestCase):
         view._poll_case_light_state()
         view.pd.subscription.snapshot.assert_not_called()
 
+    def test_digital_pin_has_toggle_only_and_never_sends_fractional_value(self):
+        data = snapshot()
+        data['objects'].append('output_pin case_light')
+        data['settings']['output_pin case_light'] = {'pwm': False}
+        data['status']['output_pin case_light'] = {'value': 0}
+        view = display(data)
+        self.assertTrue(view.pd.capabilities.case_light)
+        self.assertFalse(view.pd.capabilities.case_light_pwm)
+        view.checkkey = view.CaseLight
+        view._draw_list_menu = Mock()
+        view.Draw_Case_Light_Menu()
+        self.assertEqual([entry[0] for entry in view._draw_list_menu.call_args.args[1]],
+                         ['Back', 'Light'])
+        view.pd.sendGCodeObserved = Mock()
+        with self.assertRaises(ValueError):
+            view.pd.set_case_light_brightness(50)
+        view.pd.sendGCodeObserved.assert_not_called()
+        view.pd.set_case_light_brightness(100)
+        view.pd.sendGCodeObserved.assert_called_once_with('SET_PIN PIN=case_light VALUE=1.000000')
+        view.pd.sendGCodeObserved.reset_mock()
+        view.pd.set_case_light_brightness(0)
+        view.pd.sendGCodeObserved.assert_called_once_with('SET_PIN PIN=case_light VALUE=0.000000')
+        view.pd.sendGCodeObserved.reset_mock()
+        view._case_light_on = False
+        view._case_light_restore_brightness = 25
+        view.select_light.set(1)
+        view.get_encoder_state = Mock(return_value=view.ENCODER_DIFF_ENTER)
+        view.HMI_Case_Light()
+        view.pd.sendGCodeObserved.assert_called_once_with('SET_PIN PIN=case_light VALUE=1.000000')
+        view.get_encoder_state.return_value = view.ENCODER_DIFF_CW
+        view.HMI_Case_Light()
+        self.assertEqual(view.select_light.now, 1)
+
     def test_macro_alone_does_not_enable_menu(self):
         data = snapshot(); data['objects'].append('gcode_macro M355')
         view = display(data)

@@ -1,3 +1,4 @@
+from lcd_resources import ICON_BUZZER, ICON_SOUND_OFF
 """Display-menu buzzer selection and sound preferences."""
 from dataclasses import replace
 from buzzer_control import Settings, Player, outputs, resolve_output, TONES
@@ -25,9 +26,21 @@ class BuzzerViewMixin:
             self._buzzer_player.play(settings, kind)
 
     def _save_buzzer(self, values):
+        if getattr(self, '_buzzer_save_future', None) is not None:
+            raise RuntimeError('Buzzer save already pending')
         if values != getattr(self, '_buzzer_saved', None):
-            self.lcd.save_buzzer_settings(values)
-        self._buzzer_values = self._buzzer_saved = values
+            if getattr(self.lcd, 'SUPPORTS_NONBLOCKING_FLASH', None) is True:
+                self._buzzer_save_target = values
+                self._panel_flash_lcd = self.lcd
+                self._buzzer_save_future = self.lcd.begin_flash_write_verified(
+                    self.lcd.BUZZER_SETTINGS_ADDRESS, values.encode())
+                self._display_save_message = 'Saving...'
+                self._buzzer_values = values
+            else:
+                self.lcd.save_buzzer_settings(values)
+                self._buzzer_values = self._buzzer_saved = values
+        else:
+            self._buzzer_values = values
         player = getattr(self, '_buzzer_player', None)
         if player is not None:
             player.cancel()
@@ -42,6 +55,8 @@ class BuzzerViewMixin:
         return rows
 
     def _buzzer_display_input(self, event):
+        if getattr(self, '_buzzer_save_future', None) is not None:
+            return True
         if event == self.ENCODER_DIFF_NO:
             return False
         selection = getattr(self, '_display_selection', 0)
@@ -60,7 +75,7 @@ class BuzzerViewMixin:
             return True
         if selection >= 5 and getattr(self, '_display_edit', False):
             if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                delta = 1 if event == self.ENCODER_DIFF_CW else -1
+                delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
                 value = self._buzzer_settings()
                 field = ('volume', 'click', 'encoder')[selection - 5]
                 current = getattr(value, field)
@@ -90,17 +105,19 @@ class BuzzerViewMixin:
         for name in names:
             checked = name == selected
             painter = self._menu_checkbox_painter(checked)
-            entries.append(((name or 'Disabled')[:20], None, checked, painter))
+            entries.append(((name or 'Disabled')[:20], ICON_BUZZER if name else ICON_SOUND_OFF, checked, painter))
         self._buzzer_selection = min(getattr(self, '_buzzer_selection', 0), len(entries) - 1)
         title = 'Buzzer - not saved' if getattr(self, '_buzzer_save_error', False) else 'Buzzer'
         self._draw_list_menu(title, entries, self._buzzer_selection)
 
     def HMI_Buzzer_Menu(self):
+        if getattr(self, '_buzzer_save_future', None) is not None:
+            return
         event = self.get_encoder_state()
         names = ('',) + self._buzzer_outputs()
         selection = getattr(self, '_buzzer_selection', 0)
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-            delta = 1 if event == self.ENCODER_DIFF_CW else -1
+            delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
             self._buzzer_selection = max(0, min(len(names), selection + delta))
         elif event == self.ENCODER_DIFF_ENTER:
             if selection:

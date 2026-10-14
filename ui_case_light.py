@@ -1,3 +1,4 @@
+from lcd_resources import ICON_BRIGHTNESS
 """Case-light screen rendering and interaction mixin."""
 
 import logging
@@ -14,10 +15,14 @@ class CaseLightMixin:
                 self.lcd.Color_White, self.lcd.Color_Bg_Black, 3, 208, self.MBASE(row), brightness)
             self.lcd.draw_text(False, True, self.lcd.font8x16, self.lcd.Color_White,
                 self.lcd.Color_Bg_Black, 232, self.MBASE(row), '%')
-        self._draw_list_menu('Case Light', [
+        options = [
             ('Back', self.ICON_Back, None, None),
-            ('Light', self.ICON_CaseLight, light, self._menu_checkbox_painter(light)),
-            ('Brightness', self.ICON_CaseLight, brightness, draw_brightness)], self.select_light.now)
+            ('Light', self.ICON_CaseLight, light, self._menu_checkbox_painter(light))]
+        if self.pd.capabilities.case_light_pwm:
+            options.append(('Brightness', ICON_BRIGHTNESS, brightness, draw_brightness))
+        if self.select_light.now >= len(options):
+            self.select_light.set(len(options) - 1)
+        self._draw_list_menu('Case Light', options, self.select_light.now)
 
     def _sync_case_light_tracking(self):
         screen = getattr(self, 'checkkey', None)
@@ -25,7 +30,7 @@ class CaseLightMixin:
         if screen == self.PowerConfirm and getattr(self, '_power_origin', None) == self.CaseLight:
             enabled = True
         enabled = enabled and getattr(self, '_uart_online', True)
-        snapshot = self.pd.subscription.snapshot()
+        snapshot = self._ui_lifecycle()
         key = (bool(enabled), snapshot['epoch'], getattr(self, '_uart_epoch', 0))
         if key == getattr(self, '_case_light_tracking_key', None):
             return
@@ -97,7 +102,7 @@ class CaseLightMixin:
     def HMI_Case_Light(self):
         event = self.get_encoder_state()
         if event == self.ENCODER_DIFF_CW:
-            self.select_light.inc(3)
+            self.select_light.inc(3 if self.pd.capabilities.case_light_pwm else 2)
             self.Draw_Case_Light_Menu()
         elif event == self.ENCODER_DIFF_CCW:
             self.select_light.dec()
@@ -110,9 +115,10 @@ class CaseLightMixin:
                 self.Draw_Control_Menu()
             elif self.select_light.now == 1:
                 self._case_light_live_pending = (0 if getattr(self, '_case_light_on', False)
-                                                 else getattr(self, '_case_light_restore_brightness', 100))
+                                                 else (getattr(self, '_case_light_restore_brightness', 100)
+                                                       if self.pd.capabilities.case_light_pwm else 100))
                 self._poll_case_light_live()
-            else:
+            elif self.pd.capabilities.case_light_pwm:
                 self.checkkey = self.CaseLightBrightness
                 self._case_light_brightness_target = getattr(self, '_case_light_brightness', 0)
                 self.lcd.draw_integer_text(True, True, 0, self.lcd.font8x16,

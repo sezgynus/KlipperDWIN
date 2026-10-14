@@ -30,7 +30,7 @@ class ThumbnailCache:
         future = Future()
         def work():
             try:
-                future.set_result(load_preview(self.client, key[0]))
+                future.set_result(load_preview(self.client, key[0], size=key[4]) if len(key)>4 else load_preview(self.client, key[0]))
             except Exception as error:
                 future.set_exception(error)
         Thread(target=work, name='thumbnail-loader', daemon=True).start()

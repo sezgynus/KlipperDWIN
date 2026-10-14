@@ -85,3 +85,31 @@ class MemoryTests(unittest.TestCase):
                 self.assertIsNone(system_info.host_memory_usage())
         with patch('builtins.open', side_effect=OSError('missing')):
             self.assertIsNone(system_info.host_memory_usage())
+
+class CpuUsageTests(unittest.TestCase):
+    def test_sampled_cpu_uses_time_deltas_not_load_average(self):
+        from io import StringIO
+        samples = iter([
+            'cpu 100 0 0 100 0 0 0 0 0 0\\n',
+            'cpu 110 0 0 190 0 0 0 0 0 0\\n',
+            'cpu 210 0 0 190 0 0 0 0 0 0\\n',
+            'cpu 220 0 0 190 90 0 0 0 0 0\\n',
+        ])
+        def open_host(path, *args, **kwargs):
+            if path == '/proc/stat':
+                return StringIO(next(samples).replace('\\n', '\n'))
+            raise OSError('No temperature sensor')
+        with patch.object(system_info, '_cpu_previous', None), patch('builtins.open', side_effect=open_host):
+            self.assertIsNone(system_info.host_metrics()[0])
+            self.assertAlmostEqual(system_info.host_metrics()[0], 10.0)
+            self.assertAlmostEqual(system_info.host_metrics()[0], 100.0)
+            self.assertAlmostEqual(system_info.host_metrics()[0], 10.0)
+
+    def test_missing_and_invalid_cpu_counters_are_unavailable(self):
+        from io import StringIO
+        with patch.object(system_info, '_cpu_previous', None):
+            with patch('builtins.open', side_effect=OSError('missing')):
+                self.assertIsNone(system_info.host_metrics()[0])
+            with patch('builtins.open', return_value=StringIO('cpu nope\\n')):
+                self.assertIsNone(system_info.host_metrics()[0])
+

@@ -165,6 +165,119 @@ class ViewTests(unittest.TestCase):
         view.HMI_Screws_Tilt()
         self.assertEqual(view.checkkey, view.BedMeshMenu)
 
+    def test_result_disks_use_supported_batched_blocks_without_bitmap(self):
+        from test_t5uic1_driver import driver
+        view = self.make()
+        view.lcd = driver()
+        session = view.pd.screws_tilt
+        session.start()
+        session.pending.set_result(None)
+        session.update()
+        session.pending.set_result(payload())
+        session.update()
+        with patch('t5uic1_driver.time.sleep'):
+            view.Draw_Screws_Result()
+        frames = view.lcd.MYSERIAL1.frames
+        self.assertFalse(any(frame[1] == 0x08 for frame in frames))
+        self.assertGreaterEqual(sum(frame[1] == 0x02 for frame in frames), 4)
+        self.assertLess(sum(frame[1] == 0x05 for frame in frames), 30)
+        self.assertLess(sum(map(len, frames)), 2400)
+
+    def test_center_refresh_restores_vertical_grid_edges(self):
+        from unittest.mock import call
+
+        view = self.make()
+        session = view.pd.screws_tilt
+        session.start()
+        view.checkkey = view.ScrewsTiltResult
+        view.Draw_Screws_Result()  # Show the pending measurement message.
+
+        # The next result refresh erases the central text backing. Both grid
+        # edges must be restored after that erase and before the new text.
+        session.pending = None
+        session.phase = 'complete'
+        session.message = ''
+        session.leveled = True
+        view.lcd.reset_mock()
+        view.Draw_Screws_Result()
+
+        calls = view.lcd.mock_calls
+        erase = call.draw_rectangle(1, view.lcd.Color_Bg_Black,
+                                    12, 123, 260, 188)
+        self.assertIn(erase, calls)
+        text_index = next(i for i, event in enumerate(calls)
+                          if event[0] == 'draw_text')
+        for x in (25, 247):
+            stroke = call.draw_line(0x7BEF, x, 123, x, 188)
+            self.assertIn(stroke, calls)
+            self.assertLess(calls.index(erase), calls.index(stroke))
+            self.assertLess(calls.index(stroke), text_index)
+        self.assertEqual(view.lcd.draw_line.call_count, 2)
+
+        # Unchanged state still sends no redundant drawing commands.
+        view.lcd.reset_mock()
+        view.Draw_Screws_Result()
+        view.lcd.draw_line.assert_not_called()
+        view.lcd.draw_rectangle.assert_not_called()
+        view.lcd.update.assert_not_called()
+
+    def test_only_changed_corner_draws_while_unchanged_refresh_has_no_packets(self):
+        view = self.make()
+        session = view.pd.screws_tilt
+        session.start()
+        session.pending.set_result(None)
+        session.update()
+        session.pending.set_result(payload())
+        session.update()
+        view.checkkey = view.ScrewsTiltResult
+        view.Draw_Screws_Result()
+        view.lcd.reset_mock()
+        view._poll_screws_tilt()
+        view.lcd.draw_bitmap.assert_not_called()
+        view.lcd.draw_rectangle.assert_not_called()
+        view.lcd.update.assert_not_called()
+        changed = session.results['screw3']
+        session.results['screw3'] = dict(changed, z=changed['z'] + .1)
+        view._poll_screws_tilt()
+        # A changed disk uses bounded batches of equal-sized blocks.
+        self.assertGreaterEqual(view.lcd.draw_points.call_count, 1)
+        self.assertLessEqual(view.lcd.draw_points.call_count, 20)
+        self.assertEqual(view.lcd.draw_line.call_count, 2)
+        view.lcd.draw_text.assert_called()
+        view.lcd.reset_mock()
+        view._poll_screws_tilt()
+        view.lcd.draw_bitmap.assert_not_called()
+        view.lcd.update.assert_not_called()
+
+    def test_popup_and_clear_invalidate_cached_result_before_return(self):
+        view = self.make()
+        session = view.pd.screws_tilt
+        session.start()
+        view.checkkey = view.ScrewsTiltResult
+        view.Draw_Screws_Result()
+        view.lcd.reset_mock()
+        view.Clear_Popup_Area()
+        self.assertIsNone(view._screws_result_cache)
+        view.lcd.reset_mock()
+        view.Draw_Screws_Result()
+        self.assertGreaterEqual(view.lcd.draw_points.call_count, 4)
+        view.Clear_Main_Window()
+        self.assertIsNone(view._screws_result_cache)
+
+    def test_repeated_calculation_invalidates_corner_cache(self):
+        view = self.make()
+        session = view.pd.screws_tilt
+        for _ in range(2):
+            session.start()
+            view.checkkey = view.ScrewsTiltResult
+            view._screws_result_cache = None
+            view.Draw_Screws_Result()
+            self.assertEqual(len(view._screws_result_cache['corners']), 4)
+            session.pending.set_result(None)
+            session.update()
+            session.pending.set_result(payload())
+            session.update()
+
     def test_only_success_instructions_are_green(self):
         view = self.make()
         session = view.pd.screws_tilt
@@ -186,10 +299,10 @@ class ViewTests(unittest.TestCase):
     def test_tramming_menu_uses_marlin_small_stock_icons(self):
         view = self.make()
         row = next(row for row in view._mesh_menu_entries() if row[0] == 'SCREWS')
-        self.assertEqual(row[2], 202)
+        self.assertEqual(row[2], 226)
         view.Draw_Menu_Line = Mock()
         view.Draw_Screws_Menu()
-        view.Draw_Menu_Line.assert_any_call(1, view.ICON_SetEndTemp, 'Calculate')
+        view.Draw_Menu_Line.assert_any_call(1, 227, 'Calculate')
 
     def test_long_turn_labels_remain_inside_display(self):
         view = self.make()

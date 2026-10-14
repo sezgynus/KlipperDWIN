@@ -1,7 +1,9 @@
 import copy
+from dataclasses import replace
 import logging
 import math
 import re
+import sys
 import time
 import uuid
 from urllib.parse import quote
@@ -177,11 +179,15 @@ class PrinterData:
                  power_device='Printer'):
         self.client = MoonrakerClient(URL, API_Key, timeout)
         self._read_worker = ReadWorker(timeout)
+        # HTTP maintenance can wait up to 120s; never hold normal telemetry,
+        # file browsing or preset reads behind an update request.
+        self._maintenance_worker = ReadWorker(timeout=1, capacity=2, queue_timeout=120)
         self._read_jobs = {}
         self._settings_save = None
         self._files_loading = self._directory_loading = False
         self._file_retry_at = 0.0
         self._directory_retry_at = {}
+        self._directory_revision_key = None
         self.power_device = str(power_device).strip() or 'Printer'
         # Keep read-only Spoolman telemetry off the serialized printer-command
         # transport. A telemetry timeout must never cancel or delay user commands.
@@ -258,6 +264,7 @@ class PrinterData:
         self.file_sort_revision = 0
         self._file_sort_refresh_at = 0.0
         self._directory_cache = {}
+        self._preset_original = copy.deepcopy(self.material_preset)
         self.subscription = MoonrakerSubscription(URL, API_Key, timeout)
         self.probe_wizard = ProbeWizard(self)
         self.screws_tilt = ScrewsTiltSession(self)
@@ -377,6 +384,9 @@ class PrinterData:
 
     def refresh_mainsail_presets(self, force=False):
         now = time.monotonic()
+        baseline = getattr(self, '_preset_baseline', None)
+        if baseline is not None and baseline != self._preset_signature(self.material_preset):
+            return False  # Keep the local draft until its explicit Save succeeds.
         if self._settings_save is not None:
             return False
         if not force and now < self._preset_refresh_at:
@@ -393,6 +403,8 @@ class PrinterData:
                     presets.append(material_preset_t.from_mainsail(item, preset_id))
                 except (ValueError, TypeError) as error:
                     logging.warning('Ignoring invalid Mainsail preset %s: %s', preset_id, error)
+            self._preset_original = copy.deepcopy(presets)
+            self._preset_baseline = self._preset_signature(presets)
             if not presets:
                 changed = bool(self.material_preset)
                 if changed:
@@ -440,6 +452,7 @@ class PrinterData:
     def close(self):
         self.subscription.close()
         self._read_worker.close()
+        self._maintenance_worker.close()
         self.spoolman_client.close()
         self.client.close()
 
@@ -512,11 +525,28 @@ class PrinterData:
         return self.client.post('/machine/device_power/device', payload,
                                 guard=device_is_off, report_error=False)
 
+    def power_off_block_reason(self):
+        snapshot = self.subscription.snapshot()
+        status = snapshot.get('status', {})
+        if status.get('print_stats', {}).get('state') in ('printing', 'paused', 'pausing'):
+            return 'Print is active'
+        if (status.get('manual_probe', {}).get('is_active')
+                or self.jog_recovery_required
+                or any(getattr(getattr(self,name,None),'pending',None)
+                       for name in ('bed_mesh','screws_tilt','probe_wizard','mmu_session'))):
+            return 'Operation is running'
+        mmu = status.get('mmu', {})
+        if mmu and str(mmu.get('action', 'idle')).lower() not in ('idle','unknown'):
+            return 'MMU is running'
+        return None
+
     def power_off_if_on(self):
         """Turn off the configured Moonraker power device only when it is on."""
         payload = {'device': self.power_device, 'action': 'off'}
 
         def device_is_on():
+            if hasattr(self, 'subscription') and self.power_off_block_reason():
+                raise MoonrakerError('Power off is blocked by an active operation')
             result = self.client.get('/machine/device_power/devices').get('result', {})
             devices = result.get('devices', []) if isinstance(result, dict) else []
             target = next((item for item in devices
@@ -525,6 +555,8 @@ class PrinterData:
                 raise MoonrakerError('Configured power device was not found')
             if target.get('status') != 'on':
                 raise MoonrakerError('Configured power device is not on')
+            if hasattr(self, 'subscription') and self.power_off_block_reason():
+                raise MoonrakerError('Power off is blocked by an active operation')
             payload['device'] = target['device']
             return True
 
@@ -616,6 +648,23 @@ class PrinterData:
         if not self._files_loaded or key not in self._directory_cache:
             self.GetDirectory('')
 
+    DIRECTORY_CACHE_BYTES = 2 * 1024 * 1024
+
+    @staticmethod
+    def _directory_size(entries):
+        # Include Python container/string overhead, not just serialized JSON bytes.
+        pending = [entries]
+        size = 0
+        while pending:
+            value = pending.pop()
+            size += sys.getsizeof(value)
+            if isinstance(value, dict):
+                pending.extend(value.keys())
+                pending.extend(value.values())
+            elif isinstance(value, (list, tuple)):
+                pending.extend(value)
+        return size
+
     def GetDirectory(self, directory=''):
         self._directory_loading = False
         self.GetFiles()
@@ -624,6 +673,16 @@ class PrinterData:
         if directory and any(part in ('', '.', '..') for part in directory.split('/')):
             raise ValueError('Invalid directory path')
         key = (self.state.epoch, self.state.file_revision, directory)
+        sizes = getattr(self, '_directory_cache_sizes', {})
+        self._directory_cache_sizes = sizes
+        for old in tuple(sizes):
+            if old not in self._directory_cache:
+                del sizes[old]
+        if self._directory_revision_key != key[:2]:
+            self._directory_cache.clear()
+            sizes.clear()
+            self._directory_retry_at.clear()
+            self._directory_revision_key = key[:2]
         try:
             if key not in self._directory_cache:
                 if time.monotonic() < self._directory_retry_at.get(key, 0):
@@ -644,12 +703,27 @@ class PrinterData:
                         entries.append(dict(item, path=path + ('/' if is_dir else ''), isDirectory=is_dir))
                 if len({item['path'] for item in entries}) != len(entries):
                     raise ValueError('Duplicate directory entries')
-                # Keep only the current revision, retaining directories visited in it.
-                self._directory_cache = {k: v for k, v in self._directory_cache.items() if k[:2] == key[:2]}
-                self._directory_cache[key] = entries
+                size = self._directory_size(entries)
+                if size <= self.DIRECTORY_CACHE_BYTES:
+                    self._directory_cache[key] = entries
+                    sizes[key] = size
                 self._directory_loading = False
                 self._directory_retry_at.pop(key, None)
-            entries = list(self._directory_cache[key])
+            # Insertion-ordered cache: keep the root and current parent available
+            # while bounding memory during long sessions with many folders.
+            if key in self._directory_cache:
+                entries = self._directory_cache.pop(key)
+                self._directory_cache[key] = entries
+            parent = directory.rpartition('/')[0]
+            retained = sum(sizes.values())
+            while len(self._directory_cache) > 64 or retained > self.DIRECTORY_CACHE_BYTES:
+                victim = next((k for k in self._directory_cache
+                               if k[2] not in ('', directory, parent)), None)
+                if victim is None:
+                    # Byte limit wins even when only root/current/parent remain.
+                    victim = next(iter(self._directory_cache))
+                del self._directory_cache[victim]
+                retained -= sizes.pop(victim, 0)
             self._sort_files(entries)
             entries.sort(key=lambda item: not item['isDirectory'])
             return tuple(item['path'] for item in entries)
@@ -658,6 +732,9 @@ class PrinterData:
         except (MoonrakerError, KeyError, TypeError, ValueError) as error:
             self._directory_loading = False
             self._directory_retry_at[key] = time.monotonic() + 5
+            # Only the newest retry deadlines may survive in the current revision.
+            for old in list(self._directory_retry_at)[:-64]:
+                del self._directory_retry_at[old]
             self.file_error = str(error)
             self._files_loaded = False
             return ()
@@ -725,6 +802,8 @@ class PrinterData:
         if self._settings_save is not None and self._settings_save.done():
             try:
                 self._settings_save.result()
+                self._preset_baseline = self._preset_saved_signature
+                self._preset_original = self._preset_save_original
                 self.settings_error = None
             except Exception as error:
                 self.settings_error = str(error)
@@ -733,22 +812,52 @@ class PrinterData:
         presets_changed = self.refresh_mainsail_presets()
         sort_changed = self.refresh_file_sort() if self._files_loaded else False
         try:
-            state = PrinterState.from_snapshot(self.subscription.snapshot())
+            # Effective Klipper config stays stable within a websocket epoch.
+            # Avoid copying and recursively freezing the entire settings tree
+            # on every status revision; status itself remains freshly copied.
+            lifecycle_reader = getattr(self.subscription,'lifecycle',None)
+            life = lifecycle_reader() if callable(lifecycle_reader) else None
+            same_revision = (isinstance(life,dict) and self.state.ready
+                             and life.get('state') == 'ready'
+                             and life.get('epoch') == self.state.epoch
+                             and life.get('revision') == self.state.revision)
+            if same_revision:
+                state = replace(self.state, file_revision=life.get('file_revision',self.state.file_revision))
+            elif getattr(self.subscription, '_supports_settings_elision', None) is True:
+                snap = self.subscription.snapshot(include_settings=False)
+                reuse = self.state.ready and snap['epoch'] == self.state.epoch
+                if not reuse: snap = self.subscription.snapshot()
+                state = PrinterState.from_snapshot(snap,reused_settings=self.state.settings if reuse else None)
+            else:
+                state = PrinterState.from_snapshot(self.subscription.snapshot())
             if not state.ready:
                 self.state = state
                 self._files_loaded = False
                 self.connection_error = state.error or 'Klipper is not ready'
                 return False
             data = state.status
-            caps = PrinterCapabilities.from_state(state)
+            th = state.status['toolhead']
+            caps_key = (state.epoch,id(state.settings),state.objects,th.get('extruder'),
+                        tuple(th.get('axis_minimum',())),tuple(th.get('axis_maximum',())))
+            caps = (self.capabilities if caps_key == getattr(self,'_caps_cache_key',None)
+                    else PrinterCapabilities.from_state(state))
             gcm = data['gcode_move']
             toolhead = data['toolhead']
             # Validate required fields before committing the snapshot.
             job = {'virtual_sdcard': data['virtual_sdcard'], 'print_stats': data['print_stats']}
             print_state = job['print_stats']['state']
-            position = toolhead['position']
-            x, y, z, e = position[:4]
-            origin = gcm['homing_origin'][2]
+            def finite_coordinates(values, count, label):
+                if (not isinstance(values, (list, tuple)) or len(values) < count
+                        or any(isinstance(v, bool) for v in values[:count])):
+                    raise ValueError('Invalid ' + label)
+                result = tuple(float(v) for v in values[:count])
+                if not all(math.isfinite(v) for v in result):
+                    raise ValueError('Invalid ' + label)
+                return result
+            position = finite_coordinates(toolhead['position'], 4, 'toolhead position')
+            x, y, z, e = position
+            finite_coordinates(gcm.get('position', position), 4, 'command position')
+            origin = finite_coordinates(gcm['homing_origin'], 3, 'homing origin')[2]
             absolute_moves = gcm['absolute_coordinates']
             absolute_extrude = gcm['absolute_extrude']
             speed_percent = float(gcm.get('speed_factor', 1.0)) * 100
@@ -852,6 +961,7 @@ class PrinterData:
         changed = state != self.state or spoolman_changed or presets_changed or sort_changed
         self.state = state
         self.capabilities = caps
+        self._caps_cache_key = caps_key
         self._apply_capabilities(caps)
         self.SHORT_BUILD_VERSION = state.software_version
         if state.epoch != self._file_epoch:
@@ -919,22 +1029,58 @@ class PrinterData:
             raise ValueError('A print is already active')
         return self.postREST('/printer/print/start', json={'filename': path})
 
-    def cancel_job(self): #fixed
-        return self.postREST('/printer/print/cancel', json=None)
+    def cancel_job(self):
+        """Submit cancellation over WebSocket; retain real RPC errors.
 
-    def pause_job(self): #fixed
-        return self.postREST('/printer/print/pause', json=None)
+        The response can be delayed by blocking Klipper macros.  HTTP's
+        five-second timeout would incorrectly report a submitted cancel as
+        failed, potentially prompting an unsafe duplicate request.
+        """
+        snapshot = self.subscription.snapshot()
+        if (self.connection_error or not self.state.ready
+                or snapshot['state'] != 'ready'
+                or snapshot['epoch'] != self.state.epoch):
+            future = Future()
+            future.set_exception(MoonrakerError('Printer connection is not ready'))
+            return future
+        epoch = snapshot['epoch']
+        filename = snapshot['status'].get('print_stats', {}).get('filename')
 
-    def resume_job(self): #fixed
+        def still_same_job():
+            current = self.subscription.snapshot()
+            stats = current['status'].get('print_stats', {})
+            return (current['state'] == 'ready' and current['epoch'] == epoch
+                    and stats.get('filename') == filename
+                    and stats.get('state') in ('printing', 'paused', 'pausing'))
+
+        return self.subscription.request('printer.print.cancel', guard=still_same_job)
+
+    def pause_job(self, report_error=True): #fixed
+        return self.postREST('/printer/print/pause', json=None, **({} if report_error else {'report_error': False}))
+
+    def resume_job(self, report_error=True): #fixed
         if self.jog_recovery_required:
             raise ValueError('Restore jog state before resuming')
-        return self.postREST('/printer/print/resume', json=None)
+        return self.postREST('/printer/print/resume', json=None, **({} if report_error else {'report_error': False}))
 
-    def set_feedrate(self, fr):
+    def print_settings(self):
+        from print_tuning import settings
+        return settings(self)
+
+    def set_print_setting(self, key, value, report_error=True):
+        from print_tuning import set_value
+        return set_value(self, key, value, report_error=report_error)
+
+    def print_layers(self):
+        from print_tuning import layers
+        return layers(self)
+
+    def set_feedrate(self, fr, report_error=True):
         fr = float(fr)
         if not math.isfinite(fr) or fr <= 0:
             raise ValueError('Feedrate percentage must be positive')
-        return self.sendGCode('M220 S{:g}'.format(fr))
+        send = self.sendGCode if report_error else lambda script: self.sendGCode(script, report_error=False)
+        return send('M220 S{:g}'.format(fr))
 
     def motion_settings(self):
         if not self.state.ready:
@@ -950,12 +1096,13 @@ class PrinterData:
                 available.append((field, argument, label, step, value))
         return tuple(available)
 
-    def set_motion_limit(self, field, value):
+    def set_motion_limit(self, field, value, report_error=True):
         setting = next((item for item in self.motion_settings() if item[0] == field), None)
         if setting is None:
             raise ValueError('Motion setting is unavailable')
         value = validate_motion(field, value)
-        return self.sendGCode('SET_VELOCITY_LIMIT {}={:g}'.format(setting[1], value))
+        send = self.sendGCode if report_error else lambda script: self.sendGCode(script, report_error=False)
+        return send('SET_VELOCITY_LIMIT {}={:g}'.format(setting[1], value))
 
     def home(self, homeZ=False): #fixed using gcode
         script = 'G28 X Y'
@@ -972,11 +1119,13 @@ class PrinterData:
         value, speed = float(value), float(speed)
         if not math.isfinite(value) or not math.isfinite(speed) or speed <= 0:
             raise ValueError('Invalid jog value or speed')
-        state = self.state
+        snapshot = self.subscription.snapshot()
+        state = PrinterState.from_snapshot(snapshot)
         if not state.ready or self.connection_error:
             raise ValueError('Printer is unavailable')
         if state.status['print_stats']['state'] in ('printing', 'paused', 'pausing'):
             raise ValueError('Jogging is unavailable during a print')
+        caps = PrinterCapabilities.from_state(state)
         toolhead = state.status['toolhead']
         # Use command-space position before transforms such as bed mesh.
         position = state.status['gcode_move']['position']
@@ -987,7 +1136,7 @@ class PrinterData:
         delta = value - current if absolute else value
         target = current + delta
         if axis == 'E':
-            heater = self.capabilities.active_hotend
+            heater = caps.active_hotend
             if heater is None or not state.status.get(heater.name, {}).get('can_extrude', False):
                 raise ValueError('Extruder is unavailable or too cold')
             if abs(delta) > heater.max_extrude_distance:
@@ -995,7 +1144,7 @@ class PrinterData:
         else:
             if axis.lower() not in toolhead.get('homed_axes', ''):
                 raise ValueError('Axis must be homed before jogging')
-            if not self.capabilities.axis_minimum[index] <= target <= self.capabilities.axis_maximum[index]:
+            if not caps.axis_minimum[index] <= target <= caps.axis_maximum[index]:
                 raise ValueError('Jog exceeds configured axis range')
         max_velocity = float(toolhead['max_velocity'])
         if axis == 'Z':
@@ -1016,7 +1165,7 @@ class PrinterData:
             self._jog_restore = restore
         try:
             dispatch_guard = motion_dispatch_guard(self, owner='jog', position=True,
-                                                   extrusion=heater.name if axis == 'E' else None)
+                                                   extrusion=heater.name if axis == 'E' else None, initial=snapshot)
             future = self.sendGCode(script, cleanup=restore, report_error=False, dispatch_guard=dispatch_guard)
         except Exception:
             # Submission failed before sending anything.
@@ -1089,7 +1238,12 @@ class PrinterData:
             raise ValueError('Case light brightness out of range')
         if 'output_pin case_light' not in snapshot['objects']:
             raise ValueError('Case light output pin unavailable')
-        scale = float(snapshot['settings'].get('output_pin case_light', {}).get('scale', 1))
+        settings = snapshot['settings'].get('output_pin case_light', {})
+        if str(settings.get('pwm', False)).lower() not in ('true', '1'):
+            if percent not in (0, 100):
+                raise ValueError('Digital case light supports only on/off')
+            return self.sendGCodeObserved('SET_PIN PIN=case_light VALUE={:.6f}'.format(percent / 100))
+        scale = float(settings.get('scale', 1))
         if not math.isfinite(scale) or scale <= 0:
             raise ValueError('Invalid case light scale')
         return self.sendGCodeObserved('SET_PIN PIN=case_light VALUE={:.6f}'.format(percent * scale / 100))
@@ -1110,6 +1264,8 @@ class PrinterData:
         if self.jog_recovery_required:
             raise ValueError('Restore jog state before sending motion commands')
         guard = motion_dispatch_guard(self) if gcode.strip() == 'G28' else None
+        if gcode.strip() == 'G28':
+            return self.subscription.request('printer.gcode.script', {'script': gcode + '\nM400'}, guard=guard)
         return self.subscription.notify('printer.gcode.script', {'script': gcode}, guard=guard)
 
     def sendGCode(self, gcode, cleanup=None, report_error=True, dispatch_guard=None):
@@ -1121,6 +1277,8 @@ class PrinterData:
                 raise ValueError('Restore jog state before sending motion commands')
         if dispatch_guard is None and gcode.strip() in ('G28', 'G28 X Y', 'G28 X Y Z', 'M84'):
             dispatch_guard = motion_dispatch_guard(self)
+        if cleanup is not None and gcode.startswith('SAVE_GCODE_STATE NAME=LCD_PROBE_CENTER\n'):
+            return self.subscription.request_script_with_cleanup(gcode, cleanup, dispatch_guard)
         if cleanup is not None:
             return self.postREST('/printer/gcode/script', json={'script': gcode},
                                  cleanup={'script': cleanup}, report_error=report_error, dispatch_guard=dispatch_guard)
@@ -1152,10 +1310,11 @@ class PrinterData:
             raise ValueError('Fan speed is out of range')
         return 'M106 S{:g}'.format(percent * 255 / 100)
 
-    def setFanSpeed(self, percent):
+    def setFanSpeed(self, percent, report_error=True):
         if not self.HAS_FAN:
             raise ValueError('Fan is unavailable')
-        return self.sendGCode(self._fan_command(percent))
+        send = self.sendGCode if report_error else lambda script: self.sendGCode(script, report_error=False)
+        return send(self._fan_command(percent))
 
     def preheat(self, profile):
         preset = next((item for item in self.material_preset if item.name == profile), None)
@@ -1168,6 +1327,14 @@ class PrinterData:
             raise ValueError('Unknown preheat preset')
         preset = self.material_preset[index]
         return self.preHeat(preset.bed_temp, preset.hotend_temp)
+
+    def discard_preset_edits(self, profile):
+        if self._settings_save is not None:
+            raise ValueError('Wait for preset save before discarding edits')
+        if not 0 <= profile < len(self._preset_original):
+            raise ValueError('Preset is no longer available')
+        self.material_preset[profile] = copy.deepcopy(self._preset_original[profile])
+        self._preset_refresh_at = 0.0
 
     def save_settings(self):
         if self.presets_from_mainsail:
@@ -1188,6 +1355,8 @@ class PrinterData:
                 for payload in writes:
                     self.client.post('/server/database/item', payload).result(timeout=self.client.timeout + 1)
                 return True
+            self._preset_save_original = copy.deepcopy(self.material_preset)
+            self._preset_saved_signature = self._preset_signature(self.material_preset)
             self._settings_save = self._read_worker.submit(save)
             return self._settings_save
         try:
@@ -1196,10 +1365,11 @@ class PrinterData:
             self.settings_error = str(error)
             logging.error('Cannot save presets to %s: %s', self.preset_store.path, error)
             return False
+        self._preset_original = copy.deepcopy(self.material_preset)
         self.settings_error = None
         return True
 
-    def setExtTemp(self, target, toolnum=None):
+    def setExtTemp(self, target, toolnum=None, report_error=True):
         heater = self.capabilities.active_hotend
         if toolnum is not None:
             name = 'extruder' + (str(toolnum) if toolnum else '')
@@ -1207,14 +1377,16 @@ class PrinterData:
         if heater is None:
             raise ValueError('Hotend is unavailable')
         value = heater.validate_target(target)
-        return self.sendGCode('SET_HEATER_TEMPERATURE HEATER={} TARGET={:g}'.format(heater.name, value))
+        send = self.sendGCode if report_error else lambda script: self.sendGCode(script, report_error=False)
+        return send('SET_HEATER_TEMPERATURE HEATER={} TARGET={:g}'.format(heater.name, value))
 
-    def setBedTemp(self, target):
+    def setBedTemp(self, target, report_error=True):
         heater = self.capabilities.bed
         if heater is None:
             raise ValueError('Heated bed is unavailable')
         value = heater.validate_target(target)
-        return self.sendGCode('SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET={:g}'.format(value))
+        send = self.sendGCode if report_error else lambda script: self.sendGCode(script, report_error=False)
+        return send('SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET={:g}'.format(value))
 
     def preHeat(self, bedtemp, exttemp, toolnum=None, fan_speed=None):
         # Validate the whole preset before sending any command.
@@ -1236,8 +1408,9 @@ class PrinterData:
         if commands:
             return self.sendGCode('\n'.join(commands))
 
-    def setZOffset(self, offset):
+    def setZOffset(self, offset, report_error=True):
         offset = float(offset)
         if not math.isfinite(offset) or not self.Z_PROBE_OFFSET_RANGE_MIN <= offset <= self.Z_PROBE_OFFSET_RANGE_MAX:
             raise ValueError('Runtime Z offset is outside the supported range')
-        return self.sendGCode('SET_GCODE_OFFSET Z=%s MOVE=1' % offset)
+        send = self.sendGCode if report_error else lambda script: self.sendGCode(script, report_error=False)
+        return send('SET_GCODE_OFFSET Z=%s MOVE=1' % offset)

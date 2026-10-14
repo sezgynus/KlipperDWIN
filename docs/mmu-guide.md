@@ -7,10 +7,10 @@
 With a configured Happy Hare MMU, select **Home → MMU**. Home also shows gate colors and, when Spoolman data is available, remaining filament percentages. Missing Spoolman information does not prevent other MMU functions.
 
 <p align="center">
-  <img src="assets/screens/mmu.png" width="220" alt="Loaded filament">
-  <img src="assets/screens/mmu-loading.png" width="220" alt="Live path during loading">
-  <img src="assets/screens/mmu-unloading.png" width="220" alt="Live path during unloading">
-  <img src="assets/screens/mmu-purging.png" width="220" alt="Purge and residual filament color">
+  <img src="assets/screens/framed/mmu.png" width="360" alt="Loaded filament">
+  <img src="assets/screens/framed/mmu-loading.png" width="360" alt="Live path during loading">
+  <img src="assets/screens/framed/mmu-unloading.png" width="360" alt="Live path during unloading">
+  <img src="assets/screens/framed/mmu-purging.png" width="360" alt="Purge and residual filament color">
 </p>
 
 Rotate to select; press to activate. Select a colored **T0, T1, …** button to change filament: Happy Hare unloads the current tool and loads the chosen tool automatically. The gate above each spool shows its actual mapping; several tools can use the same gate. More than four tools appear in groups as you rotate. **G0 is Happy Hare gate 0**.
@@ -20,15 +20,15 @@ The vertical diagram follows filament loading and withdrawal. The Gate circle fi
 The overview's tool and **Load/Unload** buttons start immediately and keep the diagram visible. **More** opens gates, mapping, bypass, management and detailed status. Actions on those pages open a confirmation with **Cancel initially selected**. Routine movement and edits require an idle MMU outside printing/pauses. Unsupported options are hidden; actions may be locked when the printer state is busy, unknown or unsuitable. Check the actual printer before retrying a failed/unconfirmed operation.
 
 <p align="center">
-  <img src="assets/screens/mmu-more.png" width="220" alt="Additional MMU controls">
+  <img src="assets/screens/framed/mmu-more.png" width="360" alt="Additional MMU controls">
 </p>
 
 ## Gates and loading
 
 <p align="center">
-  <img src="assets/screens/mmu-gates.png" width="220" alt="Select a gate">
-  <img src="assets/screens/mmu-gate-details.png" width="220" alt="Gate actions">
-  <img src="assets/screens/mmu-confirm.png" width="220" alt="Action confirmation">
+  <img src="assets/screens/framed/mmu-gates.png" width="360" alt="Select a gate">
+  <img src="assets/screens/framed/mmu-gate-details.png" width="360" alt="Gate actions">
+  <img src="assets/screens/framed/mmu-confirm.png" width="360" alt="Action confirmation">
 </p>
 
 Open **MMU → More → Gates → [gate]**:
@@ -49,8 +49,8 @@ Confirm the gate/tool named on the screen before accepting. The MMU Home Load/Un
 ## Spool assignments
 
 <p align="center">
-  <img src="assets/screens/mmu-filament.png" width="220" alt="Filament and Spoolman details">
-  <img src="assets/screens/mmu-spool.png" width="220" alt="Assign a spool ID">
+  <img src="assets/screens/framed/mmu-filament.png" width="360" alt="Filament and Spoolman details">
+  <img src="assets/screens/framed/mmu-spool.png" width="360" alt="Assign a spool ID">
 </p>
 
 Open **Gates → [gate] → Filament details → Assign spool ID**. Press **Spool ID**, rotate to the positive numeric ID, press to accept the edit, then choose **Save** and confirm. **Cancel** discards the draft. Use **Clear assignment** to remove an assignment explicitly.
@@ -60,7 +60,7 @@ Assignment depends on the configured Spoolman mode: known `off`, `readonly` and 
 ## Tool map
 
 <p align="center">
-  <img src="assets/screens/mmu-tool-map.png" width="220" alt="Tool-to-gate mapping">
+  <img src="assets/screens/framed/mmu-tool-map.png" width="360" alt="Tool-to-gate mapping">
 </p>
 
 Open **MMU → More → Tool map**. Select a tool, press, rotate to its gate and press to accept. Repeat for other tools, then **Save** and confirm, or **Cancel** to discard the draft. Several tools can share one gate.
@@ -70,8 +70,8 @@ Make edits while idle and outside printing/pauses. If the mapping changes from t
 ## EndlessSpool
 
 <p align="center">
-  <img src="assets/screens/mmu-endless-spool.png" width="220" alt="EndlessSpool groups">
-  <img src="assets/screens/mmu-group-members.png" width="220" alt="Choose group members">
+  <img src="assets/screens/framed/mmu-endless-spool.png" width="360" alt="EndlessSpool groups">
+  <img src="assets/screens/framed/mmu-group-members.png" width="360" alt="Choose group members">
 </p>
 
 From **Tool map**, open **EndlessSpool**. It groups compatible replacement spools so Happy Hare can continue when a spool runs out.
@@ -86,7 +86,7 @@ Make changes while idle and outside printing/pauses. Matching metadata is a guid
 ## Bypass
 
 <p align="center">
-  <img src="assets/screens/mmu-bypass.png" width="220" alt="Bypass actions">
+  <img src="assets/screens/framed/mmu-bypass.png" width="360" alt="Bypass actions">
 </p>
 
 Open **MMU → More → Bypass**. First **Unload current gate**, then **Select bypass**. Use **Load extruder** and **Unload extruder** for the extruder-only filament path. Confirm each operation. Bypass selection requires unloaded filament.
@@ -94,16 +94,16 @@ Open **MMU → More → Bypass**. First **Unload current gate**, then **Select b
 ## Recovery and status
 
 <p align="center">
-  <img src="assets/screens/mmu-recovery.png" width="220" alt="Recovery options">
-  <img src="assets/screens/mmu-manual-state.png" width="220" alt="Report the actual filament state">
+  <img src="assets/screens/framed/mmu-recovery.png" width="360" alt="Recovery options">
+  <img src="assets/screens/framed/mmu-manual-state.png" width="360" alt="Report the actual filament state">
 </p>
 
 <p align="center">
-  <img src="assets/screens/mmu-manage.png" width="240" alt="Manage and recovery">
-  <img src="assets/screens/mmu-status.png" width="240" alt="MMU status and sensors">
+  <img src="assets/screens/framed/mmu-manage.png" width="360" alt="Manage and recovery">
+  <img src="assets/screens/framed/mmu-status.png" width="360" alt="MMU status and sensors">
 </p>
 
-An MMU error pause with a reported reason opens recovery automatically. You can also use **MMU → More → Manage → Recover state**. A failed overview operation replaces its main action with **Recover**, opening the result and recovery options.
+During a print, an MMU error stays on Print as a summary; **MMU** replaces **Resume**. Follow **Print → MMU → full error → MMU recovery**; rotate to scroll long text. **Back** returns to Print. You can also use **MMU → More → Manage → Recover state**. A failed overview operation changes its main button to **Recover**. See [Print/Tune](print-controls.md).
 
 1. Read the error and fix the physical filament problem.
 2. Use recovery, or the manual state editor to report the actual gate/tool/filament state. Manual Apply reports state; it does not load or unload filament.
@@ -112,11 +112,15 @@ An MMU error pause with a reported reason opens recovery automatically. You can 
 
 **Status** / **Sensors / status** shows the current action, available Bowden-stage progress, sensors, gear sync, nozzle temperature and operation result. Bowden percentage describes that stage, not the whole tool change. `CLEAR`, `TRIGGERED`, `UNKNOWN/OFF` and `ABSENT` distinguish sensor conditions.
 
+![Scroll a long MMU error with the encoder and return to Print with Back](assets/framed/mmu-error-scroll-demo.gif)
+
+Real UI emulator output with example data; [full error screen](assets/screens/error-full.png).
+
 ## Maintenance and options
 
 <p align="center">
-  <img src="assets/screens/mmu-maintenance.png" width="240" alt="MMU maintenance">
-  <img src="assets/screens/mmu-options.png" width="240" alt="MMU options">
+  <img src="assets/screens/framed/mmu-maintenance.png" width="360" alt="MMU maintenance">
+  <img src="assets/screens/framed/mmu-options.png" width="360" alt="MMU options">
 </p>
 
 Open **Manage → Maintenance** or **Manage → Options**. Controls depend on the installed Happy Hare configuration and reported state:
@@ -135,7 +139,7 @@ Open **Manage → Maintenance** or **Manage → Options**. Controls depend on th
 Units is omitted for single-unit installations. Unit selection needs unloaded filament outside printing/pauses. LED options require supported active-unit LED information. Use the web interface for **MMU calibration, custom LED effects and entry/status/logo LED configuration**.
 
 <p align="center">
-  <img src="assets/screens/mmu-leds.png" width="220" alt="LED modes">
-  <img src="assets/screens/mmu-units.png" width="220" alt="Multiple-unit list">
-  <img src="assets/screens/mmu-unit-gates.png" width="220" alt="Gates of a unit">
+  <img src="assets/screens/framed/mmu-leds.png" width="360" alt="LED modes">
+  <img src="assets/screens/framed/mmu-units.png" width="360" alt="Multiple-unit list">
+  <img src="assets/screens/framed/mmu-unit-gates.png" width="360" alt="Gates of a unit">
 </p>

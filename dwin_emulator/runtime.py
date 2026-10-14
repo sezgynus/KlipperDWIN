@@ -118,10 +118,15 @@ class ScreenshotServer:
         self.thread = Thread(target=self._serve, name='Petrel-screenshot', daemon=True)
         self.thread.start()
 
-    def _save(self, file_format):
+    def _save(self, file_format, frame=False):
         if file_format not in ('png', 'bmp'):
             raise ValueError('Format must be png or bmp')
         image, sequence = self.emulator.snapshot()
+        if not isinstance(frame, bool):
+            raise ValueError("Frame must be a boolean")
+        if frame:
+            from .presentation import with_frame
+            image = with_frame(image)
         self.output.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().astimezone().strftime('%Y-%m-%d_%H-%M-%S_%f')
         target = self.output / f'{stamp}_{uuid4().hex[:8]}.{file_format}'
@@ -156,7 +161,7 @@ class ScreenshotServer:
                     data = json.loads(request)
                     if data.get('command') != 'screenshot':
                         raise ValueError('Only screenshot requests are supported')
-                    result = dict(ok=True, **self._save(data.get('format', 'png')))
+                    result = dict(ok=True, **self._save(data.get('format', 'png'), data.get('frame', False)))
                 except Exception as error:
                     result = {'ok': False, 'error': str(error)}
                 try:

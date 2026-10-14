@@ -32,9 +32,13 @@ class DispatchTests(unittest.TestCase):
             p = printer(source)
             p.subscription.request.return_value = Future()
             p.subscription.responses_since.return_value = (0, ())
+            if name == 'probe_wizard':
+                p.sendGCode = PrinterData.sendGCode.__get__(p)
+                p.client.post.return_value = Future()
             getattr(p, name).start()
-            call = p.subscription.request.call_args
-            guard = call.kwargs['guard']
+            call = (p.subscription.request_script_with_cleanup.call_args if name == 'probe_wizard'
+                    else p.subscription.request.call_args)
+            guard = call.args[2] if name == 'probe_wizard' else call.kwargs['guard']
             self.assertTrue(guard())
             source['status']['print_stats']['state'] = 'paused'
             self.assertFalse(guard())
@@ -45,7 +49,7 @@ class DispatchTests(unittest.TestCase):
     def test_home_blocks_queued_print_start_but_thermal_control_remains_allowed(self):
         source = snapshot();p = printer(source)
         p.sendGCodeObserved('G28')
-        guard = p.subscription.notify.call_args.kwargs['guard']
+        guard = p.subscription.request.call_args.kwargs['guard']
         source['status']['print_stats']['state'] = 'printing'
         self.assertFalse(guard())
         p.sendGCode = PrinterData.sendGCode.__get__(p)

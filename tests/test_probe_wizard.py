@@ -18,6 +18,11 @@ class ProbeTests(unittest.TestCase):
     def printer(self):
         result = printer(data())
         result.subscription.request.side_effect = lambda *a, **k: Future()
+        def center_future(*args, **kwargs):
+            future = Future()
+            future.cleanup_complete = True
+            return future
+        result.sendGCode.side_effect = center_future
         return result
 
     def status(self, result, active, pending=None):
@@ -44,13 +49,15 @@ class ProbeTests(unittest.TestCase):
     def test_start_centers_probe_before_calibration_and_homes_when_needed(self):
         result = self.printer()
         future = result.probe_wizard.start()
-        script = result.subscription.request.call_args.args[1]['script']
+        script = result.sendGCode.call_args.args[0]
         self.assertIn('G1 X125.000 Y130.000', script)
+        self.assertIn('SAVE_GCODE_STATE', script)
+        self.assertIn('RESTORE_GCODE_STATE', result.sendGCode.call_args.kwargs['cleanup'])
         self.assertLess(script.index('G1 Z5.000'), script.index('G1 X'))
         self.assertNotIn('PROBE_CALIBRATE', script)
         future.set_result('ok')
         result.probe_wizard.update()
-        self.assertEqual(result.subscription.request.call_count, 1)
+        self.assertEqual(result.subscription.request.call_count, 0)
         self.status(result, False)
         result.probe_wizard.update()
         result.subscription.request.assert_called_with('printer.gcode.script', {'script':'PROBE_CALIBRATE'}, guard=ANY)
@@ -133,7 +140,7 @@ class ProbeTests(unittest.TestCase):
         result.update_variable()
         result.probe_wizard.update()
         self.assertEqual(result.probe_wizard.phase, 'interrupted')
-        self.assertEqual(result.subscription.request.call_count, 2)
+        self.assertEqual(result.subscription.request.call_count, 1)
         with self.assertRaises(ValueError):
             result.probe_wizard.testz(.1)
 
@@ -167,8 +174,7 @@ class ProbeRegressionTests(unittest.TestCase):
         result = self.printer()
         self.status(result, False, {'bed_mesh default': {'points': 'old'}})
         result.probe_wizard.start()
-        self.assertIn('G1 X125.000 Y130.000', result.subscription.request.call_args.args[1]['script'])
-        result.sendGCode.assert_not_called()
+        self.assertIn('G1 X125.000 Y130.000', result.sendGCode.call_args.args[0])
 
     def test_long_probe_start_is_not_failed_after_http_timeout(self):
         result = self.printer()
@@ -267,12 +273,12 @@ class RepeatedProbeStepTests(unittest.TestCase):
             result.probe_wizard.update()
             self.assertEqual(result.probe_wizard.phase, 'active' if active else 'error')
             self.assertIsNone(result.probe_wizard.pending)
-            self.assertEqual(result.subscription.request.call_count, 3)
+            self.assertEqual(result.subscription.request.call_count, 2)
             if active:
                 result.probe_wizard.update()
-                self.assertEqual(result.subscription.request.call_count, 3)
+                self.assertEqual(result.subscription.request.call_count, 2)
                 result.probe_wizard.testz('-')
-                self.assertEqual(result.subscription.request.call_count, 4)
+                self.assertEqual(result.subscription.request.call_count, 3)
 
 
 class ProbeCenterSafetyTests(unittest.TestCase):
@@ -287,10 +293,10 @@ class ProbeCenterSafetyTests(unittest.TestCase):
         result.subscription.snapshot.return_value = source; result.update_variable()
         future = result.probe_wizard.start()
         self.assertEqual(result.probe_wizard.center, (150,130))
-        self.assertIn('G1 X150.000 Y130.000', result.subscription.request.call_args.args[1]['script'])
+        self.assertIn('G1 X150.000 Y130.000', result.sendGCode.call_args.args[0])
         future.set_result('ok')
         result.probe_wizard.update()
-        self.assertEqual(result.subscription.request.call_count, 1)
+        self.assertEqual(result.subscription.request.call_count, 0)
         source['status']['toolhead']['position'][:2] = (150,130)
         result.update_variable(); result.probe_wizard.update()
         guard = result.subscription.request.call_args.kwargs['guard']
@@ -329,9 +335,9 @@ class ProbeCenterSafetyTests(unittest.TestCase):
         self.assertEqual(result.subscription.request.call_count, 1)
         source['status']['toolhead']['homed_axes'] = 'xyz'
         result.update_variable(); result.probe_wizard.update()
-        self.assertEqual(result.subscription.request.call_count, 2)
-        self.assertIn('G1 X125.000 Y130.000',result.subscription.request.call_args.args[1]['script'])
-        self.assertNotIn('PROBE_CALIBRATE',result.subscription.request.call_args.args[1]['script'])
+        self.assertEqual(result.subscription.request.call_count, 1)
+        self.assertIn('G1 X125.000 Y130.000', result.sendGCode.call_args.args[0])
+        self.assertNotIn('PROBE_CALIBRATE', result.sendGCode.call_args.args[0])
 
 
 class LevelingNavigationTests(unittest.TestCase):
@@ -355,3 +361,63 @@ class LevelingNavigationTests(unittest.TestCase):
         self.assertEqual([entry[0] for entry in view._mesh_menu_entries()], ['BACK','PROBE'])
         absent = display(snapshot())
         self.assertNotIn('LEVEL', [entry[0] for entry in absent._home_entries()])
+
+class ProbeCenterRestoreTests(unittest.TestCase):
+    def setup_printer(self):
+        import json
+        from moonraker_subscription import MoonrakerSubscription
+        from test_regressions import backend
+        p = ProbeTests.printer(self)
+        snapshot_reader = p.subscription.snapshot
+        ws = MoonrakerSubscription('http://localhost:7125', autostart=False)
+        self.addCleanup(ws.close)
+        ws._state, ws._epoch = 'ready', p.state.epoch
+        ws._socket = Mock()
+        ws.snapshot = snapshot_reader
+        p.subscription = ws
+        p.sendGCode = backend.PrinterData.sendGCode.__get__(p)
+        return p, ws
+
+    def reply(self, ws, error=False):
+        import json
+        ws._drain_outbound()
+        packet = json.loads(ws._socket.send.call_args.args[0])
+        ws._notification(dict(id=packet['id'], **({'error': {}} if error else {'result': 'ok'})))
+        return packet['params']['script']
+
+    def test_failed_movement_restores_without_replay(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.assertTrue(self.reply(ws).startswith('SAVE_GCODE_STATE'))
+        self.assertIn('G1 X', self.reply(ws, error=True))
+        self.assertEqual(self.reply(ws), 'RESTORE_GCODE_STATE NAME=LCD_PROBE_CENTER MOVE=0')
+        self.assertIsNotNone(f.exception()); self.assertTrue(f.cleanup_complete)
+        p.probe_wizard.update(); self.assertFalse(p.jog_recovery_required)
+
+    def test_failed_save_never_sends_movement(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.reply(ws, error=True); ws._drain_outbound()
+        self.assertEqual(ws._socket.send.call_count, 1)
+        self.assertTrue(f.cleanup_complete)
+
+    def test_failed_restore_retains_recovery(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.reply(ws); self.reply(ws, error=True); self.reply(ws, error=True)
+        self.assertFalse(f.cleanup_complete)
+        p.probe_wizard.update(); self.assertTrue(p.jog_recovery_required)
+
+    def test_epoch_change_never_restores_new_connection(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.reply(ws); self.reply(ws, error=True)
+        ws._epoch += 1
+        ws.snapshot.return_value['epoch'] += 1
+        ws._drain_outbound()
+        self.assertEqual(ws._socket.send.call_count, 2)
+        self.assertFalse(f.cleanup_complete)
+
+    def test_long_center_does_not_use_http_timeout(self):
+        p, ws = self.setup_printer(); f = p.probe_wizard.start()
+        self.reply(ws); ws._drain_outbound()
+        with patch('moonraker_subscription.time.monotonic', return_value=10):
+            ws._expire_requests()
+        self.assertFalse(f.done())
+        p.client.post.assert_not_called()

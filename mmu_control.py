@@ -289,11 +289,11 @@ class MMUSession:
     def state(self):
         return MMUState.from_snapshot(self.printer.subscription.snapshot())
 
-    def prepare(self, action, gate=None, tool=None, loaded=None, snapshot=None, ignore_pending=False, values=(), enabled=None):
+    def prepare(self, action, gate=None, tool=None, loaded=None, snapshot=None, ignore_pending=False, values=(), enabled=None, parsed_state=None):
         p = self.printer
         expected_spool_ids = ()
         snap = p.subscription.snapshot() if snapshot is None else snapshot
-        m = MMUState.from_snapshot(snap)
+        m = parsed_state if parsed_state is not None else MMUState.from_snapshot(snap)
         if (p.connection_error or not p.state.ready or snap.get('epoch') != p.state.epoch
                 or m is None):
             raise ValueError('MMU unavailable')

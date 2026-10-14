@@ -16,10 +16,11 @@ from threading import Event, Lock, Thread
 from urllib.parse import urlsplit, urlunsplit
 
 from moonraker_client import MoonrakerError
+from print_tuning import JOB_OBJECTS
 
 
 OBJECTS = ('webhooks', 'toolhead', 'gcode_move', 'print_stats', 'virtual_sdcard',
-           'pause_resume', 'extruder', 'heater_bed', 'fan', 'motion_report', 'manual_probe', 'configfile', 'screws_tilt_adjust', 'bed_mesh', 'stepper_enable', 'save_variables')
+           'pause_resume', 'extruder', 'heater_bed', 'fan', 'motion_report', 'manual_probe', 'configfile', 'screws_tilt_adjust', 'bed_mesh', 'stepper_enable', 'save_variables', 'firmware_retraction') + JOB_OBJECTS
 
 
 def connect(url, timeout, headers):
@@ -33,6 +34,10 @@ def connect(url, timeout, headers):
 
 
 class MoonrakerSubscription:
+    MAX_PENDING_REQUESTS = 64
+    REQUEST_TIMEOUT = 30.0
+    LONG_REQUEST_TIMEOUT = 180.0
+    CANCEL_REQUEST_TIMEOUT = 900.0
     def __init__(self, url, api_key='', timeout=5.0, connector=connect,
                  retry_delay=1.0, autostart=True):
         parts = urlsplit(url)
@@ -73,26 +78,46 @@ class MoonrakerSubscription:
         self._subscribing = False
         self._buffered = []
         self._outbound = Queue(maxsize=32)
+        self._outbound_wakeup = Event()
         self._completion_requests = set()
         self._pending_requests = {}
+        self._pending_deadlines = {}
         self.gcode_responses = Queue(maxsize=64)
         self._response_history = deque(maxlen=256)
         self._response_serial = 0
         self._last_receive = time.monotonic()
         self._last_ping = time.monotonic()
+        self._supports_settings_elision = True
         self._thread = Thread(target=self._run, name='moonraker-status', daemon=True)
+        # Sending on a separate socket writer avoids waiting for an idle
+        # recv_data timeout. websocket-client serializes send and ping itself.
+        self._writer_thread = Thread(target=self._writer_loop, name='moonraker-writer',
+                                     daemon=True)
         if autostart:
+            self._writer_thread.start()
             self._thread.start()
 
-    def snapshot(self):
+    def lifecycle(self):
+        """Small coherent read for UI routing, relay state and epoch guards."""
         with self._lock:
             return {'state': self._state, 'error': self._error,
-                    'status': copy.deepcopy(self._status),
-                    'objects': list(self._objects), 'revision': self._revision, 'epoch': self._epoch,
-                    'software_version': self._software_version, 'settings': copy.deepcopy(self._settings),
+                    'revision': self._revision, 'epoch': self._epoch,
                     'file_revision': self._file_revision,
                     'power_devices': dict(self._power_devices),
                     'power_off_serial': dict(self._power_off_serial)}
+
+    def snapshot(self, include_settings=True):
+        with self._lock:
+            result = {'state': self._state, 'error': self._error,
+                      'status': copy.deepcopy(self._status),
+                      'objects': list(self._objects), 'revision': self._revision,
+                      'epoch': self._epoch, 'software_version': self._software_version,
+                      'file_revision': self._file_revision,
+                      'power_devices': dict(self._power_devices),
+                      'power_off_serial': dict(self._power_off_serial)}
+            if include_settings:
+                result['settings'] = copy.deepcopy(self._settings)
+            return result
 
     def set_case_light_tracking(self, enabled, callback=None):
         """Replace the subscription while retaining every baseline printer object."""
@@ -173,6 +198,7 @@ class MoonrakerSubscription:
         if 'id' in message:
             with self._lock:
                 future = self._pending_requests.pop(message['id'], None)
+                self._pending_deadlines.pop(message['id'], None)
             if future is not None and not future.done():
                 if 'error' in message or 'result' not in message:
                     future.set_exception(MoonrakerError('Moonraker command failed; check printer'))
@@ -233,6 +259,46 @@ class MoonrakerSubscription:
         """Nonblocking RPC; Future resolves on completion, never on dispatch."""
         return self.notify(method, params, completion=True, guard=guard)
 
+    def request_script_with_cleanup(self, script, cleanup, guard):
+        """Completion RPCs for acknowledged SAVE, movement and non-moving recovery."""
+        first, rest = script.split('\n', 1)
+        if not first.startswith('SAVE_GCODE_STATE NAME='):
+            raise ValueError('Motion sequence must start with SAVE_GCODE_STATE')
+        epoch = self.lifecycle()['epoch']
+        result = Future()
+        result.set_running_or_notify_cancel()
+        result.cleanup_complete = False
+
+        def same_epoch():
+            live = self.snapshot()
+            return (live['state'] == 'ready' and live['epoch'] == epoch
+                    and live['status'].get('print_stats', {}).get('state')
+                    in ('standby', 'complete', 'cancelled', 'error'))
+
+        def failed(done):
+            return done.cancelled() or done.exception() is not None
+
+        def saved(done):
+            if failed(done):
+                result.cleanup_complete = True
+                result.set_exception(MoonrakerError('Motion preparation failed'))
+                return
+            movement = self.request('printer.gcode.script', {'script': rest}, guard=guard)
+            def moved(done):
+                if not failed(done):
+                    result.cleanup_complete = True
+                    result.set_result(done.result())
+                    return
+                recovery = self.request('printer.gcode.script', {'script': cleanup}, guard=same_epoch)
+                def restored(done):
+                    result.cleanup_complete = not failed(done)
+                    result.set_exception(MoonrakerError('Motion failed; check printer'))
+                recovery.add_done_callback(restored)
+            movement.add_done_callback(moved)
+        preparation = self.request('printer.gcode.script', {'script': first}, guard=guard)
+        preparation.add_done_callback(saved)
+        return result
+
     def notify(self, method, params=None, completion=False, guard=None):
         future = Future()
         with self._lock:
@@ -242,9 +308,24 @@ class MoonrakerSubscription:
             epoch = self._epoch
         if completion:
             with self._lock:
-                self._completion_requests.add(future)
+                overloaded = (len(self._completion_requests) + len(self._pending_requests)
+                              >= self.MAX_PENDING_REQUESTS - (0 if method == 'printer.emergency_stop' else 1))
+                if not overloaded:
+                    self._completion_requests.add(future)
+            if overloaded:
+                future.set_exception(MoonrakerError('Too many outstanding Moonraker requests'))
+                return future
         try:
-            self._outbound.put_nowait((future, epoch, method, params or {}, guard))
+            item = (future,epoch,method,params or {},guard)
+            emergency = method == 'printer.emergency_stop'
+            with self._outbound.not_full:
+                limit = self._outbound.maxsize - (0 if emergency else 1)
+                if self._outbound._qsize() >= limit: raise Full
+                if emergency: self._outbound.queue.appendleft(item)
+                else: self._outbound._put(item)
+                self._outbound.unfinished_tasks += 1
+                self._outbound.not_empty.notify()
+            self._outbound_wakeup.set()
         except Full:
             with self._lock:
                 self._completion_requests.discard(future)
@@ -255,6 +336,7 @@ class MoonrakerSubscription:
         with self._lock:
             pending = list(self._pending_requests.values())
             self._pending_requests.clear()
+            self._pending_deadlines.clear()
             self._completion_requests.clear()
         for future in pending:
             if not future.done():
@@ -296,10 +378,44 @@ class MoonrakerSubscription:
                                  else MoonrakerError('WebSocket command dispatch failed'))
         return future
 
-    def _drain_outbound(self):
+    def _writer_loop(self):
+        while not self._stop.is_set():
+            self._outbound_wakeup.wait()
+            self._outbound_wakeup.clear()
+            if self._stop.is_set():
+                break
+            try:
+                self._drain_outbound()
+            except MoonrakerError:
+                # A failed send invalidates this socket epoch, but must never
+                # kill the writer for subsequent reconnections.
+                self._fail_outbound('Moonraker WebSocket send failed')
+                self._invalidate('Moonraker WebSocket send failed')
+                with self._lock:
+                    connection = self._socket
+                if connection is not None:
+                    try:
+                        connection.close()
+                    except Exception:
+                        pass
+
+    def _expire_requests(self):
+        now = time.monotonic()
+        expired = []
         with self._lock:
-            self._pending_requests = {key: value for key, value in self._pending_requests.items()
-                                      if not value.done()}
+            for request_id, future in tuple(self._pending_requests.items()):
+                # State acceptance also removes completed requests before their deadline.
+                deadline = self._pending_deadlines.get(request_id)
+                if future.done() or (deadline is not None and deadline <= now):
+                    self._pending_deadlines.pop(request_id, None)
+                    self._pending_requests.pop(request_id, None)
+                    if not future.done():
+                        expired.append(future)
+        for future in expired:
+            future.set_exception(MoonrakerError('Moonraker request timed out'))
+
+    def _drain_outbound(self):
+        self._expire_requests()
         while True:
             try:
                 future, epoch, method, params, guard = self._outbound.get_nowait()
@@ -307,7 +423,8 @@ class MoonrakerSubscription:
                 return
             try:
                 with self._lock:
-                    valid = self._state == 'ready' and self._epoch == epoch and self._socket is not None
+                    connection = self._socket
+                    valid = self._state == 'ready' and self._epoch == epoch and connection is not None
                 if not valid:
                     raise MoonrakerError('Printer connection changed before command dispatch')
                 if future.cancelled():
@@ -316,13 +433,20 @@ class MoonrakerSubscription:
                     raise MoonrakerError('Printer state changed before command dispatch')
                 envelope = {'jsonrpc': '2.0', 'method': method, 'params': params}
                 with self._lock:
+                    if self._state != 'ready' or self._epoch != epoch or self._socket is not connection:
+                        raise MoonrakerError('Connection changed during dispatch guard')
                     completion = future in self._completion_requests
                     self._completion_requests.discard(future)
                     if completion:
                         self._id += 1
                         envelope['id'] = self._id
                         self._pending_requests[self._id] = future
-                self._socket.send(json.dumps(envelope))
+                        # Allow CANCEL_PRINT to wait behind heating, with finite retention.
+                        ttl = (self.CANCEL_REQUEST_TIMEOUT if method == 'printer.print.cancel'
+                               else self.LONG_REQUEST_TIMEOUT if method == 'printer.gcode.script'
+                               else max(self.REQUEST_TIMEOUT, self.timeout * 4))
+                        self._pending_deadlines[self._id] = time.monotonic() + ttl
+                connection.send(json.dumps(envelope))
                 if not completion and not future.done():
                     future.set_result(None)
             except Exception as exc:
@@ -336,6 +460,9 @@ class MoonrakerSubscription:
                     self._completion_requests.discard(future)
                     self._pending_requests = {key: value for key, value in self._pending_requests.items()
                                               if not value.done()}
+                    for request_id in tuple(self._pending_deadlines):
+                        if request_id not in self._pending_requests:
+                            self._pending_deadlines.pop(request_id, None)
                 self._outbound.task_done()
 
     def _receive(self):
@@ -461,7 +588,7 @@ class MoonrakerSubscription:
                     if receive_timeout != desired_timeout:
                         connection.settimeout(desired_timeout)
                         receive_timeout = desired_timeout
-                    self._drain_outbound()
+                    self._expire_requests()
                     message = self._receive()
                     if message is not None:
                         self._notification(message)
@@ -487,6 +614,7 @@ class MoonrakerSubscription:
 
     def close(self):
         self._stop.set()
+        self._outbound_wakeup.set()
         self._fail_outbound('Moonraker subscription is closed')
         with self._lock:
             connection = self._socket
@@ -497,4 +625,6 @@ class MoonrakerSubscription:
                 pass
         if self._thread.is_alive():
             self._thread.join(timeout=self.timeout + 1)
+        if self._writer_thread.is_alive():
+            self._writer_thread.join(timeout=self.timeout + 1)
         self._invalidate('Moonraker subscription is closed')

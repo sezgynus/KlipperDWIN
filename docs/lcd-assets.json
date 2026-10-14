@@ -1,6 +1,6 @@
 {
   "reference_commit": "05903a80d6e15cc91b0bc690b35e08fd440a21e9",
-  "library": 7,
+  "library": 3,
   "english_jpg": 1,
   "cache": 1,
   "raw_jpg_dimensions": [
@@ -17,8 +17,8 @@
     "2_Chinese.jpg": "c6396f8a2cb0ed757b2da8220fa9e41f2f3deb5b764fa1bb883a0abc258b33f9",
     "T5UIC1.CFG": "e1c573639bfa2b3a06c2fa7ad3cab483653dd3dc383217ff653fab3145458095",
     "1_English.jpg": "854dcc7ad264f7e4fcaf08010e86a15822cd918651b266c39d40a2ffdef9727d",
-    "0T5UIC1.HZK": "27f3ae70117dc031e6ea542654ca03b89bb9a0592b23aa9b7e452c35583c0108",
-    "7.ICO": "2e9b0a1651e9150f6530769a672a029f082a636d1094d6375e3d87705611930a"
+    "0T5UIC1.HZK": "c0a8d043d5f88d5400027d7df880793612b5cf5b1549144a82ca749f12ee682f",
+    "3.ICO": "8c963c7d3b987442c6fad3ffdd8774521bddb95f2ae98291fdbc770ffd9630e9"
   },
   "icons": {
     "ICON_LOGO": {
@@ -162,7 +162,7 @@
       "height": 20
     },
     "ICON_CloseMotor": {
-      "id": 28,
+      "id": 219,
       "width": 20,
       "height": 20
     },
@@ -177,7 +177,7 @@
       "height": 20
     },
     "ICON_PLAPreheat": {
-      "id": 31,
+      "id": 230,
       "width": 20,
       "height": 20
     },
@@ -222,7 +222,7 @@
       "height": 20
     },
     "ICON_Motion": {
-      "id": 41,
+      "id": 218,
       "width": 20,
       "height": 20
     },
@@ -387,7 +387,7 @@
       "height": 20
     },
     "ICON_StepE": {
-      "id": 74,
+      "id": 232,
       "width": 20,
       "height": 20
     },

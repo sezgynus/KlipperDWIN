@@ -2,8 +2,8 @@
 from printer_state import freeze
 
 
-def motion_dispatch_guard(printer, owner='', manual_active=False, position=False, extrusion=None):
-    initial = printer.subscription.snapshot()
+def motion_dispatch_guard(printer, owner='', manual_active=False, position=False, extrusion=None, initial=None):
+    initial = printer.subscription.snapshot() if initial is None else initial
 
     def signature(snapshot):
         status = snapshot['status']

@@ -20,7 +20,7 @@ Ardından yeniden başlatın:
 sudo systemctl restart Petrel.service
 ```
 
-Kapatmak için `PETREL_EMULATOR=0` yapıp yeniden başlatın. Kurulum/yapılandırma tekrarlandığında mevcut açık değer korunur. Eski kurulumda bağımlılıklar eksikse:
+Kapatmak için `PETREL_EMULATOR=0` yapıp yeniden başlatın. Kurulum/yapılandırma tekrarlandığında mevcut açık değer korunur. `./configure.sh`, özel font, socket ve ekran görüntüsü klasörü anahtarlarını da korur. Eski kurulumda bağımlılıklar eksikse:
 
 ```bash
 cd ~/Petrel
@@ -79,7 +79,7 @@ Bir geliştirme checkout’u içinde tüm dokümantasyon ekranlarını gerçek U
 
 ```bash
 cd ~/Petrel
-~/petrel-env/bin/python tools/render_docs_screenshots.py
+~/petrel-env/bin/python tools/render_docs_screenshots.py --frame
 ```
 
 Tüm ekranlar başarılı çizilirse `docs/assets/screens/` içindeki görseller yenilenir. Mevcut dosya adlarını koruyun; forumlar bu adlara dış bağlantı verebilir. Yeni bir ekran eklemek için aracın sahne listesine örnek durumu ve iki dilde açıklamasını ekleyin. Galerileri de aynı listeden yeniden üretir.
@@ -91,3 +91,26 @@ Repo dosyalarını değiştirmeden incelemek için:
 ```
 
 Örnek değerleri ve kullanılabilir ekranları [galeride](screenshots_TR.md) görebilirsiniz. Gerçek bir hatayı raporlarken yukarıdaki canlı servis yakalama yöntemini kullanın.
+
+İsteğe bağlı `--frame`, ekran görüntüsünü fiziksel ekran çerçevesinin içine yerleştirir. Parametre verilmezse 272×480 çıktı değişmez.
+
+```bash
+~/petrel-env/bin/python ~/Petrel/tools/screenshot.py --frame
+```
+
+### PNG, çerçeve ve GIF yenileme
+
+Tek üretim oturumunda aynı checkout'tan bütün çıktıları yenileyin:
+
+```bash
+~/petrel-env/bin/python tools/render_docs_screenshots.py --frame
+~/petrel-env/bin/python tools/render_print_controls.py
+~/petrel-env/bin/python tools/render_print_controls.py --frame
+~/petrel-env/bin/python tools/render_docs_workflows.py
+```
+
+İlk komut özgün 272×480 panel PNG'lerini ve `docs/assets/screens/framed/` içindeki 528×900 sunum kopyalarını üretir; aynı UI pikselleri çerçeveye yeniden örneklenmeden yerleştirilir. İki galeri aynı sahne kaydından, aynı menü sırasıyla yenilenir. Repo içindeki varsayılan hedefe üretirken `--frame` yazılmasa da çerçeveli kopyalar yenilenir. Bütün sahneler ve çerçeveler hazırlanıp başarıyla tamamlanmadan mevcut panel dosyaları değiştirilmez. Özel `--output-directory` hedefi ise yalnız `--frame` istenirse çerçeve üretir. Mevcut 76 dosya adı korunur; yeni sahneler eklenir.
+
+İkinci/üçüncü komut Print/Tune başarı akışını özgün/çerçeveli GIF olarak üretir. Son komut güç basılı tutma/iptal/engelleme, iki kırmızı ret yanıp sönmesi, uzun MMU hatası kaydırması ve 0/1/50/100% panel-native fan animasyonu için iki biçimde GIF üretir. Özgün GIF'ler `docs/assets/`, sunum kopyaları `docs/assets/framed/` içindedir. PNG komutu bu GIF'leri yenilemez.
+
+Bütün durumlar gerçek UI/driver ile örnek verilerden üretilir; fiziksel yazıcıya bağlanılmaz. Hata yanıtları test doubles ile sağlanır. Saat 12:34'tür; animasyonlar kontrollü geçen zamanla örneklenir. Eksik preview/katman, azaltılmış Tune ve uzun hata örnekleri galeriye dahildir. Fan GIF'i panel animasyon komutlarını emüle eder; fiziksel JPEG decoder doğrulaması yerine geçmez.

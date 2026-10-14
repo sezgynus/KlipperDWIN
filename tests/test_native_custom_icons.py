@@ -16,14 +16,14 @@ class NativeCustomIconTests(unittest.TestCase):
                     103: (20, 20), 104: (20, 20), 105: (20, 20),
                     106: (20, 20), 107: (20, 20), 108: (110, 100), 109: (110, 100), 124: (42, 52)}
         for icon, size in expected.items():
-            self.assertEqual(assets.icon(7, icon).size, size)
+            self.assertEqual(assets.icon(3, icon).size, size)
         for width in range(1, 43):
             lcd = Mock()
             spool = SpoolView(lcd, 80, 60, width, label_width=width)
             spool.draw()
             for call in lcd.show_icon.call_args_list:
                 library, icon, x, y = call.args
-                self.assertEqual(library, 7)
+                self.assertEqual(library, 3)
                 iw, ih = assets.icon(library, icon).size
                 self.assertGreaterEqual(x, 80)
                 self.assertLessEqual(x + iw, 80 + width)
@@ -40,4 +40,4 @@ class NativeCustomIconTests(unittest.TestCase):
         assets = PanelAssets()
         for width in range(1, 8):
             for mapping in (SPOOL_LEFT_FLANGES, SPOOL_RIGHT_FLANGES):
-                self.assertEqual(assets.icon(7, mapping[width]).size, (width, 52))
+                self.assertEqual(assets.icon(3, mapping[width]).size, (width, 52))

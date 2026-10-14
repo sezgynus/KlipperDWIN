@@ -164,7 +164,7 @@ class HomePageTests(unittest.TestCase):
             view.select_page.set(selection)
             view.lcd.reset_mock()
             view._draw_home_page()
-            view.lcd.show_icon.assert_any_call(7, icon, 17, 130)
+            view.lcd.show_icon.assert_any_call(3, icon, 17, 130, background=False, enhanced=True)
 
     def test_display_placeholder_before_info_opens_back_only_and_restores_focus(self):
         for mesh in (True, False):
@@ -191,6 +191,6 @@ class HomePageTests(unittest.TestCase):
             view.select_page.set(selection)
             view.lcd.reset_mock()
             view._draw_home_page()
-            view.lcd.show_icon.assert_any_call(7, icon, 145, 130)
+            view.lcd.show_icon.assert_any_call(3, icon, 145, 130, background=False, enhanced=True)
             self.assertFalse(any(call.args[-4:] == (173, 142, 226, 181)
                                  for call in view.lcd.draw_rectangle.call_args_list))

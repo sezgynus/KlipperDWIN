@@ -42,9 +42,9 @@ def filament_height(m):
 
 
 class MMUFilamentView:
-    BG = 0x0000
-    BLOCK = 0x2945
-    TUBE = 0xAD75
+    BG = 0x2125
+    BLOCK = 0x39C8
+    TUBE = 0x8471
     X = 59
     TOP = 168
     BODY = 186
@@ -56,6 +56,13 @@ class MMUFilamentView:
         self._painted = {}
         self._target = self._from = None
         self._changed = 0
+
+    def animating(self, state, now=None):
+        now = time.monotonic() if now is None else now
+        if state.action in ('Forming Tip', 'Purging', 'Cutting Tip', 'Cutting Filament'):
+            return True
+        return (self._target is not None and self._from is not None
+                and self._target != self._from and now - self._changed < .5)
 
     def _rect(self, color, x0, y0, x1, y1):
         if x0 <= x1 and y0 <= y1:

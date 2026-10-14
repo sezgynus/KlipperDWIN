@@ -10,6 +10,7 @@
 | [Daily use](user-guide.md) | Printing, movement, heating, calibration, Display, Info, light and power |
 | [MMU and filament](mmu-guide.md) | Happy Hare gates, spool assignment, tool map, EndlessSpool and recovery |
 | [LCD compatibility](lcd-assets.md) | Choosing the supported display and checking panel resources |
+| [Print and Tune](print-controls.md) | Print dashboard, quiet runtime edits and optional job policy switches |
 
 [Screenshot gallery](screenshots.md): every current screen and direct image links for forum posts.
 

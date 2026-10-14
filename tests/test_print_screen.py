@@ -13,10 +13,16 @@ class PrintScreenTests(unittest.TestCase):
         for percentage in (0, 1, 38, 99, 100):
             result.lcd.serial.frames.clear()
             ui.PetrelDisplay.Draw_Print_ProgressBar(result, percentage)
-            rectangle = result.lcd.serial.frames[1]
-            self.assertEqual(rectangle[1], 0x05)
-            self.assertEqual(int.from_bytes(rectangle[5:7], 'big'),
-                             16 + percentage * 240 // 100)
+            rectangles = [f for f in result.lcd.serial.frames if f[1] == 0x05]
+            fills = [f for f in rectangles if int.from_bytes(f[3:5], 'big') == 0x063B]
+            icons = [f for f in result.lcd.serial.frames if f[1] == 0x23 and f[-5] == 154]
+            self.assertEqual(bool(icons), percentage > 0)
+            self.assertFalse(any(f[1] == 0x08 for f in result.lcd.serial.frames))
+            for f in fills:
+                x0,y0,x1,y1 = [int.from_bytes(f[i:i+2], 'big') for i in (5,7,9,11)]
+                self.assertGreaterEqual(x0, 24)
+                self.assertLess(x1, 24 + max(8, round(224 * percentage / 100)))
+                self.assertTrue(99 <= y0 <= y1 <= 106)
         result.pd.sendGCode.assert_not_called()
 
     def display(self, state):
@@ -33,6 +39,7 @@ class PrintScreenTests(unittest.TestCase):
         result.Draw_Print_ProgressElapsed = Mock()
         result.Draw_Print_ProgressRemain = Mock()
         result.Draw_Tune_Menu = Mock()
+        result._focus_tune_tick = Mock()
         result._show_message = Mock()
         result.Goto_MainMenu = Mock(side_effect=lambda: setattr(result, 'checkkey', result.MainMenu))
         result.Goto_PrintProcess = Mock(side_effect=lambda: setattr(result, 'checkkey', result.PrintProcess))
@@ -61,6 +68,7 @@ class PrintScreenTests(unittest.TestCase):
         result.EachMomentUpdate()
         self.assertEqual(result.checkkey, result.PrintProcess)
         result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_ENTER)
+        result.select_print.set(1)  # Explicit Close button.
         result.HMI_Printing()
         self.assertEqual(result.checkkey, result.MainMenu)
         result.HMI_StartFrame(False)
@@ -111,15 +119,15 @@ class PrintScreenTests(unittest.TestCase):
         data['status']['gcode_move']['speed_factor'] = .75
         result.EachMomentUpdate()
         self.assertEqual(result.pd.feedrate_percentage, 75)
-        result.Draw_Tune_Menu.assert_called_once()
-        result.Draw_Tune_Menu.reset_mock()
+        result._focus_tune_tick.assert_called_once()
+        result._focus_tune_tick.reset_mock()
         result.checkkey = result.PrintSpeed
         result.pd.HMI_ValueStruct.print_speed = 125
         data['status']['gcode_move']['speed_factor'] = .8
         result.EachMomentUpdate()
         self.assertEqual(result.pd.feedrate_percentage, 80)
         self.assertEqual(result.pd.HMI_ValueStruct.print_speed, 125)
-        result.Draw_Tune_Menu.assert_not_called()
+        result._focus_tune_tick.assert_not_called()
 
     def test_speed_submission_does_not_assume_success(self):
         result = printer(snapshot())

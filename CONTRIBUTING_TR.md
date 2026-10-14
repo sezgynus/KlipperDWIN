@@ -53,3 +53,11 @@ Ekranı [emülatörle](docs/ui-emulator_TR.md) yakalayın. Açıklayıcı adlarl
 PR açmadan önce yerel bağlantıları, bölüm bağlantılarını, görsel yollarını, çeviri çiftlerini ve kullanıcı komutlarını kontrol edin. Davranış değiştirmeyen dokümantasyon düzenlemelerinde yazıcı regresyon testleri gerekmez.
 
 Tüm dokümantasyon ekranlarını yazıcı olmadan üretmek için `tools/render_docs_screenshots.py` kullanın; [çevrimdışı üretim rehberi](docs/ui-emulator_TR.md#dokümantasyon-ekranlarını-çevrimdışı-üretme) komutları ve örnek veri kullanımını anlatır. Forum bağlantılarının kırılmaması için var olan görsel dosyalarının adlarını değiştirmeyin.
+
+### Üretim ve kontrol sözleşmeleri
+
+[PNG ve GIF yenileme komutlarını](docs/ui-emulator_TR.md#png-çerçeve-ve-gif-yenileme) birlikte çalıştırın. Panel PNG'lerini 272×480 olarak koruyun; çerçeveli 528×900 kopyaları yalnız sunum içindir. Aynı checkout, örnek veriler, sahne sırası ve EN/TR açıklamaları kullanın. Galerideki özgün PNG bağlantıları repo içi bağıl yollarla aynı dalı izler; forum paylaşımı için açılan GitHub sayfasının tam adresini kopyalayın.
+
+Print/Tune doğrulaması: After Job tıklaması yalnız `SET_PIN` yapmalı, cihazı anında kapatmamalı; eski yanıt yeni düzenlemeyi ezmemeli; reddedilen değer/switch/Pause iki kez kırmızı yanıp sönüp gerçek abonelik durumuna dönmeli; yarım basılı tutma taslağı korumalı. Kaynak ve donanım kontrolleri [test rehberindedir](tests/README_TR.md).
+
+JPEG değişikliklerinde [fan/buton kurallarını](assets/icons/README_TR.md#print-butonları-switchler-ve-fan-görselleri), font ID 0'ı, baseline 4:2:0'ı ve kaynak/export denkliğini koruyun. Normal/seçili buton maskesi aynı kalmalı. Emülatör kontrolünden sonra ilgili durumları fiziksel panelde de deneyin.

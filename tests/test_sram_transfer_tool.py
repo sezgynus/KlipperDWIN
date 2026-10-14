@@ -9,7 +9,7 @@ class SramTransferTests(unittest.TestCase):
     def test_full_block_writes_32768_but_never_reads_last_byte(self, sleep):
         lcd = Mock()
         original = b'x' * 32767
-        pattern = (Path(__file__).resolve().parents[1] / 'assets/emulator/7.ICO').read_bytes()[:32768]
+        pattern = (Path(__file__).resolve().parents[1] / 'assets/emulator/3.ICO').read_bytes()[:32768]
         lcd.read_sram.side_effect = [original, pattern[:32767], original]
         check_full_block(lcd, 3)
         self.assertEqual([call.args for call in lcd.write_sram.call_args_list],

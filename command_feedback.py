@@ -6,8 +6,16 @@ import math
 class CommandFeedback:
     def __init__(self, future, label, epoch, expected=None, confirmation_timeout=300.0):
         self.future, self.label, self.epoch, self.expected = future, label, epoch, expected
-        self.confirmation_timeout = float(confirmation_timeout)
-        if not math.isfinite(self.confirmation_timeout) or self.confirmation_timeout <= 0:
+        # None is reserved for state-driven operations, such as a print
+        # cancellation queued behind a blocking START_PRINT M109. Other
+        # commands retain bounded acknowledgement/confirmation deadlines.
+        self.confirmation_timeout = (None if confirmation_timeout is None
+                                     else float(confirmation_timeout))
+        if self.confirmation_timeout is None:
+            if expected is None:
+                raise ValueError('Unbounded feedback requires an expected state')
+        elif (not math.isfinite(self.confirmation_timeout)
+              or self.confirmation_timeout <= 0):
             raise ValueError('Confirmation timeout must be positive')
         self.started = time.monotonic()
         self.phase = 'waiting'
@@ -18,7 +26,15 @@ class CommandFeedback:
             return self.phase
         if unavailable or not state.ready or state.epoch != self.epoch:
             self.phase, self.message = 'error', 'Connection changed; check printer'
-        elif time.monotonic() - self.started > (30 if self.expected is None else self.confirmation_timeout):
+        elif self.confirmation_timeout is None and self.expected():
+            # Authoritative state wins even when Moonraker's RPC response is
+            # still queued behind the macro. Release the pending RPC slot.
+            if not self.future.done():
+                self.future.cancel()
+            self.phase, self.message = 'accepted', 'Accepted: ' + self.label
+        elif (self.confirmation_timeout is not None
+              and time.monotonic() - self.started >
+              (30 if self.expected is None else self.confirmation_timeout)):
             pending = not self.future.done()
             self.future.cancel()
             self.phase = 'error'

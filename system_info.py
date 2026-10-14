@@ -4,6 +4,7 @@ import struct
 import os
 import re
 import subprocess
+from threading import Lock
 
 try:
     import fcntl
@@ -14,6 +15,9 @@ SIOCGIFFLAGS = 0x8913
 SIOCGIFADDR = 0x8915
 IFF_UP = 0x1
 IFF_LOOPBACK = 0x8
+
+_cpu_previous = None
+_cpu_lock = Lock()
 
 
 def network_info():
@@ -51,14 +55,28 @@ def updater_version(version_info, name, full=False):
 
 
 def host_metrics():
-    """Return lightweight Linux host CPU usage and thermal-zone temperature."""
+    """Return sampled CPU busy time (not normalized load) and host temperature."""
+    global _cpu_previous
     cpu = None
     temp = None
     try:
-        load1 = os.getloadavg()[0]
-        count = os.cpu_count() or 1
-        cpu = max(0.0, min(100.0, load1 * 100.0 / count))
-    except (OSError, AttributeError):
+        with open('/proc/stat', 'r', encoding='ascii') as stream:
+            fields = stream.readline().split()
+        if fields[0] != 'cpu' or len(fields) < 5:
+            raise ValueError('Invalid CPU counters')
+        # Linux guest/guest_nice fields already contribute to user/nice.
+        ticks = [int(value) for value in fields[1:9]]
+        total, idle = sum(ticks), ticks[3] + (ticks[4] if len(ticks) > 4 else 0)
+        if total < 0 or idle < 0:
+            raise ValueError('Invalid CPU counters')
+        with _cpu_lock:
+            previous = _cpu_previous
+            _cpu_previous = (total, idle)
+        if previous is not None:
+            elapsed, idle_elapsed = total - previous[0], idle - previous[1]
+            if elapsed > 0 and 0 <= idle_elapsed <= elapsed:
+                cpu = 100.0 * (elapsed - idle_elapsed) / elapsed
+    except (OSError, UnicodeError, ValueError, IndexError):
         pass
     for path in ('/sys/class/thermal/thermal_zone0/temp',
                  '/sys/class/hwmon/hwmon0/temp1_input'):

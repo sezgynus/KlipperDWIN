@@ -12,12 +12,14 @@ import struct
 import time
 import unicodedata
 from collections import deque
+from concurrent.futures import Future
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from threading import Lock
 
 import display_settings
 import buzzer_control
 import serial
+from graphite_theme import BACKGROUND_COLOR
 
 
 class T5UIC1ProtocolError(RuntimeError):
@@ -28,7 +30,23 @@ class T5UIC1TimeoutError(TimeoutError):
     """Raised when an expected T5UIC1 response is not received in time."""
 
 
+class _ReceivedFrame(tuple):
+    def __new__(cls, command, payload):
+        frame = super().__new__(cls, (command, payload))
+        frame.received_at = time.monotonic()
+        return frame
+
+
+class _AuxFrame(bytes):
+    def __new__(cls, payload):
+        frame = super().__new__(cls, payload)
+        frame.received_at = time.monotonic()
+        return frame
+
+
 class T5UIC1Display:
+    SUPPORTS_NONBLOCKING_LIVENESS = True
+    SUPPORTS_NONBLOCKING_FLASH = True
     HEADER = b"\xAA"
     TAIL = b"\xCC\x33\xC3\x3C"
 
@@ -53,6 +71,7 @@ class T5UIC1Display:
 
     DISPLAY_SETTINGS_ADDRESS = 0x0100
     DISPLAY_SETTINGS_SIZE = display_settings.RECORD_SIZE
+    BUZZER_SETTINGS_ADDRESS = buzzer_control.ADDRESS
 
     FONT_SIZES = (
         (6, 12), (8, 16), (10, 20), (12, 24), (14, 28),
@@ -88,22 +107,26 @@ class T5UIC1Display:
     DWIN_WIDTH = WIDTH
     DWIN_HEIGHT = HEIGHT
 
-    Color_White = 0xFFFF
+    Color_White = 0xE75E
     Color_Yellow = 0xFF0F
-    Color_Bg_Window = 0x31E8
-    Color_Bg_Blue = 0x1125
-    Color_Bg_Black = 0x0841
+    Color_Bg_Window = 0x2967
+    Color_Bg_Blue = 0x2966
+    Color_Bg_Black = BACKGROUND_COLOR
     Color_Bg_Red = 0xF00F
-    Popup_Text_Color = 0xD6BA
-    Line_Color = 0x3A6A
-    Rectangle_Color = 0xEE2F
-    Percent_Color = 0xFE29
-    BarFill_Color = 0x10E4
-    Select_Color = 0x33BB
+    Popup_Text_Color = 0xE75E
+    Line_Color = 0x39C8
+    Rectangle_Color = 0x063B
+    Percent_Color = 0x063B
+    BarFill_Color = 0x39C8
+    Select_Color = 0x19E9
 
     DWIN_FONT_MENU = FONT_8X16
     DWIN_FONT_STAT = FONT_10X20
     DWIN_FONT_HEAD = FONT_10X20
+
+    RX_FRAME_AGE = 5.0
+    RX_FRAME_LIMIT = 64
+    AUX_RX_LIMIT = 64
 
     _FIXED_RX_PAYLOAD = {
         0x00: 2,  # "OK"
@@ -135,8 +158,10 @@ class T5UIC1Display:
         self._needs_update = True
         self._defer_updates = False
         self._rx = bytearray()
-        self._frames = deque()
-        self._aux_rx = deque()
+        self._frames = deque(maxlen=self.RX_FRAME_LIMIT)
+        self._aux_rx = deque(maxlen=self.AUX_RX_LIMIT)
+        self._rx_discarded_frames = 0
+        self._rx_discarded_aux = 0
         self._crc_errors = 0
         self._transaction_lock = Lock()
         self._packet_observer = packet_observer
@@ -158,10 +183,13 @@ class T5UIC1Display:
             # Present the complete boot frame before packing/checking icons.
             # Existing panel icons can animate throughout an unchanged sync.
             if startup_progress is not None:
+                self._boot_animation_library = self._startup_animation_library()
                 self.show_jpeg(0)
                 startup_progress(self, 40)
                 self.update()
             self._startup_sync_icons()
+            from lcd_resources import ICON_LIBRARY_ID
+            self._boot_animation_library = ICON_LIBRARY_ID
             if startup_progress is not None:
                 # A changed library stops animation before Flash programming;
                 # the next stage restarts it using the newly committed icons.
@@ -171,6 +199,16 @@ class T5UIC1Display:
             self.close()
             raise
 
+    def _startup_animation_library(self):
+        """Use a committed resident directory while migrating library 7 to 3."""
+        from icon_library import MAGIC, METADATA_ADDRESS
+        from lcd_resources import ICON_LIBRARY_ID
+        header = self.read_flash(METADATA_ADDRESS, 42)
+        if (header[:8] == MAGIC and header[8] in (ICON_LIBRARY_ID, 7)
+                and 1 <= header[9] <= 16-header[8] and any(header[10:42])):
+            return header[8]
+        return None  # First install/incomplete directory: animate after upload.
+
     def _startup_sync_icons(self):
         from icon_library import sync_library
         sync_library(self)
@@ -179,6 +217,8 @@ class T5UIC1Display:
         if not getattr(self, "_closed", False):
             self._closed = True
             self.serial.close()
+            if getattr(self, '_flash_job', None) is not None or getattr(self, '_flash_queue', None):
+                self._flash_abort(OSError('LCD disconnected during Flash transaction'))
             observer = getattr(self, '_packet_observer', None)
             if observer is not None:
                 observer.disconnect_panel()
@@ -223,8 +263,17 @@ class T5UIC1Display:
         payload = self._ensure_bytes(payload)
         if len(payload) > self.MAX_DATA_LENGTH:
             raise ValueError("T5UIC1 data field exceeds 248 bytes")
+        if command in (0x00, 0x31, 0x32, 0x33, 0x34):
+            # A queued reply from an earlier transaction cannot confirm this send.
+            self._frames = deque((frame for frame in self._frames if frame[0] != command),
+                                 maxlen=self.RX_FRAME_LIMIT)
+            self._protected_response_slots().pop(command, None)
         frame = self.HEADER + bytes((command,)) + payload + self.TAIL
-        written = self.serial.write(frame)
+        try:
+            written = self.serial.write(frame)
+        except OSError:
+            self.close()
+            raise
         if written != len(frame):
             self.close()
             raise IOError("Incomplete LCD frame write")
@@ -242,10 +291,14 @@ class T5UIC1Display:
     def _read_available(self):
         if self._closed:
             raise RuntimeError("LCD is closed")
-        waiting = int(getattr(self.serial, "in_waiting", 0) or 0)
-        if waiting:
-            self._rx.extend(self.serial.read(min(waiting, 4096)))
-            self._parse_rx()
+        try:
+            waiting = int(getattr(self.serial, "in_waiting", 0) or 0)
+            if waiting:
+                self._rx.extend(self.serial.read(min(waiting, 4096)))
+                self._parse_rx()
+        except OSError:
+            self.close()
+            raise
 
     def _parse_rx(self):
         while True:
@@ -288,28 +341,79 @@ class T5UIC1Display:
             payload = bytes(self._rx[2:2 + payload_length])
             del self._rx[:total]
             if command == 0x3A:
-                self._aux_rx.append(payload[1:])
+                if len(self._aux_rx) == self._aux_rx.maxlen:
+                    self._rx_discarded_aux += 1
+                self._aux_rx.append(_AuxFrame(payload[1:]))
             elif command == 0xFF:
                 self._crc_errors += 1
             else:
-                self._frames.append((command, payload))
+                frame = _ReceivedFrame(command, payload)
+                expected = getattr(self, '_expected_response', None)
+                job = getattr(self, '_flash_job', None)
+                awaiting = job.get('awaiting') if job is not None else None
+                if awaiting is not None and command == awaiting[0]:
+                    expected = awaiting
+                if command == 0x00 and getattr(self, '_liveness_deadline', None) is not None:
+                    expected = 0x00, None
+                if (expected is not None and command == expected[0]
+                        and (expected[1] is None or expected[1](payload))):
+                    # At most three active RPC kinds, one ACK slot per opcode.
+                    slots = self._protected_response_slots()
+                    if command not in slots and len(slots) < 3:
+                        slots[command] = frame
+                else:
+                    if len(self._frames) == self._frames.maxlen:
+                        self._rx_discarded_frames += 1
+                    self._frames.append(frame)
+
+    def _protected_response_slots(self):
+        if not hasattr(self, '_response_slots'):
+            self._response_slots = {}
+        return self._response_slots
+
+    def _take_response(self, command, predicate=None):
+        now = time.monotonic()
+        slot = self._protected_response_slots().pop(command, None)
+        if slot is not None:
+            if (now - slot.received_at <= self.RX_FRAME_AGE and slot[0] == command
+                    and (predicate is None or predicate(slot[1]))):
+                return slot[1]
+        matched = None
+        for _ in range(len(self._frames)):
+            frame = self._frames.popleft()
+            if now - getattr(frame, 'received_at', now) > self.RX_FRAME_AGE:
+                self._rx_discarded_frames += 1
+                continue
+            op, payload = frame
+            if matched is None and op == command and (predicate is None or predicate(payload)):
+                matched = payload
+                continue
+            self._frames.append(frame)
+        return matched
+
+    def rx_discard_counts(self):
+        """Dropped oldest unmatched replies and auxiliary frames under RX pressure."""
+        return {'responses': self._rx_discarded_frames, 'aux': self._rx_discarded_aux}
 
     def _wait_response(self, command, timeout, predicate=None):
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("timeout must be positive")
         deadline = time.monotonic() + timeout
-        while True:
-            for _ in range(len(self._frames)):
-                frame_command, payload = self._frames.popleft()
-                if frame_command == command and (predicate is None or predicate(payload)):
+        self._expected_response = command, predicate
+        try:
+            while True:
+                payload = self._take_response(command, predicate)
+                if payload is not None:
                     return payload
-                self._frames.append((frame_command, payload))
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise T5UIC1TimeoutError(f"Timed out waiting for opcode 0x{command:02X}")
-            self._read_available()
-            if not getattr(self.serial, "in_waiting", 0):
-                time.sleep(min(0.005, remaining))
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise T5UIC1TimeoutError(f"Timed out waiting for opcode 0x{command:02X}")
+                self._read_available()
+                if not getattr(self.serial, "in_waiting", 0):
+                    time.sleep(min(0.005, remaining))
+        finally:
+            self._expected_response = None
+            self._protected_response_slots().pop(command, None)
 
     @staticmethod
     def _ok(payload):
@@ -327,6 +431,40 @@ class T5UIC1Display:
             except T5UIC1TimeoutError:
                 return False
             return payload == b"OK"
+
+    def begin_liveness_probe(self, timeout=0.5):
+        """Send one handshake; never wait for its ACK on the UI owner."""
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("timeout must be positive")
+        if getattr(self, '_liveness_deadline', None) is not None:
+            return
+        with self._transaction_lock:
+            # A response from a prior timed-out probe cannot confirm this one.
+            self._frames = deque((frame for frame in self._frames
+                                  if frame[0] != 0x00), maxlen=self.RX_FRAME_LIMIT)
+            self._protected_response_slots().pop(0x00, None)
+            self._expected_response = 0x00, None
+            self._send(0x00)
+            self._liveness_deadline = time.monotonic() + timeout
+
+    def poll_liveness_probe(self):
+        """None: pending/no probe, True: ACK, False: invalid/expired ACK."""
+        deadline = getattr(self, '_liveness_deadline', None)
+        if deadline is None:
+            return None
+        with self._transaction_lock:
+            self._read_available()
+            payload = self._take_response(0x00)
+            if payload is not None:
+                self._liveness_deadline = None
+                self._expected_response = None
+                return payload == b"OK"
+            if time.monotonic() >= deadline:
+                self._liveness_deadline = None
+                self._expected_response = None
+                self._protected_response_slots().pop(0x00, None)
+                return False
+        return None
 
     def load_display_settings(self):
         """Read the dedicated 0x0100..0x010F Data Flash record."""
@@ -384,7 +522,13 @@ class T5UIC1Display:
 
     def poll_aux_data(self):
         self._read_available()
-        return self._aux_rx.popleft() if self._aux_rx else None
+        now = time.monotonic()
+        while self._aux_rx:
+            frame = self._aux_rx.popleft()
+            if now - getattr(frame, 'received_at', now) <= self.RX_FRAME_AGE:
+                return bytes(frame)
+            self._rx_discarded_aux += 1
+        return None
 
     def poll_crc_error(self):
         self._read_available()
@@ -771,6 +915,142 @@ class T5UIC1Display:
 
     def write_flash(self, address, data, *, timeout=1.25):
         self.write_memory(self.MEMORY_FLASH, address, data, timeout=timeout)
+
+    def _flash_state(self):
+        # Lazy initialization also supports isolated driver instances in tests.
+        if not hasattr(self, '_flash_queue'):
+            self._flash_queue = deque()
+            self._flash_job = None
+            self._flash_fault = None
+
+    def _flash_submit(self, address, value, verify):
+        self._flash_state()
+        limit = self.FLASH_USABLE_SIZE
+        size = len(value) if verify else value
+        if (not isinstance(address, int) or not isinstance(size, int)
+                or size <= 0 or not 0 <= address < limit
+                or address + size > limit):
+            raise ValueError('Flash transaction exceeds usable memory')
+        future = Future()
+        if self._closed:
+            future.set_exception(OSError('LCD disconnected'))
+        elif self._flash_fault is not None:
+            future.set_exception(self._flash_fault)
+        elif len(self._flash_queue) + int(self._flash_job is not None) >= 4:
+            future.set_exception(RuntimeError('Flash request queue full'))
+        else:
+            self._flash_queue.append({
+                'address': address, 'length': size,
+                'data': value if verify else None, 'future': future,
+                'stage': 'write' if verify else 'read', 'offset': 0,
+                'buffer': bytearray(), 'awaiting': None, 'deadline': 0.0,
+                'chunk_size': 0, 'timeout': 1.25 if verify else 1.0,
+            })
+        return future
+
+    def begin_flash_read(self, address, length):
+        """Schedule a Flash read and return a Future; the UI owner must poll."""
+        return self._flash_submit(address, length, False)
+
+    def begin_flash_write_verified(self, address, data):
+        """Schedule write, ACK, readback verification without waiting for ACK."""
+        raw = self._ensure_bytes(data)
+        return self._flash_submit(address, raw, True)
+
+    def flash_busy(self):
+        self._flash_state()
+        return bool(self._flash_job or self._flash_queue)
+
+    def _flash_abort(self, error):
+        self._flash_state()
+        self._flash_fault = error
+        self._expected_response = None
+        for op in (0x31, 0x32):
+            self._protected_response_slots().pop(op, None)
+        jobs = ([self._flash_job] if self._flash_job is not None else [])
+        jobs.extend(self._flash_queue)
+        self._flash_job = None
+        self._flash_queue.clear()
+        for job in jobs:
+            future = job['future']
+            if not future.done():
+                future.set_exception(error)
+
+    def poll_flash_tasks(self):
+        """Advance at most one Flash packet/ACK, with no sleep or ACK spin.
+
+        Only the UI thread invokes this method, preserving sole UART ownership.
+        Failed/ambiguous transactions invalidate the queue until reconnect.
+        """
+        self._flash_state()
+        if self._flash_fault is not None:
+            return False
+        if self._flash_job is None:
+            if not self._flash_queue:
+                return False
+            self._flash_job = self._flash_queue.popleft()
+        job = self._flash_job
+        if job['future'].cancelled():
+            self._flash_abort(RuntimeError('Cancelled Flash transaction'))
+            return False
+        try:
+            if job['awaiting'] is not None:
+                self._read_available()
+                op, predicate = job['awaiting']
+                matched = self._take_response(op, predicate)
+                if matched is None:
+                    if time.monotonic() >= job['deadline']:
+                        raise T5UIC1TimeoutError('Flash operation timed out')
+                    return True
+                job['awaiting'] = None
+                self._expected_response = None
+                job['offset'] += job['chunk_size']
+                if job['stage'] == 'read':
+                    job['buffer'].extend(matched[4:])
+                if job['offset'] >= job['length']:
+                    if job['stage'] == 'write':
+                        job['stage'], job['offset'] = 'read', 0
+                    else:
+                        result = bytes(job['buffer'])
+                        if job['data'] is not None and result != job['data']:
+                            raise T5UIC1ProtocolError('Flash verification mismatch')
+                        job['future'].set_result(result)
+                        self._flash_job = None
+                return True
+
+            # Send only one packet per UI tick. Never send an unrelated
+            # write while waiting for an ACK from a previous chunk.
+            remaining = job['length'] - job['offset']
+            address = job['address'] + job['offset']
+            if job['stage'] == 'write':
+                chunk = job['data'][job['offset']:
+                                    job['offset'] + self.MEMORY_WRITE_CHUNK]
+                op, payload = 0x31, bytes((self.MEMORY_FLASH,)) + self._word(address) + chunk
+                predicate = lambda value: value == bytes((self.MEMORY_FLASH,)) + b'OK'
+                size = len(chunk)
+            else:
+                size = min(self.MEMORY_READ_CHUNK, remaining)
+                op, payload = (0x32, bytes((self.MEMORY_FLASH,))
+                               + self._word(address) + bytes((size,)))
+                def predicate(value):
+                    return (len(value) == 4 + size and value[0] == self.MEMORY_FLASH
+                            and int.from_bytes(value[1:3], 'big') == address
+                            and value[3] == size)
+            self._frames = deque((frame for frame in self._frames
+                                  if frame[0] != op), maxlen=self.RX_FRAME_LIMIT)
+            self._protected_response_slots().pop(op, None)
+            self._expected_response = op, predicate
+            self._send(op, payload)
+            job['chunk_size'] = size
+            job['awaiting'] = op, predicate
+            job['deadline'] = time.monotonic() + job['timeout']
+            return True
+        except (OSError, RuntimeError, ValueError) as error:
+            self._flash_abort(error)
+            # I/O errors still reach the main UART reconnect handler.
+            if self._closed:
+                raise
+            return False
 
     def read_flash(self, address, length, *, timeout=1.0):
         return self.read_memory(self.MEMORY_FLASH, address, length, timeout=timeout)

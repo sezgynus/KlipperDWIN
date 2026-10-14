@@ -199,13 +199,18 @@ class Framebuffer:
                 x, y = self.words(p[:4])
                 mode, library, first, last, interval = p[4:]
                 animation_id = mode & 15
-                self.animations.pop(animation_id, None)
+                previous = self.animations.pop(animation_id, None)
                 if mode & 0x80:
                     sprites = [self.assets.icon(library, i) for i in range(min(first,last), max(first,last)+1)]
                     width, height = max(i.width for i in sprites), max(i.height for i in sprites)
                     backing = self.image.crop((x, y, x + width, y + height))
+                    started = time.monotonic()
+                    if previous and not mode & 0x40 and previous[:2] == (x, y) and previous[3:6] == (library, first, last):
+                        old_interval, old_started, backing = previous[6:]
+                        phase = int((started - old_started) / max(.01, old_interval * .01))
+                        started -= (phase % (abs(last - first) + 1)) * max(.01, interval * .01)
                     self.animations[animation_id] = (x, y, mode, library, first, last,
-                                                     interval, time.monotonic(), backing)
+                                                     interval, started, backing)
                     self._render_animations(self.image)
             elif opcode == 0x29:
                 mask, = self.words(p)

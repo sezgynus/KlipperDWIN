@@ -19,7 +19,7 @@ against an unrelated copied implementation. Master itself was not changed.
 | Master change since the common ancestor | Integrated MMU behavior |
 |---|---|
 | Removed `DWIN_Screen.py`; complete `T5UIC1Display` API | All MMU and branch-only LCD calls/tests use the new API; every MMU page is exercised through the real driver |
-| Managed JPEG icon sources and symbolic IDs | MMU, folders, Info and power icons use native library 7 rendering |
+| Managed JPEG icon sources and symbolic IDs | MMU, folders, Info and power icons use native library 3 rendering |
 | Direct boot splash rendering | Startup shows picture 0 directly; UI icons do not require virtual-area caches |
 | Icon metadata readback and Flash wear guards | Changed blocks are verified at startup; rendering/reconnect tests prohibit unnecessary programming |
 | Response-based panel heartbeat and reconnect | MMU canvas is invalidated and fully rebuilt; pending printer commands are not resubmitted |
@@ -28,7 +28,7 @@ against an unrelated copied implementation. Master itself was not changed.
 | Driver regression workflow | Existing workflow also runs on `feature/mmu-menu`, for both the initial and bot-signed commits |
 
 MMU gate reels, filament path, sensor state and other live graphics remain
-state-dependent drawing. Static custom icons come from managed JPEG sources in library 7. No
+state-dependent drawing. Static custom icons come from managed JPEG sources in library 3. No
 JPEG assets, Flash ownership policy or MMU command semantics
 were redesigned by this integration. The earlier A01–A06/A08 audit fixes remain.
 

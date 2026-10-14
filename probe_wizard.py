@@ -13,6 +13,7 @@ class ProbeWizard:
         self.pending = None
         self.section = None
         self.accepted_offset = None
+        self._center_restore = None
 
     def available(self):
         state = self.printer.state
@@ -33,6 +34,8 @@ class ProbeWizard:
             raise ValueError('Calibration connection changed')
         if self.pending:
             raise ValueError('Wait for the pending probe command')
+        if self.printer.jog_recovery_required:
+            raise ValueError('Restore G-code state before calibration')
 
     def _submit(self, action, script, dispatch_guard=None):
         guard = motion_dispatch_guard(self.printer, owner='probe_wizard',
@@ -43,8 +46,15 @@ class ProbeWizard:
                 live = self.printer.subscription.snapshot()['status']['toolhead']
                 return (motion_guard() and all(a in live.get('homed_axes', '') for a in 'xyz')
                         and all(abs(live['position'][a]-self.center[a]) <= .05 for a in (0,1)))
-        future = self.printer.subscription.request('printer.gcode.script', {'script': script},
-                                                   guard=dispatch_guard or guard)
+        if action == 'center':
+            # Completion RPC confirms SAVE before changing modal state,
+            # and sends RESTORE separately if movement fails. Never replay G1.
+            self._center_restore = 'RESTORE_GCODE_STATE NAME=LCD_PROBE_CENTER MOVE=0'
+            future = self.printer.sendGCode(script, cleanup=self._center_restore,
+                                            report_error=False, dispatch_guard=guard)
+        else:
+            future = self.printer.subscription.request('printer.gcode.script', {'script': script},
+                                                       guard=dispatch_guard or guard)
         self.pending = (action, future, time.monotonic())
         self.message = 'Waiting for ' + action
         return future
@@ -139,14 +149,25 @@ class ProbeWizard:
         guard = config_save_guard(self.printer, config, 'probe_wizard')
         return self._submit('save', 'SAVE_CONFIG', dispatch_guard=guard)
 
+    def _retain_center_recovery(self, action, future):
+        """Require explicit modal-state recovery only if cleanup is unconfirmed."""
+        if action != 'center' or getattr(future, 'cleanup_complete', False):
+            return False
+        with self.printer._jog_lock:
+            self.printer._jog_restore = self._center_restore
+        return True
+
     def update(self):
         if self.epoch is None:
             return
         state = self.printer.state
         if not state.ready or state.epoch != self.epoch:
+            recovery = (self._retain_center_recovery(self.pending[0], self.pending[1])
+                        if self.pending else False)
             self.pending = None
             self.phase = 'interrupted'
-            self.message = 'Connection changed; check printer'
+            self.message = ('Restore G-code state from Recovery' if recovery
+                            else 'Connection changed; check printer')
             return
         if not self.pending:
             if self.phase == 'active' and not self.active():
@@ -157,11 +178,14 @@ class ProbeWizard:
         timeout = 180 if action in ('home', 'center', 'start') else 30
         if future.done():
             if future.cancelled() or future.exception():
+                recovery = self._retain_center_recovery(action, future)
                 self.pending = None
                 # A rejected TESTZ does not end an active Klipper manual session.
                 # Keep the controls available without replaying the failed step.
                 self.phase = 'active' if action == 'step' and self.active() else 'error'
-                self.message = 'Step not applied' if self.phase == 'active' else 'Command failed; check printer'
+                self.message = ('Restore G-code state from Recovery' if recovery
+                                else 'Step not applied' if self.phase == 'active'
+                                else 'Command failed; check printer')
                 return
             if action == 'home':
                 if not all(a in state.status['toolhead'].get('homed_axes', '') for a in 'xyz'):
@@ -216,5 +240,8 @@ class ProbeWizard:
             self.pending = None
         elif time.monotonic() - started > timeout:
             future.cancel()
+            recovery = self._retain_center_recovery(action, future)
             self.pending = None
-            self.phase, self.message = 'interrupted', 'Command unconfirmed; check printer'
+            self.phase = 'interrupted'
+            self.message = ('Restore G-code state from Recovery' if recovery
+                            else 'Command unconfirmed; check printer')

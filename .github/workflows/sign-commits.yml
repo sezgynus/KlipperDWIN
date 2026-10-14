@@ -59,5 +59,10 @@ jobs:
         if: steps.signature.outputs.signed == 'false'
         shell: bash
         run: |
-          git commit --amend --no-edit -S
+          if [ "${{ github.ref_name }}" = "fix/audit-plan-completion" ]; then
+            git fetch --unshallow origin
+            git rebase --exec 'if ! git cat-file commit HEAD | grep -q "^gpgsig "; then git commit --amend --no-edit -S; fi' 4636e432a2f0f1fbb68b356fd66b3e51fb08a593
+          else
+            git commit --amend --no-edit -S
+          fi
           git push --force-with-lease origin HEAD:"${{ github.ref_name }}"

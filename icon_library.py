@@ -1,5 +1,6 @@
 """Build and synchronize the managed JPEG icon library."""
 import hashlib
+from functools import lru_cache
 from io import BytesIO
 import logging
 from pathlib import Path
@@ -8,7 +9,7 @@ import struct
 import time
 import zlib
 
-from PIL import Image
+from PIL import Image, JpegImagePlugin
 from lcd_resources import ICON_LIBRARY_ID
 
 BLOCK_SIZE = 32768
@@ -16,7 +17,7 @@ USABLE_SIZE = BLOCK_SIZE - 1
 DIRECTORY_SIZE = 4096
 SOURCE_DIRECTORY = Path(__file__).resolve().parent / 'assets/icons'
 METADATA_ADDRESS = 0x0200
-METADATA_SIZE = 384
+METADATA_SIZE = 512
 MAGIC = b'PETICO01'
 MAX_BLOCKS = 16 - ICON_LIBRARY_ID
 _ATTEMPTS = set()
@@ -40,7 +41,7 @@ def pack_records(records):
             block = min(fits, key=lambda i: (USABLE_SIZE - used[i] - len(payload), i))
         else:
             if len(blocks) >= MAX_BLOCKS:
-                raise ValueError('Icons exceed reserved Picture Flash slots 7..15')
+                raise ValueError('Icons exceed reserved Picture Flash slots 3..15')
             block = len(blocks)
             blocks.append(bytearray(BLOCK_SIZE))
             used.append(0)
@@ -65,10 +66,34 @@ def build_library(directory=SOURCE_DIRECTORY):
         with Image.open(BytesIO(payload)) as image:
             if image.format != 'JPEG' or image.info.get('progressive') or image.info.get('progression'):
                 raise ValueError(f'Use baseline JPEG: {path.name}')
+            if JpegImagePlugin.get_sampling(image) != 2:
+                raise ValueError(f'Use baseline 4:2:0 JPEG for T5UIC1 icons: {path.name}')
             image.load()
             width, height = image.size
         records.append((int(match[1]), width, height, payload))
     return pack_records(records)
+
+
+# Keep only the most recent packed library. Reconnects should check panel
+# metadata instead of repeatedly JPEG-decoding and repacking unchanged icons.
+_ORIGINAL_BUILD_LIBRARY = build_library
+
+
+@lru_cache(maxsize=1)
+def _cached_pack(directory, signature):
+    return build_library(directory)
+
+
+def _library_data(directory, force=False):
+    if force or build_library is not _ORIGINAL_BUILD_LIBRARY:
+        # Explicit maintenance requests and injected test builders must not
+        # observe a cache from a previous revision of their sources.
+        return build_library(directory)
+    root = Path(directory).resolve()
+    signature = tuple((p.name, p.stat().st_size, p.stat().st_mtime_ns)
+                      for p in sorted(root.iterdir()) if p.is_file()
+                      and p.suffix.lower() in ('.jpg', '.jpeg'))
+    return _cached_pack(root, signature)
 
 
 def metadata(hashes):
@@ -87,7 +112,7 @@ def parse_metadata(raw):
 
 
 def sync_library(lcd, *, directory=SOURCE_DIRECTORY, force=False, automatic=True):
-    data = build_library(directory)
+    data = _library_data(directory, force=force)
     blocks = [data[i:i + BLOCK_SIZE] for i in range(0, len(data), BLOCK_SIZE)]
     wanted = [hashlib.sha256(block).digest() for block in blocks]
     stored_metadata = lcd.read_flash(METADATA_ADDRESS, METADATA_SIZE)

@@ -46,13 +46,13 @@ class MMUDriverIntegrationTests(unittest.TestCase):
             view.lcd.serial.frames.clear()
             view.select_page.set(index if selected else index - 1)
             view._draw_home_page()
-            frames = [f for f in view.lcd.serial.frames if f[1] == 0x23 and f[6:8] == bytes((0x87, icon))]
+            frames = [f for f in view.lcd.serial.frames if f[1] == 0x23 and f[6:8] == bytes((0x23, icon))]
             self.assertEqual(len(frames), 1)
             frame = frames[0]
             self.assertEqual(frame[1], 0x23)
             self.assertEqual(int.from_bytes(frame[2:4], 'big'), x)
             self.assertEqual(int.from_bytes(frame[4:6], 'big'), y)
-            self.assertEqual(frame[6:8], bytes((0x87, icon)))
+            self.assertEqual(frame[6:8], bytes((0x23, icon)))
 
     def test_all_production_lcd_calls_exist_on_complete_driver(self):
         root = Path(__file__).resolve().parents[1]

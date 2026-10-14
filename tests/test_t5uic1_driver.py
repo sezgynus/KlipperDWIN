@@ -40,8 +40,10 @@ def driver():
     result._needs_update = True
     result._defer_updates = False
     result._rx = bytearray()
-    result._frames = deque()
-    result._aux_rx = deque()
+    result._frames = deque(maxlen=T5UIC1Display.RX_FRAME_LIMIT)
+    result._aux_rx = deque(maxlen=T5UIC1Display.AUX_RX_LIMIT)
+    result._rx_discarded_frames = 0
+    result._rx_discarded_aux = 0
     result._crc_errors = 0
     from threading import Lock
     result._transaction_lock = Lock()
@@ -49,6 +51,25 @@ def driver():
 
 
 class T5UIC1DriverPackets(unittest.TestCase):
+    def test_liveness_probe_never_sleeps_for_missing_response(self):
+        from unittest.mock import patch
+        lcd = driver()
+        with patch('t5uic1_driver.time.sleep') as sleep:
+            with patch('t5uic1_driver.time.monotonic', return_value=10):
+                lcd.begin_liveness_probe(timeout=.5)
+                self.assertIsNone(lcd.poll_liveness_probe())
+            self.assertEqual(lcd.serial.frames[-1], bytes.fromhex(
+                'AA 00 CC 33 C3 3C'))
+            lcd.serial.chunks.append(bytes.fromhex('AA 00 4F 4B CC 33 C3 3C'))
+            with patch('t5uic1_driver.time.monotonic', return_value=10.1):
+                self.assertTrue(lcd.poll_liveness_probe())
+            with patch('t5uic1_driver.time.monotonic', return_value=20):
+                lcd.begin_liveness_probe(timeout=.5)
+            with patch('t5uic1_driver.time.monotonic', return_value=20.6):
+                self.assertFalse(lcd.poll_liveness_probe())
+            self.assertTrue(all(call.args == (.001,) for call in sleep.call_args_list))
+
+
     def frame(self, operation):
         lcd = driver()
         operation(lcd)
@@ -179,6 +200,72 @@ class T5UIC1DriverPackets(unittest.TestCase):
             ],
         )
 
+    def test_async_buzzer_uses_the_same_flash_address_as_legacy_record(self):
+        from buzzer_control import ADDRESS, Settings
+        lcd = driver()
+        self.assertEqual(lcd.BUZZER_SETTINGS_ADDRESS, ADDRESS)
+        value = Settings('Buzzer', 70, 4, 1).encode()
+        future = lcd.begin_flash_write_verified(lcd.BUZZER_SETTINGS_ADDRESS, value)
+        lcd.poll_flash_tasks()
+        self.assertEqual(int.from_bytes(lcd.serial.frames[-1][3:5], 'big'), ADDRESS)
+        self.assertFalse(future.done())
+
+    def test_async_flash_read_never_waits_for_missing_ack(self):
+        from unittest.mock import patch
+        lcd = driver()
+        task = lcd.begin_flash_read(0x0100, 16)
+        with patch('t5uic1_driver.time.sleep') as sleeper, \
+                patch('t5uic1_driver.time.monotonic', return_value=10.0):
+            self.assertTrue(lcd.poll_flash_tasks())
+            self.assertTrue(lcd.poll_flash_tasks())
+            self.assertFalse(task.done())
+            self.assertEqual(len(lcd.serial.frames), 1)
+            self.assertTrue(all(x.args == (0.001,) for x in sleeper.call_args_list))
+            self.assertTrue(lcd.flash_busy())
+        raw = bytes(range(16))
+        lcd.serial.chunks.append(b'\xAA\x32\xA5\x01\x00\x10' + raw
+                                 + T5UIC1Display.TAIL)
+        lcd.poll_flash_tasks()
+        self.assertEqual(task.result(), raw)
+        self.assertFalse(lcd.flash_busy())
+
+    def test_async_flash_write_verifies_readback_in_order(self):
+        lcd = driver()
+        raw = bytes(range(16))
+        task = lcd.begin_flash_write_verified(0x0100, raw)
+        lcd.poll_flash_tasks()
+        self.assertEqual(lcd.serial.frames[-1][1], 0x31)
+        self.assertFalse(task.done())
+        lcd.serial.chunks.append(b'\xAA\x31\xA5OK' + T5UIC1Display.TAIL)
+        lcd.poll_flash_tasks()
+        self.assertFalse(task.done())
+        lcd.poll_flash_tasks()
+        self.assertEqual(lcd.serial.frames[-1][1], 0x32)
+        lcd.serial.chunks.append(b'\xAA\x32\xA5\x01\x00\x10'
+                                 + raw + T5UIC1Display.TAIL)
+        lcd.poll_flash_tasks()
+        self.assertEqual(task.result(), raw)
+        self.assertEqual([frame[1] for frame in lcd.serial.frames], [0x31, 0x32])
+
+    def test_flash_timeout_and_bad_verification_do_not_commit(self):
+        from unittest.mock import patch
+        lcd = driver()
+        first = lcd.begin_flash_write_verified(0x0100, b'1234')
+        second = lcd.begin_flash_read(0x0200, 2)
+        with patch('t5uic1_driver.time.monotonic', return_value=10):
+            lcd.poll_flash_tasks()
+        with patch('t5uic1_driver.time.monotonic', return_value=20):
+            lcd.poll_flash_tasks()
+        with self.assertRaises(TimeoutError):
+            first.result()
+        with self.assertRaises(TimeoutError):
+            second.result()
+        self.assertEqual(len(lcd.serial.frames), 1)
+        self.assertFalse(lcd.flash_busy())
+        rejected = lcd.begin_flash_read(0x0100, 4)
+        with self.assertRaises(TimeoutError):
+            rejected.result()
+
     def test_flash_write_picture_write_and_orientation_ack_parsing(self):
         lcd = driver()
         lcd.serial.chunks.append(b"\xAA\x31\xA5OK" + T5UIC1Display.TAIL)
@@ -240,3 +327,75 @@ class T5UIC1DriverPackets(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class BoundedReceiveTests(unittest.TestCase):
+    def test_unmatched_reply_flood_keeps_bounded_scan_and_delayed_valid_reply(self):
+        lcd = driver()
+        noise = b'\xAA\x34OK' + T5UIC1Display.TAIL
+        lcd.serial.chunks.append(noise * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertEqual(len(lcd._frames), T5UIC1Display.RX_FRAME_LIMIT)
+        self.assertEqual(lcd.rx_discard_counts()['responses'], 500 - T5UIC1Display.RX_FRAME_LIMIT)
+        lcd.serial.chunks.append(b'\xAA\x00OK' + T5UIC1Display.TAIL)
+        self.assertEqual(lcd._wait_response(0x00, .1), b'OK')
+        self.assertLessEqual(len(lcd._frames), T5UIC1Display.RX_FRAME_LIMIT)
+
+    def test_unconsumed_aux_frames_have_fixed_budget(self):
+        lcd = driver()
+        frame = b'\xAA\x3A\x02xy' + T5UIC1Display.TAIL
+        lcd.serial.chunks.append(frame * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertEqual(len(lcd._aux_rx), T5UIC1Display.AUX_RX_LIMIT)
+        self.assertEqual(lcd.rx_discard_counts()['aux'], 500 - T5UIC1Display.AUX_RX_LIMIT)
+        self.assertEqual(lcd.poll_aux_data(), b'xy')
+
+
+class ReceiveAgeAndPriorityTests(unittest.TestCase):
+    def test_flash_and_liveness_ack_slots_do_not_erase_each_other(self):
+        lcd = driver()
+        raw = bytes((lcd.MEMORY_FLASH,)) + b'OK'
+        lcd._flash_job = {'awaiting': (0x31, lambda value: value == raw)}
+        lcd.begin_liveness_probe()
+        noise = b'\xAA\x34OK' + lcd.TAIL
+        lcd.serial.chunks.append(b'\xAA\x31' + raw + lcd.TAIL + b'\xAA\x00OK' + lcd.TAIL + noise * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertTrue(lcd.poll_liveness_probe())
+        self.assertEqual(lcd._take_response(0x31), raw)
+
+    def test_prior_queued_ack_cannot_confirm_a_new_handshake(self):
+        lcd = driver()
+        lcd.serial.chunks.append(b'\xAA\x00OK' + lcd.TAIL)
+        lcd._read_available()
+        self.assertFalse(lcd.handshake(timeout=.01))
+
+    def test_expected_ack_survives_later_noise(self):
+        lcd = driver()
+        lcd._expected_response = 0x00, None
+        ack = b'\xAA\x00OK' + lcd.TAIL
+        noise = b'\xAA\x34OK' + lcd.TAIL
+        lcd.serial.chunks.append(ack + noise * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertEqual(lcd._take_response(0x00), b'OK')
+        self.assertLessEqual(len(lcd._frames), lcd.RX_FRAME_LIMIT)
+
+    def test_old_ack_and_aux_data_expire(self):
+        from unittest.mock import patch
+        lcd = driver()
+        with patch('t5uic1_driver.time.monotonic', return_value=10):
+            lcd.serial.chunks.append(b'\xAA\x00OK' + lcd.TAIL + b'\xAA\x3A\x02xy' + lcd.TAIL)
+            lcd._read_available()
+        with patch('t5uic1_driver.time.monotonic', return_value=20):
+            self.assertIsNone(lcd._take_response(0x00))
+            self.assertIsNone(lcd.poll_aux_data())
+
+    def test_async_liveness_ack_survives_noise(self):
+        lcd = driver()
+        lcd.begin_liveness_probe()
+        lcd.serial.chunks.append(b'\xAA\x00OK' + lcd.TAIL + (b'\xAA\x34OK' + lcd.TAIL) * 500)
+        while lcd.serial.in_waiting:
+            lcd._read_available()
+        self.assertTrue(lcd.poll_liveness_probe())

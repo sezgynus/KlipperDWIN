@@ -12,7 +12,8 @@ class FilePreviewMixin:
         # File size/mtime identify replacements without flushing unrelated images.
         revision = self.pd.state.file_revision
         stamp = (getattr(self, '_uart_epoch', 0), self.pd.state.epoch, revision,
-                 self.pd.file_sort_revision, id(self.pd.files), getattr(self, '_file_paths', ()))
+                 self.pd.file_sort_revision, id(self.pd.files), getattr(self, '_file_paths', ()),
+                 self.pd.file_name if self.pd.status in ('printing','paused','pausing','complete','cancelled') else None)
         if stamp == getattr(self, '_thumbnail_stamp', None):
             return
         self._thumbnail_stamp = stamp
@@ -23,8 +24,15 @@ class FilePreviewMixin:
         }
         priority = tuple(self._thumbnail_keys[path] for path in getattr(self, '_file_paths', ())
                          if path in self._thumbnail_keys and not path.endswith('/'))[:5]
+        path = stamp[-1]
+        self._print_thumbnail_key = None
+        valid = list(self._thumbnail_keys.values())
+        if path:
+            base = self._thumbnail_keys.get(path, (path, None, None, revision))
+            self._print_thumbnail_key = base + (88,)
+            valid.append(self._print_thumbnail_key)
         self._thumbnail_cache.sync((getattr(self, '_uart_epoch', 0), self.pd.state.epoch),
-                                   self._thumbnail_keys.values(), priority)
+                                   valid, priority)
 
     def _poll_thumbnail_preload(self):
         self._sync_thumbnail_cache()
@@ -136,7 +144,7 @@ class FilePreviewMixin:
             address = cache.address(key, touch=True)
             if address is not None:
                 self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 8, 68, 135, 195)
-                self.lcd.show_sram_jpeg(8, 68, address)
+                self.lcd.show_sram_jpeg(8, 68, address, background=False, enhanced=True)
                 self._preview_shown = True
                 self._preview_error = None
                 self._preview_message = None

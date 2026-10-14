@@ -59,7 +59,7 @@ class PopupRenderingTests(unittest.TestCase):
         view.Popup_Window_Home()
         view.lcd.update()
         image, _ = model.snapshot()
-        assets.icon.assert_called_with(7, 78)
+        assets.icon.assert_called_with(3, 78)
         self.assertTrue(any(frame[1] == 0x23 and frame[-5] == 78
                             for frame in view.lcd.serial.frames))
         background = rgb565(view.lcd.Color_Bg_Window)

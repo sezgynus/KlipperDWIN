@@ -243,6 +243,27 @@ class ResponseTests(unittest.TestCase):
 
 
 class MeshViewTests(unittest.TestCase):
+    def test_batched_menu_and_profile_rotation_preserves_all_steps(self):
+        from types import SimpleNamespace
+        view = self.make()
+        view._rotation_steps = 3
+        view._mesh_menu_selection = 0
+        view._mesh_menu_entries = Mock(return_value=[('BACK', 'Back', 0)] * 6)
+        view.Draw_Bed_Mesh_Menu = Mock()
+        view.get_encoder_state.return_value = view.ENCODER_DIFF_CW
+        view.HMI_Bed_Mesh_Menu()
+        self.assertEqual(view._mesh_menu_selection, 3)
+        view.Draw_Bed_Mesh_Menu.assert_called_once()
+        view.pd.bed_mesh = SimpleNamespace(pending=None, phase='listed', entries=lambda: tuple(range(10)))
+        view._mesh_profile_selection = 0
+        view.Draw_Mesh_Profiles = Mock()
+        view.HMI_Mesh_Profiles()
+        self.assertEqual(view._mesh_profile_selection, 3)
+        view.Draw_Mesh_Profiles.assert_called_once()
+        view.get_encoder_state.return_value = view.ENCODER_DIFF_CCW
+        view.HMI_Mesh_Profiles()
+        self.assertEqual(view._mesh_profile_selection, 0)
+
     def make(self):
         view=display(data())
         view.lcd.DWIN_WIDTH=272;view.lcd.DWIN_HEIGHT=480
@@ -476,8 +497,9 @@ class MeshViewTests(unittest.TestCase):
                     view.Draw_Bed_Mesh()
                     low, high = session.mesh.extrema
                     self.assertEqual(draw.call_args.kwargs['color_range'], (low, high))
-                    colors = {call.args[1] for call in view.lcd.draw_rectangle.call_args_list
-                              if call.args[0] == 1 and call.args[3] < 300}
+                    while view._mesh_pending_points is not None:
+                        view._advance_mesh_render(flush=False)
+                    colors = {call.args[0] for call in view.lcd.draw_points.call_args_list}
                     if low == high:
                         self.assertIn(mesh_color(0), colors)
                     else:
@@ -704,10 +726,55 @@ class MeshSubmenuNavigationTests(unittest.TestCase):
         view.HMI_Bed_Mesh_Menu()
         self.assertTrue(view._mesh_submenu)
         self.assertEqual([(e[0], e[2]) for e in view._mesh_menu_entries()],
-                         [('BACK',view.ICON_Back),('CALIBRATE',29),('VIEWER',55)])
+                         [('BACK',view.ICON_Back),('CALIBRATE',234),('VIEWER',225)])
         view._mesh_menu_selection = 0
         view.HMI_Bed_Mesh_Menu()
         self.assertFalse(view._mesh_submenu)
         self.assertEqual(view.checkkey,view.BedMeshMenu)
         self.assertEqual(view._mesh_menu_selection,1)
         view.pd.subscription.request.assert_not_called()
+
+
+class MeshPacketBudgetTests(unittest.TestCase):
+    def test_disk_blocks_cover_exact_clipped_circle_without_bitmap(self):
+        from test_t5uic1_driver import driver as make_driver
+        from ui_bed_mesh import _mesh_disk_blocks
+        for radius in (4, 5, 13, 23):
+            for x0, y0, x1, y1 in ((-radius, -radius, radius, radius),
+                                      (-2, -3, 3, 2)):
+                pixels = set()
+                for width, height, points in _mesh_disk_blocks(radius, x0, y0, x1, y1):
+                    self.assertTrue(1 <= width <= 15 and 1 <= height <= 15)
+                    for x, y in points:
+                        pixels.update((a, b) for a in range(x, x + width)
+                                      for b in range(y, y + height))
+                self.assertEqual(pixels, {(x, y) for x in range(x0, x1 + 1)
+                                         for y in range(y0, y1 + 1)
+                                         if x*x + y*y <= radius*radius})
+        for size, max_frames, max_bytes in ((5, 650, 14000), (9, 950, 22000),
+                                            (15, 1800, 40000), (25, 3500, 70000)):
+            with self.subTest(size=size):
+                view = MeshViewTests.make(self)
+                lcd = make_driver()
+                view.lcd = lcd
+                points = {(x, y): (x+y-size) * .02
+                          for x in range(size) for y in range(size)}
+                with patch('t5uic1_driver.time.sleep'):
+                    view._draw_mesh_grid(size, size, points)
+                frames = lcd.MYSERIAL1.frames
+                self.assertLess(len(frames), max_frames)
+                self.assertLess(sum(map(len, frames)), max_bytes)
+                self.assertFalse(any(frame[1] == 0x08 for frame in frames))
+                self.assertTrue(any(frame[1] == 0x02 for frame in frames))
+                self.assertTrue(all(len(frame) <= 254 for frame in frames))
+
+    def test_large_mesh_yields_between_bounded_batches(self):
+        view = MeshViewTests.make(self)
+        points = {(x, y): .01 for x in range(25) for y in range(25)}
+        view._draw_mesh_grid(25, 25, points, render_later=True)
+        before = view.lcd.draw_points.call_count
+        self.assertLessEqual(before, 40)
+        self.assertIsNotNone(view._mesh_pending_points)
+        view._advance_mesh_render()
+        self.assertLessEqual(view.lcd.draw_points.call_count - before, 40)
+        view.lcd.update.assert_called_once()

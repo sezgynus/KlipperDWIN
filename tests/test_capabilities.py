@@ -64,6 +64,8 @@ def display(data):
     result = ui.PetrelDisplay.__new__(ui.PetrelDisplay)
     result.pd = printer(data)
     result.lcd = Mock()
+    result.lcd.DWIN_WIDTH = 272
+    result.lcd.DWIN_HEIGHT = 480
     for name in result.SELECTIONS:
         setattr(result, name, ui.select_t())
     result.index_prepare = result.index_tune = result.MROWS
@@ -113,11 +115,11 @@ class CapabilityTests(unittest.TestCase):
             result.Draw_Status_Area(True)
         calls = result.lcd.draw_integer_text.call_args_list
         coordinates = [(call.args[7], call.args[8]) for call in calls]
-        self.assertIn((26, 382), coordinates)
-        self.assertIn((66, 382), coordinates)
-        self.assertIn((26, 416), coordinates)
-        self.assertIn((66, 416), coordinates)
-        self.assertLess(66 + 3 * result.STAT_CHR_W, 116)
+        self.assertIn((28, 380), coordinates)
+        self.assertIn((60, 380), coordinates)
+        self.assertIn((28, 414), coordinates)
+        self.assertIn((60, 414), coordinates)
+        self.assertLess(60 + 3 * 8, 102)
 
     def test_printer_data_initializes_mmu_before_first_status_update(self):
         with patch.object(backend, 'MoonrakerClient'), \
@@ -352,7 +354,7 @@ class CapabilityTests(unittest.TestCase):
         labels = [call.args for call in result.lcd.draw_text.call_args_list
                   if call.args[-1] in ('0', '1')]
         self.assertEqual(len(labels), 2)
-        self.assertEqual(labels[0][3], 0x0000)
+        self.assertEqual(labels[0][3], result.lcd.Color_White)
         self.assertEqual(labels[1][3], result.lcd.Color_White)
 
     def test_high_gate_count_mmu_lane_indicators_do_not_overlap(self):
@@ -645,8 +647,12 @@ class CapabilityMenuTests(unittest.TestCase):
             result._software_update = Mock(label='Checking...', phase=phase, message='Please wait...')
             result.lcd.draw_text.reset_mock()
             result._draw_info_update_button(332, True)
-            self.assertEqual(result.lcd.draw_text.call_count, 1)
-            self.assertEqual(result.lcd.draw_text.call_args.args[-1], 'Checking...')
+            # The label is unchanged for later busy phases; no redundant UART text.
+            if phase == 'checking':
+                self.assertEqual(result.lcd.draw_text.call_count, 1)
+                self.assertEqual(result.lcd.draw_text.call_args.args[-1], 'Checking...')
+            else:
+                result.lcd.draw_text.assert_not_called()
         result._software_update = Mock(label='Check for updates', phase='error',
                                       message='Update unconfirmed; check Mainsail')
         result.lcd.draw_text.reset_mock()
@@ -700,7 +706,8 @@ class CapabilityMenuTests(unittest.TestCase):
         result = display(data)
         entry = next(item for item in result._menus['control'] if item[0] == 'LIGHT')
         self.assertEqual(entry[2], result.ICON_CaseLight)
-        self.assertEqual(result.ICON_CaseLight, result.ICON_Motion)
+        self.assertEqual(result.ICON_CaseLight, 210)
+        self.assertNotEqual(result.ICON_CaseLight, result.ICON_Motion)
 
     def test_case_light_is_hidden_without_output_pin(self):
         result = display(snapshot())

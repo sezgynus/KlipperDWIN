@@ -3,7 +3,8 @@ from concurrent.futures import Future
 from unittest.mock import Mock, patch
 import unittest
 from PIL import Image
-from thumbnail_preview import image_jpeg, load_thumbnail
+from thumbnail_preview import image_jpeg, load_thumbnail, _protect_dark_foreground, MIN_FOREGROUND_LUMA
+from dwin_emulator.assets import panel_colors
 from test_capabilities import display, snapshot
 import test_files
 
@@ -38,12 +39,46 @@ class ThumbnailTests(unittest.TestCase):
             self.assertEqual(image.size,(128,128))
             self.assertEqual(image.mode,'RGB')
             self.assertFalse(image.info.get('progressive',False))
-            self.assertLessEqual(max(image.getpixel((64,0))),2)
+            self.assertEqual(panel_colors(image).getpixel((64,0)), (0, 0, 0))
             self.assertGreater(image.getpixel((64,64))[0],240)
         with Image.open(BytesIO(image_jpeg(png(color=(255,0,0,0))))) as image:
-            self.assertLessEqual(max(image.getpixel((64,64))),2)
+            self.assertEqual(panel_colors(image).getpixel((64,64)), (0, 0, 0))
         for data in (b'corrupt',png((2100,2100))):
             with self.assertRaises(Exception):image_jpeg(data)
+
+    def test_black_model_is_lifted_but_alpha_and_bright_colors_are_preserved(self):
+        for color, expected in (((0,0,0,255),(48,48,48)),
+                                ((255,0,0,128),(128,0,0)),
+                                ((255,255,255,255),(255,255,255))):
+            with self.subTest(color=color):
+                with Image.open(BytesIO(image_jpeg(png(color=color)))) as image:
+                    actual = image.getpixel((64,64))
+                    self.assertTrue(all(abs(a-b) <= 3 for a,b in zip(actual, expected)),
+                                    (actual, expected))
+        for color in ((0,0,0,255),(20,0,0,255),(0,0,255,255),(5,5,5,128)):
+            protected = _protect_dark_foreground(Image.new('RGBA',(1,1),color))
+            r,g,b,alpha = protected.getpixel((0,0))
+            self.assertEqual(alpha,color[3])
+            self.assertGreaterEqual((299*r+587*g+114*b)//1000,MIN_FOREGROUND_LUMA)
+        for color in ((255,0,0,255),(0,255,0,255),(255,255,255,128)):
+            self.assertEqual(_protect_dark_foreground(Image.new('RGBA',(1,1),color)).getpixel((0,0)),color)
+
+    def test_filtered_sram_preview_preserves_surface_and_lifted_black_details(self):
+        from PIL import ImageDraw
+        from test_t5uic1_driver import driver
+        from dwin_emulator.assets import PanelAssets, rgb565
+        from dwin_emulator.framebuffer import Framebuffer
+        source = Image.new('RGBA',(128,128),(0,0,0,0))
+        ImageDraw.Draw(source).rectangle((40,40,87,87),fill=(0,0,0,255))
+        stream=BytesIO(); source.save(stream,'PNG')
+        lcd=driver(); model=Framebuffer(PanelAssets()); lcd._packet_observer=model
+        lcd.clear(0x2967)
+        lcd.write_sram(0,image_jpeg(stream.getvalue()))
+        lcd.show_sram_jpeg(8,68,0,background=False,enhanced=True)
+        lcd.update(); image=model.snapshot()[0]
+        self.assertEqual(image.getpixel((10,70)),rgb565(0x2967))
+        self.assertNotEqual(image.getpixel((72,132)),rgb565(0x2967))
+        self.assertGreaterEqual(min(image.getpixel((72,132))),40)
 
     def make(self):
         view=test_files.FileTests().display(['a.gcode','b.gcode'])
@@ -83,7 +118,7 @@ class ThumbnailTests(unittest.TestCase):
         view._thumbnail_cache.entries[view._preview_cache_key]=(4096,2300)
         view.Draw_File_Preview();view.lcd.reset_mock()
         view._poll_file_preview()
-        view.lcd.show_sram_jpeg.assert_called_once_with(8,68,4096)
+        view.lcd.show_sram_jpeg.assert_called_once_with(8,68,4096,background=False,enhanced=True)
         view.lcd.write_sram.assert_not_called()
         view._uart_epoch=1;view.Draw_File_Preview();view._poll_file_preview()
         self.assertFalse(view._thumbnail_cache.entries)
@@ -102,14 +137,14 @@ class ThumbnailTests(unittest.TestCase):
         self.assertEqual(view.lcd.write_sram.call_count,8)
         view.lcd.show_sram_jpeg.assert_not_called()
         view._poll_file_preview();view._poll_file_preview();view._poll_file_preview()
-        view.lcd.show_sram_jpeg.assert_called_once_with(8,68,0)
+        view.lcd.show_sram_jpeg.assert_called_once_with(8,68,0,background=False,enhanced=True)
         calls=view.lcd.write_sram.call_args_list
         self.assertEqual(b''.join(c.args[1] for c in calls),b'x'*2300)
         self.assertEqual([c.args[0] for c in calls],list(range(0,2300,128)))
         self.assertTrue(all(1<=len(c.args[1])<=128 for c in calls))
         view.lcd.reset_mock();view.Draw_File_Preview();view._poll_file_preview()
         view.lcd.write_sram.assert_not_called()
-        view.lcd.show_sram_jpeg.assert_called_once_with(8,68,0)
+        view.lcd.show_sram_jpeg.assert_called_once_with(8,68,0,background=False,enhanced=True)
 
     def test_cancel_or_changed_connection_stops_partial_jpeg_upload(self):
         for cancel in (True,False):
@@ -155,7 +190,7 @@ class ThumbnailTests(unittest.TestCase):
         view._open_file_preview('a.gcode')
         view._thumbnail_cache.loader.assert_not_called()
         view.lcd.write_sram.assert_not_called()
-        view.lcd.show_sram_jpeg.assert_called_once_with(8,68,3000)
+        view.lcd.show_sram_jpeg.assert_called_once_with(8,68,3000,background=False,enhanced=True)
 
     def test_replaced_file_cannot_print_from_old_preview(self):
         view=self.make();view._preview_choice=0

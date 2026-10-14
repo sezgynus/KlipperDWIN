@@ -51,6 +51,7 @@ class PrinterCapabilities:
 
     screws_tilt_adjust: bool = False
     case_light: bool = False
+    case_light_pwm: bool = False
 
     @classmethod
     def from_state(cls, state):
@@ -79,7 +80,8 @@ class PrinterCapabilities:
                    'probe' in objects or 'bltouch' in objects,
                    'bed_mesh' in objects, minimum, maximum,
                    'screws_tilt_adjust' in objects and 'screws_tilt_adjust' in settings,
-                   'output_pin case_light' in objects)
+                   'output_pin case_light' in objects,
+                   str(settings.get('output_pin case_light', {}).get('pwm', False)).lower() in ('true', '1'))
 
     @property
     def has_heaters(self):

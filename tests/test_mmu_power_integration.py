@@ -18,11 +18,9 @@ class MMUPowerIntegrationTests(unittest.TestCase):
 
     def popup(self, view):
         view._mmu_selection = 0
-        self.event(view, view.ENCODER_DIFF_CCW)
-        self.assertTrue(view._power_focus)
-        self.event(view, view.ENCODER_DIFF_ENTER)
+        view._open_power_hold_popup()
         self.assertEqual(view.checkkey, view.PowerConfirm)
-        self.assertTrue(view._power_confirm_yes)
+        self.assertFalse(view._power_confirm_yes)
 
     def test_power_icon_on_every_mmu_page_without_repainting_idle_page(self):
         v, _ = self.view()
@@ -34,7 +32,7 @@ class MMUPowerIntegrationTests(unittest.TestCase):
                 v.lcd.reset_mock()
                 v.Draw_MMU_Menu()
                 power_copies = [c for c in v.lcd.show_icon.call_args_list if c.args[1] == ICON_POWER]
-                self.assertEqual([c.args for c in power_copies], [(7, ICON_POWER, 244, 5)])
+                self.assertEqual([c.args for c in power_copies], [])
                 title = v._mmu_render['title']
                 self.assertLessEqual(title[1] + title[3] * 8, 241)
                 v.lcd.reset_mock()
@@ -50,10 +48,10 @@ class MMUPowerIntegrationTests(unittest.TestCase):
             self.assertEqual(v._mmu_selection, selection)
             self.assertFalse(v._power_focus)
         self.event(v, v.ENCODER_DIFF_CCW)
-        self.assertTrue(v._power_focus)
+        self.assertFalse(v._power_focus)
         self.event(v, v.ENCODER_DIFF_CW)
         self.assertFalse(v._power_focus)
-        self.assertEqual(v._mmu_selection, 0)
+        self.assertEqual(v._mmu_selection, 1)
         v.pd.subscription.request.assert_not_called()
 
     def test_power_does_not_capture_mmu_numeric_edit_rotations(self):
@@ -74,14 +72,13 @@ class MMUPowerIntegrationTests(unittest.TestCase):
         draft = list(v._mmu_map_draft)
         self.popup(v)
         v.lcd.reset_mock()
-        self.event(v, v.ENCODER_DIFF_CW)
         self.event(v, v.ENCODER_DIFF_ENTER)
         self.assertEqual(v.checkkey, v.MMUMenu)
         self.assertEqual(v._mmu_page, 'map')
         self.assertEqual(v._mmu_map_draft, draft)
         self.assertEqual(v._mmu_selection, 0)
-        self.assertIn((1, 0, 0, 0, 271, 479), [c.args for c in v.lcd.draw_rectangle.call_args_list])
-        v.lcd.show_icon.assert_called_with(7, ICON_POWER, 244, 5)
+        self.assertIn((1, 0x2125, 0, 0, 271, 479), [c.args for c in v.lcd.draw_rectangle.call_args_list])
+        self.assertFalse(any(c.args[1] == ICON_POWER for c in v.lcd.show_icon.call_args_list))
         v.pd.power_off_if_on.assert_not_called()
         v.pd.subscription.request.assert_not_called()
 
@@ -91,7 +88,6 @@ class MMUPowerIntegrationTests(unittest.TestCase):
         mmu_fixtures.MMUUITests().press(v, 2)
         op = v._mmu_confirmation
         self.popup(v)
-        self.event(v, v.ENCODER_DIFF_CW)
         self.event(v, v.ENCODER_DIFF_ENTER)
         self.assertEqual(v._mmu_page, 'confirm')
         self.assertIs(v._mmu_confirmation, op)

@@ -8,6 +8,24 @@ import test_files as files
 
 
 class BackgroundReadTests(unittest.TestCase):
+    def test_expired_queued_read_never_runs(self):
+        worker, work, entered, release = self.blocked(True)
+        first = worker.submit(work)
+        self.assertTrue(entered.wait(1))
+        stale_work = Mock()
+        stale = worker.submit(stale_work, queue_timeout=0)
+        release.set()
+        self.assertTrue(first.result(1))
+        self.assertIsInstance(stale.exception(1), reads.MoonrakerError)
+        stale_work.assert_not_called()
+
+    def test_admission_deadline_does_not_interrupt_started_work(self):
+        worker, work, entered, release = self.blocked(True)
+        first = worker.submit(work, queue_timeout=60)
+        self.assertTrue(entered.wait(1))
+        release.set()
+        self.assertTrue(first.result(1))
+
     def blocked(self, result):
         worker = reads.ReadWorker(timeout=.1)
         entered, release = Event(), Event()

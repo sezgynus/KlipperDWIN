@@ -29,9 +29,9 @@ class EmulatorRenderingTests(unittest.TestCase):
         for index in range(len(packed) // 32768):
             block = packed[index * 32768:(index + 1) * 32768]
             self.model.sram[:] = block
-            self.model.feed(b'\xaa\x33\x5a\xa5' + bytes((7 + index,)) + self.model.TAIL)
-            self.assertEqual(self.model.flash_blocks[7 + index], block)
-        self.lcd.show_icon(7, 101, 17, 130)
+            self.model.feed(b'\xaa\x33\x5a\xa5' + bytes((3 + index,)) + self.model.TAIL)
+            self.assertEqual(self.model.flash_blocks[3 + index], block)
+        self.lcd.show_icon(3, 101, 17, 130)
         self.lcd.update()
         self.assertEqual(self.model.snapshot()[0].size, (272, 480))
         self.assertFalse(self.model.errors)
@@ -70,20 +70,20 @@ class EmulatorRenderingTests(unittest.TestCase):
     def test_native_animation_capture_advances_stops_and_moves_without_traces(self):
         with patch('dwin_emulator.framebuffer.time.monotonic', return_value=100):
             self.lcd.clear(0)
-            self.lcd.configure_animation(0, True, 7, 250, 254, 12, 40, 10)
+            self.lcd.configure_animation(0, True, 3, 250, 254, 12, 40, 10)
             self.lcd.update()
             first, _ = self.model.snapshot()
         with patch('dwin_emulator.framebuffer.time.monotonic', return_value=100.11):
             second, _ = self.model.snapshot()
             self.assertNotEqual(first.tobytes(), second.tobytes())
-            self.lcd.configure_animation(0, False, 7, 250, 254, 12, 40, 10)
+            self.lcd.configure_animation(0, False, 3, 250, 254, 12, 40, 10)
             self.lcd.clear(0)
-            self.lcd.configure_animation(0, True, 7, 250, 254, 70, 40, 10)
+            self.lcd.configure_animation(0, True, 3, 250, 254, 70, 40, 10)
             self.lcd.update()
             moved, _ = self.model.snapshot()
-            width, height = self.assets.icon(7, 250).size
+            width, height = self.assets.icon(3, 250).size
             self.assertIsNone(moved.crop((12, 40, 12+width, 40+height)).getbbox())
-            self.lcd.configure_animation(0, False, 7, 250, 254, 70, 40, 10)
+            self.lcd.configure_animation(0, False, 3, 250, 254, 70, 40, 10)
             self.lcd.update()
             stopped, _ = self.model.snapshot()
         with patch('dwin_emulator.framebuffer.time.monotonic', return_value=200):
@@ -91,7 +91,7 @@ class EmulatorRenderingTests(unittest.TestCase):
         self.assertFalse(self.model.errors)
 
     def test_animation_mask_disables_configured_animation(self):
-        self.lcd.configure_animation(2, True, 7, 250, 254, 10, 10, 10)
+        self.lcd.configure_animation(2, True, 3, 250, 254, 10, 10, 10)
         self.assertIn(2, self.model.animations)
         self.lcd.set_animation_mask(0)
         self.assertFalse(self.model.animations)
@@ -124,7 +124,7 @@ class EmulatorRenderingTests(unittest.TestCase):
         view._draw_home_page(); view.Draw_Status_Area(False); self.lcd.update()
         home, _ = self.model.snapshot()
         from lcd_resources import ICON_MMU_HOME_NORMAL
-        source = self.assets.icon(7, ICON_MMU_HOME_NORMAL)
+        source = self.assets.icon(3, ICON_MMU_HOME_NORMAL)
         # Native transparency changes black pixels only; compare a colored pixel.
         points = [(x, y) for y in range(2, 65) for x in range(2, 108)
                   if max(source.getpixel((x, y))) > 31]
@@ -132,7 +132,7 @@ class EmulatorRenderingTests(unittest.TestCase):
         x, y = points[len(points) // 2]
         # All home icons use the same native tile coordinates.
         frames = self.lcd.serial.frames
-        copies = [f for f in frames if f[1] == 0x23 and f[6:8] == bytes((0x87, ICON_MMU_HOME_NORMAL))]
+        copies = [f for f in frames if f[1] == 0x23 and f[6:8] == bytes((0x23, ICON_MMU_HOME_NORMAL))]
         self.assertTrue(copies)
         target_x, target_y = self.model.words(copies[-1][2:6])
         self.assertEqual(home.getpixel((target_x + x, target_y + y)), source.getpixel((x, y)))
@@ -153,12 +153,12 @@ class EmulatorRenderingTests(unittest.TestCase):
 
     def test_stock_icon_directory_including_sparse_ids(self):
         for icon in (0, 1, 15, 205, 254):
-            image = self.assets.icon(7, icon)
-            self.lcd.show_icon(7, icon, 0, 0, background=True)
+            image = self.assets.icon(3, icon)
+            self.lcd.show_icon(3, icon, 0, 0, background=True)
             self.lcd.update(); frame, _ = self.model.snapshot()
             self.assertEqual(frame.crop((0, 0, image.width, image.height)).tobytes(), image.tobytes())
         with self.assertRaises(ValueError):
-            self.assets.icon(7, 39)
+            self.assets.icon(3, 39)
 
     def test_move_area_translation_and_wrap_leave_surroundings_unchanged(self):
         for direction, target in ((0, (8, 10)), (1, (12, 10)), (2, (10, 8)), (3, (10, 12))):
@@ -271,6 +271,13 @@ class EmulatorLifecycleTests(unittest.TestCase):
                         self.assertEqual(saved.tobytes(), expected.tobytes())
                         self.assertEqual(saved.size, (272, 480))
                 self.assertGreater(Path(files[0]).stat().st_size, 272 * 480 * 3)
+                framed_path = capture(path, frame=True)['path']
+                with Image.open(framed_path) as framed:
+                    self.assertEqual(framed.size, (528, 900))
+                    self.assertEqual(framed.mode, 'RGBA')
+                    self.assertEqual(framed.getpixel((0, 0))[3], 0)
+                    self.assertEqual(framed.crop((128, 122, 400, 602)).convert('RGB').tobytes(), expected.tobytes())
+                self.assertEqual(emulator.snapshot()[0].tobytes(), expected.tobytes())
                 emulator.set_enabled(False)
                 with self.assertRaisesRegex(RuntimeError, 'disabled'): capture(path)
                 with self.assertRaises(RuntimeError): ScreenshotServer(emulator, path, output)

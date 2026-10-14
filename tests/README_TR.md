@@ -39,3 +39,17 @@ Değişikliğinizle ilgili kontrolleri seçip revizyonu, donanımı ve sonucu ka
 | Görüntüler | Yapılandırılmış font/ikonlar dahil görüntüyü fiziksel panelle karşılaştırma |
 
 Bağlantı kesilmesi veya belirsiz işlem sonrası gerçek durumu doğrulayın ve önceki komutun otomatik tekrarlanmadığını kontrol edin. Hataları günlük ve görüntü/fotoğrafla paylaşın. Beklenen davranış için [kullanıcı rehberine](../docs/user-guide_TR.md), [MMU rehberine](../docs/mmu-guide_TR.md) ve [LCD uyumluluğuna](../docs/lcd-assets_TR.md) bakın.
+
+## Print/Tune ve görsel kaynak sözleşmeleri
+
+| Kontrol | Mevcut test kaynağı | Fiziksel doğrulama |
+|---|---|---|
+| 17 alan, birimler, capability ve politika pinleri | `test_print_tuning.py` | Yapılandırmaya göre alanlar; switch yalnız politika değiştirir |
+| Sessiz düzenleme ve baskı akışı | `test_print_focus.py`, `test_print_screen.py` | Ret/geri dönüş, iki kırmızı yanıp sönme, geç yanıt, yeniden bağlantı, Pause/Resume ve Stop onayı |
+| Güç kısayolu | `test_power_shortcut.py` | 450 ms gecikme, 1.2 s kapatma/2 s açma ayrımı, yarım hold, korunmuş Tune taslağı, aktif/paused baskıda engel |
+| JPEG/font ve buton kaynakları | `test_lcd_assets.py`, `test_native_custom_icons.py` | Font ID 0, 4:2:0, iki durumda aynı buton maskesi, seçimden kalan piksel olmaması |
+| Paketleme/senkronizasyon | `test_icon_library_packing.py`, `test_managed_icon_library.py` | Kaynak/export denkliği, library 3, yeniden yüklemeden sonra ikonlar |
+| Yapılandırma koruma | `test_install_defaults.py` | configure.sh sonrasında özel preset/font/socket/görüntü klasörü korunur; tekrar çalıştırmada anahtar çoğalmaz |
+| Dokümantasyon üretimi | `test_docs_screenshots.py` | Varsayılan komutta panel/çerçeve aynı pikselleri taşır; çerçeve hatası önceki çıktıyı korur; önizleme tam boyuta açılır |
+
+Yeni senaryolar için [galeriyi](../docs/screenshots_TR.md) ve [PNG/GIF yeniden üretimini](../docs/ui-emulator_TR.md#png-çerçeve-ve-gif-yenileme) kontrol edin. Başlık/satır sayısı EN/TR anlam denkliğini kanıtlamaz; özellikler, uyarılar, komut blokları, birimler ve görsel sırası da incelenmelidir.

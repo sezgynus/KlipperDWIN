@@ -53,3 +53,11 @@ Capture the screen with the [emulator](docs/ui-emulator.md). Store descriptive f
 Check local links, section anchors, image paths, translated guide pairs and user commands before opening the PR. Documentation-only changes do not need printer regression tests unless they also change behavior.
 
 Use `tools/render_docs_screenshots.py` to regenerate all documentation screens without a printer; the [offline rendering guide](docs/ui-emulator.md#render-documentation-screens-offline) explains the commands and example data. Preserve existing image filenames so forum links keep working.
+
+### Production and validation contracts
+
+Run the [PNG and GIF refresh commands](docs/ui-emulator.md#refresh-pngs-frames-and-gifs) together. Preserve 272×480 panel PNGs; framed 528×900 copies are presentation only. Use one checkout, sample data, scene order and matching EN/TR captions. Original PNG gallery links use repository-relative paths to follow the same branch; copy the opened GitHub page's full address for forum posts.
+
+Print/Tune validation: an After Job click must only send `SET_PIN`, never immediately switch off hardware; older replies must not overwrite a newer edit; rejected values/switches/Pause blink red twice and return to subscribed state; an incomplete hold preserves the draft. Source and hardware checks are in the [test guide](tests/README.md).
+
+For JPEG changes preserve the [fan/button contracts](assets/icons/README.md#print-buttons-switches-and-fan-artwork), font ID 0, baseline 4:2:0 and source/export equivalence. Normal/selected button masks must match. Validate relevant states on the physical panel after emulator review.

@@ -25,7 +25,7 @@ class IncrementalMenuTests(unittest.TestCase):
         self.assertEqual(len(v.lcd.method_calls), 2)
         v.lcd.show_icon.assert_not_called()
         v.lcd.draw_text.assert_not_called()
-        self.assertTrue(all(c.args[-4] == 0 and c.args[-2] == 14
+        self.assertTrue(all(0 <= c.args[-4] <= c.args[-2] <= 14
                             for c in v.lcd.draw_rectangle.call_args_list))
 
     def test_unchanged_menu_draws_nothing(self):

@@ -1,13 +1,16 @@
 name: Driver Branch Regression
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - master
   push:
     branches:
       - master
+      - fix/audit-plan-completion
       - fix/immediate-boot-splash
+      - feature/graphite-theme
       - refactor/t5uic1-complete-driver
       - feature/global-power-button
       - feature/mmu-menu
@@ -32,3 +35,10 @@ jobs:
         run: python -m compileall -q .
       - name: Run regression suite
         run: python -m unittest discover -s tests -v
+
+
+
+
+
+
+# Audit verification: 53338d955efe119fc96c938fc3023c9350e24345

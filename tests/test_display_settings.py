@@ -19,6 +19,29 @@ class DisplaySettingsTests(unittest.TestCase):
             with self.assertRaises(ValueError): settings.encode(*pair)
         self.assertEqual([settings.raw_brightness(x) for x in (0, 50, 100)], [0, 128, 255])
 
+    def test_pending_flash_loads_apply_only_without_overwriting_user_drafts(self):
+        from concurrent.futures import Future
+        view = self.view()
+        view._panel_flash_lcd = view.lcd
+        view._display_dimmed = False
+        view._display_saved = (100, 0, 10)
+        view._display_values = [100, 0, 10]
+        view._display_edit = False
+        future = Future()
+        view._display_load_future = future
+        future.set_result(settings.encode(72, 12, 10))
+        view._poll_panel_flash()
+        self.assertEqual(view._display_values, [72, 12, 10])
+        self.assertEqual(view._display_saved, (72, 12, 10))
+        view.lcd.set_backlight.assert_called_with(settings.raw_brightness(72))
+        view._display_values[0] = 82
+        future = Future()
+        view._display_load_future = future
+        future.set_result(settings.encode(60, 9, 10))
+        view._poll_panel_flash()
+        self.assertEqual(view._display_values[0], 82)
+        self.assertEqual(view._display_saved, (60, 9, 10))
+
     def test_flash_is_disjoint_and_verified(self):
         lcd = driver(); record = settings.encode(72, 12)
         lcd.write_flash = Mock(); lcd.read_flash = Mock(return_value=record)
@@ -67,6 +90,45 @@ class DisplaySettingsTests(unittest.TestCase):
         view.lcd.save_display_settings.side_effect = None
         self.step(view, view.ENCODER_DIFF_ENTER)
         self.assertEqual(view._display_saved, (50, 60, 10))
+
+    def test_async_display_save_commits_only_after_flash_verified(self):
+        from concurrent.futures import Future
+        view = self.view()
+        view.lcd.SUPPORTS_NONBLOCKING_FLASH = True
+        view.lcd.DISPLAY_SETTINGS_ADDRESS = 0x100
+        future = Future()
+        view.lcd.begin_flash_write_verified.return_value = future
+        self.step(view, view.ENCODER_DIFF_ENTER)
+        self.step(view, view.ENCODER_DIFF_CW)
+        self.step(view, view.ENCODER_DIFF_ENTER)
+        view.lcd.begin_flash_write_verified.assert_called_once_with(
+            0x100, settings.encode(51, 0, 10))
+        view.lcd.save_display_settings.assert_not_called()
+        self.assertEqual(view._display_saved, (50, 0, 10))
+        self.assertEqual(view._display_save_message, 'Saving...')
+        self.step(view, view.ENCODER_DIFF_CW)
+        self.assertEqual(view._display_values, [51, 0, 10])
+        future.set_result(settings.encode(51, 0, 10))
+        view._poll_panel_flash()
+        self.assertEqual(view._display_saved, (51, 0, 10))
+        self.assertFalse(view._display_edit)
+        self.assertIsNone(view._display_save_future)
+
+    def test_async_display_save_failure_keeps_retryable_draft(self):
+        from concurrent.futures import Future
+        view = self.view()
+        view.lcd.SUPPORTS_NONBLOCKING_FLASH = True
+        view.lcd.DISPLAY_SETTINGS_ADDRESS = 0x100
+        future = Future()
+        view.lcd.begin_flash_write_verified.return_value = future
+        view._display_edit = True
+        view._display_values = [61, 0, 10]
+        self.step(view, view.ENCODER_DIFF_ENTER)
+        future.set_exception(TimeoutError('ACK lost'))
+        view._poll_panel_flash()
+        self.assertEqual(view._display_saved, (50, 0, 10))
+        self.assertTrue(view._display_edit)
+        self.assertIn('Not saved', view._display_save_message)
 
     def test_idle_dim_and_wake_never_write_flash(self):
         view = self.view(); view._display_values = [50, 1, 10]

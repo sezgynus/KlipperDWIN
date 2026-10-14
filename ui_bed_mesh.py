@@ -1,5 +1,7 @@
+from lcd_resources import ICON_ACTIVE_MESH, ICON_MESH_CALIBRATE, ICON_MESH_PROFILE, ICON_PROBE_CALIBRATION, ICON_SCREW_ADJUST
 """Bed mesh screens, profile browsing and encoder navigation."""
 import math
+from functools import lru_cache
 from t5uic1_driver import T5UIC1Display
 
 
@@ -40,15 +42,41 @@ def point_label(z, columns):
     return label if len(label) <= 4 else '####'
 
 
+
+@lru_cache(maxsize=128)
+def _mesh_disk_blocks(radius, x0, y0, x1, y1):
+    """Coalesce exact disk spans into batches of supported 1..15 pixel blocks."""
+    rectangles = []
+    for y in range(y0, y1 + 1):
+        dx = math.isqrt(radius * radius - y * y)
+        left, right = max(x0, -dx), min(x1, dx)
+        if left > right:
+            continue
+        if rectangles and rectangles[-1][:2] == (left, right) and rectangles[-1][3] == y - 1:
+            left, right, top, _ = rectangles.pop()
+            rectangles.append((left, right, top, y))
+        else:
+            rectangles.append((left, right, y, y))
+    groups = {}
+    for left, right, top, bottom in rectangles:
+        for y in range(top, bottom + 1, 15):
+            height = min(15, bottom - y + 1)
+            for x in range(left, right + 1, 15):
+                width = min(15, right - x + 1)
+                groups.setdefault((width, height), []).append((x, y))
+    return tuple((width, height, tuple(points))
+                 for (width, height), points in groups.items())
+
+
 class BedMeshMixin:
     def _leveling_menu_entries(self):
         entries = [('BACK', 'Back', self.ICON_Back)]
         if self.pd.capabilities.bed_mesh:
             entries.append(('MESH', 'Bed Mesh', 203))
         if self.pd.capabilities.screws_tilt_adjust:
-            entries.append(('SCREWS', 'Screws Tilt Adjust', 202))
+            entries.append(('SCREWS', 'Screws Tilt Adjust', ICON_SCREW_ADJUST))
         if self.pd.capabilities.probe and 'manual_probe' in self.pd.state.objects:
-            entries.append(('PROBE', 'Probe Calibration', self.ICON_Zoffset))
+            entries.append(('PROBE', 'Probe Calibration', ICON_PROBE_CALIBRATION))
         return tuple(entries)
 
     def _mesh_menu_entries(self):
@@ -57,8 +85,8 @@ class BedMeshMixin:
         entries = [('BACK', 'Back', self.ICON_Back)]
         if self.pd.capabilities.bed_mesh:
             if self.pd.capabilities.probe:
-                entries.append(('CALIBRATE', 'Calibrate', 29))
-            entries.append(('VIEWER', 'Mesh Viewer', 55))
+                entries.append(('CALIBRATE', 'Calibrate', ICON_MESH_CALIBRATE))
+            entries.append(('VIEWER', 'Mesh Viewer', ICON_MESH_PROFILE))
         return tuple(entries)
 
     def Draw_Bed_Mesh_Menu(self):
@@ -76,9 +104,9 @@ class BedMeshMixin:
         entries = self._mesh_menu_entries()
         choice = min(getattr(self, '_mesh_menu_selection', 0), len(entries)-1)
         if event == self.ENCODER_DIFF_CW:
-            self._mesh_menu_selection = min(len(entries)-1, choice+1)
+            self._mesh_menu_selection = min(len(entries)-1, choice+getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._mesh_menu_selection = max(0, choice-1)
+            self._mesh_menu_selection = max(0, choice-getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_ENTER:
             key = entries[choice][0]
             if key == 'BACK':
@@ -133,26 +161,66 @@ class BedMeshMixin:
         if selected:
             self.lcd.draw_rectangle(0, self.lcd.Color_White, x-2, 303, x+101, 345)
 
-    def _draw_mesh_grid(self, columns, rows, points, color_range=None):
+    def _draw_mesh_disk(self, cx, cy, color, radius, clip=None):
+        x0 = y0 = -radius
+        x1 = y1 = radius
+        if clip is not None:
+            left, top, right, bottom = clip
+            x0, y0 = max(x0, left - cx), max(y0, top - cy)
+            x1, y1 = min(x1, right - cx), min(y1, bottom - cy)
+        if x0 > x1 or y0 > y1:
+            return
+        self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black,
+                                cx + x0, cy + y0, cx + x1, cy + y1)
+        limit = (T5UIC1Display.MAX_DATA_LENGTH - 4) // 4
+        for width, height, points in _mesh_disk_blocks(radius, x0, y0, x1, y1):
+            for start in range(0, len(points), limit):
+                self.lcd.draw_points(color, width, height,
+                    tuple((cx + x, cy + y) for x, y in points[start:start + limit]))
+
+    def _advance_mesh_render(self, budget=2, flush=True):
+        """Render at most one short batch; return control to the UI event loop."""
+        work = getattr(self, '_mesh_pending_points', None)
+        if work is None:
+            return
+        changed = False
+        for _ in range(budget):
+            try:
+                next(work)
+                changed = True
+            except StopIteration:
+                self._mesh_pending_points = None
+                break
+        if changed and flush:
+            self.lcd.update()
+
+    def _draw_mesh_grid(self, columns, rows, points, color_range=None, render_later=False):
         xs = [round(25 + x*222/(columns-1)) for x in range(columns)]
         ys = [round(277 - y*222/(rows-1)) for y in range(rows)]
         color = 0x03B5
         self.lcd.draw_rectangle(0, color, 25, 55, 247, 277)
         for x in xs[1:-1]: self.lcd.draw_line(color, x, 55, x, 277)
         for y in ys[1:-1]: self.lcd.draw_line(color, 25, y, 247, y)
-        # Avoid overlaps in dense grids without changing any underlying values.
         stride = max(1, math.ceil((36 if columns < 9 else 24) / (222/(columns-1))))
         row_stride = max(1, math.ceil(12 / (222/(rows-1))))
-        for (x, y), z in sorted(points.items()):
-            color, radius = point_style(z, max(columns, rows), color_range)
-            for dy in range(-radius, radius+1):
-                dx = math.isqrt(radius*radius-dy*dy)
-                self.lcd.draw_rectangle(1, color, xs[x]-dx, ys[y]+dy, xs[x]+dx, ys[y]+dy)
-            if x % stride == 0 and y % row_stride == 0:
-                label = point_label(z, columns)
-                tx = max(0, min(272-len(label)*6, xs[x]-len(label)*3))
-                self.lcd.draw_text(False, False, self.lcd.font6x12, self.lcd.Color_White,
-                                     self.lcd.Color_Bg_Black, tx, ys[y]-6, label)
+
+        def render():
+            for (x, y), z in sorted(points.items()):
+                dot_color, radius = point_style(z, max(columns, rows), color_range)
+                self._draw_mesh_disk(xs[x], ys[y], dot_color, radius)
+                if x % stride == 0 and y % row_stride == 0:
+                    label = point_label(z, columns)
+                    tx = max(0, min(272-len(label)*6, xs[x]-len(label)*3))
+                    self.lcd.draw_text(False, False, self.lcd.font6x12, self.lcd.Color_White,
+                                       self.lcd.Color_Bg_Black, tx, ys[y]-6, label)
+                yield None
+
+        if render_later:
+            self._mesh_pending_points = render()
+            self._advance_mesh_render(flush=False)
+        else:
+            for _ in render():
+                pass
 
     def _draw_live_mesh_cell(self, columns, rows, index, z):
         x, y = index
@@ -167,9 +235,7 @@ class BedMeshMixin:
         self.lcd.draw_line(0x03B5, cx, max(55, top), cx, min(277, bottom))
         self.lcd.draw_line(0x03B5, max(25, left), cy, min(247, right), cy)
         color, radius = point_style(z, max(columns, rows))
-        for dy in range(max(-radius, top-cy), min(radius, bottom-cy)+1):
-            dx = math.isqrt(radius*radius-dy*dy)
-            self.lcd.draw_rectangle(1, color, max(left, cx-dx), cy+dy, min(right, cx+dx), cy+dy)
+        self._draw_mesh_disk(cx, cy, color, radius, clip=(left, top, right, bottom))
         label = point_label(z, columns)
         if len(label)*6 <= right-left+1 and bottom-top+1 >= 12:
             tx = max(left, min(right-len(label)*6+1, cx-len(label)*3))
@@ -178,6 +244,8 @@ class BedMeshMixin:
 
     def Draw_Bed_Mesh(self):
         session = self.pd.bed_mesh
+        # Discard packets prepared for a prior screen/session revision.
+        self._mesh_pending_points = None
         self.Clear_Main_Window()
         title = ('Mesh: ' + session.mesh.name) if session.phase == 'viewing' and session.mesh else 'Mesh Viewer'
         if session.phase in ('measuring', 'stopping'): title = 'Bed Mesh Calibrate'
@@ -194,7 +262,7 @@ class BedMeshMixin:
             mesh = session.mesh
             self._draw_mesh_grid(len(mesh.points[0]), len(mesh.points),
                                  {(x,y):z for y,row in enumerate(mesh.points) for x,z in enumerate(row)},
-                                 color_range=mesh.extrema)
+                                 color_range=mesh.extrema, render_later=True)
             low, high = mesh.extrema
             self._mesh_text('minZ: {:.2f}  maxZ: {:.2f}'.format(low, high), 347, size=6)
             if session.phase == 'complete':
@@ -208,7 +276,7 @@ class BedMeshMixin:
                 if session.message: self._mesh_text(session.message, 285, size=6)
         elif session.phase == 'measuring':
             counts, _, _ = session.layout
-            self._draw_mesh_grid(*counts, session.progress)
+            self._draw_mesh_grid(*counts, session.progress, render_later=True)
             self._mesh_button('Cancel', 86, True)
             self._mesh_text(session.message + ' (raw Z)', 347, size=6)
         else:
@@ -228,7 +296,7 @@ class BedMeshMixin:
             choice = min(getattr(self, '_mesh_profile_selection', 0), len(names)-1)
             self._mesh_profile_selection = choice
             entries = [(T5UIC1Display._panel_text(label)[:25],
-                        self.ICON_Back if index == 0 else self.ICON_HotendTemp, None, None)
+                        self.ICON_Back if index == 0 else ICON_ACTIVE_MESH if label == 'Current Mesh' else ICON_MESH_PROFILE, None, None)
                        for index, label in enumerate(names)]
             self._draw_list_menu('Mesh Viewer', entries, choice)
         self.lcd.update()
@@ -287,9 +355,9 @@ class BedMeshMixin:
             return
         choice = getattr(self, '_mesh_profile_selection', 0)
         if event == self.ENCODER_DIFF_CW:
-            self._mesh_profile_selection = min(len(session.entries()), choice+1)
+            self._mesh_profile_selection = min(len(session.entries()), choice+getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._mesh_profile_selection = max(0, choice-1)
+            self._mesh_profile_selection = max(0, choice-getattr(self, '_rotation_steps', 1))
         elif event == self.ENCODER_DIFF_ENTER:
             if choice == 0:
                 self._return_to_mesh_menu(True)
@@ -360,6 +428,10 @@ class BedMeshMixin:
             return
         if (self.checkkey == self.BedMeshScreen and previous_phase == session.phase == 'measuring'
                 and not getattr(self, '_mesh_confirmation', None)):
+            if getattr(self, '_mesh_pending_points', None) is not None:
+                # Avoid replaying stale dots after a new live probe result.
+                self.Draw_Bed_Mesh()
+                return
             for index, z in session.progress.items():
                 if previous_points.get(index) != z:
                     self._draw_live_mesh_cell(*session.layout[0], index, z)

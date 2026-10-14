@@ -83,7 +83,7 @@ class SoftwareUpdate:
 
         self.phase = 'recovering' if recover else ('updating' if upgrade else 'checking')
         self.message = 'Please wait...'
-        self.future = printer._read_worker.submit(work)
+        self.future = printer._maintenance_worker.submit(work)
 
     def cancel_confirmation(self):
         if self.phase == 'confirm_recovery':

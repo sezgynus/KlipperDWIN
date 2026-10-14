@@ -2,6 +2,7 @@
 
 from spool_view import SpoolView
 from mmu_filament_view import MMUFilamentView, filament_color
+from mmu_control import MMUState
 
 class MMUViewMixin:
     @staticmethod
@@ -81,24 +82,16 @@ class MMUViewMixin:
                 active_green if gate == active else self.lcd.Line_Color)
             # Every lane mirrors its live Happy Hare exit LED continuously.
             # Black/off LEDs therefore render as black rather than falling back.
-            label_bg = indicator
-            border = indicator
-            if cache.get('indicator') != indicator:
-                cache['indicator'] = indicator
+            label_bg = self.lcd.Color_Bg_Black
+            border = self.lcd.Select_Color if gate == active else self.lcd.Line_Color
+            signature = (indicator, gate == active)
+            if cache.get('indicator') != signature:
+                cache['indicator'] = signature
                 self.lcd.draw_rectangle(1, label_bg, lx0, top + 64, lx1, top + 78)
                 self.lcd.draw_rectangle(0, border, lx0, top + 64, lx1, top + 78)
-                # Choose black or white text for maximum contrast against
-                # the live lane color.  This keeps bright green/yellow/cyan lane
-                # numbers readable without sacrificing dark-color visibility.
-                r5 = (label_bg >> 11) & 0x1F
-                g6 = (label_bg >> 5) & 0x3F
-                b5 = label_bg & 0x1F
-                luminance = (299 * r5 * 255 // 31 +
-                             587 * g6 * 255 // 63 +
-                             114 * b5 * 255 // 31) // 1000
-                label_fg = 0x0000 if luminance >= 140 else self.lcd.Color_White
+                self.lcd.draw_rectangle(1, indicator, lx0+1, top + 77, max(lx0+1,lx1-1), top + 78)
                 self.lcd.draw_text(False, True, self.lcd.font6x12,
-                                     label_fg, label_bg,
+                                     self.lcd.Color_White, label_bg,
                                      cx - 3 * len(label), top + 65, label)
 
     # Dedicated MMU pages own the complete 272x480 canvas. The home dashboard
@@ -112,6 +105,7 @@ class MMUViewMixin:
                   'leds': 'MMU LEDS', 'units': 'MMU UNITS', 'unit': 'UNIT GATES'}
 
     def Enter_MMU_Menu(self, page='home'):
+        self._mmu_return_print = getattr(self, 'checkkey', None) in (self.PrintProcess, self.PrintErrorDetails)
         self.checkkey = self.MMUMenu
         self._mmu_page = page
         self._mmu_selection = 1 if self.pd.mmu_session.state is not None else 0
@@ -157,11 +151,15 @@ class MMUViewMixin:
             self.Draw_MMU_Menu()
         else:
             self._mmu_canvas_page = None
-            self.Goto_MainMenu()
+            if getattr(self, '_mmu_return_print', False):
+                self._mmu_return_print = False
+                self.Goto_PrintProcess()
+            else:
+                self.Goto_MainMenu()
             self.Draw_Status_Area(False)
         self.lcd.update()
 
-    def _mmu_text(self, key, value, x, y, cells=31, small=False, color=0xFFFF, bg=0x0000):
+    def _mmu_text(self, key, value, x, y, cells=31, small=False, color=0xFFFF, bg=0x2125):
         value = str(value).replace('\n', ' ').replace('\r', ' ')
         value = value[:cells] if len(value) <= cells else value[:max(0, cells - 1)] + '~'
         width, height = (6, 12) if small else (8, 16)
@@ -182,7 +180,7 @@ class MMUViewMixin:
         if self._mmu_render.get(key) == signature:
             return
         self._mmu_render[key] = signature
-        bg = 0x33BD if selected else 0x18E4
+        bg = 0x19E9 if selected else 0x2967
         fg = 0xFFFF if enabled else 0x8410
         self.lcd.draw_rectangle(1, bg, x, y, x + width - 1, y + 39)
         if selected:
@@ -275,9 +273,14 @@ class MMUViewMixin:
             tools = []
             if m:
                 snapshot = self.pd.subscription.snapshot()
+                parsed = MMUState.from_snapshot(snapshot)
                 for tool, gate in enumerate(m.ttg_map):
                     try:
-                        self.pd.mmu_session.prepare('change', gate=gate, tool=tool, snapshot=snapshot)
+                        if parsed is None:
+                            raise ValueError('MMU unavailable')
+                        self.pd.mmu_session.prepare(
+                            'change', gate=gate, tool=tool, snapshot=snapshot,
+                            parsed_state=parsed)
                         enabled = not (m.tool == tool and m.filament == 'loaded')
                     except ValueError:
                         enabled = False
@@ -444,7 +447,7 @@ class MMUViewMixin:
         if page != getattr(self, '_mmu_spool_page', None):
             self._mmu_spool_page = page
             self._mmu_spool_views = {}
-            self.lcd.draw_rectangle(1, 0x0000, 8, 34, 263, 131)
+            self.lcd.draw_rectangle(1, 0x2125, 8, 34, 263, 131)
             for key in list(self._mmu_render):
                 if key.startswith('spool'):
                     self._mmu_render.pop(key)
@@ -469,7 +472,7 @@ class MMUViewMixin:
             if self._mmu_render.get(key) != marker:
                 self._mmu_render[key] = marker
                 self.lcd.draw_rectangle(1, bg, x, 109, x + 41, 128)
-                border = 0xFFFF if focused == tool else 0x07E0 if m.tool == tool else 0x0000
+                border = 0xFFFF if focused == tool else 0x07E0 if m.tool == tool else 0x2125
                 self.lcd.draw_rectangle(0, border, x, 109, x + 41, 128)
                 self.lcd.draw_text(False, False, self.lcd.font6x12,
                     SpoolView._text_color(bg), bg, x + 12, 113, 'T%d' % tool)
@@ -531,10 +534,10 @@ class MMUViewMixin:
         if self._mmu_render.get('path') == signature:
             return
         self._mmu_render['path'] = signature
-        self.lcd.draw_rectangle(1, 0x0000, 12, y, 259, y + 40)
+        self.lcd.draw_rectangle(1, 0x2125, 12, y, 259, y + 40)
         color = 0x249F if m.filament == 'loaded' else 0x8410
         for x, name in ((14, 'GATE'), (82, 'BOWDEN'), (200, 'NOZZLE')):
-            self.lcd.draw_text(False, False, self.lcd.font6x12, 0x8410, 0x0000, x, y, name)
+            self.lcd.draw_text(False, False, self.lcd.font6x12, 0x8410, 0x2125, x, y, name)
         self.lcd.draw_line(color, 30, y + 24, 233, y + 24)
         for x in (26, 106, 229):
             self.lcd.draw_rectangle(1, color, x, y + 20, x + 7, y + 27)
@@ -550,6 +553,7 @@ class MMUViewMixin:
             return False
 
     def Draw_MMU_Menu(self):
+        self._sync_fan_animation(False)
         if not hasattr(self, '_mmu_page'):
             self._mmu_page, self._mmu_selection = 'home', 0
             self._mmu_gate, self._mmu_history, self._mmu_notice = 0, [], ''
@@ -561,12 +565,11 @@ class MMUViewMixin:
             self._mmu_list_window = None
             self._mmu_spool_page = None
             self._mmu_filament_view = None
-            self.lcd.draw_rectangle(1, 0x0000, 0, 0, 271, 479)
-            self.lcd.draw_rectangle(1, 0x1105, 0, 0, 271, 29)
+            self.lcd.draw_rectangle(1, 0x2125, 0, 0, 271, 479)
+            self.lcd.draw_rectangle(1, 0x2966, 0, 0, 271, 29)
             self._mmu_canvas_page, self._mmu_render = page, {}
             self._mmu_available = m is not None
             self._header_clock_drawn = None
-            self._draw_power_icon(getattr(self, '_power_focus', False))
         if page == 'map' and getattr(self, '_mmu_map_draft', None) is None:
             self._mmu_begin_map()
         if page in ('endless', 'group') and getattr(self, '_mmu_endless_draft', None) is None:
@@ -581,11 +584,11 @@ class MMUViewMixin:
         items = self._mmu_items(m)
         self._mmu_drawn_keys = tuple(item[0] for item in items)
         self._mmu_selection = min(self._mmu_selection, len(items))
-        self._mmu_text('back', '<', 8, 5, 2, bg=0x33BD if self._mmu_selection == 0 else 0x1105)
+        self._mmu_text('back', '<', 8, 5, 2, bg=0x19E9 if self._mmu_selection == 0 else 0x2966)
         title = self.MMU_TITLES[page]
         if page in ('gate', 'filament', 'spool'):
             title += ' / ' + self._mmu_gate_label(self._mmu_gate)
-        self._mmu_text('title', title, 34, 1, 25, bg=0x1105)
+        self._mmu_text('title', title, 34, 6, 23, bg=0x2966)
         self._draw_header_clock()
         connection = 'OFFLINE' if self.pd.connection_error else 'MMU unavailable' if not m else (
             'MMU DISABLED' if m.enabled is not True else m.action.upper())
@@ -779,7 +782,7 @@ class MMUViewMixin:
                         self._mmu_row('row%d' % row, sig[0], sig[1], sig[4], sig[5], sig[6], False, sig[3])
                 self.lcd.move_area(1,
                     self.DWIN_SCROLL_UP if delta > 0 else self.DWIN_SCROLL_DOWN,
-                    abs(delta) * 43, 0x0000, 8, first_y, 263, first_y + visible * 43 - 1)
+                    abs(delta) * 43, 0x2125, 8, first_y, 263, first_y + visible * 43 - 1)
                 shifted = {}
                 for row in range(visible):
                     sig = self._mmu_render.pop('row%d' % row, None)
@@ -805,7 +808,7 @@ class MMUViewMixin:
                     self._mmu_row('row%d' % row, label, value, 8, first_y + row * 43, 256,
                                   self._mmu_selection == i + 1, enabled)
                 elif self._mmu_render.get('row%d' % row) is not None:
-                    self.lcd.draw_rectangle(1, 0x0000, 8, first_y + row * 43, 263, first_y + row * 43 + 39)
+                    self.lcd.draw_rectangle(1, 0x2125, 8, first_y + row * 43, 263, first_y + row * 43 + 39)
                     self._mmu_render.pop('row%d' % row, None)
             if len(items) > visible:
                 self._mmu_text('pagination', '%d-%d / %d' % (start + 1, min(len(items), start + visible), len(items)), 12, 436, 40, small=True)
@@ -829,7 +832,7 @@ class MMUViewMixin:
                     self._mmu_edit = None
                     self._mmu_notice = 'MMU changed; reopen editor'
                 elif event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                    delta = 1 if event == self.ENCODER_DIFF_CW else -1
+                    delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
                     tool = edit[1]
                     self._mmu_map_draft[tool] = max(0, min(m.num_gates - 1, self._mmu_map_draft[tool] + delta))
             elif edit == ('endless', 'enabled'):
@@ -843,11 +846,11 @@ class MMUViewMixin:
                     self._mmu_edit = None
                     self._mmu_notice = 'MMU changed; reopen editor'
                 elif event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                    delta = 1 if event == self.ENCODER_DIFF_CW else -1
+                    delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
                     self._mmu_spool_draft = max(1, self._mmu_spool_draft + delta)
             elif m and event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
-                delta = 1 if event == self.ENCODER_DIFF_CW else -1
-                self._mmu_manual[edit] = (not self._mmu_manual[edit] if edit == 'loaded'
+                delta = getattr(self,"_rotation_steps",1)*(1 if event == self.ENCODER_DIFF_CW else -1)
+                self._mmu_manual[edit] = ((not self._mmu_manual[edit] if getattr(self,'_rotation_steps',1)%2 else self._mmu_manual[edit]) if edit == 'loaded'
                     else max(0, min(m.num_gates - 1, self._mmu_manual[edit] + delta)))
             self.Draw_MMU_Menu()
             return
@@ -858,9 +861,9 @@ class MMUViewMixin:
             return
         self._mmu_selection = min(self._mmu_selection, len(items))
         if event == self.ENCODER_DIFF_CW:
-            self._mmu_selection = min(len(items), self._mmu_selection + 1)
+            self._mmu_selection = min(len(items), self._mmu_selection + getattr(self,"_rotation_steps",1))
         elif event == self.ENCODER_DIFF_CCW:
-            self._mmu_selection = max(0, self._mmu_selection - 1)
+            self._mmu_selection = max(0, self._mmu_selection - getattr(self,"_rotation_steps",1))
         elif event == self.ENCODER_DIFF_ENTER:
             if self._mmu_selection == 0:
                 self._mmu_back()
@@ -994,7 +997,6 @@ class MMUViewMixin:
         if self.checkkey == self.MMUMenu:
             if self.pd.connection_error and getattr(self, '_power_focus', False):
                 self._power_focus = False
-                self._draw_power_icon(False, clear=True)
             if was_pending and getattr(self, '_mmu_page', 'home') not in ('home', 'status') and session.phase == 'error':
                 self._mmu_page, self._mmu_selection = 'status', 1
             self.Draw_MMU_Menu()

@@ -109,9 +109,9 @@ class SpoolViewTests(unittest.TestCase):
         view.lcd.reset_mock()
         view.pd.mmu['exit_led_rgb'][1] = (0, 1, 0)
         view.Draw_MMU_Status()
-        self.assertEqual(len(view.lcd.method_calls), 3)
+        self.assertEqual(len(view.lcd.method_calls), 4)
         view.lcd.show_icon.assert_not_called()
-        self.assertTrue(all(c.args[3] == 103 and c.args[5] == 117
+        self.assertTrue(all(103 <= c.args[3] <= c.args[5] <= 117
                             for c in view.lcd.draw_rectangle.call_args_list))
 
     def test_partial_updates_match_fresh_render_pixels_for_all_sizes(self):

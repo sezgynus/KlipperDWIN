@@ -101,11 +101,12 @@ class PowerShortcutMixin:
             self.lcd.draw_rectangle(1, 0x063B, 44 + self._power_hold_pixels,
                                     214, 43 + pixels, 221)
             self._power_hold_pixels = pixels
-            if progress == 1 and not self._power_hold_ready:
-                self._power_hold_ready = True
-                self.lcd.draw_text(False, False, self.lcd.font8x16,
-                    self.lcd.Popup_Text_Color, self.lcd.Color_Bg_Window,
-                    56, 236, 'Release to continue')
+        if progress == 1 and not self._power_hold_ready:
+            dirty = True
+            self._power_hold_ready = True
+            self.lcd.draw_text(False, False, self.lcd.font8x16,
+                self.lcd.Popup_Text_Color, self.lcd.Color_Bg_Window,
+                56, 236, 'Release to continue')
         if dirty:
             self.lcd.update()
         return True

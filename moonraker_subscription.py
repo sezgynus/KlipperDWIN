@@ -308,14 +308,22 @@ class MoonrakerSubscription:
         if completion:
             with self._lock:
                 overloaded = (len(self._completion_requests) + len(self._pending_requests)
-                              >= self.MAX_PENDING_REQUESTS)
+                              >= self.MAX_PENDING_REQUESTS - (0 if method == 'printer.emergency_stop' else 1))
                 if not overloaded:
                     self._completion_requests.add(future)
             if overloaded:
                 future.set_exception(MoonrakerError('Too many outstanding Moonraker requests'))
                 return future
         try:
-            self._outbound.put_nowait((future, epoch, method, params or {}, guard))
+            item = (future,epoch,method,params or {},guard)
+            emergency = method == 'printer.emergency_stop'
+            with self._outbound.not_full:
+                limit = self._outbound.maxsize - (0 if emergency else 1)
+                if self._outbound._qsize() >= limit: raise Full
+                if emergency: self._outbound.queue.appendleft(item)
+                else: self._outbound._put(item)
+                self._outbound.unfinished_tasks += 1
+                self._outbound.not_empty.notify()
             self._outbound_wakeup.set()
         except Full:
             with self._lock:
@@ -416,7 +424,8 @@ class MoonrakerSubscription:
                 return
             try:
                 with self._lock:
-                    valid = self._state == 'ready' and self._epoch == epoch and self._socket is not None
+                    connection = self._socket
+                    valid = self._state == 'ready' and self._epoch == epoch and connection is not None
                 if not valid:
                     raise MoonrakerError('Printer connection changed before command dispatch')
                 if future.cancelled():
@@ -425,6 +434,8 @@ class MoonrakerSubscription:
                     raise MoonrakerError('Printer state changed before command dispatch')
                 envelope = {'jsonrpc': '2.0', 'method': method, 'params': params}
                 with self._lock:
+                    if self._state != 'ready' or self._epoch != epoch or self._socket is not connection:
+                        raise MoonrakerError('Connection changed during dispatch guard')
                     completion = future in self._completion_requests
                     self._completion_requests.discard(future)
                     if completion:
@@ -438,7 +449,7 @@ class MoonrakerSubscription:
                         # CANCEL_PRINT can wait for a blocking START_PRINT macro.
                         # Do not time out a still-connected, active job here;
                         # the owning UI confirms completion from print_stats.
-                self._socket.send(json.dumps(envelope))
+                connection.send(json.dumps(envelope))
                 if not completion and not future.done():
                     future.set_result(None)
             except Exception as exc:

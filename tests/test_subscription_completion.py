@@ -69,9 +69,9 @@ class PendingRequestBudgetTests(unittest.TestCase):
             if first is None:
                 first = future
             client._drain_outbound()
-        self.assertEqual(len(client._pending_requests), client.MAX_PENDING_REQUESTS)
-        self.assertEqual(len(client._pending_deadlines), client.MAX_PENDING_REQUESTS)
-        self.assertEqual(client._socket.send.call_count, client.MAX_PENDING_REQUESTS)
+        self.assertEqual(len(client._pending_requests), client.MAX_PENDING_REQUESTS - 1)
+        self.assertEqual(len(client._pending_deadlines), client.MAX_PENDING_REQUESTS - 1)
+        self.assertEqual(client._socket.send.call_count, client.MAX_PENDING_REQUESTS - 1)
         self.assertFalse(first.done())
         client._fail_outbound('connection closed')
         with self.assertRaises(MoonrakerError):
@@ -157,3 +157,24 @@ class OutboundWakeupTests(unittest.TestCase):
         future = client.request('printer.emergency_stop')
         self.assertTrue(written.wait(.5))
         self.assertFalse(future.done())
+
+class EmergencyPriorityTests(CompletionTransportTests):
+    def test_reserved_slot_bypasses_full_normal_queue(self):
+        c = self.make()
+        for _ in range(31): c.notify('printer.gcode.script',{'script':'M400'})
+        self.assertIsNotNone(c.notify('printer.gcode.script').exception())
+        emergency = c.request('printer.emergency_stop')
+        c._drain_outbound()
+        first = json.loads(c._socket.send.call_args_list[0].args[0])
+        self.assertEqual(first['method'],'printer.emergency_stop')
+        self.assertFalse(emergency.done())
+
+    def test_reconnect_inside_guard_cannot_redirect_command(self):
+        c = self.make(); old = c._socket; new = Mock()
+        def guard():
+            c._epoch += 1; c._socket = new
+            return True
+        f = c.notify('printer.gcode.script',{'script':'G1 X1'},guard=guard)
+        c._drain_outbound()
+        self.assertIsNotNone(f.exception())
+        old.send.assert_not_called(); new.send.assert_not_called()

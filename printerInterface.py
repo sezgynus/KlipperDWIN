@@ -3,6 +3,7 @@ from dataclasses import replace
 import logging
 import math
 import re
+import sys
 import time
 import uuid
 from urllib.parse import quote
@@ -647,6 +648,23 @@ class PrinterData:
         if not self._files_loaded or key not in self._directory_cache:
             self.GetDirectory('')
 
+    DIRECTORY_CACHE_BYTES = 2 * 1024 * 1024
+
+    @staticmethod
+    def _directory_size(entries):
+        # Include Python container/string overhead, not just serialized JSON bytes.
+        pending = [entries]
+        size = 0
+        while pending:
+            value = pending.pop()
+            size += sys.getsizeof(value)
+            if isinstance(value, dict):
+                pending.extend(value.keys())
+                pending.extend(value.values())
+            elif isinstance(value, (list, tuple)):
+                pending.extend(value)
+        return size
+
     def GetDirectory(self, directory=''):
         self._directory_loading = False
         self.GetFiles()
@@ -655,8 +673,14 @@ class PrinterData:
         if directory and any(part in ('', '.', '..') for part in directory.split('/')):
             raise ValueError('Invalid directory path')
         key = (self.state.epoch, self.state.file_revision, directory)
+        sizes = getattr(self, '_directory_cache_sizes', {})
+        self._directory_cache_sizes = sizes
+        for old in tuple(sizes):
+            if old not in self._directory_cache:
+                del sizes[old]
         if self._directory_revision_key != key[:2]:
             self._directory_cache.clear()
+            sizes.clear()
             self._directory_retry_at.clear()
             self._directory_revision_key = key[:2]
         try:
@@ -679,20 +703,27 @@ class PrinterData:
                         entries.append(dict(item, path=path + ('/' if is_dir else ''), isDirectory=is_dir))
                 if len({item['path'] for item in entries}) != len(entries):
                     raise ValueError('Duplicate directory entries')
-                self._directory_cache[key] = entries
+                size = self._directory_size(entries)
+                if size <= self.DIRECTORY_CACHE_BYTES:
+                    self._directory_cache[key] = entries
+                    sizes[key] = size
                 self._directory_loading = False
                 self._directory_retry_at.pop(key, None)
             # Insertion-ordered cache: keep the root and current parent available
             # while bounding memory during long sessions with many folders.
-            entries = list(self._directory_cache.pop(key))
-            self._directory_cache[key] = entries
+            if key in self._directory_cache:
+                entries = self._directory_cache.pop(key)
+                self._directory_cache[key] = entries
             parent = directory.rpartition('/')[0]
-            while len(self._directory_cache) > 64:
+            retained = sum(sizes.values())
+            while len(self._directory_cache) > 64 or retained > self.DIRECTORY_CACHE_BYTES:
                 victim = next((k for k in self._directory_cache
                                if k[2] not in ('', directory, parent)), None)
                 if victim is None:
-                    break
+                    # Byte limit wins even when only root/current/parent remain.
+                    victim = next(iter(self._directory_cache))
                 del self._directory_cache[victim]
+                retained -= sizes.pop(victim, 0)
             self._sort_files(entries)
             entries.sort(key=lambda item: not item['isDirectory'])
             return tuple(item['path'] for item in entries)

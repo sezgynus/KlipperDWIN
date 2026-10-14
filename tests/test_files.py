@@ -383,6 +383,29 @@ class FilePrefetchTests(unittest.TestCase):
         self.assertGreater(result.getREST.call_count, before)
         self.assertIn((1, 1, ''), result._directory_cache)
 
+    def test_oversized_directory_is_returned_without_retention(self):
+        result = printer(snapshot())
+        result.DIRECTORY_CACHE_BYTES = 256
+        def response(path):
+            if 'directory?' in path:
+                return {'result': {'dirs': [], 'files': [
+                    {'filename': 'part.gcode', 'metadata': 'x' * 1024}]}}
+            return {'result': {}}
+        result.getREST = Mock(side_effect=response)
+        self.assertEqual(result.GetDirectory(''), ('part.gcode',))
+        self.assertFalse(result._directory_cache)
+        self.assertFalse(result._directory_cache_sizes)
+
+    def test_directory_cache_byte_budget_includes_protected_entries(self):
+        result = printer(snapshot())
+        item = [{'filename': 'part.gcode', 'path': 'part.gcode', 'isDirectory': False}]
+        result.DIRECTORY_CACHE_BYTES = result._directory_size(item) + 64
+        result.getREST = Mock(side_effect=lambda path: {'result':
+            {'dirs': [], 'files': [{'filename': 'part.gcode'}]} if 'directory?' in path else {}})
+        for directory in ('', 'one', 'one/two'):
+            self.assertTrue(result.GetDirectory(directory))
+            self.assertLessEqual(sum(result._directory_cache_sizes.values()), result.DIRECTORY_CACHE_BYTES)
+
     def test_prefetch_does_not_fetch_when_printer_is_offline(self):
         result = printer(snapshot())
         from printer_state import PrinterState

@@ -1,6 +1,7 @@
 name: Driver Branch Regression
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - master

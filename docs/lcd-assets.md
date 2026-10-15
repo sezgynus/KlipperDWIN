@@ -6,7 +6,19 @@
 
 Petrel targets the **272×480 portrait DWIN T5UIC1** layout used by the compatible 4.3-inch Ender 3 V2 panel. DWIN, DACAI and TJC firmware/resource packs are not interchangeable.
 
-The panel must support T5UIC1 commands and display direction **1**. Petrel draws native text; install the [LCD font](#lcd-font) from SD. The application automatically uploads boot artwork and library **3** icons from repository sources; stock `3.ICO` and English bitmap labels are not prerequisites.
+The panel must support T5UIC1 commands and display direction **1**. Petrel renders text with the **stock DWIN font**; the [bundled LCD font](#lcd-font) is **optional**, for a different visual style. The application automatically uploads boot artwork and library **3** icons from repository sources; stock `3.ICO` and English bitmap labels are not prerequisites.
+
+## Persistent LCD assets and stock recovery
+
+> **⚠️ Stock artwork is replaced automatically.** The original Ender-3 V2 resource set did not provide the complete icon states, animations and artwork needed by Petrel's modern UI. To preserve predictable visuals and responsive native icon drawing, Petrel now manages its own images in non-volatile **Picture Flash**. This is **not temporary** and is not undone by uninstalling Petrel.
+
+- **Boot JPEG:** Petrel synchronizes its `assets/petrel_bootsplash.jpg` to Picture Flash **slot 0**.
+- **Shared UI JPEG:** Petrel synchronizes `assets/petrel_shared.jpg` to Picture Flash **slot 1**. Info copies QR regions from its decoded Area 1 cache.
+- **Icon library 3:** Petrel packs the baseline JPEGs under `assets/icons/` into 32 KiB blocks starting at **slot 3**, within slots **3–15**, and uploads only changed blocks. This provides menu icons, selected states, print controls and animation frames without redrawing all artwork as primitives.
+- **Write reduction:** Content fingerprints are kept in a separate persistent Data Flash area, so matching resources are normally skipped. These fingerprints are **not a backup** of the original OEM images.
+- **Not overwritten automatically:** Stock picture slot **2**, the LCD kernel and font resources. Print thumbnails are transferred to volatile SRAM. The bundled ASCII font is **optional** and is installed manually by SD card only if the user chooses it.
+
+**To restore the stock Creality boot image and icon resources, flash the [original DWIN_SET](../assets/stock-dwin/DWIN_SET) from the LCD microSD slot** after stopping Petrel. Follow the [original DWIN restoration guide](restore-stock-dwin.md). Merely uninstalling the host service cannot restore Picture Flash. This package is for **DWIN T5UIC1 only**; it is not interchangeable with DACAI/TJC. The original LCD files also do not restore the printer mainboard firmware.
 
 ## Before installing or replacing a panel
 
@@ -44,4 +56,4 @@ The [stock inventory](lcd-assets.json) records the resources previously audited 
 
 ## LCD font
 
-The icon library updates automatically over UART. To match Petrel’s text rendering, also install the bundled ASCII font from `assets/fonts/DWIN_SET/0T5UIC1.HZK` using the LCD panel’s SD-card resource update procedure. Copy the bundled `DWIN_SET` directory to a compatible LCD update card, power off the printer, insert the card in the LCD’s card reader, power on and wait for the resource update to finish. Power off, remove the card and start normally. The Pi service does not upload font Flash over UART. The emulator uses the same font; its DejaVu license is in `assets/emulator/Petrel-font-license.txt`.
+**Optional — Petrel works with the stock DWIN LCD font.** Changing the font is a visual preference, not a requirement for Petrel's features or performance. The bundled ASCII font can make physical text resemble Petrel's documentation screenshots. If you choose to use it, copy the font-only `assets/fonts/DWIN_SET` directory (containing `0T5UIC1.HZK`) to a compatible LCD update SD card, power off the printer, insert the card in the LCD's card reader and power on. Wait for the resource update to finish, power off, remove the card and start normally. **Do not use the separate stock-recovery `assets/stock-dwin/DWIN_SET` for this optional font change.** Petrel's boot artwork and icon library update automatically over UART, but the Pi service never uploads font Flash. The emulator uses the bundled font, so screenshots can have different typography from a physical panel retaining its stock font. The font's DejaVu license is in `assets/emulator/Petrel-font-license.txt`.

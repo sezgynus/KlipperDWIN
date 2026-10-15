@@ -4,6 +4,8 @@
 
 ## Kurulumdan önce
 
+> **⚠️ LCD'nin kalıcı kaynakları değiştirilecektir:** Petrel ilk bağlantıda veya görseller değiştiğinde kendi açılış JPEG'ini, ortak slot-1 JPEG sayfasını ve ikon kütüphanesini DWIN LCD'nin kalıcı Picture Flash belleğine otomatik yazar. Stok görsellerin ilgili alanları değiştirilir; bu değişiklik güç kesilince veya Pi yazılımı kaldırılınca geri alınmaz. Petrel'in güncel simgeleri, animasyonları ve hızlı yerel çizim düzeni için bu işlem gereklidir. [Orijinal Creality DWIN_SET](../assets/stock-dwin/DWIN_SET) paketi ve [stok görsellere dönüş rehberi](restore-stock-dwin_TR.md) repoda yer alır. **Kurulumdan veya güncellemeden önce okuyun.**
+
 Uyumlu DWIN T5UIC1 panel, UART/GPIO erişimli Linux SBC, Python 3.11+ ve çalışan Klipper/Moonraker kurulumu kullanın. [LCD uyumluluğunu](lcd-assets_TR.md) kontrol edin. Kurulum betiği LCD kernel firmware'ini veya fontunu yüklemez; Petrel ikonlarını uygulama ilk LCD bağlantısında otomatik eşitler.
 
 ## Bağlantı ve seri port hazırlığı
@@ -54,10 +56,11 @@ MOONRAKER_CONFIG=/path/to/moonraker.conf ./install.sh
 
 ## LCD kaynakları ve ilk açılış
 
-1. [LCD fontunu kurun](lcd-assets_TR.md#lcd-fontu). Font SD karttan bir kez yüklenir; ikonlar ve açılış görseli UART üzerinden otomatik yönetilir.
-2. Petrel açılış ilerlemesi tamamlanıp **Home** görünene kadar bekleyin.
-3. Enkoderi çevirip bir menü açın; sıcaklıkların web arayüzüyle uyuştuğunu kontrol edin.
-4. Yazılar/ikonlar yanlışsa [LCD kaynak rehberini](lcd-assets_TR.md), bağlantı hatası varsa aşağıdaki sorun giderme tablosunu izleyin.
+**LCD fontunu değiştirmek isteğe bağlıdır.** Petrel stok DWIN fontuyla çalışır. Petrel'in ekran görüntülerindeki yazı görünümünü isteyenler [paketle sunulan LCD fontunu](lcd-assets_TR.md#lcd-fontu) ekranın SD yuvasından isteğe bağlı yükleyebilir. İkonlar ve açılış görseli UART üzerinden otomatik eşitlenir.
+
+1. Petrel açılış ilerlemesi tamamlanıp **Home** görünene kadar bekleyin.
+2. Enkoderi çevirip bir menü açın; sıcaklıkların web arayüzüyle uyuştuğunu kontrol edin.
+3. Yazılar/ikonlar yanlışsa [LCD kaynak rehberini](lcd-assets_TR.md), bağlantı hatası varsa aşağıdaki sorun giderme tablosunu izleyin.
 
 Moonraker, Petrel bağlantısına izin vermelidir. Kimlik doğrulama gerekiyorsa `MOONRAKER_API_KEY` ayarlayın. Seri port ve GPIO erişimi için servis kullanıcısının izinlerini kontrol edin; installer `dialout` ve `gpio` gruplarını yapılandırır.
 

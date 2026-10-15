@@ -51,11 +51,14 @@ MMU ve Spoolman isteğe bağlıdır. Menüler algılanan yapılandırmaya ve ge�
 - Uyumlu 4.3 inç Ender 3 V2 paneli dahil **272×480 dikey DWIN T5UIC1**. Diğer DWIN modellerinin veya DACAI/TJC'nin çalıştığı varsayılmaz.
 - UART/GPIO bulunan Raspberry Pi veya uyumlu Linux SBC ve **Python 3.11+**.
 - Çalışan **Klipper ve Moonraker**, yetkili ağ erişimi, çapraz TX/RX bağlantısı ve yapılandırılmış enkoder pinleri.
-- Panelin SD güncelleme yöntemiyle bir kez kurulan paket LCD fontu; açılış görseli ve ikonlar UART üzerinden otomatik eşitlenir.
+
+**Stok DWIN LCD fontu tamamen desteklenir.** Petrel ile sunulan font **isteğe bağlıdır** ve yalnızca yazı görünümünü değiştirir; açılış görseli ve ikonlar UART üzerinden otomatik eşitlenir.
 
 Başlamadan önce [ekran/kaynaklar](docs/lcd-assets_TR.md) ve [bağlantıları](docs/installation_TR.md#bağlantı-ve-seri-port-hazırlığı) kontrol edin. Desteklenen mevcut panel yeni ekran alma ihtiyacını azaltır; SBC/kablo gereksinimlerini ortadan kaldırmaz.
 
 ## Hızlı başlangıç
+
+> **⚠️ Önemli — Petrel LCD'nin kalıcı görsel kaynaklarını değiştirir.** Desteklenen DWIN T5UIC1 ekranlarda güncel Petrel sürümleri, stok açılış JPEG'ini, slot-1 resmini ve ikon kütüphanesi verilerini daha akıcı ve tutarlı arayüz için LCD'nin kalıcı Picture Flash belleğinde otomatik olarak değiştirir. Pi üzerindeki yazılımı güncellemek veya kaldırmak **stok görselleri geri getirmez**. Orijinal Creality ikonlarına ve JPEG'lerine dönmek için Petrel'i durdurup [repodaki orijinal DWIN_SET](assets/stock-dwin/DWIN_SET) paketini **LCD'nin microSD yuvasından** yükleyin; önce [stok kaynaklara dönüş rehberini](docs/restore-stock-dwin_TR.md) okuyun. Bu işlem yazıcının ana kart firmware'ini geri yüklemez.
 
 Petrel'i kurun:
 
@@ -66,7 +69,7 @@ cd ~/Petrel
 ./install.sh
 ```
 
-Installer bağımlılıkları, `Petrel.service` servisini, harici ayarları ve Moonraker Update Manager kaydını hazırlar. [LCD fontu ve ilk açılış kontrollerini](docs/installation_TR.md#lcd-kaynakları-ve-ilk-açılış) tamamlayın. Petrel'i Moonraker Update Manager veya LCD'deki Info ekranından güncelleyebilirsiniz; ayrıntılar için [güncelleme rehberine](docs/installation_TR.md#güncelleme) bakın. Mevcut kurulumların ayarları [geçişte](docs/installation_TR.md#güncelleme) korunur.
+Installer bağımlılıkları, `Petrel.service` servisini, harici ayarları ve Moonraker Update Manager kaydını hazırlar. [İlk açılış kontrollerini](docs/installation_TR.md#lcd-kaynakları-ve-ilk-açılış) tamamlayın. Petrel'i Moonraker Update Manager veya LCD'deki Info ekranından güncelleyebilirsiniz; ayrıntılar için [güncelleme rehberine](docs/installation_TR.md#güncelleme) bakın. Mevcut kurulumların ayarları [geçişte](docs/installation_TR.md#güncelleme) korunur.
 
 Bağlantı/enkoder/güç ayarlarını daha sonra değiştirmek için `~/Petrel` içinde `./configure.sh` çalıştırın. Gezinmek için çevirin, seçmek için basın; sayısal değerlerde çevirip yeniden basarak onaylayın. Tune düzenleyicisi **Apply** kullanır; bazı sayfalarda ayrıca **Save** gerekir. **Back** geri döner; Home sayfaları arasında ilerlemek için çevirmeye devam edin.
 
@@ -74,7 +77,7 @@ Bağlantı/enkoder/güç ayarlarını daha sonra değiştirmek için `~/Petrel` 
 
 | Rehber | Öğrenecekleriniz |
 |---|---|
-| [Kurulum ve yapılandırma](docs/installation_TR.md) | Bağlantılar, LCD fontu, ilk açılış, ayarlar, güncellemeler ve sorun giderme |
+| [Kurulum ve yapılandırma](docs/installation_TR.md) | Bağlantılar, isteğe bağlı LCD fontu, ilk açılış, ayarlar, güncellemeler ve sorun giderme |
 | [Günlük kullanım](docs/user-guide_TR.md) | Dashboard birimleri, dosya seçimi, hareket, ısıtma, kalibrasyon, Display, Info ve güç |
 | [Print ve Tune](docs/print-controls_TR.md) | Olası 17 alan, komut sonuçları, isteğe bağlı iş switchleri ve MMU hata akışı |
 | [MMU ve filament](docs/mmu-guide_TR.md) | Gate/makara, eşleme, EndlessSpool, bypass, durum bildirme ve kurtarma |

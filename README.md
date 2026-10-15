@@ -51,11 +51,14 @@ MMU and Spoolman are optional. Menus depend on discovered configuration and vali
 - **272×480 portrait DWIN T5UIC1**, including the compatible 4.3-inch Ender 3 V2 panel. Other DWIN models and DACAI/TJC are not implied to work.
 - Raspberry Pi or compatible Linux SBC with UART/GPIO and **Python 3.11+**.
 - Working **Klipper and Moonraker**, authorized network access, crossed TX/RX and configured encoder pins.
-- The bundled LCD font, installed once using the panel's SD update procedure; boot artwork and icons synchronize automatically over UART.
+
+The **stock DWIN LCD font is fully supported**. Petrel's bundled font is **optional** and changes text appearance only; boot artwork and icons synchronize automatically over UART.
 
 Check [display/resources](docs/lcd-assets.md) and [wiring](docs/installation.md#wiring-and-serial-setup) before starting. Existing supported hardware avoids buying a replacement display; it does not remove the SBC/cable requirements.
 
 ## Quick start
+
+> **⚠️ Important — Petrel permanently changes LCD artwork.** On supported DWIN T5UIC1 screens, current Petrel releases automatically replace the stock boot JPEG, slot-1 picture and icon-library data in the LCD's non-volatile Picture Flash with resources optimized for Petrel's interface and drawing performance. Updating or uninstalling the Pi software alone **does not restore the stock images**. To return to Creality's original icons and JPEGs, stop Petrel and flash the [bundled original DWIN_SET](assets/stock-dwin/DWIN_SET) through the **LCD's microSD slot**; follow the [stock restoration guide](docs/restore-stock-dwin.md). This does **not** restore the printer mainboard firmware.
 
 Install Petrel:
 
@@ -66,7 +69,7 @@ cd ~/Petrel
 ./install.sh
 ```
 
-The installer prepares dependencies, `Petrel.service`, external settings and Moonraker Update Manager. Complete the [LCD font and first-start checks](docs/installation.md#lcd-resources-and-first-start). You can update Petrel through Moonraker Update Manager or the LCD Info screen; see the [update guidance](docs/installation.md#update). Existing installations preserve settings during [migration](docs/installation.md#update).
+The installer prepares dependencies, `Petrel.service`, external settings and Moonraker Update Manager. Complete the [first-start checks](docs/installation.md#lcd-resources-and-first-start). You can update Petrel through Moonraker Update Manager or the LCD Info screen; see the [update guidance](docs/installation.md#update). Existing installations preserve settings during [migration](docs/installation.md#update).
 
 To change connection/encoder/power settings later, run `./configure.sh` from `~/Petrel`. Rotate to navigate and press to select; confirm numeric values by rotating and pressing again. The Tune editor uses **Apply**; some pages also require **Save**. **Back** returns; keep rotating to move between Home pages.
 
@@ -74,7 +77,7 @@ To change connection/encoder/power settings later, run `./configure.sh` from `~/
 
 | Guide | What you will learn |
 |---|---|
-| [Installation and configuration](docs/installation.md) | Wiring, LCD font, first start, settings, updates and troubleshooting |
+| [Installation and configuration](docs/installation.md) | Wiring, optional LCD font, first start, settings, updates and troubleshooting |
 | [Daily use](docs/user-guide.md) | Dashboard units, file selection, movement, heating, calibration, Display, Info and power |
 | [Print and Tune](docs/print-controls.md) | All 17 possible fields, command outcomes, optional job switches and MMU error flow |
 | [MMU and filament](docs/mmu-guide.md) | Gates/spools, mapping, EndlessSpool, bypass, state reporting and recovery |

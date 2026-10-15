@@ -4,6 +4,8 @@
 
 ## Before installation
 
+> **⚠️ Persistent LCD resource overwrite:** On first connection or when resources change, Petrel automatically writes its own boot JPEG, shared slot-1 JPEG page and icon library to the DWIN LCD's non-volatile Picture Flash. These replace stock visual data and remain after shutdown or Pi software removal. This is required for Petrel's current interface symbols, animations and efficient native rendering. The [original Creality DWIN_SET](../assets/stock-dwin/DWIN_SET) and a [step-by-step stock restoration guide](restore-stock-dwin.md) are included. **Review this before installing or updating.**
+
 Use a compatible DWIN T5UIC1 panel, a Linux SBC with UART/GPIO, Python 3.11+ and a working Klipper/Moonraker setup. Check [LCD compatibility](lcd-assets.md). The installer does not flash LCD kernel firmware or fonts; the application synchronizes Petrel icons automatically at its first LCD connection.
 
 ## Wiring and serial setup
@@ -54,10 +56,11 @@ MOONRAKER_CONFIG=/path/to/moonraker.conf ./install.sh
 
 ## LCD resources and first start
 
-1. [Install the LCD font](lcd-assets.md#lcd-font). The font is installed once from SD; icons and boot artwork are managed automatically over UART.
-2. Wait for Petrel startup progress to finish and **Home** to appear.
-3. Rotate the encoder and open a menu; check temperatures against the web interface.
-4. For wrong text/icons, follow the [LCD resource guide](lcd-assets.md); for connection failures, use the troubleshooting table below.
+**LCD font installation is optional.** Petrel works with the stock DWIN font. For the typography shown in Petrel's screenshots, you may optionally [install the bundled LCD font](lcd-assets.md#lcd-font) from the display's SD slot. Icons and boot artwork synchronize automatically over UART.
+
+1. Wait for Petrel startup progress to finish and **Home** to appear.
+2. Rotate the encoder and open a menu; check temperatures against the web interface.
+3. For wrong text/icons, follow the [LCD resource guide](lcd-assets.md); for connection failures, use the troubleshooting table below.
 
 Moonraker must authorize the Petrel connection. Set `MOONRAKER_API_KEY` if authentication is required. Check the service user's serial/GPIO permissions; the installer configures the `dialout` and `gpio` groups.
 

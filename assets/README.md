@@ -12,6 +12,7 @@
 | `display-settings.png` | Original transparent Display icon sprite |
 | `petrel-readme.png` | Petrel bird logo, wordmark and slogan header used by both main READMEs |
 | [emulator/](emulator/README.md) | Host-side stock icon and font inputs for screenshots |
+| [stock-dwin/](stock-dwin/README.md) | Original Creality DWIN_SET bundle for restoring stock LCD firmware and artwork |
 
 The boot JPEG is 480×272 for panel picture slot 0. It is shown directly without cache copies. After boot artwork synchronization, the splash, progress bar and loading animation are displayed before icon-library preparation and checks. Unchanged icon synchronization does not stop the animation; actual icon uploads stop it temporarily and the next boot stage restarts it.
 

@@ -12,7 +12,7 @@ These files are inputs for screenshot rendering on the Pi. Enabling the emulator
 | `0T5UIC1.HZK` | Graphite ASCII glyphs; original non-ASCII banks retained |
 | `0_DWIN_ASC.HZK` | Alternative DGUS ASCII font; select explicitly only when appropriate |
 
-For a custom panel font, set `PETREL_EMULATOR_FONT` to the matching file in the service environment and restart. See [optional emulator settings](../../docs/ui-emulator.md#optional-settings). Matching resources matters when comparing a screenshot with a physical display.
+For a custom panel font, set `PETREL_EMULATOR_FONT` to the matching file in the service environment and restart. See [optional emulator settings](../../docs/ui-emulator.md#optional-settings). The stock DWIN font works with Petrel; installing the bundled font on the physical panel is optional and only changes its typography. Match font resources when comparing a screenshot with a physical display.
 
 Picture slot **1** is supplied by `../petrel_shared.jpg`; Area 1 uses its portrait upper-left QR region. ICO sources no longer contain QR ID 155.
 

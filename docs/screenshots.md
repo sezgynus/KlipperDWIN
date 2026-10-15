@@ -40,6 +40,15 @@ Usage steps: [Daily use](user-guide.md) · [Print/Tune](print-controls.md) · [M
 | Printing without a thumbnail or layer metadata | <a href="assets/screens/print-no-metadata.png"><img src="assets/screens/framed/print-no-metadata.png" width="176" alt="Printing without a thumbnail or layer metadata"></a> | [Full-size PNG](assets/screens/print-no-metadata.png) |
 | Stop confirmation starts on Back | <a href="assets/screens/stop-confirm.png"><img src="assets/screens/framed/stop-confirm.png" width="176" alt="Stop confirmation starts on Back"></a> | [Full-size PNG](assets/screens/stop-confirm.png) |
 | Completed print and Close action | <a href="assets/screens/printing-complete.png"><img src="assets/screens/framed/printing-complete.png" width="176" alt="Completed print and Close action"></a> | [Full-size PNG](assets/screens/printing-complete.png) |
+| Print control selection: tune | <a href="assets/screens/printing-focus-tune.png"><img src="assets/screens/framed/printing-focus-tune.png" width="176" alt="Print control selection: tune"></a> | [Full-size PNG](assets/screens/printing-focus-tune.png) |
+| Print control selection: pause | <a href="assets/screens/printing-focus-pause.png"><img src="assets/screens/framed/printing-focus-pause.png" width="176" alt="Print control selection: pause"></a> | [Full-size PNG](assets/screens/printing-focus-pause.png) |
+| Print control selection: stop | <a href="assets/screens/printing-focus-stop.png"><img src="assets/screens/framed/printing-focus-stop.png" width="176" alt="Print control selection: stop"></a> | [Full-size PNG](assets/screens/printing-focus-stop.png) |
+| Print control selection: resume | <a href="assets/screens/printing-focus-resume.png"><img src="assets/screens/framed/printing-focus-resume.png" width="176" alt="Print control selection: resume"></a> | [Full-size PNG](assets/screens/printing-focus-resume.png) |
+| Print control selection: mmu | <a href="assets/screens/printing-focus-mmu.png"><img src="assets/screens/framed/printing-focus-mmu.png" width="176" alt="Print control selection: mmu"></a> | [Full-size PNG](assets/screens/printing-focus-mmu.png) |
+| Print control selection: close | <a href="assets/screens/printing-focus-close.png"><img src="assets/screens/framed/printing-focus-close.png" width="176" alt="Print control selection: close"></a> | [Full-size PNG](assets/screens/printing-focus-close.png) |
+| Stop selected | <a href="assets/screens/stop-danger-selected.png"><img src="assets/screens/framed/stop-danger-selected.png" width="176" alt="Stop selected"></a> | [Full-size PNG](assets/screens/stop-danger-selected.png) |
+| MMU error Back selected | <a href="assets/screens/error-back-selected.png"><img src="assets/screens/framed/error-back-selected.png" width="176" alt="MMU error Back selected"></a> | [Full-size PNG](assets/screens/error-back-selected.png) |
+| Print cancellation pending | <a href="assets/screens/printing-stopping.png"><img src="assets/screens/framed/printing-stopping.png" width="176" alt="Print cancellation pending"></a> | [Full-size PNG](assets/screens/printing-stopping.png) |
 
 ## Printer and display controls
 
@@ -67,6 +76,7 @@ Usage steps: [Daily use](user-guide.md) · [Print/Tune](print-controls.md) · [M
 | Printer power-off confirmation | <a href="assets/screens/power-confirm.png"><img src="assets/screens/framed/power-confirm.png" width="176" alt="Printer power-off confirmation"></a> | [Full-size PNG](assets/screens/power-confirm.png) |
 | Power off is blocked while a print is active | <a href="assets/screens/power-blocked.png"><img src="assets/screens/framed/power-blocked.png" width="176" alt="Power off is blocked while a print is active"></a> | [Full-size PNG](assets/screens/power-blocked.png) |
 | Maintenance placeholder | <a href="assets/screens/maintenance.png"><img src="assets/screens/framed/maintenance.png" width="176" alt="Maintenance placeholder"></a> | [Full-size PNG](assets/screens/maintenance.png) |
+| Power off selected | <a href="assets/screens/power-off-selected.png"><img src="assets/screens/framed/power-off-selected.png" width="176" alt="Power off selected"></a> | [Full-size PNG](assets/screens/power-off-selected.png) |
 
 ## Bed leveling and calibration
 

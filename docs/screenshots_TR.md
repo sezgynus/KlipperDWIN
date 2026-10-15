@@ -40,6 +40,15 @@ Kullanım adımları: [Günlük kullanım](user-guide_TR.md) · [Print/Tune](pri
 | Önizleme ve katman bilgisi olmadan baskı | <a href="assets/screens/print-no-metadata.png"><img src="assets/screens/framed/print-no-metadata.png" width="176" alt="Önizleme ve katman bilgisi olmadan baskı"></a> | [Tam boyut PNG](assets/screens/print-no-metadata.png) |
 | Stop onayı Back seçili başlar | <a href="assets/screens/stop-confirm.png"><img src="assets/screens/framed/stop-confirm.png" width="176" alt="Stop onayı Back seçili başlar"></a> | [Tam boyut PNG](assets/screens/stop-confirm.png) |
 | Tamamlanmış baskı ve Close kontrolü | <a href="assets/screens/printing-complete.png"><img src="assets/screens/framed/printing-complete.png" width="176" alt="Tamamlanmış baskı ve Close kontrolü"></a> | [Tam boyut PNG](assets/screens/printing-complete.png) |
+| Baskı kontrol seçimi: tune | <a href="assets/screens/printing-focus-tune.png"><img src="assets/screens/framed/printing-focus-tune.png" width="176" alt="Baskı kontrol seçimi: tune"></a> | [Tam boyut PNG](assets/screens/printing-focus-tune.png) |
+| Baskı kontrol seçimi: pause | <a href="assets/screens/printing-focus-pause.png"><img src="assets/screens/framed/printing-focus-pause.png" width="176" alt="Baskı kontrol seçimi: pause"></a> | [Tam boyut PNG](assets/screens/printing-focus-pause.png) |
+| Baskı kontrol seçimi: stop | <a href="assets/screens/printing-focus-stop.png"><img src="assets/screens/framed/printing-focus-stop.png" width="176" alt="Baskı kontrol seçimi: stop"></a> | [Tam boyut PNG](assets/screens/printing-focus-stop.png) |
+| Baskı kontrol seçimi: resume | <a href="assets/screens/printing-focus-resume.png"><img src="assets/screens/framed/printing-focus-resume.png" width="176" alt="Baskı kontrol seçimi: resume"></a> | [Tam boyut PNG](assets/screens/printing-focus-resume.png) |
+| Baskı kontrol seçimi: mmu | <a href="assets/screens/printing-focus-mmu.png"><img src="assets/screens/framed/printing-focus-mmu.png" width="176" alt="Baskı kontrol seçimi: mmu"></a> | [Tam boyut PNG](assets/screens/printing-focus-mmu.png) |
+| Baskı kontrol seçimi: close | <a href="assets/screens/printing-focus-close.png"><img src="assets/screens/framed/printing-focus-close.png" width="176" alt="Baskı kontrol seçimi: close"></a> | [Tam boyut PNG](assets/screens/printing-focus-close.png) |
+| Baskı durdurma seçili | <a href="assets/screens/stop-danger-selected.png"><img src="assets/screens/framed/stop-danger-selected.png" width="176" alt="Baskı durdurma seçili"></a> | [Tam boyut PNG](assets/screens/stop-danger-selected.png) |
+| MMU hatasında geri seçili | <a href="assets/screens/error-back-selected.png"><img src="assets/screens/framed/error-back-selected.png" width="176" alt="MMU hatasında geri seçili"></a> | [Tam boyut PNG](assets/screens/error-back-selected.png) |
+| Baskı iptali bekleniyor | <a href="assets/screens/printing-stopping.png"><img src="assets/screens/framed/printing-stopping.png" width="176" alt="Baskı iptali bekleniyor"></a> | [Tam boyut PNG](assets/screens/printing-stopping.png) |
 
 ## Yazıcı ve ekran kontrolleri
 
@@ -67,6 +76,7 @@ Kullanım adımları: [Günlük kullanım](user-guide_TR.md) · [Print/Tune](pri
 | Yazıcıyı kapatma onayı | <a href="assets/screens/power-confirm.png"><img src="assets/screens/framed/power-confirm.png" width="176" alt="Yazıcıyı kapatma onayı"></a> | [Tam boyut PNG](assets/screens/power-confirm.png) |
 | Aktif baskıda güç kapatma engellenir | <a href="assets/screens/power-blocked.png"><img src="assets/screens/framed/power-blocked.png" width="176" alt="Aktif baskıda güç kapatma engellenir"></a> | [Tam boyut PNG](assets/screens/power-blocked.png) |
 | Bakım menüsü | <a href="assets/screens/maintenance.png"><img src="assets/screens/framed/maintenance.png" width="176" alt="Bakım menüsü"></a> | [Tam boyut PNG](assets/screens/maintenance.png) |
+| Güç kapatma seçili | <a href="assets/screens/power-off-selected.png"><img src="assets/screens/framed/power-off-selected.png" width="176" alt="Güç kapatma seçili"></a> | [Tam boyut PNG](assets/screens/power-off-selected.png) |
 
 ## Tabla ayarı ve kalibrasyon
 

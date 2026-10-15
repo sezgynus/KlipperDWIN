@@ -22,7 +22,7 @@ Kurulu Pi'de `python3` yerine `~/petrel-env/bin/python` kullanın. Testler izole
 - Ekran ayarları, güç/açılış davranışı ve yeniden bağlantı.
 - Emülatör çizimi, görüntü istekleri ve kayıpsız çıktı.
 
-Davranış değişikliğinde kullanıcı sonucu ve hata durumları için kontroller ekleyin veya güncelleyin. Başarılı testler fiziksel çizim, hareket, ölçüm doğruluğu veya harici servislerde kalıcı kaydı kanıtlamaz. GitHub regresyon iş akışı `master` ve tanımlı özellik dallarında çalışır; diğer dallarda da yerel komutu kullanın.
+Davranış değişikliğinde kullanıcı sonucu ve hata durumları için kontroller ekleyin veya güncelleyin. Başarılı testler fiziksel çizim, hareket, ölçüm doğruluğu veya harici servislerde kalıcı kaydı kanıtlamaz. GitHub regresyon iş akışı `master` pushlarında, `master` hedefli pull requestlerde ve manuel tetiklemede çalışır. Yalnızca özellik dalına push yapmak bu kontrolü başlatmaz; pull request açmadan önce yerel komutu kullanın.
 
 ## Donanım doğrulaması
 

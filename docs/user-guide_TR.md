@@ -48,7 +48,7 @@ Eksik thumbnail veya metadata baskıyı engellemez. En fazla dört kullanılan t
   <img src="assets/screens/framed/tune.png" width="360" alt="Tune">
 </p>
 
-Print önizlemeyi, ilerlemeyi, geçen/kalan süreyi, tahmini bitişi ve varsa katman bilgisini gösterir. **Pause / Resume** doğrudan çalışır; **Stop** başlangıçta **Back** seçili onay açar. Baskı bitince **Close** ile Home'a dönün.
+Print önizlemeyi, ilerlemeyi, geçen/kalan süreyi, tahmini bitişi ve varsa katman bilgisini gösterir. **Pause / Resume** doğrudan çalışır; **Stop** başlangıçta **Back** seçili onay açar. Stop onayından sonra yazıcı durumu iptali doğrulayana kadar canlı Print ekranı, devre dışı **Stopping** düğmesiyle görünür kalır. Beklerken iptal komutunu tekrar göndermeyin. Baskı bitince veya iptal edilince **Close** ile Home'a dönün.
 
 **Tune** ile Speed, **Flow**, sıcaklık/fan, Z offset, SCV, minimum cruise ratio, PA/yumuşatma ve firmware retraction ayarlarını değiştirin. Alanlar yapılandırma ve durum verisine bağlıdır. AFTER JOB switchleri yalnız politika pinlerini değiştirir; baskı sonu eylemini makrolarınız belirler. Z offset kalıcı probe kalibrasyonu değildir. [Alanlar, birimler ve hata davranışları](print-controls_TR.md).
 
@@ -76,7 +76,7 @@ Print önizlemeyi, ilerlemeyi, geçen/kalan süreyi, tahmini bitişi ve varsa ka
 
 - **Prepare → Preheat [ad]** preset'i uygular. **Cooldown** ısıtıcıları kapatır.
 - **Control → Temperature** mevcut hotend, tabla ve fan hedeflerini değiştirir.
-- Preset'in **[ad] settings** bölümünü açın, ısıtıcı hedeflerini düzenleyin ve **Save settings** seçin. Preset kaydetmek ısıtmayı başlatmaz.
+- Preset'in **[ad] settings** bölümünü açın, ısıtıcı hedeflerini düzenleyin ve **Save settings** seçin. Preset kaydetmek ısıtmayı başlatmaz. **Back** kaydedilmemiş düzenlemeleri korur; **Discard changes** o presetin kayıtlı değerlerini geri getirir. Düzenlemeleri iptal etmeden önce süren kaydın tamamlanmasını bekleyin.
 
 Mevcutsa preset adları ve ısıtıcı hedefleri Mainsail ile paylaşılır; LCD düzenlemeleri oraya kaydedilir. Mainsail presetleri yoksa yerel presetler kullanılır. Fan ayarları sıcaklık presetleriyle eşitlenmez.
 

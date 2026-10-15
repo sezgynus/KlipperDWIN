@@ -42,7 +42,7 @@ Fan frames **235–242** are rendered in neutral grayscale; luminance below 24 i
 
 ## Package size and reserved space
 
-The current reference pack occupies **8×32 KiB = 256 KiB**, slots **3–10**. The reserved maximum is **13×32 KiB = 416 KiB**, slots **3–15**, leaving slots **11–15** available for growth. This is allocated block space, not an exact JPEG payload budget: the directory, placement gaps and reserved final bytes also consume space. Picture Flash is separate from the **512-byte Data Flash metadata record at 0x0200–0x03FF**. Pass `--library 3` to export; the export tool's legacy default is 7, with a different available slot count.
+The current reference pack occupies **10×32 KiB = 320 KiB**, slots **3–12**. The reserved maximum is **13×32 KiB = 416 KiB**, slots **3–15**, leaving slots **13–15** available for growth. This is allocated block space, not an exact JPEG payload budget: the directory, placement gaps and reserved final bytes also consume space. Picture Flash is separate from the **512-byte Data Flash metadata record at 0x0200–0x03FF**. Pass `--library 3` to export; the export tool's legacy default is 7, with a different available slot count.
 
 ## JPEG compatibility rule
 

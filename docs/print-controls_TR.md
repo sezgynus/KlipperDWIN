@@ -7,7 +7,8 @@
 1. **Home → Print** üzerinden dosyayı seçip önizlemedeki **Print** ile başlatın.
 2. İlerlemeyi, geçen/kalan süreyi ve tahmini bitiş saatini izleyin. Önizleme ve `print_stats.info` katman verisi isteğe bağlıdır; katman Z yüksekliğinden tahmin edilmez.
 3. **Pause / Resume** doğrudan çalışır. **Stop** onay açar; başlangıçta **Back** seçilidir.
-4. Baskı tamamlandığında **Close** ile Home'a dönün.
+4. Stop onayından sonra yazıcı durumu iptali doğrulayana kadar Print ekranı, devre dışı **Stopping** düğmesiyle güncellenmeye devam eder. Beklerken iptal komutunu tekrar göndermeyin.
+5. Baskı tamamlandığında veya iptal edildiğinde **Close** ile Home'a dönün.
 
 ![Print ve Tune örnek akışı](assets/framed/print-controls-demo.gif)
 

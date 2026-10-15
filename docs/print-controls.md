@@ -7,7 +7,8 @@
 1. Choose a file under **Home → Print**, then select **Print** on its preview.
 2. Watch progress, elapsed/remaining time and estimated finish time. The thumbnail and `print_stats.info` layer data are optional; layers are never inferred from Z height.
 3. **Pause / Resume** act directly. **Stop** opens confirmation with **Back** initially selected.
-4. When the job completes, select **Close** to return Home.
+4. After confirming Stop, Print stays live with an inactive **Stopping** button until printer state confirms cancellation. Do not submit cancellation again while waiting.
+5. When the job completes or is cancelled, select **Close** to return Home.
 
 ![Example Print and Tune workflow](assets/framed/print-controls-demo.gif)
 

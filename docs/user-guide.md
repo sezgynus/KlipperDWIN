@@ -48,7 +48,7 @@ Missing thumbnails or metadata do not prevent printing. Up to four used tools ar
   <img src="assets/screens/framed/tune.png" width="360" alt="Tune">
 </p>
 
-Print shows the preview, progress, elapsed/remaining time, estimated finish and optional layers. **Pause / Resume** act directly; **Stop** opens confirmation with **Back** initially selected. After completion, **Close** returns Home.
+Print shows the preview, progress, elapsed/remaining time, estimated finish and optional layers. **Pause / Resume** act directly; **Stop** opens confirmation with **Back** initially selected. After confirming Stop, the live Print screen remains visible with an inactive **Stopping** button until cancellation is confirmed by printer state. Do not submit cancellation again while waiting. After completion or cancellation, **Close** returns Home.
 
 Use **Tune** for Speed, **Flow**, temperatures/fan, Z offset, SCV, minimum cruise ratio, PA/smoothing and firmware retraction. Fields depend on configuration and telemetry. AFTER JOB switches only change policy pins; your macros implement the end-of-job actions. Z offset is not permanent probe calibration. See [fields, units and error behavior](print-controls.md).
 
@@ -76,7 +76,7 @@ Home the required axes first. Movement is unavailable during printing or pauses,
 
 - **Prepare → Preheat [name]** applies a preset. **Cooldown** turns off the heaters.
 - **Control → Temperature** changes available hotend, bed and fan targets.
-- Open a preset's **[name] settings**, edit its heater targets and choose **Save settings**. Saving the preset does not start heating.
+- Open a preset's **[name] settings**, edit its heater targets and choose **Save settings**. Saving the preset does not start heating. **Back** keeps unsaved edits; **Discard changes** restores the saved values for that preset. Wait for an ongoing save to finish before discarding edits.
 
 Preset names and heater targets are shared with Mainsail when available; LCD edits are saved back there. Without Mainsail presets, local presets are used. Fan settings are not synchronized as temperature presets.
 

@@ -42,7 +42,7 @@ Fan kareleri **235–242** nötr gri tonlarla üretilir; siyah saydamlık zemini
 
 ## Paket boyutu ve ayrılan alan
 
-Mevcut referans paket **8×32 KiB = 256 KiB**, yani **3–10** slotlarını kullanır. Ayrılan üst sınır **13×32 KiB = 416 KiB**, yani **3–15** slotlarıdır; **11–15** büyüme için kullanılabilir. Bu ayrılmış blok alanıdır; birebir JPEG veri bütçesi değildir: dizin, yerleşim boşlukları ve blokların ayrılmış son baytları da alan tüketir. Picture Flash, **0x0200–0x03FF adresindeki 512 baytlık Data Flash metadata kaydından** ayrıdır. Export sırasında `--library 3` verin; aracın eski varsayılanı 7'dir ve kullanılabilir slot sayısı farklıdır.
+Mevcut referans paket **10×32 KiB = 320 KiB**, yani **3–12** slotlarını kullanır. Ayrılan üst sınır **13×32 KiB = 416 KiB**, yani **3–15** slotlarıdır; **13–15** büyüme için kullanılabilir. Bu ayrılmış blok alanıdır; birebir JPEG veri bütçesi değildir: dizin, yerleşim boşlukları ve blokların ayrılmış son baytları da alan tüketir. Picture Flash, **0x0200–0x03FF adresindeki 512 baytlık Data Flash metadata kaydından** ayrıdır. Export sırasında `--library 3` verin; aracın eski varsayılanı 7'dir ve kullanılabilir slot sayısı farklıdır.
 
 ## JPEG uyumluluk kuralı
 

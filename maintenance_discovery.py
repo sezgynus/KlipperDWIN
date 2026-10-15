@@ -131,9 +131,11 @@ def discover(state, services=()):
                               'lis3dh', 'bmi160', 'bmi270', 'adxl345_pico'))
                 for n in names)
     has_resonance = 'resonance_tester' in names and accel
-    probe = any(n in names for n in ('probe', 'bltouch', 'smart_effector',
-                                    'probe_eddy_current'))
     load_cell_probe = 'load_cell_probe' in names
+    eddy_probe = any(n.startswith('probe_eddy_current ') for n in names)
+    probe = ('probe' in names or 'bltouch' in names or
+             'smart_effector' in names or eddy_probe)
+    switch_probe = probe and not load_cell_probe and not eddy_probe
     has_motion = 'toolhead' in names and 'gcode_move' in names
     has_manual_probe = 'manual_probe' in names
     has_mesh = 'bed_mesh' in names
@@ -167,7 +169,7 @@ def discover(state, services=()):
                 if tach:
                     bits = _add(bits, 'F07', AUTOMATIC)
             elif name.startswith('controller_fan ') and (
-                    _get(cfg, 'heater') or _get(cfg, 'stepper')):
+                    _get(cfg, 'heater', 'extruder') or _get(cfg, 'stepper')):
                 bits = _add(bits, 'F08', method)
             elif name.startswith('temperature_fan '):
                 bits = _add(bits, 'F09', INFORMATION)
@@ -273,11 +275,17 @@ def discover(state, services=()):
         global_bits = _add(global_bits, 'M02', AUTOMATIC | USER)
     if 'stepper_enable' in names:
         global_bits = _add(global_bits, 'M11', INFORMATION)
+    if 'endstop_phase' in names:
+        global_bits = _add(global_bits, 'M12', INFORMATION | CALIBRATION)
+    if 'dual_carriage' in names:
+        global_bits = _add(global_bits, 'M16', INFORMATION)
     if (has_manual_probe and 'stepper_z' in names and
             _get(_get(settings, 'stepper_z', {}), 'endstop_pin')):
         global_bits = _add(global_bits, 'P06', CALIBRATION | USER)
+    if switch_probe:
+        global_bits = _add(global_bits, 'P01', AUTOMATIC)
     if probe:
-        for f in ('P01', 'P03', 'P04'):
+        for f in ('P03', 'P04'):
             global_bits = _add(global_bits, f, AUTOMATIC)
         if has_manual_probe:
             global_bits = _add(global_bits, 'P05', CALIBRATION)
@@ -294,10 +302,13 @@ def discover(state, services=()):
         global_bits = _add(global_bits, 'P11', CALIBRATION)
     for obj, feature in (('bed_screws', 'P12'), ('z_tilt', 'P13'),
                          ('quad_gantry_level', 'P14'), ('bed_tilt', 'P15'),
-                         ('delta_calibrate', 'P16'), ('axis_twist_compensation', 'P17'),
-                         ('probe_eddy_current', 'P18')):
+                         ('delta_calibrate', 'P16'), ('axis_twist_compensation', 'P17')):
         if obj in names and (obj in ('bed_screws', 'delta_calibrate') or probe or load_cell_probe):
             global_bits = _add(global_bits, feature, CALIBRATION)
+    if eddy_probe:
+        global_bits = _add(global_bits, 'P18', CALIBRATION)
+        if any(n.startswith('temperature_probe ') for n in names):
+            global_bits = _add(global_bits, 'P22', CALIBRATION)
     if 'bltouch' in names:
         global_bits = _add(global_bits, 'P19', USER)
     if 'skew_correction' in names and has_motion:
@@ -338,7 +349,8 @@ def discover(state, services=()):
         global_bits = _add(global_bits, 'S09', INFORMATION)
     if any(n == 'mcu' or n.startswith('mcu ') for n in names):
         global_bits = _add(global_bits, 'S06', INFORMATION)
-    if any(n.startswith('temperature_sensor ') for n in names):
+    if 'maintenance.ambient_sensor' in services:
+        # Do not equate every generic temperature probe with an ambient probe.
         global_bits = _add(global_bits, 'O05', INFORMATION)
     if 'maintenance.guided_service' in services:
         global_bits = _add(global_bits, 'O06', USER)

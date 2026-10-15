@@ -17,6 +17,7 @@ from command_feedback import CommandFeedback
 from threading import Lock
 from ui_events import UIEventLoop, InputEvent
 from ui_case_light import CaseLightMixin
+from ui_maintenance import MaintenanceViewMixin
 from ui_power import PowerShortcutMixin
 from ui_mmu import MMUViewMixin
 from ui_buzzer import BuzzerViewMixin
@@ -73,7 +74,7 @@ class select_t:
         return self.changed()
 
 
-class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUViewMixin, CaseLightMixin, ScrewsTiltMixin, BedMeshMixin, FilePreviewMixin):
+class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUViewMixin, CaseLightMixin, MaintenanceViewMixin, ScrewsTiltMixin, BedMeshMixin, FilePreviewMixin):
 
     TROWS = 6
     MROWS = TROWS - 1  # Total rows, and other-than-Back
@@ -1748,16 +1749,6 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self.lcd.set_backlight(display_settings.raw_brightness(min(values[0], values[2])))
             self._display_dimmed = True
 
-    def Draw_Maintenance_Menu(self):
-        self._draw_list_menu('Maintenance', [('Back', self.ICON_Back, None, None)], 0)
-
-    def HMI_Maintenance_Menu(self):
-        if self.get_encoder_state() == self.ENCODER_DIFF_ENTER:
-            self.select_page.set(next(i for i, entry in enumerate(self._home_entries())
-                                      if entry[0] == 'MAINTENANCE'))
-            self.Goto_MainMenu()
-            self.lcd.update()
-
     def Draw_Display_Menu(self):
         selection = getattr(self, '_display_selection', 0)
         if selection >= 5 and not self._buzzer_enabled():
@@ -3351,6 +3342,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._poll_case_light_state()
         # variable update
         update = self.pd.update_variable()
+        self._poll_maintenance_ui()
         self._focus_tick_quiet()
         if not self.pd.connection_error and self.checkkey not in (self.SelectFile, self.FilePreview):
             self.pd.prefetch_files()

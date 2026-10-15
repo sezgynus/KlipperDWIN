@@ -157,8 +157,13 @@ class DiscoveryTests(unittest.TestCase):
                                                      for name in objects})
         snap = discover(source)
         self.assertEqual(len(snap.devices), 150)
-        size = sys.getsizeof(snap) + sys.getsizeof(snap.devices)
-        size += sum(sys.getsizeof(item) + sys.getsizeof(item.modes) for item in snap.devices)
+        # Count device objects AND their device-name strings. Do not claim
+        # sys.getsizeof measures process RSS; the CI benchmark reports that.
+        size = (sys.getsizeof(snap) + sys.getsizeof(snap.devices)
+                + sys.getsizeof(snap.global_modes)
+                + sys.getsizeof(snap.service_key))
+        size += sum(sys.getsizeof(item) + sys.getsizeof(item.modes)
+                    + sys.getsizeof(item.name) for item in snap.devices)
         self.assertLess(size, 100 * 1024)
 
 

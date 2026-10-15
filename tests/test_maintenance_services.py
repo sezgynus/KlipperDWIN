@@ -51,6 +51,27 @@ class Tests(unittest.TestCase):
         self.assertNotIn('maintenance.travel_counter', result)
         self.assertEqual(parse_evidence({'/server/history/totals': {'error': 'bad'}}), ())
 
+    def test_tmc_thermal_monitor_is_structured_api_evidence(self):
+        from maintenance_discovery import discover, NONE, AUTOMATIC
+        evidence = parse_evidence({
+            '/printer/objects/query?heaters=available_monitors': {
+                'result': {'status': {'heaters': {
+                    'available_monitors': ['tmc2240 stepper_x', 'temperature_sensor cabinet',
+                                           'tmc2209 stepper_z', None]}}}}
+        })
+        self.assertIn('maintenance.driver_thermal_monitor:tmc2240 stepper_x', evidence)
+        self.assertIn('maintenance.driver_thermal_monitor:tmc2209 stepper_z', evidence)
+        self.assertNotIn('maintenance.driver_thermal_monitor:temperature_sensor cabinet', evidence)
+        state = SimpleNamespace(ready=True, epoch=1,
+                                objects=('tmc2240 stepper_x', 'tmc2209 stepper_z',
+                                         'tmc2209 stepper_y'), settings={}, status={})
+        caps = discover(state, evidence)
+        self.assertEqual(caps.method('M08', 'tmc2240 stepper_x'),
+                         AUTOMATIC | INFORMATION)
+        self.assertEqual(caps.method('M08', 'tmc2209 stepper_z'),
+                         AUTOMATIC | INFORMATION)
+        self.assertEqual(caps.method('M08', 'tmc2209 stepper_y'), NONE)
+
     def test_optional_endpoint_failures_and_no_gcode(self):
         calls = []
         class Client:
@@ -62,6 +83,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(probe(Client()), ('history',))
         self.assertEqual(tuple(calls), _ENDPOINTS)
         self.assertTrue(all('gcode' not in path for path in calls))
+        self.assertTrue(all(path.startswith(('/server/', '/machine/', '/printer/objects/query'))
+                            for path in calls))
 
     def test_ready_runs_once_and_keeps_result_on_menu_reentry(self):
         s = State()

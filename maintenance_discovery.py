@@ -250,7 +250,11 @@ def discover(state, services=()):
                 bits = _add(bits, 'M09', INFORMATION)
             # DUMP_TMC is textual G-code, not a structured status API.
             # Do not advertise fault/temperature tests without actual fields.
-            if _is_number(_get(device_status, 'temperature')):
+            if (_is_number(_get(device_status, 'temperature')) or
+                    'maintenance.driver_thermal_monitor:' + name in services):
+                # Heater.available_monitors confirms the driver offers a
+                # temperature monitor. A null/absent sample at READY does
+                # not imply the channel is unsupported.
                 bits = _add(bits, 'M08', AUTOMATIC | INFORMATION)
             if isinstance(_get(device_status, 'drv_status'), Mapping):
                 bits = _add(bits, 'M07', AUTOMATIC | INFORMATION)

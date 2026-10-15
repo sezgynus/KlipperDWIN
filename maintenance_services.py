@@ -50,6 +50,20 @@ def parse_evidence(responses):
             keys.add('update_manager')
         if 'gcode_store' in components:
             keys.add('gcode_store')
+    # heaters.available_monitors is Klipper's authoritative list of driver
+    # temperature monitors. A driver can be disabled and return null at READY
+    # while still supporting temperature readout when enabled.
+    monitor_reply = _result(responses.get('/printer/objects/query?heaters=available_monitors'))
+    status = monitor_reply.get('status', {})
+    heaters = status.get('heaters', {}) if isinstance(status, Mapping) else {}
+    monitors = heaters.get('available_monitors', ()) if isinstance(heaters, Mapping) else ()
+    if isinstance(monitors, (tuple, list)):
+        for name in monitors[:64]:
+            if (isinstance(name, str) and len(name) <= 96 and
+                    name.startswith(('tmc2130 ', 'tmc2208 ', 'tmc2209 ',
+                                     'tmc2240 ', 'tmc2660 ', 'tmc5160 ',
+                                     'tmc5161 '))):
+                keys.add('maintenance.driver_thermal_monitor:' + name)
     # Do not infer access to database namespaces, Petrel diagnostics, or
     # records simply because a Moonraker component happens to be installed.
     return tuple(sorted(keys))
@@ -58,7 +72,8 @@ def parse_evidence(responses):
 # Short read-only requests. G-code help/console and full histories are NEVER
 # fetched during discovery; those may allocate substantial response bodies.
 _ENDPOINTS = ('/server/info', '/machine/proc_stats', '/machine/system_info',
-              '/server/history/totals')
+              '/server/history/totals',
+              '/printer/objects/query?heaters=available_monitors')
 
 
 def probe(client, cancelled=None):

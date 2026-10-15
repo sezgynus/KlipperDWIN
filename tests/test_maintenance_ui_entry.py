@@ -1,7 +1,7 @@
 """Maintenance navigation must reuse the Klipper READY capability snapshot."""
 import unittest
 from unittest.mock import Mock
-from test_capabilities import display, snapshot
+from test_capabilities import display, snapshot, printer
 
 
 class MaintenanceEntryTests(unittest.TestCase):
@@ -45,6 +45,27 @@ class MaintenanceEntryTests(unittest.TestCase):
         d._focus_print_open = Mock()
         d.Goto_PrintProcess()
         self.assertIs(d.pd.maintenance.snapshot, prior)
+
+    def test_backend_telemetry_updates_reuse_ready_snapshot(self):
+        data = snapshot()
+        p = printer(data)
+        first = p.maintenance.snapshot
+        self.assertIsNotNone(first)
+        for count in range(2, 5):
+            data['revision'] = count
+            data['status']['extruder']['temperature'] = 185 + count
+            p.update_variable()
+            self.assertIs(p.maintenance.snapshot, first)
+
+    def test_backend_restarts_discovery_only_for_new_epoch(self):
+        data = snapshot()
+        p = printer(data)
+        first = p.maintenance.snapshot
+        data['epoch'] += 1
+        data['revision'] += 1
+        p.update_variable()
+        self.assertIsNot(first, p.maintenance.snapshot)
+        self.assertEqual(p.maintenance.snapshot.epoch, data['epoch'])
 
     def test_shutdown_releases_snapshot(self):
         d = self.screen()

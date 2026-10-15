@@ -1,7 +1,6 @@
-"""Lazy Maintenance-only snapshot owner.
+"""Compact Maintenance snapshot cache populated once per Klipper READY epoch.
 
-No import of maintenance_discovery and no allocated snapshot until the caller
-opens Maintenance. No background thread, timer, subscription, or API call.
+No independent thread, subscription, network client or menu-entry discovery.
 """
 
 
@@ -21,9 +20,9 @@ class MaintenanceCache:
     def get(self, state, services=()):
         """Return a cached result for one authoritative Klipper config epoch.
 
-        The state is not retained. The services input must reflect API-confirmed
-        integrations, not desired or guessed capabilities. A caller should
-        invoke this only while Maintenance is open, never in the print tick.
+        The state is not retained. Services need positive API evidence.
+        The caller invokes this once at Klipper READY, then once more when
+        asynchronous service evidence arrives. Never on menu entry.
         """
         if not state.ready:
             self.invalidate()

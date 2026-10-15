@@ -1,7 +1,7 @@
 """On-demand, read-only Moonraker evidence for Maintenance discovery.
 
 No imports of Petrel UI, no background task, no persistent client/reference.
-Call ``probe`` only via Petrel's existing read worker on Maintenance entry.
+Call ``probe`` once per Klipper READY epoch using Petrel's existing worker.
 Every evidence key reflects a *successful, structured* API response; missing or
 invalid optional endpoints fail closed and never require issuing G-code.
 """
@@ -67,7 +67,7 @@ def probe(client, cancelled=None):
     ``client`` is Petrel's already-open MoonrakerClient, NOT a new connection.
     Individual unavailable optional endpoints are ignored. Errors do not
     fabricate support for missing services. An optional cancellation Event
-    prevents any further calls after the user leaves Maintenance.
+    can terminate superseded startup discovery between requests.
     """
     responses = {}
     try:

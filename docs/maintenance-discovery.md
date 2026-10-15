@@ -2,7 +2,7 @@
 
 [English](maintenance-discovery.md) · [Türkçe](maintenance-discovery_TR.md)
 
-**Status:** Discovery core and unit tests only. No Maintenance UI actions or printer-side tests have been enabled. This is an implementation milestone, not the final support matrix.
+**Status:** Discovery core, lazy snapshot owner, and unit tests only. No Maintenance UI actions or printer-side tests have been enabled. This is an implementation milestone, not the final support matrix.
 
 ## Design constraints
 
@@ -13,6 +13,10 @@
 - No confidence is inferred from macro names, arbitrary output pins, or commands merely returning `ok`. If no meaningful observation exists, the test remains hidden.
 - Long-lived results contain only an immutable epoch, device name/type, compact integer method masks, and a global method mask. No response body, settings mapping, status mapping, or sample history survives discovery.
 - The discovery module is designed to be **loaded lazily** when Maintenance is integrated. It is **not yet imported by the running Petrel UI**, so this stage adds no normal-print code path.
+
+## Lazy snapshot owner
+
+`maintenance_cache.py` provides `MaintenanceCache.get(state, services=())`. It does not import the discovery module until `get` is called. A matching Klipper epoch, effective settings identity and positively confirmed service set reuse the **same** immutable snapshot; a new config/epoch or service set recomputes it. A disconnected state clears the result. The cache keeps only that snapshot, not its source state. **This owner is not yet wired to the UI.**
 
 ## Method flags
 
@@ -51,6 +55,6 @@ The benchmark reports discovery duration, `tracemalloc` retained allocation delt
 ## Next stages
 
 1. Complete the remaining recognized test adapters with verified API evidence and dedicated regression cases.
-2. Introduce a small, lazy Maintenance-only snapshot owner and invalidate only for a new Klipper configuration/connection epoch.
+2. Wire the existing lazy Maintenance snapshot owner to Maintenance entry only; do not alter the printing hot path.
 3. Connect relevant Moonraker service evidence and **on-demand** test telemetry without always-on subscriptions.
 4. Build execution/safety arbitration independently from discovery; design the UI only after the discovery matrix is verified.

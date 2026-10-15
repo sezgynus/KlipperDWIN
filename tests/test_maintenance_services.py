@@ -1,4 +1,4 @@
-"""Moonraker evidence and entry-only session contracts."""
+"""Moonraker API evidence and Klipper READY discovery lifecycle."""
 import sys
 import unittest
 from concurrent.futures import Future
@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from maintenance_services import parse_evidence, probe, _ENDPOINTS
-from maintenance_session import MaintenanceDiscoverySession
+from maintenance_session import MaintenanceDiscoveryManager, idle
 from maintenance_discovery import INFORMATION
 
 
@@ -17,6 +17,21 @@ class State:
     settings = {'fan': {'max_power': 1.}}
     status = {'print_stats': {'state': 'standby'},
               'virtual_sdcard': {'is_active': False}}
+
+
+class Worker:
+    def __init__(self):
+        self.calls = 0
+        self.jobs = []
+
+    def submit(self, work):
+        self.calls += 1
+        self.jobs.append(work)
+        return Future()
+
+    def drain(self):
+        while self.jobs:
+            self.jobs.pop(0)()
 
 
 class Tests(unittest.TestCase):
@@ -48,64 +63,61 @@ class Tests(unittest.TestCase):
         self.assertEqual(tuple(calls), _ENDPOINTS)
         self.assertTrue(all('gcode' not in path for path in calls))
 
-    def test_session_remains_lazy_and_reuses_snapshot(self):
+    def test_ready_runs_once_and_keeps_result_on_menu_reentry(self):
         s = State()
-        sess = MaintenanceDiscoverySession()
-        self.assertIsNone(sess.snapshot)
-        first = sess.enter(s)
-        self.assertIs(first, sess.enter(s))
-        self.assertEqual(first.method('F01', 'fan'), 2)
-        sess.cancel()
-        self.assertIsNone(sess.snapshot)
-
-    def test_session_service_result_no_retained_client(self):
-        s = State()
-        calls = []
+        manager = MaintenanceDiscoveryManager()
+        worker = Worker()
         class Client:
             def get(self, path):
-                calls.append(path)
                 return {'result': {'job_totals': {}}} if path == '/server/history/totals' else {'result': {}}
-        class Worker:
-            def submit(self, run, queue_timeout=0):
-                self.job = Future()
-                self.job.set_result(run())
-                return self.job
-        sess = MaintenanceDiscoverySession()
-        sess.enter(s, Client(), Worker())
-        self.assertTrue(sess.poll(s))
-        self.assertEqual(sess.snapshot.method('S10'), INFORMATION)
-        self.assertFalse(sess.poll(s))
-        self.assertEqual(calls, list(_ENDPOINTS))
+        client = Client()
+        first = manager.ready(s, client, worker, lambda: s)
+        self.assertEqual(first.method('F01', 'fan'), 2)
+        self.assertIs(manager.ready(s, client, worker, lambda: s), first)
+        self.assertEqual(worker.calls, 1)
+        worker.drain()
+        self.assertEqual(manager.snapshot.method('S10'), INFORMATION)
+        with_services = manager.snapshot
+        self.assertIs(manager.ready(s, client, worker, lambda: s), with_services)
+        self.assertEqual(worker.calls, 1)
 
-    def test_active_print_and_unknown_state_deny_entry(self):
-        idle = State()
-        active = SimpleNamespace(ready=True, epoch=3, objects=idle.objects,
-                                 settings=idle.settings,
-                                 status={'print_stats': {'state': 'printing'},
-                                         'virtual_sdcard': {'is_active': True}})
-        session = MaintenanceDiscoverySession()
-        self.assertIsNone(session.enter(active))
-        self.assertIsNone(session.snapshot)
-        unknown = SimpleNamespace(ready=True, epoch=3, objects=idle.objects,
-                                  settings=idle.settings, status={})
-        self.assertIsNone(session.enter(unknown))
-        self.assertIsNotNone(session.enter(idle))
-        self.assertIsNone(session.enter(active))
-        self.assertIsNone(session.snapshot)
+    def test_discovery_can_run_at_ready_even_during_print_but_entry_cannot(self):
+        s = SimpleNamespace(ready=True, epoch=3, objects=('fan',),
+                            settings={'fan': {'max_power': 1.}},
+                            status={'print_stats': {'state': 'printing'},
+                                    'virtual_sdcard': {'is_active': True}})
+        manager = MaintenanceDiscoveryManager()
+        self.assertIsNotNone(manager.ready(s))
+        self.assertFalse(idle(s))
+        self.assertIsNotNone(manager.snapshot)
 
-    def test_stale_epoch_response_discarded(self):
+    def test_old_service_result_cannot_overwrite_new_epoch(self):
         s = State()
-        class Worker:
-            def submit(self, run, **kwargs):
-                self.f = Future()
-                return self.f
-        w = Worker()
-        sess = MaintenanceDiscoverySession()
-        sess.enter(s, object(), w)
-        s = SimpleNamespace(ready=True, epoch=4, objects=s.objects, settings=s.settings, status=s.status)
-        w.f.set_result(('history',))
-        self.assertFalse(sess.poll(s))
-        self.assertIsNone(sess.snapshot)
+        current = [s]
+        manager = MaintenanceDiscoveryManager()
+        worker = Worker()
+        class Client:
+            def get(self, path):
+                return {'result': {'job_totals': {}}} if path == '/server/history/totals' else {'result': {}}
+        client = Client()
+        manager.ready(s, client, worker, lambda: current[0])
+        replacement = SimpleNamespace(ready=True, epoch=4, objects=s.objects,
+                                      settings=s.settings, status=s.status)
+        current[0] = replacement
+        manager.ready(replacement, client, worker, lambda: current[0])
+        worker.jobs.pop(0)()
+        self.assertEqual(manager.snapshot.epoch, 4)
+        self.assertEqual(manager.snapshot.method('S10'), 0)
+        worker.drain()
+        self.assertEqual(manager.snapshot.method('S10'), INFORMATION)
+
+    def test_disconnect_releases_snapshot_and_next_ready_recalculates(self):
+        s = State()
+        manager = MaintenanceDiscoveryManager()
+        original = manager.ready(s)
+        manager.clear()
+        self.assertIsNone(manager.snapshot)
+        self.assertIsNot(original, manager.ready(s))
 
 
 if __name__ == '__main__':

@@ -22,6 +22,7 @@ from mmu_control import MMUSession
 from preset_store import PresetStore
 from printer_state import PrinterState
 from printer_capabilities import PrinterCapabilities
+from maintenance_session import MaintenanceDiscoveryManager
 from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
 
 class xyze_t:
@@ -196,6 +197,7 @@ class PrinterData:
         self._jog_restore = None
         self._jog_state_name = '_PETREL_JOG_' + uuid.uuid4().hex
         self.state = PrinterState()
+        self.maintenance = MaintenanceDiscoveryManager()
         self.capabilities = PrinterCapabilities()
         self._apply_capabilities(self.capabilities)
         self.status = None
@@ -455,6 +457,7 @@ class PrinterData:
         self.MACHINE_SIZE = 'x'.join('{:g}'.format(value) for value in caps.build_size)
 
     def close(self):
+        self.maintenance.clear()
         self.subscription.close()
         self._read_worker.close()
         self._maintenance_worker.close()
@@ -836,6 +839,8 @@ class PrinterData:
             else:
                 state = PrinterState.from_snapshot(self.subscription.snapshot())
             if not state.ready:
+                if self.state.ready:
+                    self.maintenance.clear()
                 self.state = state
                 self._files_loaded = False
                 self.connection_error = state.error or 'Klipper is not ready'
@@ -970,6 +975,10 @@ class PrinterData:
         self._apply_capabilities(caps)
         self.SHORT_BUILD_VERSION = state.software_version
         if state.epoch != self._file_epoch:
+            # Reuse the existing Klipper READY epoch transition. Never
+            # rediscover on menu entry or during ordinary print updates.
+            self.maintenance.ready(state, self.client, self._maintenance_worker,
+                                   lambda: self.state)
             self._files_loaded = False
             self.files = []
             self._file_epoch = state.epoch

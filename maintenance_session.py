@@ -1,17 +1,16 @@
-"""Entry-only Maintenance capability lifecycle, independent of print telemetry.
+"""Maintenance capability lifecycle, driven only by Klipper READY events.
 
-The session retains a small immutable snapshot, never the source PrinterState,
-Moonraker response bodies, HTTP client, or a worker. Optional service probes
-run on an existing bounded read worker only while Maintenance is open.
+The owner retains a compact immutable capability snapshot, not source state,
+HTTP replies, a client, worker, Future or a background polling task.
 """
+from threading import Lock
 from maintenance_cache import MaintenanceCache
-
 
 IDLE_STATES = frozenset(('standby', 'complete', 'cancelled', 'error'))
 
 
 def idle(state):
-    """Fail closed until current authoritative Klipper status is known idle."""
+    """Only the UI entry uses this print-state guard; discovery is passive."""
     if not state.ready:
         return False
     status = state.status
@@ -24,69 +23,67 @@ def idle(state):
             and status.get('webhooks', {}).get('state', 'ready') == 'ready')
 
 
-class MaintenanceDiscoverySession:
-    __slots__ = ('cache', '_future', '_epoch', '_marker', '_stop')
+class MaintenanceDiscoveryManager:
+    __slots__ = ('cache', '_lock', '_generation')
 
     def __init__(self):
         self.cache = MaintenanceCache()
-        self._future = None
-        self._epoch = None
-        self._marker = None
-        self._stop = None
+        self._lock = Lock()
+        self._generation = 0
 
     @property
     def snapshot(self):
-        return self.cache.snapshot
+        with self._lock:
+            return self.cache.snapshot
 
-    def enter(self, state, client=None, worker=None):
-        if not idle(state):
-            self.cancel()
-            return None
-        previous = self.cache.snapshot
-        changed = (previous is None or previous.epoch != state.epoch
-                   or previous.config_marker != id(state.settings))
-        if changed:
-            self._stop_job()
-            self._epoch, self._marker = state.epoch, id(state.settings)
-            snapshot = self.cache.get(state)
-            if client is not None and worker is not None:
-                from maintenance_services import probe
-                from threading import Event
-                stop = self._stop = Event()
-                # Closure exists only until the Future completes or is cancelled.
-                self._future = worker.submit(lambda: probe(client, stop))
-            return snapshot
-        return previous
-
-    def poll(self, state):
-        """Consume optional evidence while Maintenance is open, never in print ticks."""
-        job = self._future
-        if job is None or not job.done():
-            return False
-        self._future = None
-        self._stop = None
-        if (not idle(state) or state.epoch != self._epoch
-                or id(state.settings) != self._marker):
+    def clear(self):
+        with self._lock:
+            self._generation += 1
             self.cache.invalidate()
-            return False
+
+    def ready(self, state, client=None, worker=None, latest=None):
+        """Once per READY epoch: discover and optionally gather service evidence.
+
+        Never called from Maintenance menu navigation. Future evidence is
+        published only if this READY epoch and config are still current.
+        """
+        if not state.ready:
+            self.clear()
+            return None
+        with self._lock:
+            previous = self.cache.snapshot
+            if (previous is not None and previous.epoch == state.epoch
+                    and previous.config_marker == id(state.settings)):
+                return previous
+            self._generation += 1
+            generation = self._generation
+            snapshot = self.cache.get(state)
+
+        if client is None or worker is None or latest is None:
+            return snapshot
+        epoch, marker = state.epoch, id(state.settings)
+        from maintenance_services import probe
+
+        def work():
+            try:
+                services = probe(client)
+                if not services:
+                    return
+                current = latest()
+                if not current.ready or current.epoch != epoch or id(current.settings) != marker:
+                    return
+                with self._lock:
+                    if generation != self._generation:
+                        return
+                    # This is the completion phase of the same startup
+                    # discovery, not a new scan on entering Maintenance.
+                    self.cache.get(current, services)
+            except Exception:
+                # Optional service evidence must never disrupt printer work.
+                return
+
         try:
-            services = job.result()
+            worker.submit(work)
         except Exception:
-            return False
-        if services:
-            self.cache.get(state, services)
-            return True
-        return False
-
-    def _stop_job(self):
-        if self._stop is not None:
-            self._stop.set()
-        if self._future is not None:
-            self._future.cancel()
-        self._future = None
-        self._stop = None
-
-    def cancel(self):
-        self._stop_job()
-        self.cache.invalidate()
-        self._epoch = self._marker = None
+            pass
+        return snapshot

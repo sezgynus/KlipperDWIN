@@ -876,10 +876,6 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             if self._draw_header_clock():
                 self.lcd.update()
             self.EachMomentUpdate()
-            if getattr(self, 'checkkey', None) == self.MaintenanceMenu:
-                session = getattr(self, '_maintenance_session', None)
-                if session is not None:
-                    session.poll(self.pd.state)
         except OSError:
             if self.lcd is not None and getattr(self.lcd, '_closed', False):
                 self._uart_failed()
@@ -1143,7 +1139,6 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         if self._closed:
             return
         self._closed = True
-        self._end_maintenance_discovery()
         for resource in (getattr(self, '_buzzer_player', None),
                          getattr(self, '_screenshot_server', None),
                          getattr(self, '_emulator', None),
@@ -1555,13 +1550,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 self.checkkey = self.DisplayMenu
                 self.Draw_Display_Menu()
             elif key == 'MAINTENANCE':
-                # Discovery is lazy: no Maintenance state is allocated in the
-                # normal printing path, and probing uses the existing read worker.
-                from maintenance_session import MaintenanceDiscoverySession
-                session = MaintenanceDiscoverySession()
-                if session.enter(self.pd.state, self.pd.client,
-                                 self.pd._read_worker) is not None:
-                    self._maintenance_session = session
+                # Discovery has already run at Klipper READY; this is only
+                # an entry safety check, never a capability API request.
+                from maintenance_session import idle
+                if idle(self.pd.state):
                     self.checkkey = self.MaintenanceMenu
                     self.Draw_Maintenance_Menu()
             elif key == 'INFO':
@@ -3096,14 +3088,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
     # --------------------------------------------------------------#
     # --------------------------------------------------------------#
 
-    def _end_maintenance_discovery(self):
-        session = getattr(self, '_maintenance_session', None)
-        if session is not None:
-            session.cancel()
-            self._maintenance_session = None
-
     def Goto_MainMenu(self):
-        self._end_maintenance_discovery()
         self.checkkey = self.MainMenu
         self.Clear_Main_Window()
 
@@ -3116,7 +3101,6 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._draw_home_page()
 
     def Goto_PrintProcess(self):
-        self._end_maintenance_discovery()
         self._focus_print_open()
 
     def Clear_Title_Bar(self):

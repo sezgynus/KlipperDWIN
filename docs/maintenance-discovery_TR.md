@@ -131,3 +131,20 @@ READY keşfi yalnız dört küçük belgelenmiş API uç noktasını sorgular (`
 `available_features()` ve cihaz adı verilmeden çağrılan `method(feature)`, cihazlara ait maskelerle genel yetenekleri birlikte hesaplar. Cihazlar `instances(feature)` ile ayrı listelenir. Rezonans işlevlerinde `snapshot.axes('R02'|'R03'|'R04', device=None)`, Klipper'ın ortak XY veya ayrı accel_chip_x/accel_chip_y/accel_chip_z tanımlarına uygun X/Y/Z bit maskesi (1/2/4) verir; atanmamış eksen ölçülebilir gösterilmez. Kalıcı özellik sözlüğü veya indeks oluşturulmaz.
 
 Depolama S04 artık küçük `GET /server/files/roots` yanıtında okunabilir `gcodes` kökü varsa keşfedilir. Moonraker, `disk_usage` alanını `GET /server/files/directory?path=gcodes` yanıtında sunar; çok sayıda dosya içerebilecek bu dizin sorgusu **READY anında asla yapılmaz**. Gerçek boş/toplam alan sonraki depolama ekranında gerektiğinde okunabilir. Kökün varlığı ölçülen boş alanı değil, yöntem desteğini kanıtlar. READY keşfinde beş salt-okunur API isteği vardır. <https://moonraker.readthedocs.io/en/latest/external_api/file_manager/>
+
+### Gerçek Pi Zero 2 W kabul ölçümü (merge öncesi zorunlu)
+
+Sentetik Python tahsisleri yerine çalışan Petrel process'ini ölçmek için `tools/measure_petrel_resources.py` kullanılır. Aynı yazıcı yapılandırmasıyla Pi'ye **master** kurulup Klipper READY olduktan sonra, kontrollü boşta veya eşdeğer baskı yükünde servis process'i ölçülür:
+
+```sh
+PID=$(systemctl show -p MainPID --value Petrel.service)
+python3 tools/measure_petrel_resources.py capture --pid "$PID" --seconds 30 --output /tmp/petrel-master.json
+```
+
+Aynı cihazda ve eşdeğer yükte feature branch kurulup çıktı `/tmp/petrel-feature.json` olarak kaydedilir; ardından:
+
+```sh
+python3 tools/measure_petrel_resources.py compare --baseline /tmp/petrel-master.json --candidate /tmp/petrel-feature.json --max-uss-kib 1024
+```
+
+Araç yalnız kullanıcı çalıştırdığında devreye giren, standart Python kütüphanesini kullanan **haricî ölçücüdür**. Linux `/proc/<pid>/smaps_rollup` ve CPU tick'lerini okur; Petrel'e debugger bağlamaz, G-code göndermez veya arka plan servisi kurmaz. Medyan RSS/PSS/USS farkını ve tek çekirdek CPU kullanımını karşılaştırır. PASS yalnızca benzer iş yükleri için geçerlidir; geliştirme dalında fiziksel Pi ölçümü yapılmış değildir. Hem boşta hem aynı baskı senaryosunda kontrol ve Klipper READY sırasındaki başlangıç bellek tepesi ayrıca gereklidir.

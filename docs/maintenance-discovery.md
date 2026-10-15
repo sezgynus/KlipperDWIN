@@ -131,3 +131,20 @@ READY discovery requests only four small documented API endpoints (`/server/info
 `available_features()` and the device-unspecified `method(feature)` now aggregate all per-device method masks together with global capabilities. Individual instances remain inspectable via `instances(feature)`. Resonance capabilities also expose `snapshot.axes('R02'|'R03'|'R04', device=None)` with a compact X/Y/Z bitmask (1/2/4), reflecting Klipper's shared XY or separate accel_chip_x/accel_chip_y/accel_chip_z bindings; unassigned axes must never be offered as measurable. No per-feature dictionary or persistent index is allocated.
 
 Storage S04 is now positively discovered via the **small** `GET /server/files/roots` response if a readable `gcodes` root is registered. Moonraker documents `disk_usage` on `GET /server/files/directory?path=gcodes`; that potentially large directory listing is **never requested at READY**. A later storage screen can request the actual free/total values on demand. Roots existence indicates a supported method, not measured free space. READY discovery now has five read-only API requests. <https://moonraker.readthedocs.io/en/latest/external_api/file_manager/>
+
+### Real Pi Zero 2 W acceptance (required before merge)
+
+To check the actual running Petrel process rather than synthetic Python allocations, use `tools/measure_petrel_resources.py`. Install **master** on the Pi with the same printer config, let Klipper become READY, and record the service's main process in a controlled idle or equivalent print workload:
+
+```sh
+PID=$(systemctl show -p MainPID --value Petrel.service)
+python3 tools/measure_petrel_resources.py capture --pid "$PID" --seconds 30 --output /tmp/petrel-master.json
+```
+
+Repeat with the feature branch **on the same device and equivalent workload**, saving `/tmp/petrel-feature.json`. Then:
+
+```sh
+python3 tools/measure_petrel_resources.py compare --baseline /tmp/petrel-master.json --candidate /tmp/petrel-feature.json --max-uss-kib 1024
+```
+
+The tool is an **external, explicitly run** standard-library-only sampler reading Linux `/proc/<pid>/smaps_rollup` and CPU ticks. It does not attach a debugger, instrument Petrel, inject G-code or create a background service. The comparison reports median RSS/PSS/USS and single-core CPU usage. A PASS is only valid for comparable workloads; no Pi measurements have been performed by this development branch itself. Both warm-idle and identical printing scenarios should be checked. Independently verify startup latency and memory peak during Klipper READY.

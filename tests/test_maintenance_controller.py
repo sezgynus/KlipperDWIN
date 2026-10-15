@@ -131,6 +131,14 @@ class MaintenanceBridgeTests(unittest.TestCase):
         self.worker.drain()
         self.assertEqual(self.client.paths, [])
 
+    def test_live_lifecycle_disconnect_invalidates_preflight_before_state_tick(self):
+        self.backend.subscription.lifecycle = Mock(
+            return_value={'state': 'disconnected', 'epoch': 12})
+        self.assertTrue(self.bridge.start('S01')[0])
+        self.assertEqual(self.bridge.poll().reason, 'stale_or_disconnected')
+        self.worker.drain()
+        self.assertEqual(self.client.paths, [])
+
     def test_cancel_pending_then_new_request_ignores_old_future(self):
         self.assertTrue(self.bridge.start('S01')[0])
         self.assertEqual(self.bridge.cancel().status, 'ABORTED')

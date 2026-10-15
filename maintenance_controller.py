@@ -99,7 +99,18 @@ class MaintenanceReadController:
         if self._phase == 'preflight':
             row = self._row
             snap = self._printer.maintenance.snapshot
-            if (not isinstance(snap, MaintenanceSnapshot)
+            # The subscription can disconnect or enter a new epoch before
+            # the UI's PrinterData.state has observed the lifecycle change.
+            try:
+                reader = getattr(self._printer.subscription, 'lifecycle', None)
+                live = (reader() if callable(reader) else
+                        self._printer.subscription.snapshot(include_settings=False))
+                current = (live.get('state') == 'ready'
+                           and live.get('epoch') == row.epoch)
+            except Exception:
+                current = False
+            if (not current
+                    or not isinstance(snap, MaintenanceSnapshot)
                     or snap.epoch != row.epoch
                     or snap.config_marker != row.config_marker
                     or not self._printer.state.ready

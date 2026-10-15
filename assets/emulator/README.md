@@ -14,6 +14,8 @@ These files are inputs for screenshot rendering on the Pi. Enabling the emulator
 
 For a custom panel font, set `PETREL_EMULATOR_FONT` to the matching file in the service environment and restart. See [optional emulator settings](../../docs/ui-emulator.md#optional-settings). Matching resources matters when comparing a screenshot with a physical display.
 
+Picture slot **1** is supplied by `../petrel_shared.jpg`; Area 1 uses its portrait upper-left QR region. ICO sources no longer contain QR ID 155.
+
 ## Provenance
 
 - `0T5UIC1.HZK`: [Quint097/DWIN_Font_Tools](https://github.com/Quint097/DWIN_Font_Tools/blob/main/HZK%20Font%20Files/DWIN%20Font%20(Original)/0T5UIC1.HZK).

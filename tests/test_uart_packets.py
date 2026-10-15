@@ -56,7 +56,7 @@ class PacketTests(unittest.TestCase):
         port = Port([b'\xAA\x00OK' + Driver.TAIL])
         with patch.object(serial_module, 'Serial', return_value=port, create=True), \
                 patch.object(Driver.__init__.__globals__['time'], 'sleep') as sleep, \
-                patch('boot_artwork.sync'), patch('icon_library.sync_library') as sync:
+                patch('boot_artwork.sync'), patch('shared_artwork.sync'), patch('icon_library.sync_library') as sync:
             result = Driver('/dev/fake')
         self.assertEqual(sleep.call_args_list[0].args, (0.750,))
         sync.assert_called_once_with(result)

@@ -195,7 +195,7 @@ class BootSplashTests(unittest.TestCase):
 
         with patch.object(uart.serial_module, 'Serial', return_value=port, create=True), \
                 patch.object(T5UIC1Display, '_startup_sync_icons', synchronized), \
-                patch('boot_artwork.sync'), \
+                patch('boot_artwork.sync'), patch('shared_artwork.sync'), \
                 patch.object(T5UIC1Display, '_startup_animation_library', return_value=3):
             lcd = T5UIC1Display('/dev/fake', wake_delay=0, startup_progress=progress)
         self.addCleanup(lcd.close)

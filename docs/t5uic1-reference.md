@@ -256,7 +256,7 @@ image content into picture slot `0x00..0x0F`.
 ## Managed icon library
 
 JPEG pictures and ICO libraries share Picture Flash. Library 3 uses slots 3–15;
-slot 0 holds managed Petrel boot artwork; stock pictures 1–2 are untouched. Individual baseline JPEGs in `assets/icons/`
+slot 0 holds managed Petrel boot artwork; slot 1 holds the shared UI JPEG page and slot 2 is unused. Individual baseline JPEGs in `assets/icons/`
 are packed by `icon_library.py`, preserving each payload within one 32 KiB
 block and reserving every block’s final byte. The packer reuses gaps with
 smaller images, independently of icon ID order.
@@ -287,8 +287,7 @@ native animation channel **0** for boot icons **250–254** and channel **1** fo
 dashboard fan frames **235–242**. Fan intervals follow the percentage in 10 ms
 units; unchanged intervals send no new command and 0% stops animation. The
 boot animation is stopped during actual icon uploads and restarted by the next
-boot stage. Virtual display areas, EAN-13 and extended UART remain available
-protocol APIs; availability alone does not imply a current UI feature.
+boot stage. Info uses virtual Area 1 for the shared slot-1 JPEG: `0x25` decodes it once, and `0x26` copies clipped QR regions while scrolling. EAN-13 and extended UART remain available protocol APIs; availability alone does not imply a current UI feature.
 
 ## Sources and validation boundary
 
@@ -318,6 +317,7 @@ changed setting, never on encoder movement or idle dim/wake.
 | --- | --- | --- |
 | `0x0100..0x010F` | Display settings | 16 bytes |
 | `0x0120..0x0147` | Boot-artwork fingerprint | 40 bytes |
+| `0x0150..0x0177` | Shared slot-1 artwork fingerprint | 40 bytes |
 | `0x0200..0x03FF` | Icon-library block metadata | 512 bytes |
 | `0x0400..0x047F` | Buzzer settings | 128 bytes |
 

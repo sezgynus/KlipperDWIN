@@ -164,6 +164,7 @@ class ManagedIconTests(unittest.TestCase):
             self.assertTrue(all(frame[6] & 0x80 for frame in animations))
         with patch.object(serial_module, 'Serial', return_value=port, create=True), \
                 patch('boot_artwork.sync', side_effect=lambda lcd: events.append('artwork')), \
+                patch('shared_artwork.sync'), \
                 patch('icon_library.sync_library', side_effect=icon_sync), \
                 patch.object(Driver, '_startup_animation_library', return_value=3):
             lcd = Driver('/dev/fake', wake_delay=0,

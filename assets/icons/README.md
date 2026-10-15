@@ -4,7 +4,7 @@
 
 Add or replace baseline **4:2:0 JPEGs** here. Use the icon ID as the filename prefix: `092.jpg`, `092-about.jpg` or `092_about.jpeg`. IDs are 0–255; each ID must occur once. Existing IDs retain their meaning. Renaming an icon without changing its ID or bytes does not trigger an upload. A new image enters the library; UI code chooses where its ID is displayed.
 
-JPEGs are preserved without resizing or recompression. Progressive JPEGs, other color sampling formats, duplicate IDs and images larger than 32767 bytes are rejected. The whole library must fit Picture Flash slots 3–15; stock pictures 1–2 are untouched; picture 0 holds the separately managed Petrel boot artwork.
+JPEGs are preserved without resizing or recompression. Progressive JPEGs, other color sampling formats, duplicate IDs and images larger than 32767 bytes are rejected. The whole library must fit Picture Flash slots 3–15; picture 0 holds Petrel boot artwork, picture 1 holds the shared UI artwork page and picture 2 is unused.
 
 After an application update, the first LCD connection builds the library from this directory. The packer places larger icons first and fits smaller icons into remaining holes. Icon IDs do not depend on physical placement. Every block's last byte is reserved and excluded from UART writes. No JPEG crosses a block boundary.
 
@@ -42,7 +42,7 @@ Fan frames **235–242** are rendered in neutral grayscale; luminance below 24 i
 
 ## Package size and reserved space
 
-The current reference pack occupies **10×32 KiB = 320 KiB**, slots **3–12**. The reserved maximum is **13×32 KiB = 416 KiB**, slots **3–15**, leaving slots **13–15** available for growth. This is allocated block space, not an exact JPEG payload budget: the directory, placement gaps and reserved final bytes also consume space. Picture Flash is separate from the **512-byte Data Flash metadata record at 0x0200–0x03FF**. Pass `--library 3` to export; the export tool's legacy default is 7, with a different available slot count.
+The current reference pack occupies **9×32 KiB = 288 KiB**, slots **3–11**. The reserved maximum is **13×32 KiB = 416 KiB**, slots **3–15**, leaving slots **12–15** available for growth. This is allocated block space, not an exact JPEG payload budget: the directory, placement gaps and reserved final bytes also consume space. Picture Flash is separate from the **512-byte Data Flash metadata record at 0x0200–0x03FF**. Pass `--library 3` to export; the export tool's legacy default is 7, with a different available slot count.
 
 ## JPEG compatibility rule
 

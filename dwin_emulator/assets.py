@@ -71,7 +71,7 @@ class PanelAssets:
             return panel_colors(image)
 
     def picture(self, slot):
-        paths = {0: 'assets/petrel_bootsplash.jpg'}
+        paths = {0: 'assets/petrel_bootsplash.jpg', 1: 'assets/petrel_shared.jpg'}
         if slot not in paths:
             raise ValueError(f'No host image for picture slot {slot}')
         with Image.open(self.root / paths[slot]) as image:

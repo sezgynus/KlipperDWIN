@@ -17,6 +17,9 @@ from tools.lcd_connection import configured_port
 
 
 class ManualDisplay(T5UIC1Display):
+    def _startup_sync_shared_artwork(self):
+        return False
+
     def _startup_sync_icons(self):
         return False
 

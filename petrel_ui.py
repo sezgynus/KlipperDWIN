@@ -8,6 +8,7 @@ import copy
 import textwrap
 from software_update import SoftwareUpdate
 from info_qr import PROJECT_URL, draw_project_qr
+from shared_artwork import PICTURE_ID as SHARED_PICTURE_ID
 from system_info import wifi_signal_text
 import time
 import logging
@@ -2926,6 +2927,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         return items
 
     def Draw_Info_Menu(self):
+        self.lcd.ensure_cached_picture(SHARED_PICTURE_ID)
         self.pd.refresh_system_info()
         items = self._info_items()
         max_scroll = max(0, len(items) + 9 - 11)
@@ -2951,23 +2953,21 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._info_update_message = None
             self.Draw_Title('Info')
             self.Draw_Back_First(self._info_scroll < max_scroll)
-        qr_repair = False
         for index, (kind, label, value) in enumerate(items):
             if kind != 'qr':
                 continue
             y = 92 + (index - self._info_scroll) * 24
             qr_top = y + 24
-            qr_repair = (not incremental or
-                         (qr_top < band[1] and qr_top + 168 > band[0]))
-            if qr_repair:
-                draw_project_qr(self.lcd, qr_top, bottom=356)
-            # Native QR repair temporarily uses the centre of the menu; restore
-            # all visible text afterwards. Otherwise only the exposed row is drawn.
+            draw_project_qr(self.lcd, qr_top,
+                            top=max(92, band[0]) if incremental else 92,
+                            bottom=min(356, band[1]) if incremental else 356)
         for index, (kind, label, value) in enumerate(items):
             y = 92 + (index + (9 if kind == 'update' else 0) - self._info_scroll) * 24
             if not 92 <= y < 356:
+                if incremental and kind == 'update' and y == 356:
+                    self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 32, 352, 239, 355)
                 continue
-            if incremental and not qr_repair and kind != 'update' and not (band[0] <= y < band[1] or (kind == 'section' and y == 92)):
+            if incremental and kind != 'update' and not (band[0] <= y < band[1] or (kind == 'section' and y == 92)):
                 continue
             if kind == 'qr':
                 self._draw_menu_text(label, 48, y)

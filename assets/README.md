@@ -7,6 +7,7 @@
 | File | Purpose |
 |---|---|
 | `petrel_bootsplash.jpg` | Petrel bird logo and slogan boot artwork for panel picture slot 0 |
+| `petrel_shared.jpg` | Slot 1 shared artwork page; project QR at portrait origin |
 | `spool-empty.png` | Shared 42×52 empty spool sprite: wooden flanges and a thin gray hub |
 | `display-settings.png` | Original transparent Display icon sprite |
 | `petrel-readme.png` | Petrel bird logo, wordmark and slogan header used by both main READMEs |
@@ -15,6 +16,12 @@
 The boot JPEG is 480×272 for panel picture slot 0. It is shown directly without cache copies. After boot artwork synchronization, the splash, progress bar and loading animation are displayed before icon-library preparation and checks. Unchanged icon synchronization does not stop the animation; actual icon uploads stop it temporarily and the next boot stage restarts it.
 
 Changed boot artwork is uploaded automatically to picture slot 0 on the first LCD connection. A verified fingerprint at Flash address `0x0120` prevents repeated writes; the JPEG must be baseline 480×272 and at most 32767 bytes.
+
+## Shared UI artwork page
+
+`petrel_shared.jpg` occupies Picture Flash **slot 1**. The **272×480 portrait** page holds the project QR in its upper-left **168×168** region; remaining space can hold future artwork. The physical JPEG must be **480×272**, baseline 4:2:0 and at most **32767 bytes**. Additional artwork must stay within the same dimensions and total JPEG size limit, without overlapping source coordinates in `shared_artwork.py`.
+
+`python tools/render_project_qr.py` regenerates the SVG source and page (developer dependency: CairoSVG). The QR is absent from the ICO library. Changed pages upload automatically at the first LCD connection; the Data Flash fingerprint at `0x0150–0x0177` skips unchanged files. Opening Info decodes the page into Area 1 without changing the display; scrolling copies only the newly exposed QR region opaquely. Another picture replacing Area 1 or an LCD reconnect causes the cache to be prepared again.
 
 ## Managed icon library
 
@@ -36,4 +43,4 @@ sudo systemctl stop Petrel.service
 sudo systemctl start Petrel.service
 ```
 
-The tool reads the configured UART, rebuilds library 3 and reloads its blocks. Display settings are preserved.
+The tool reads the configured UART, rebuilds library 3 and reloads its blocks and the shared slot-1 page. Display settings are preserved.

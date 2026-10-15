@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from icon_library import sync_library
+from shared_artwork import sync as sync_shared_artwork
 from tools.flash_icon_library import ManualDisplay
 from tools.lcd_connection import configured_port
 
@@ -26,6 +27,7 @@ def main():
     lcd = ManualDisplay(args.serial_port)
     try:
         sync_library(lcd, force=True, automatic=False)
+        sync_shared_artwork(lcd, force=True)
     finally:
         lcd.close()
 

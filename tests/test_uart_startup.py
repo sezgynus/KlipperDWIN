@@ -40,7 +40,7 @@ class FastStartupTests(unittest.TestCase):
 
     def test_connected_driver_skips_sleep_and_second_handshake(self):
         port = Port()
-        with patch('t5uic1_driver.time.sleep') as sleep, patch('boot_artwork.sync'), \
+        with patch('t5uic1_driver.time.sleep') as sleep, patch('boot_artwork.sync'), patch('shared_artwork.sync'), \
                 patch('icon_library.sync_library'):
             lcd = Driver('/dev/fake', connected_serial=port)
         self.addCleanup(lcd.close)

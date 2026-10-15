@@ -19,9 +19,11 @@ Değişen açılış görseli ilk LCD bağlantısında otomatik olarak resim slo
 
 ## Ortak UI görsel sayfası
 
-`petrel_shared.jpg`, Picture Flash **slot 1** içinde saklanır. Portre görünümde **272×480** olan sayfanın sol üst **168×168** alanında proje QR kodu bulunur; kalan alan sonraki görseller için kullanılabilir. Fiziksel JPEG **480×272**, baseline 4:2:0 ve en fazla **32767 bayt** olmalıdır. Yeni görseller aynı boyut ve toplam JPEG sınırı içinde kalmalı, `shared_artwork.py` içindeki kaynak koordinatlarıyla çakışmamalıdır.
+`petrel_shared.jpg`, Picture Flash **slot 1** içinde saklanır. JPEG kaynaklarını [`assets/shared-artwork`](shared-artwork/README_TR.md) klasörüne koyup `python tools/pack_shared_artwork.py` çalıştırın. Araç kaynakları portre **272×480** sayfaya kompakt biçimde yerleştirir ve dosya adlarından `shared_artwork_layout.py` içinde `QR_BOX` / `QR_SIZE` gibi tanımlar üretir. Geometrik sınır ve son JPEG'in **32767 bayt** sınırı doğrulanır; taşma varsa mevcut çıktılar korunur. Fiziksel çıktı **480×272**, baseline 4:2:0 JPEG'dir.
 
-`python tools/render_project_qr.py` SVG kaynağını ve sayfayı yeniden üretir (geliştirme bağımlılığı: CairoSVG). QR ICO kütüphanesinde yer almaz. Değişen sayfa ilk LCD bağlantısında otomatik yüklenir; Data Flash `0x0150–0x0177` parmak izi değişmeyen dosyanın tekrar yazılmasını önler. Info açılırken sayfa ekranı değiştirmeden Area 1’e açılır; kaydırmada yalnız yeni görünen QR bölgesi opak olarak kopyalanır. Başka bir resim Area 1’i değiştirirse veya LCD yeniden bağlanırsa önbellek yeniden hazırlanır.
+QR ICO kütüphanesinde yer almaz; Info kaynak koordinatlarını ve boyutunu üretilen tanımlardan alır. `python tools/render_project_qr.py` yalnız `qr.jpg` kaynağını ve SVG'sini yeniler (geliştirme bağımlılığı: CairoSVG); ardından genel paketleyiciyi çalıştırın. Yeni görseller için QR üreticisini çalıştırmak gerekmez. Kaynakları, JPEG sayfasını ve yerleşim modülünü birlikte commit edin; servis JPEG/yerleşim SHA-256 uyuşmazlığını reddeder.
+
+Değişen sayfa ilk LCD bağlantısında otomatik yüklenir; Data Flash `0x0150–0x0177` parmak izi değişmeyen dosyanın tekrar yazılmasını önler. Info açılırken sayfa ekranı değiştirmeden Area 1’e açılır; kaydırmada yalnız yeni görünen QR bölgesi opak olarak kopyalanır. Başka bir resim Area 1’i değiştirirse veya LCD yeniden bağlanırsa önbellek yeniden hazırlanır.
 
 ## Yönetilen ikon kütüphanesi
 

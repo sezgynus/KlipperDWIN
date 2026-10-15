@@ -10,7 +10,7 @@ PICTURE_ID = 1
 ADDRESS = 0x0150
 SIZE = 40
 MAGIC = b'PETPAGE1'
-QR_BOX = (0, 0, 168, 168)  # Portrait coordinates; right/bottom exclusive.
+from shared_artwork_layout import QR_BOX, JPEG_SHA256
 _attempts = set()
 
 
@@ -24,7 +24,10 @@ def sync(lcd, source=SOURCE, *, force=False):
                 or image.info.get('progressive') or JpegImagePlugin.get_sampling(image) != 2):
             raise ValueError('Shared artwork must be a baseline 480x272 4:2:0 JPEG')
         image.load()
-    record = MAGIC + hashlib.sha256(data).digest()
+    digest = hashlib.sha256(data).digest()
+    if digest.hex() != JPEG_SHA256:
+        raise ValueError('Shared JPEG/layout mismatch; regenerate with tools/pack_shared_artwork.py')
+    record = MAGIC + digest
     if not force and lcd.read_flash(ADDRESS, SIZE) == record:
         return False
     if record in _attempts:

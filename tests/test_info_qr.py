@@ -28,7 +28,7 @@ class InfoQRTests(unittest.TestCase):
     def test_managed_qr_stays_inside_menu_at_every_scroll_position(self):
         for y in range(68, 405, 24):
             with self.subTest(y=y):
-                lcd = Mock(Color_White=0xFFFF, Color_Bg_Black=0)
+                lcd = Mock(Color_White=0xFFFF, Color_Bg_Black=0, DWIN_WIDTH=272)
                 draw_project_qr(lcd, y)
                 if y >= 360 or y + 168 <= 92:
                     lcd.copy_cache1.assert_not_called()
@@ -40,6 +40,15 @@ class InfoQRTests(unittest.TestCase):
                 lcd.ensure_cached_picture.assert_called_once_with(PICTURE_ID)
                 first, last = max(y, 92), min(y+168, 360)
                 lcd.copy_cache1.assert_called_once_with(0, first-y, 167, last-y-1, 52, first)
+
+    def test_copy_uses_generated_offset_size_and_horizontal_center(self):
+        from unittest.mock import patch
+        lcd = Mock(DWIN_WIDTH=272)
+        with patch('info_qr.QR_BOX', (100, 200, 140, 260)):
+            from info_qr import extra_info_rows
+            self.assertEqual(extra_info_rows(), 5)
+            draw_project_qr(lcd, 80, top=92, bottom=120)
+        lcd.copy_cache1.assert_called_once_with(100, 212, 139, 239, 116, 92)
 
     def test_cached_qr_preserves_repo_data_and_exact_info_dimensions(self):
         import qrcode

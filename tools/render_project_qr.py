@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the shared slot-1 JPEG with the project QR at portrait origin."""
+"""Regenerate the branded QR source JPEG for the shared artwork packer."""
 import base64
 from collections import deque
 from io import BytesIO
@@ -49,11 +49,9 @@ def main():
     import cairosvg  # Developer dependency; the service uses the shipped JPEG.
     png = cairosvg.svg2png(bytestring=source.read_bytes())
     with Image.open(BytesIO(png)) as image:
-        page = Image.new('RGB', (272, 480), 'black')
-        page.paste(image.convert('RGB'), (0, 0))
-        # Store physical landscape pixels; direction 1 exposes portrait origin.
-        page.transpose(Image.Transpose.ROTATE_90).save(
-            ROOT/'assets/petrel_shared.jpg', 'JPEG', quality=100,
-            subsampling=2, progressive=False)
+        destination = ROOT/'assets/shared-artwork/qr.jpg'
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        image.convert('RGB').save(destination, 'JPEG', quality=100,
+                                  subsampling=2, progressive=False)
 
 if __name__=='__main__': main()

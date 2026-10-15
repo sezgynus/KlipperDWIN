@@ -7,7 +7,7 @@ import display_settings
 import copy
 import textwrap
 from software_update import SoftwareUpdate
-from info_qr import PROJECT_URL, draw_project_qr
+from info_qr import PROJECT_URL, draw_project_qr, extra_info_rows
 from shared_artwork import PICTURE_ID as SHARED_PICTURE_ID
 from system_info import wifi_signal_text
 import time
@@ -1833,7 +1833,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         if event == self.ENCODER_DIFF_NO:
             return
         items = self._info_items()
-        max_scroll = max(0, len(items) + 9 - 11)
+        max_scroll = max(0, len(items) + extra_info_rows() - 11)
         current = getattr(self, '_info_scroll', 0)
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
             self._software_updater().cancel_confirmation()
@@ -2871,11 +2871,11 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         for index, (kind, _, _) in enumerate(items):
             if kind != 'update':
                 continue
-            y = 92 + (index + 9 - getattr(self, '_info_scroll', 0)) * 24
+            y = 92 + (index + extra_info_rows() - getattr(self, '_info_scroll', 0)) * 24
             if 92 <= y < 356:
                 self._draw_info_update_button(
                     y, getattr(self, '_info_scroll', 0)
-                    == max(0, len(items) + 9 - 11))
+                    == max(0, len(items) + extra_info_rows() - 11))
                 self.lcd.update()
             break
 
@@ -2930,7 +2930,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self.lcd.ensure_cached_picture(SHARED_PICTURE_ID)
         self.pd.refresh_system_info()
         items = self._info_items()
-        max_scroll = max(0, len(items) + 9 - 11)
+        max_scroll = max(0, len(items) + extra_info_rows() - 11)
         self._info_scroll = max(0, min(getattr(self, '_info_scroll', 0), max_scroll))
         previous = getattr(self, '_info_render_scroll', None)
         delta = self._info_scroll - previous if previous is not None else 0
@@ -2962,7 +2962,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                             top=max(92, band[0]) if incremental else 92,
                             bottom=min(356, band[1]) if incremental else 356)
         for index, (kind, label, value) in enumerate(items):
-            y = 92 + (index + (9 if kind == 'update' else 0) - self._info_scroll) * 24
+            y = 92 + (index + (extra_info_rows() if kind == 'update' else 0) - self._info_scroll) * 24
             if not 92 <= y < 356:
                 if incremental and kind == 'update' and y == 356:
                     self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 32, 352, 239, 355)

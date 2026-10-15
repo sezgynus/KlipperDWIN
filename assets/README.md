@@ -19,9 +19,11 @@ Changed boot artwork is uploaded automatically to picture slot 0 on the first LC
 
 ## Shared UI artwork page
 
-`petrel_shared.jpg` occupies Picture Flash **slot 1**. The **272×480 portrait** page holds the project QR in its upper-left **168×168** region; remaining space can hold future artwork. The physical JPEG must be **480×272**, baseline 4:2:0 and at most **32767 bytes**. Additional artwork must stay within the same dimensions and total JPEG size limit, without overlapping source coordinates in `shared_artwork.py`.
+`petrel_shared.jpg` occupies Picture Flash **slot 1**. Put source JPEGs in [`assets/shared-artwork`](shared-artwork/README.md) and run `python tools/pack_shared_artwork.py`. The tool packs sources compactly into a **272×480 portrait** page and generates filename-based constants such as `QR_BOX` / `QR_SIZE` in `shared_artwork_layout.py`. Geometry and the final JPEG's **32767-byte** limit are checked; overflow preserves the previous outputs. The physical output is a **480×272**, baseline 4:2:0 JPEG.
 
-`python tools/render_project_qr.py` regenerates the SVG source and page (developer dependency: CairoSVG). The QR is absent from the ICO library. Changed pages upload automatically at the first LCD connection; the Data Flash fingerprint at `0x0150–0x0177` skips unchanged files. Opening Info decodes the page into Area 1 without changing the display; scrolling copies only the newly exposed QR region opaquely. Another picture replacing Area 1 or an LCD reconnect causes the cache to be prepared again.
+The QR is absent from the ICO library; Info reads source coordinates and dimensions from the generated definitions. `python tools/render_project_qr.py` only refreshes the `qr.jpg` source and its SVG (developer dependency: CairoSVG); run the general packer afterwards. Adding other artwork does not require running the QR generator. Commit sources, JPEG page and layout module together; the service rejects a JPEG/layout SHA-256 mismatch.
+
+Changed pages upload automatically at the first LCD connection; the Data Flash fingerprint at `0x0150–0x0177` skips unchanged files. Opening Info decodes the page into Area 1 without changing the display; scrolling copies only the newly exposed QR region opaquely. Another picture replacing Area 1 or an LCD reconnect causes the cache to be prepared again.
 
 ## Managed icon library
 

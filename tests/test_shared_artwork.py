@@ -48,6 +48,16 @@ class SharedArtworkTests(unittest.TestCase):
                 artwork.sync(lcd, p)
             self.assertEqual(lcd.mock_calls, [])
 
+    def test_mismatched_jpeg_and_generated_layout_do_not_touch_panel(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as folder:
+            p = Path(folder)/'different.jpg'
+            Image.new('RGB', (480,272), 'red').save(p, 'JPEG', subsampling=2)
+            lcd = Mock()
+            with self.assertRaisesRegex(ValueError, 'JPEG/layout mismatch'):
+                artwork.sync(lcd, p)
+            self.assertEqual(lcd.mock_calls, [])
+
     def test_ico_no_longer_contains_qr_and_reserved_flash_ranges_do_not_overlap(self):
         from icon_library import build_library, METADATA_ADDRESS
         import boot_artwork

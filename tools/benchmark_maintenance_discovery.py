@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Offline, repeatable Maintenance discovery memory/time benchmark.
+"""Offline Maintenance discovery footprint and time benchmark.
 
-Run on a Pi Zero 2 W as well as a desktop. These synthetic results do not
-replace live printer RSS/PSS/USS comparisons before/after integration.
+Use separate processes for uninstrumented RSS/PSS/USS and tracemalloc mode.
+Tracemalloc itself retains trace metadata and changes the memory allocator;
+its RSS must never be used as a Petrel production footprint claim.
 """
 import argparse
 import gc
 from pathlib import Path
 import sys
 import time
-import tracemalloc
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -42,42 +42,68 @@ class SyntheticPrinter:
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--fans', type=int, default=150)
-    p.add_argument('--runs', type=int, default=20)
-    opts = p.parse_args()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--fans', type=int, default=150)
+    parser.add_argument('--runs', type=int, default=20)
+    parser.add_argument('--trace', action='store_true',
+                        help='Track Python allocations (changes process RSS)')
+    opts = parser.parse_args()
     if opts.fans < 1 or opts.runs < 1:
-        p.error('--fans and --runs must be positive')
+        parser.error('--fans and --runs must be positive')
+
+    # These modules are already present in the actual Petrel backend.
+    # Warming them prevents double-counting their dependencies as new
+    # Maintenance allocations in this standalone synthetic process.
+    import printer_state
+    import maintenance_cache
+
     printer = SyntheticPrinter(opts.fans)
+    tracer = None
+    baseline = None
+    if opts.trace:
+        import tracemalloc
+        tracer = tracemalloc
+        tracer.start()
+        baseline = tracer.take_snapshot()
     gc.collect()
     rss_start = linux_memory_kib()
-    tracemalloc.start()
-    baseline = tracemalloc.take_snapshot()
     from maintenance_discovery import discover
-    runs = []
+
+    durations = []
     snapshot = None
     for _ in range(opts.runs):
-        begin = time.perf_counter()
+        start = time.perf_counter()
         snapshot = discover(printer)
-        runs.append((time.perf_counter() - begin) * 1000)
+        durations.append((time.perf_counter() - start) * 1000)
     gc.collect()
-    current, peak = tracemalloc.get_traced_memory()
-    allocations = tracemalloc.take_snapshot().compare_to(baseline, 'filename')
-    retained = sum(stat.size_diff for stat in allocations)
+
     rss_end = linux_memory_kib()
-    tracemalloc.stop()
+    print('Mode:', 'tracemalloc (instrumented)' if opts.trace else 'uninstrumented')
     print('Devices:', len(snapshot.devices))
-    print('Median discovery duration: %.3f ms' % sorted(runs)[len(runs) // 2])
-    print('Python retained allocation delta: %.2f KiB' % (retained / 1024))
-    print('Python current/peak tracked: %.2f / %.2f KiB' %
-          (current / 1024, peak / 1024))
+    print('Median discovery duration: %.3f ms' % sorted(durations)[len(durations) // 2])
+    compact = (sys.getsizeof(snapshot) + sys.getsizeof(snapshot.devices)
+               + sys.getsizeof(snapshot.global_modes) + sys.getsizeof(snapshot.service_key)
+               + sum(sys.getsizeof(item) + sys.getsizeof(item.modes)
+                     + sys.getsizeof(item.name) for item in snapshot.devices))
+    print('Snapshot Python size estimate: %.2f KiB' % (compact / 1024))
+
+    if tracer is not None:
+        current, peak = tracer.get_traced_memory()
+        allocations = tracer.take_snapshot().compare_to(baseline, 'filename')
+        retained = sum(stat.size_diff for stat in allocations)
+        print('Python retained allocation delta: %.2f KiB' % (retained / 1024))
+        print('Python current/peak tracked: %.2f / %.2f KiB' %
+              (current / 1024, peak / 1024))
+        print('WARNING: Tracing overhead inflates RSS; do not use traced RSS for acceptance.')
+        tracer.stop()
+
     if rss_start and rss_end:
         for key in ('Rss', 'Pss', 'USS'):
             print('%s before/after/delta: %s / %s / %+d KiB' %
                   (key, rss_start.get(key, 0), rss_end.get(key, 0),
                    rss_end.get(key, 0) - rss_start.get(key, 0)))
-    print('NOTE: This benchmark imports discovery after baseline. It does not '
-          'represent the complete Petrel UI or a real print.')
+    print('NOTE: synthetic subprocess only. A real Pi Zero 2 W Petrel process '
+          'before/after comparison is required for the production target.')
 
 
 if __name__ == '__main__':

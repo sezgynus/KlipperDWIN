@@ -28,5 +28,7 @@ jobs:
         run: python -m compileall -q .
       - name: Run regression suite
         run: python -m unittest discover -s tests -v
-      - name: Report Maintenance discovery memory and latency
+      - name: Report uninstrumented Maintenance RSS/PSS/USS
         run: python tools/benchmark_maintenance_discovery.py --fans 150 --runs 20
+      - name: Report traced Maintenance allocations
+        run: python tools/benchmark_maintenance_discovery.py --fans 150 --runs 20 --trace

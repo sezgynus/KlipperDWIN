@@ -1100,6 +1100,13 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._draw_list_menu(title, entries, selection.now, max(0, (bottom or self.MROWS) - self.MROWS))
 
     def _open_thermal_editor(self, key, row, profile=None):
+        # Menu selections are logical indices; drawing uses viewport rows.
+        render = getattr(self, '_list_render', None)
+        self._thermal_edit_row = row - (render['start'] if render else 0)
+        if render is not None:
+            # Direct editor writes replace the cached normal value, even when
+            # Moonraker has not echoed the command (or the value is unchanged).
+            render['values'].pop(row, None)
         preset = self.pd.material_preset[profile] if profile is not None else None
         values = self.pd.HMI_ValueStruct
         if key == 'TEMP':
@@ -1116,7 +1123,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             value = values.Fan_speed
         self.lcd.draw_integer_text(True, True, 0, self.lcd.font8x16,
                                self.lcd.Color_White, self.lcd.Select_Color,
-                               3, 216, self.MBASE(row), value)
+                               3, 216, self.MBASE(self._thermal_edit_row), value)
 
     def lcdExit(self):
         self._loop.close()
@@ -2179,6 +2186,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             row = self.TEMP_CASE_FAN
         else:
             row = self.TUNE_CASE_FAN + self.MROWS - self.index_tune
+        row = getattr(self, '_thermal_edit_row', row)
         if event == self.ENCODER_DIFF_ENTER:
             value = self.pd.HMI_ValueStruct.Fan_speed
             if mode != -2:
@@ -2205,6 +2213,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         else:
             temp_line = self.TUNE_CASE_TEMP + self.MROWS - self.index_tune
 
+        temp_line = getattr(self, '_thermal_edit_row', temp_line)
         if (encoder_diffState == self.ENCODER_DIFF_ENTER):
             if (self.pd.HMI_ValueStruct.show_mode == -1):  # temperature
                 self.checkkey = self.TemperatureID
@@ -2266,6 +2275,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         else:
             bed_line = self.TUNE_CASE_BED + self.MROWS - self.index_tune
 
+        bed_line = getattr(self, '_thermal_edit_row', bed_line)
         if (encoder_diffState == self.ENCODER_DIFF_ENTER):
             if (self.pd.HMI_ValueStruct.show_mode == -1):  # temperature
                 self.checkkey = self.TemperatureID

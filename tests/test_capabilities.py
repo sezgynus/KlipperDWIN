@@ -619,7 +619,7 @@ class CapabilityMenuTests(unittest.TestCase):
         result.lcd.move_area.assert_called_once_with(1, result.DWIN_SCROLL_DOWN, 24,
                                                    result.lcd.Color_Bg_Black, 0, 90, 271, 355)
 
-    def test_info_changed_content_or_screen_forces_full_redraw(self):
+    def test_info_value_change_preserves_scroll_and_screen_clear_invalidates_cache(self):
         result = display(snapshot())
         result.pd.refresh_system_info = Mock(return_value=False)
         result.Draw_Info_Menu()
@@ -627,7 +627,7 @@ class CapabilityMenuTests(unittest.TestCase):
         result.pd.system_info['network'] = 'Offline'
         result.lcd.reset_mock()
         result.Draw_Info_Menu()
-        result.lcd.move_area.assert_not_called()
+        result.lcd.move_area.assert_called_once()
         result.Clear_Main_Window()
         self.assertIsNone(result._info_render_scroll)
 

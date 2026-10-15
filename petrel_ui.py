@@ -2797,7 +2797,12 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
 
     def _draw_info_row(self, label, value, y):
         self._draw_menu_text(label, 8, y)
+        self._draw_info_value(label, value, y)
+
+    def _draw_info_value(self, label, value, y, clear=False):
         text = T5UIC1Display._panel_text(value)[:17]
+        if clear:
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 120, y, 255, y + 15)
         color = self.lcd.Color_White
         if label == 'Network':
             state = text.strip().lower()
@@ -2934,9 +2939,15 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._info_scroll = max(0, min(getattr(self, '_info_scroll', 0), max_scroll))
         previous = getattr(self, '_info_render_scroll', None)
         delta = self._info_scroll - previous if previous is not None else 0
-        incremental = (abs(delta) == 1 and
-                       getattr(self, '_info_render_items', None) == items)
-        band = (332, 356) if delta > 0 else (90, 114)
+        old_items = getattr(self, '_info_render_items', ())
+        same_layout = (previous is not None and
+                       getattr(self, '_info_render_lcd', None) is self.lcd and
+                       [(kind, label) for kind, label, _ in old_items] ==
+                       [(kind, label) for kind, label, _ in items])
+        distance = abs(delta) * 24
+        incremental = same_layout and 0 < distance < 266
+        stationary = same_layout and delta == 0
+        band = (356 - distance, 356) if delta > 0 else (90, 90 + distance)
         if incremental:
             # Moving the viewport can evict the update control entirely. Its
             # screen-space cache cannot survive a scroll out and back to the
@@ -2944,7 +2955,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._info_update_render = None
             self._info_update_message = None
             self.lcd.move_area(1, self.DWIN_SCROLL_UP if delta > 0 else self.DWIN_SCROLL_DOWN,
-                               24, self.lcd.Color_Bg_Black, 0, 90, 271, 355)
+                               distance, self.lcd.Color_Bg_Black, 0, 90, 271, 355)
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 0, 90, 255, 91)
             # Scroll indicators belong to the fixed frame, not the moving list.
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 256, 92, 271, 359)
@@ -2952,14 +2963,14 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 self.Erase_Menu_Cursor(0)
                 if self._info_scroll < max_scroll:
                     self.Draw_Menu_Cursor(0)
-        else:
+        elif not stationary:
             self.Clear_Main_Window()
             self._info_update_render = None
             self._info_update_message = None
             self.Draw_Title('Info')
             self.Draw_Back_First(self._info_scroll < max_scroll)
         for index, (kind, label, value) in enumerate(items):
-            if kind != 'qr':
+            if stationary or kind != 'qr':
                 continue
             y = 92 + (index - self._info_scroll) * 24
             qr_top = y + 24
@@ -2972,7 +2983,13 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 if incremental and kind == 'update' and y == 356:
                     self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 32, 352, 239, 355)
                 continue
-            if incremental and kind != 'update' and not (band[0] <= y < band[1] or (kind == 'section' and y == 92)):
+            exposed = incremental and (band[0] <= y < band[1] or
+                                       (kind == 'section' and y == 92))
+            if (stationary or (incremental and not exposed)) and kind != 'update':
+                if (kind == 'row' and
+                        T5UIC1Display._panel_text(value)[:17] !=
+                        T5UIC1Display._panel_text(old_items[index][2])[:17]):
+                    self._draw_info_value(label, value, y, clear=True)
                 continue
             if kind == 'qr':
                 self._draw_menu_text(label, 48, y)
@@ -2982,13 +2999,15 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 self._draw_info_section(label, y)
             else:
                 self._draw_info_row(label, value, y)
-        self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 256, 76, 271, 89)
-        if self._info_scroll:
-            self._draw_menu_text('^', 256, 76)
-        if self._info_scroll < max_scroll:
-            self._draw_menu_text('v', 256, 328)
+        if not stationary:
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 256, 76, 271, 89)
+            if self._info_scroll:
+                self._draw_menu_text('^', 256, 76)
+            if self._info_scroll < max_scroll:
+                self._draw_menu_text('v', 256, 328)
         self._info_render_scroll = self._info_scroll
         self._info_render_items = items
+        self._info_render_lcd = self.lcd
 
     def Draw_Tune_Menu(self):
         self._focus_tune_open()
@@ -3073,6 +3092,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self.Clear_Menu_Area()
 
     def Clear_Popup_Area(self):
+        self._info_render_scroll = None
         # Popup overwrites previously cached screw graphics; power-cancel
         # must repaint all four corners when returning to that screen.
         self._screws_result_cache = None

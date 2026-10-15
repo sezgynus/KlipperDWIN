@@ -296,8 +296,34 @@ class PrinterData:
             return False
 
         previous = dict(self.system_info)
-        status, address = network_info()
         current = dict(previous)
+        try:
+            def read_info():
+                wireless = wifi_info()
+                try:
+                    return wireless, self.client.get('/machine/update/status'), None
+                except MoonrakerError as error:
+                    return wireless, None, error
+            # lifecycle() reads only connection metadata; snapshot() deep-copies
+            # all subscribed objects and is unnecessary on every pending poll.
+            lifecycle = self.subscription.lifecycle()
+            epoch = (lifecycle.get('epoch', 0) if isinstance(lifecycle, Mapping)
+                     else self.subscription.snapshot().get('epoch', 0))
+            wireless, response, error = self._read('system_info', read_info, stamp=epoch)
+            current['wifi_ssid'], current['wifi_rssi'] = wireless
+            if error is not None:
+                raise error
+            versions = response.get('result', {}).get('version_info', {})
+            if not isinstance(versions, Mapping):
+                raise ValueError('Invalid update-manager status')
+            current['petrel'] = updater_version(versions, 'Petrel', full=True)
+            current['moonraker'] = updater_version(versions, 'moonraker', full=True)
+            current['mainsail'] = updater_version(versions, 'mainsail')
+        except ReadPending:
+            return False
+        except (MoonrakerError, KeyError, TypeError, ValueError) as error:
+            logging.debug('Cannot refresh component versions: %s', error)
+        status, address = network_info()
         current['network'] = status
         current['ip'] = address
         cpu, temperature = host_metrics()
@@ -352,27 +378,6 @@ class PrinterData:
                              'temperature': temperature,
                              'version': str(value.get('mcu_version') or '')})
             current['mcus'] = tuple(mcus)
-        try:
-            def read_info():
-                wireless = wifi_info()
-                try:
-                    return wireless, self.client.get('/machine/update/status'), None
-                except MoonrakerError as error:
-                    return wireless, None, error
-            wireless, response, error = self._read('system_info', read_info)
-            current['wifi_ssid'], current['wifi_rssi'] = wireless
-            if error is not None:
-                raise error
-            versions = response.get('result', {}).get('version_info', {})
-            if not isinstance(versions, Mapping):
-                raise ValueError('Invalid update-manager status')
-            current['petrel'] = updater_version(versions, 'Petrel', full=True)
-            current['moonraker'] = updater_version(versions, 'moonraker', full=True)
-            current['mainsail'] = updater_version(versions, 'mainsail')
-        except ReadPending:
-            return False
-        except (MoonrakerError, KeyError, TypeError, ValueError) as error:
-            logging.debug('Cannot refresh component versions: %s', error)
         self._system_info_refresh_at = now + self._system_info_refresh_interval
         self.system_info = current
         return current != previous

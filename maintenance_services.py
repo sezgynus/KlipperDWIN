@@ -59,6 +59,18 @@ def parse_evidence(responses):
                                      'tmc2240 ', 'tmc2660 ', 'tmc5160 ',
                                      'tmc5161 '))):
                 keys.add('maintenance.driver_thermal_monitor:' + name)
+    # A registered readable gcodes root proves Moonraker exposes its
+    # directory-information API, whose on-demand reply contains disk_usage.
+    # Reading roots is small; walking the potentially huge directory at
+    # startup would violate the memory budget.
+    root_reply = responses.get('/server/files/roots')
+    root_items = root_reply.get('result') if isinstance(root_reply, Mapping) else None
+    if isinstance(root_items, (tuple, list)):
+        for item in root_items[:32]:
+            if (isinstance(item, Mapping) and item.get('name') == 'gcodes'
+                    and item.get('permissions') in ('r', 'rw')):
+                keys.add('machine.disk')
+                break
     # Do not infer access to database namespaces, Petrel diagnostics, or
     # records simply because a Moonraker component happens to be installed.
     return tuple(sorted(keys))
@@ -68,7 +80,8 @@ def parse_evidence(responses):
 # fetched during discovery; those may allocate substantial response bodies.
 _ENDPOINTS = ('/server/info', '/machine/proc_stats',
               '/server/history/totals',
-              '/printer/objects/query?heaters=available_monitors')
+              '/printer/objects/query?heaters=available_monitors',
+              '/server/files/roots')
 
 
 def probe(client, cancelled=None):

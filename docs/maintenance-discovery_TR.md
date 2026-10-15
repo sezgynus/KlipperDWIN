@@ -129,3 +129,5 @@ READY keşfi yalnız dört küçük belgelenmiş API uç noktasını sorgular (`
 ### Dinamik menü listesi ve rezonans eksenleri
 
 `available_features()` ve cihaz adı verilmeden çağrılan `method(feature)`, cihazlara ait maskelerle genel yetenekleri birlikte hesaplar. Cihazlar `instances(feature)` ile ayrı listelenir. Rezonans işlevlerinde `snapshot.axes('R02'|'R03'|'R04', device=None)`, Klipper'ın ortak XY veya ayrı accel_chip_x/accel_chip_y/accel_chip_z tanımlarına uygun X/Y/Z bit maskesi (1/2/4) verir; atanmamış eksen ölçülebilir gösterilmez. Kalıcı özellik sözlüğü veya indeks oluşturulmaz.
+
+Depolama S04 artık küçük `GET /server/files/roots` yanıtında okunabilir `gcodes` kökü varsa keşfedilir. Moonraker, `disk_usage` alanını `GET /server/files/directory?path=gcodes` yanıtında sunar; çok sayıda dosya içerebilecek bu dizin sorgusu **READY anında asla yapılmaz**. Gerçek boş/toplam alan sonraki depolama ekranında gerektiğinde okunabilir. Kökün varlığı ölçülen boş alanı değil, yöntem desteğini kanıtlar. READY keşfinde beş salt-okunur API isteği vardır. <https://moonraker.readthedocs.io/en/latest/external_api/file_manager/>

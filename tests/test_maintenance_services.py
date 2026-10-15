@@ -51,6 +51,22 @@ class Tests(unittest.TestCase):
         self.assertNotIn('maintenance.travel_counter', result)
         self.assertEqual(parse_evidence({'/server/history/totals': {'error': 'bad'}}), ())
 
+    def test_storage_capability_from_registered_roots_without_directory_listing(self):
+        from maintenance_discovery import discover, INFORMATION
+        roots = '/server/files/roots'
+        positive = parse_evidence({roots: {'result': [
+            {'name': 'config', 'permissions': 'rw'},
+            {'name': 'gcodes', 'permissions': 'rw'}]}})
+        self.assertIn('machine.disk', positive)
+        snap = discover(State(), positive)
+        self.assertEqual(snap.method('S04'), INFORMATION)
+        for bad in (
+                {'result': [{'name': 'gcodes', 'permissions': ''}]},
+                {'result': [{'name': 'logs', 'permissions': 'r'}]},
+                {'error': 'access denied'},
+                {'result': None}):
+            self.assertNotIn('machine.disk', parse_evidence({roots: bad}))
+
     def test_tmc_thermal_monitor_is_structured_api_evidence(self):
         from maintenance_discovery import discover, NONE, AUTOMATIC
         evidence = parse_evidence({
@@ -107,6 +123,7 @@ class Tests(unittest.TestCase):
         self.assertTrue(all('gcode' not in path for path in calls))
         self.assertTrue(all(path.startswith(('/server/', '/machine/', '/printer/objects/query'))
                             for path in calls))
+        self.assertNotIn('/server/files/directory?path=gcodes', calls)
 
     def test_ready_runs_once_and_keeps_result_on_menu_reentry(self):
         s = State()

@@ -65,8 +65,12 @@ def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None):
     cfg = settings.get(target or '', {})
     current = status.get(target or '', {})
     if feature == 'S18':
-        # Explicit choice from Petrel's configured buzzer, not macro discovery.
-        target = 'pwm_cycle_time ' + _name(buzzer_output)
+        # The buzzer must be explicitly authorized for this EXACT pin,
+        # never merely because some pwm_cycle_time output exists.
+        name = _name(buzzer_output)
+        if 'maintenance.buzzer_output:' + name not in snapshot.service_key:
+            raise ValueError('buzzer_output_not_explicitly_authorized')
+        target = 'pwm_cycle_time ' + name
         cfg = settings.get(target)
         current = status.get(target)
     if not isinstance(current, Mapping) or not isinstance(cfg, Mapping):

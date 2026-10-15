@@ -6,6 +6,7 @@ HTTP replies, a client, worker, Future or a background polling task.
 import logging
 from threading import Lock
 from maintenance_cache import MaintenanceCache
+from maintenance_profiles import read_profiles, approved_integrations
 
 _log = logging.getLogger(__name__)
 
@@ -27,10 +28,11 @@ def idle(state):
 
 
 class MaintenanceDiscoveryManager:
-    __slots__ = ('cache', '_lock', '_generation')
+    __slots__ = ('cache', '_lock', '_generation', '_profile_path')
 
-    def __init__(self):
+    def __init__(self, profile_path=None):
         self.cache = MaintenanceCache()
+        self._profile_path = profile_path
         self._lock = Lock()
         self._generation = 0
 
@@ -63,7 +65,9 @@ class MaintenanceDiscoveryManager:
                 return previous
             self._generation += 1
             generation = self._generation
-            snapshot = self.cache.get(state)
+            local_services = approved_integrations(
+                state, read_profiles(self._profile_path))
+            snapshot = self.cache.get(state, local_services)
         # One record per actual READY epoch, never per telemetry revision
         # or per UI navigation. Do not log config names, values or tokens.
         _log.info('Maintenance discovery: READY epoch=%d devices=%d features=%d',
@@ -77,7 +81,7 @@ class MaintenanceDiscoveryManager:
 
         def work():
             try:
-                services = probe(client)
+                services = tuple(set(probe(client)) | set(local_services))
                 current = latest()
                 if not current.ready or current.epoch != epoch or id(current.settings) != marker:
                     return

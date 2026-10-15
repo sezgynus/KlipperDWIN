@@ -38,7 +38,7 @@ Graphite; ışık, parlaklık, ses ayarları, hareket parametreleri, kalibrasyon
 
 Print butonları yuvarlatılmış yüzeyi, seçim çerçevesini ve Lucide simgesini tek JPEG içinde taşır; etiketler panelin **0 numaralı fontuyla** native metin olarak çizilir. Normal dar butonlar **243–247**, seçili karşılıkları **125–129** (78×36); tamamlanan baskının Tune/Close çiftleri **130–133** (119×36) ID'lerini kullanır. AFTER JOB switchleri **248/249** (27×12) kullanır. Normal/seçili siluetleri aynı tutun: üretici aynı nötr opak kenarı taşıyan keskin yuvarlak maske kullanır; böylece filtrelenen JPEG kenarlarında önceki durumun pikselleri kalmaz.
 
-Fan kareleri **235–242** nötr gri tonlarla üretilir; siyah saydamlık zeminindeki çınlamayı önlemek için kodlamadan önce 24 altı parlaklık temizlenir. Fan ve tam buton JPEG'leri **kalite 100**, baseline **4:2:0** kullanır. Diğer üretilen ikonlar kalite 94 kullanır. JPEG'i tekrar sıkıştırmak yerine SVG'den üretin. Lucide kaynak lisansı: [Lucide lisansı](../icon-source/Lucide-LICENSE.txt).
+Fan kareleri **235–242**, dashboard'un **RGB565 `0x18C4`** zemininde nötr fan simgesiyle üretilir. JPEG yuvarlamasının aynı RGB565 renginde kalması için SVG'de renk basamağının ortasındaki `#1c1a24` RGB değeri kullanılır. Native animasyonda (`0x28`) arka plan filtresi seçeneği bulunmadığından bu kareler opaktır; duran fan da aynı opak çizimi kullanır. SVG'den yeniden üretirken bu zemini koruyun. Fan ve tam buton JPEG'leri **kalite 100**, baseline **4:2:0** kullanır. Diğer üretilen ikonlar kalite 94 kullanır. JPEG'i tekrar sıkıştırmak yerine SVG'den üretin. Lucide kaynak lisansı: [Lucide lisansı](../icon-source/Lucide-LICENSE.txt).
 
 ## Paket boyutu ve ayrılan alan
 

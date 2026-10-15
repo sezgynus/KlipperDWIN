@@ -76,15 +76,45 @@ class FanAnimationTests(unittest.TestCase):
         v._draw_status_field('draw_text', False, True, 1, 65535, 0x18C4, 126, 416, '100%')
         v.lcd.draw_rectangle.assert_called_once_with(1, 0x18C4, 126, 416, 197, 431)
 
-    def test_animation_frames_have_clean_black_transparency_matte(self):
+    def test_animation_frames_match_dashboard_background(self):
         from dwin_emulator.assets import PanelAssets
         from lcd_resources import ICON_LIBRARY_ID, ICON_FAN_FIRST, ICON_FAN_LAST
+        from PIL import JpegImagePlugin, Image
+        from pathlib import Path
         assets = PanelAssets()
+        bg = (24, 24, 33)  # Expanded RGB565 0x18C4.
         for icon in range(ICON_FAN_FIRST, ICON_FAN_LAST + 1):
             with self.subTest(icon=icon):
                 image = assets.icon(ICON_LIBRARY_ID, icon)
                 self.assertEqual(image.size, (20, 20))
-                self.assertTrue(all(max(pixel) == 0 or max(pixel) >= 24
-                                    for pixel in image.get_flattened_data()))
                 for corner in ((0, 0), (19, 0), (0, 19), (19, 19)):
-                    self.assertEqual(image.getpixel(corner), (0, 0, 0))
+                    self.assertTrue(all(abs(a-b) <= 3 for a, b in
+                                        zip(image.getpixel(corner), bg)))
+                self.assertTrue(all(max(pixel) >= 20
+                                    for pixel in image.get_flattened_data()))
+                path = Path(__file__).resolve().parents[1] / 'assets/icons' / ('%03d.jpg' % icon)
+                with Image.open(path) as jpeg:
+                    self.assertEqual(JpegImagePlugin.get_sampling(jpeg), 2)
+                    self.assertFalse(jpeg.info.get('progressive'))
+
+    def test_stopped_fan_uses_same_opaque_backing_as_native_animation(self):
+        from lcd_resources import ICON_FAN_FIRST
+        view = self.view(0)
+        view._sync_fan_animation(True)
+        view.lcd.show_icon.assert_called_once_with(
+            view.ICON, ICON_FAN_FIRST, 200, 380, background=True)
+        view.lcd.configure_animation.assert_not_called()
+
+    def test_every_fan_frame_preserves_dashboard_corners(self):
+        from tools.render_docs_screenshots import canvas
+        from lcd_resources import ICON_FAN_FIRST, ICON_FAN_LAST
+        from dwin_emulator.framebuffer import rgb565
+        view = canvas()
+        view.lcd.draw_rectangle(1, 0x18C4, 0, 360, 271, 479)
+        for icon in range(ICON_FAN_FIRST, ICON_FAN_LAST + 1):
+            view.lcd.show_icon(view.ICON, icon, 200, 380, background=True)
+            view.lcd.update()
+            image = view.framebuffer.snapshot()[0]
+            for point in ((200, 380), (219, 380), (200, 399), (219, 399)):
+                self.assertTrue(all(abs(a-b) <= 8 for a, b in
+                                    zip(image.getpixel(point), rgb565(0x18C4))))

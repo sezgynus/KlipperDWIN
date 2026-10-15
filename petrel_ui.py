@@ -2594,7 +2594,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._fan_animation_key = key
         if visible and not interval:
             self.lcd.draw_rectangle(1, 0x18C4, 200, 380, 219, 399)
-            show_theme_icon(self.lcd, self.ICON, ICON_FAN_FIRST, 200, 380)
+            # Match the opaque native animation path, including its backing.
+            self.lcd.show_icon(self.ICON, ICON_FAN_FIRST, 200, 380, background=True)
 
     def Draw_Status_Area(self, with_update):
         if getattr(self, 'checkkey', None) in (self.MMUMenu, self.Tune, self.TuneEdit, self.PrintErrorDetails):

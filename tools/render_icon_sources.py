@@ -46,9 +46,13 @@ def main():
                 pass
             fan_frame = 235 <= icon_id <= 242
             if fan_frame:
-                # Neutral chroma prevents 4:2:0 color bleeding into the black
-                # transparency matte. Remove supersampling ringing before JPEG.
-                rendered = rendered.convert('L').point(lambda v: 0 if v < 24 else v).convert('RGB')
+                # Native 0x28 animation draws opaque frames. Preserve the SVG's
+                # dashboard-colored backing (RGB565 0x18C4) instead of turning
+                # it into a black transparency matte. Clamp resampling ringing
+                # below the surface color to avoid a dark halo around blades.
+                # Mid-bin RGB values keep JPEG rounding inside RGB565 0x18C4.
+                rendered = ImageChops.lighter(
+                    rendered, Image.new('RGB', rendered.size, (28, 26, 36)))
             rendered.save(
                 args.output_directory / (path.stem + '.jpg'), 'JPEG',
                 # Physical T5UIC1 testing showed corrupted selected tiles and

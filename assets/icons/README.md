@@ -38,7 +38,7 @@ Graphite adds dedicated IDs 210–234 for light, brightness, sound settings, mot
 
 Print buttons contain the rounded surface, selection outline and Lucide symbol in one JPEG; labels remain native panel text using font ID **0**. Normal narrow buttons use **243–247** and selected variants **125–129** (78×36); completed-print Tune/Close pairs use **130–133** (119×36). AFTER JOB switches use **248/249** (27×12). Keep normal/selected silhouettes identical: the renderer uses a hard rounded mask with the same neutral opaque perimeter so filtered JPEG edges do not retain the previous state.
 
-Fan frames **235–242** are rendered in neutral grayscale; luminance below 24 is removed before encoding to avoid ringing in the black transparency matte. Fan and full-button JPEGs use **quality 100**, baseline **4:2:0**. Other generated icons use quality 94. Regenerate from SVG rather than recompressing JPEGs. Lucide source licensing: [Lucide license](../icon-source/Lucide-LICENSE.txt).
+Fan frames **235–242** use a neutral fan symbol on the dashboard's **RGB565 `0x18C4`** background. The SVG uses mid-bin RGB `#1c1a24` so JPEG rounding stays inside that RGB565 color. Native animation (`0x28`) has no background-filter option, so these frames are opaque; the stopped fan uses the same opaque rendering. Preserve this backing when regenerating from SVG. Fan and full-button JPEGs use **quality 100**, baseline **4:2:0**. Other generated icons use quality 94. Regenerate from SVG rather than recompressing JPEGs. Lucide source licensing: [Lucide license](../icon-source/Lucide-LICENSE.txt).
 
 ## Package size and reserved space
 

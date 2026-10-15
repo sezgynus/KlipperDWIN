@@ -120,6 +120,7 @@ class CaseLightMixin:
                 self._poll_case_light_live()
             elif self.pd.capabilities.case_light_pwm:
                 self.checkkey = self.CaseLightBrightness
+                self._invalidate_list_row(2)
                 self._case_light_brightness_target = getattr(self, '_case_light_brightness', 0)
                 self.lcd.draw_integer_text(True, True, 0, self.lcd.font8x16,
                                        self.lcd.Color_White, self.lcd.Select_Color,

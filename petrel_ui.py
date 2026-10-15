@@ -1099,14 +1099,18 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             entries.append((label, icon, value, painter))
         self._draw_list_menu(title, entries, selection.now, max(0, (bottom or self.MROWS) - self.MROWS))
 
+    def _invalidate_list_row(self, row):
+        """A direct editor write replaces the normal cached viewport row."""
+        render = getattr(self, '_list_render', None)
+        if render is not None:
+            render['values'].pop(row + render['start'], None)
+        return row
+
     def _open_thermal_editor(self, key, row, profile=None):
         # Menu selections are logical indices; drawing uses viewport rows.
         render = getattr(self, '_list_render', None)
         self._thermal_edit_row = row - (render['start'] if render else 0)
-        if render is not None:
-            # Direct editor writes replace the cached normal value, even when
-            # Moonraker has not echoed the command (or the value is unchanged).
-            render['values'].pop(row, None)
+        self._invalidate_list_row(self._thermal_edit_row)
         preset = self.pd.material_preset[profile] if profile is not None else None
         values = self.pd.HMI_ValueStruct
         if key == 'TEMP':
@@ -1895,6 +1899,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self.encoderRate = True
             self._action("Print speed", lambda: self.pd.set_feedrate(self.pd.HMI_ValueStruct.print_speed), silent=True)
 
+        self._invalidate_list_row(self.select_tune.now + self.MROWS - self.index_tune)
         self.lcd.draw_integer_text(
             True, True, 0, self.lcd.font8x16, self.lcd.Color_White, self.lcd.Color_Bg_Black,
             3, 216, self.MBASE(self.select_tune.now + self.MROWS - self.index_tune),
@@ -1931,6 +1936,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
 
             elif self.select_axis.now == 1:  # axis move
                 self.checkkey = self.Move_X
+                self._invalidate_list_row(1)
                 self.pd.HMI_ValueStruct.Move_X_scale = self.pd.state.status['gcode_move']['position'][0] * self.MINUNITMULT
                 self.lcd.draw_scaled_float_text(
                     True, True, 0, self.lcd.font8x16, self.lcd.Color_White, self.lcd.Select_Color,
@@ -1939,6 +1945,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 )
             elif self.select_axis.now == 2:  # Y axis move
                 self.checkkey = self.Move_Y
+                self._invalidate_list_row(2)
                 self.pd.HMI_ValueStruct.Move_Y_scale = self.pd.state.status['gcode_move']['position'][1] * self.MINUNITMULT
                 self.lcd.draw_scaled_float_text(
                     True, True, 0, self.lcd.font8x16, self.lcd.Color_White, self.lcd.Select_Color,
@@ -1947,6 +1954,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 )
             elif self.select_axis.now == 3:  # Z axis move
                 self.checkkey = self.Move_Z
+                self._invalidate_list_row(3)
                 self.pd.HMI_ValueStruct.Move_Z_scale = self.pd.state.status['gcode_move']['position'][2] * self.MINUNITMULT
                 self.lcd.draw_scaled_float_text(
                     True, True, 0, self.lcd.font8x16, self.lcd.Color_White, self.lcd.Select_Color,
@@ -1962,6 +1970,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                         self.lcd.update()
                         return
                 self.checkkey = self.Extruder
+                self._invalidate_list_row(4)
                 self.pd.last_E_scale = self.pd.state.status['gcode_move']['position'][3] * self.MINUNITMULT
                 self.pd.HMI_ValueStruct.Move_E_scale = self.pd.state.status['gcode_move']['position'][3] * self.MINUNITMULT
                 self.lcd.draw_signed_scaled_float_text(
@@ -2477,6 +2486,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self.Draw_Probe_Wizard()
 
     def _open_zoffset(self, mode, row):
+        self._zoffset_edit_row = self._invalidate_list_row(row)
         self.checkkey = self.Homeoffset
         self.pd.HMI_ValueStruct.show_mode = mode
         self._zoffset_target = self.pd.BABY_Z_VAR * 100
@@ -2495,6 +2505,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         else:
             zoff_line = self.TUNE_CASE_ZOFF + self.MROWS - self.index_tune
 
+        zoff_line = getattr(self, '_zoffset_edit_row', zoff_line)
         if (encoder_diffState == self.ENCODER_DIFF_ENTER): #if (applyencoder(encoder_diffstate, offset_value))
             self._action("Runtime Z offset", lambda: self.pd.setZOffset(self._zoffset_target / 100.0), silent=True)
 
@@ -3515,6 +3526,9 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                                self.lcd.Color_Bg_Window, x, 236, label)
 
     def _restore_power_origin(self):
+        # Both the hold capsule and confirmation can overwrite cached rows.
+        self._list_render = None
+        self._info_render_scroll = None
         origin = self._power_origin
         self._power_origin = None
         self._power_focus = False

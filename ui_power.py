@@ -179,12 +179,17 @@ class PowerShortcutMixin:
             return True
         if screen == self.CaseLightBrightness:
             self.Draw_Case_Light_Menu()
+            self._invalidate_list_row(2)
+            self.lcd.draw_integer_text(True, True, 0, self.lcd.font8x16,
+                self.lcd.Color_White, self.lcd.Select_Color, 3, 208, self.MBASE(2),
+                self._case_light_brightness_target)
             return True
         axes = {self.Move_X: ('Move_X_scale', 1), self.Move_Y: ('Move_Y_scale', 2),
                 self.Move_Z: ('Move_Z_scale', 3), self.Extruder: ('Move_E_scale', 4)}
         if screen in axes:
             self.Draw_Move_Menu()
             attr, row = axes[screen]
+            self._invalidate_list_row(row)
             value = getattr(self.pd.HMI_ValueStruct, attr)
             if screen == self.Extruder:
                 self.lcd.draw_signed_scaled_float_text(self.lcd.font8x16, self.lcd.Select_Color,
@@ -198,6 +203,7 @@ class PowerShortcutMixin:
             (self.Draw_Prepare_Menu if prepare else self.Draw_Tune_Menu)()
             row = ((self.PREPARE_CASE_ZOFF + self.MROWS - self.index_prepare) if prepare
                    else (self.TUNE_CASE_ZOFF + self.MROWS - self.index_tune))
+            self._zoffset_edit_row = self._invalidate_list_row(row)
             self.lcd.draw_signed_scaled_float_text(self.lcd.font8x16, self.lcd.Select_Color,
                                                    2, 2, 202, self.MBASE(row), self._zoffset_target)
             return True
@@ -219,7 +225,11 @@ class PowerShortcutMixin:
                         self.FanSpeed: self.TEMP_CASE_FAN}[screen]
             elif mode == -2 and screen != self.PrintSpeed:
                 case = {self.ETemp: self.PREHEAT_CASE_TEMP, self.BedTemp: self.PREHEAT_CASE_BED}[screen]
-            row = case if mode in (-1, -2) and screen != self.PrintSpeed else case + self.MROWS - self.index_tune
+            render = getattr(self, '_list_render', None)
+            row = case - (render['start'] if render is not None else 0)
+            self._invalidate_list_row(row)
+            if screen != self.PrintSpeed:
+                self._thermal_edit_row = row
             self.lcd.draw_integer_text(True, True, 0, self.lcd.font8x16,
                 self.lcd.Color_White, self.lcd.Select_Color, 3, 216, self.MBASE(row),
                 getattr(self.pd.HMI_ValueStruct, attr))

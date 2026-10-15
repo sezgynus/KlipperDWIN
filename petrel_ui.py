@@ -876,7 +876,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             if self._draw_header_clock():
                 self.lcd.update()
             self.EachMomentUpdate()
-            if self.checkkey == self.MaintenanceMenu:
+            if getattr(self, 'checkkey', None) == self.MaintenanceMenu:
                 session = getattr(self, '_maintenance_session', None)
                 if session is not None:
                     session.poll(self.pd.state)

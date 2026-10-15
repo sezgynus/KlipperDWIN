@@ -19,12 +19,16 @@ class InlineWorker:
             f.set_exception(error)
         return f
 
+    def close(self):
+        pass
+
 
 class MaintenanceEntryTests(unittest.TestCase):
     def screen(self, data=None):
         d = display(data or snapshot())
         d.pd._read_worker = InlineWorker()
         d.pd.client.get = Mock(return_value={'result': {}})
+        d.checkkey = d.MainMenu
         d.get_encoder_state = Mock(return_value=d.ENCODER_DIFF_ENTER)
         d.select_page.set(next(i for i, e in enumerate(d._home_entries())
                                if e[0] == 'MAINTENANCE'))
@@ -72,6 +76,8 @@ class MaintenanceEntryTests(unittest.TestCase):
         session = d._maintenance_session
         d._closed = False
         d._panel_probe = None
+        d.button = None
+        d.encoder = None
         d._close_resources()
         self.assertIsNone(session.snapshot)
         self.assertIsNone(d._maintenance_session)

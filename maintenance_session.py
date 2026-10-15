@@ -54,7 +54,7 @@ class MaintenanceDiscoverySession:
                 from threading import Event
                 stop = self._stop = Event()
                 # Closure exists only until the Future completes or is cancelled.
-                self._future = worker.submit(lambda: probe(client, stop), queue_timeout=0)
+                self._future = worker.submit(lambda: probe(client, stop))
             return snapshot
         return previous
 

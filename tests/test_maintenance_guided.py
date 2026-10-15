@@ -46,6 +46,21 @@ class Stage8GuidedTests(unittest.TestCase):
                             and a.safety_profile == definition_for(a.feature_id).safety_profile
                             for a in adapters))
 
+    def test_printer_backend_exposes_passive_guided_candidates_without_io(self):
+        from test_capabilities import printer, snapshot
+        pd = printer(snapshot())
+        original = pd.maintenance.snapshot
+        self.assertIsNotNone(original)
+        pd.client.get.reset_mock()
+        rows = pd.maintenance_guided_plan()
+        self.assertIn(('F01', 'fan'), {(r.feature_id, r.device) for r in rows})
+        self.assertEqual(rows[0].category, 'guided')
+        self.assertIs(pd.maintenance.snapshot, original)
+        pd.client.get.assert_not_called()
+        self.assertFalse(pd.maintenance_reader.pending)
+        self.assertTrue(all(r.method == USER for r in rows))
+        pd.close()
+
     def test_never_guess_pin_safety_or_buzzer_registration(self):
         snap = snapshot_with_devices()
         rows = guided_plan(snap)

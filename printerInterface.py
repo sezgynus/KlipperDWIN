@@ -24,6 +24,7 @@ from printer_state import PrinterState
 from printer_capabilities import PrinterCapabilities
 from maintenance_session import MaintenanceDiscoveryManager
 from maintenance_controller import MaintenanceReadController
+from maintenance_guided import guided_plan
 from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
 
 class xyze_t:
@@ -471,6 +472,10 @@ class PrinterData:
 
     def maintenance_read_plan(self):
         return self.maintenance_reader.available()
+
+    def maintenance_guided_plan(self):
+        # Passive target discovery only; not an actuation authorization.
+        return guided_plan(self.maintenance.snapshot)
 
     def start_maintenance_read(self, feature_id, timeout=8.0):
         return self.maintenance_reader.start(feature_id, timeout=timeout)

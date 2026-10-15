@@ -58,3 +58,50 @@ Benchmark; keşif süresi, `tracemalloc` kalıcı tahsis farkı, en yüksek izle
 2. Yalnızca Maintenance'a ait küçük, tembel yüklenen snapshot yöneticisi ekle; yeni Klipper bağlantı/yapılandırma epoch'unda geçersizleştir.
 3. Moonraker servis kanıtını ve yalnızca ihtiyaç halinde test telemetrisini sürekli abonelik oluşturmadan bağla.
 4. Test yürütme/güvenlik koordinasyonunu keşiften bağımsız tasarla; UI'yi keşif matrisi doğrulandıktan sonra oluştur.
+
+## Genişletilmiş API tabanlı keşif ve 121 kimliğin tamamı
+
+Tamamlanan keşif **karar motoru**, 121 özellik kimliğinin tamamına ait
+koşul sözleşmesini tanır. Bu, 121 işlevin de görüntüleneceği anlamına gelmez:
+desteklenmeyen, güvenli olmayan veya ölçülemeyen testler bilinçli olarak
+gizlenir (`NONE`). Özellikle `M02`, `M17`, `R07`, `R08`, `E10`, `O07` ve `O08`
+için genel geçerli bir ölçüm yöntemi bulunmuyor. Tarihsel eğilimler, özel
+aktüatörler, hareket mesafesi sayaçları ve MMU testleri açıkça doğrulanmış
+entegrasyon, geçmiş referansı veya güvenli çalışma profili gerektirir; isimden
+yetenek uydurulmaz.
+
+| Alan | Görünürlük koşulu |
+|---|---|
+| Fanlar | Her Klipper fanı ayrı keşfedilir. RPM testi için takometre pini gerekir; basit PWM fanında anlamlı kullanıcı doğrulaması korunur. Otomatik fan kontrolü zorla bypass edilmez. |
+| Termal | Hotend, tabla ve generic heater ayrı ve geçerli limitlerle keşfedilir. Trend ve enerji tahmini için doğrulanmış ek kayıt gerekir. |
+| Hareket | Bas/bırak testinde gerçek fiziksel anahtar gerekir. TMC kayıt/sıcaklık/akım özellikleri yapılandırılmış veriyle doğrulanır. Komut edilmiş pozisyondan mikron doğruluk çıkarılmaz. |
+| Probe / mesh | Load-cell ve eddy probe ayrı yöntemlerle; manuel ve otomatik mesh ayrı koşullarla keşfedilir. Tarihsel kayma için uyumlu referans gerekir. |
+| Rezonans | Salt ivmeölçer varlığı yetmez; `[resonance_tester]` içinde ilgili sensör atanmış olmalıdır. İnsan tahmini frekans ölçümü sayılmaz. |
+| Filament / MMU | Presence/motion sensörleri ayrıdır; güvenli profili bulunmayan servo, makro ve aktüatörler otomatik teste dönüşmez. |
+| Host | Yalnızca doğrulanmış Moonraker API cevapları. Hayalî disk API'si veya büyük dosya listesi keşif sırasında kullanılmaz. |
+
+### Sadece Maintenance girişinde servis kanıtı
+
+`maintenance_services.parse_evidence(responses)` doğrulanmış Moonraker JSON
+cevaplarını sınıflandırır. `probe(client, cancelled)` sadece Maintenance girişinde
+çağrıldığında `/server/info`, `/machine/proc_stats`,
+`/machine/system_info` ve `/server/history/totals` için küçük salt-okunur
+istekler yapar. Mevcut HTTP transport ve read worker yeniden kullanılır;
+baskı döngüsünde yeni bağlantı veya keşif sorgusu yoktur. Opsiyonel API
+hataları yetenek üretmez. `MaintenanceDiscoverySession`, geçici Future ve iptal
+bayrağını yönetir; işlem bitince bırakır ve Maintenance'dan çıkışta snapshot'ı
+serbest bırakır. Devam eden bir HTTP isteği zorla kesilemese de iptalden sonra
+başka istek başlatılmaz.
+
+Diğer `maintenance.*` ve `petrel.*` etiketleri, **gelecekte bağımsız olarak
+doğrulanmış entegrasyonların** olumlu kanıt sözleşmesidir. Henüz var olmayan
+referans kayıtları, aktüatör güvenlik profilleri veya sayaçlar varmış gibi
+gösterilmez; bu kanıt gelene kadar özellik gizlidir.
+
+### Performans ve entegrasyon sınırı
+
+Modül yalnız Maintenance'a girişte yüklenir. Mevcut `PrinterCapabilities`
+değişmez. Normal baskı işleme döngüsüne özellik kontrolü eklenmez ve menüden
+çıkınca snapshot bırakılır. Kesin kaynak tüketimi iddiası için gerçek Pi Zero
+2 W üzerinde CPU, RSS, USS ve PSS ölçümü gerekir; sentetik benchmark ve birim
+testleri fiziksel doğrulamanın yerine geçmez.

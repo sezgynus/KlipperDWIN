@@ -80,7 +80,8 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(base.method('P03'), NONE)
         self.assertEqual(base.method('M01'), AUTOMATIC | USER)
         self.assertEqual(base.method('R02'), NONE)
-        sensor = discover(Snapshot(objects=('adxl345', 'resonance_tester', 'probe', 'bed_mesh')))
+        sensor = discover(Snapshot(objects=('adxl345', 'resonance_tester', 'probe', 'bed_mesh'),
+                                   settings={'resonance_tester': {'accel_chip_x': 'adxl345'}}))
         self.assertEqual(sensor.method('R02'), AUTOMATIC)
         self.assertEqual(sensor.method('R04'), CALIBRATION)
         self.assertEqual(sensor.method('P07'), CALIBRATION)

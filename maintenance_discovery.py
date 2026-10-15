@@ -20,6 +20,10 @@ EXTERNAL = 4        # User measurement with a physical instrument
 CALIBRATION = 8     # Supported guided Klipper calibration
 INFORMATION = 16    # Telemetry/history; not a functional test
 
+# IDs whose very premise is unmeasurable, unsafe, or a negative capability.
+# Their deliberate hidden state is PART of the complete 121-ID contract.
+ALWAYS_HIDDEN = frozenset(('M02', 'M17', 'R07', 'R08', 'E10', 'O07', 'O08'))
+
 # Exactly five bits per feature. Device and global masks are immutable ints.
 _GROUPS = (('F', 13), ('H', 18), ('M', 17), ('P', 22),
            ('R', 8), ('E', 15), ('S', 20), ('O', 8))
@@ -104,6 +108,12 @@ class MaintenanceSnapshot:
                 return item.method(feature)
         return NONE
 
+    def available_features(self):
+        """Return positive global feature IDs without allocating a retained index."""
+        return tuple(p + str(i).zfill(2)
+                     for p, count in _GROUPS for i in range(1, count + 1)
+                     if _mode(self.global_modes, p + str(i).zfill(2)))
+
     def instances(self, feature):
         """A compact selection of devices offering a requested feature."""
         index = _index_for(feature)
@@ -127,10 +137,18 @@ def discover(state, services=()):
     services = frozenset(services)   # Explicit API evidence, never guesses.
     results = []
     physical_endstops = False
-    accel = any(n.startswith(('adxl345', 'lis2dw', 'mpu9250', 'icm20948',
-                              'lis3dh', 'bmi160', 'bmi270', 'adxl345_pico'))
-                for n in names)
-    has_resonance = 'resonance_tester' in names and accel
+    accel_types = ('adxl345', 'lis2dw', 'mpu9250', 'icm20948',
+                   'lis3dh', 'bmi160', 'bmi270')
+    accelerometers = {n for n in names if n.split(' ')[0] in accel_types}
+    resonance_config = _get(settings, 'resonance_tester', {})
+    assigned_chips = set()
+    if 'resonance_tester' in names:
+        # Klipper allows either a shared accelerometer or X/Y specific chips.
+        for key in ('accel_chip', 'accel_chip_x', 'accel_chip_y', 'accel_chip_z'):
+            raw = _get(resonance_config, key, '')
+            if isinstance(raw, str) and raw.strip() in accelerometers:
+                assigned_chips.add(raw.strip())
+    has_resonance = bool(assigned_chips)
     load_cell_probe = 'load_cell_probe' in names
     eddy_probe = any(n.startswith('probe_eddy_current ') for n in names)
     probe = ('probe' in names or 'bltouch' in names or
@@ -140,6 +158,8 @@ def discover(state, services=()):
     has_manual_probe = 'manual_probe' in names
     has_mesh = 'bed_mesh' in names
     heaters = set()
+    humidity_sensors = set()
+    temperature_sensors = set()
 
     # No objects are copied into the snapshot. Names refer to existing strings.
     for name in sorted(names):
@@ -153,14 +173,16 @@ def discover(state, services=()):
             tach = _tachometer(cfg)
             steps = _pwm_steps(cfg)
             method = AUTOMATIC if tach else USER
-            if name == 'fan' and steps:
+            if name == 'fan':
                 bits = _add(bits, 'F01', method)
-                bits = _add(bits, 'F02', method)
-                bits = _add(bits, 'F12', method)
-            elif name.startswith('fan_generic ') and steps:
+                if steps:
+                    bits = _add(bits, 'F02', method)
+                    bits = _add(bits, 'F12', method)
+            elif name.startswith('fan_generic '):
                 bits = _add(bits, 'F04', method)
-                bits = _add(bits, 'F05', method)
-                bits = _add(bits, 'F12', method)
+                if steps:
+                    bits = _add(bits, 'F05', method)
+                    bits = _add(bits, 'F12', method)
             elif name.startswith('heater_fan ') and any(
                     heater.strip() in names for heater in
                     str(_get(cfg, 'heater', 'extruder')).split(',')):
@@ -172,11 +194,16 @@ def discover(state, services=()):
                     _get(cfg, 'heater', 'extruder') or _get(cfg, 'stepper')):
                 bits = _add(bits, 'F08', method)
             elif name.startswith('temperature_fan '):
-                bits = _add(bits, 'F09', INFORMATION)
+                if 'temperature' in device_status or 'sensor_type' in cfg:
+                    bits = _add(bits, 'F09', INFORMATION)
+                if ('maintenance.safe_temperature_fan:' + name) in services:
+                    bits = _add(bits, 'F10', method)
             if tach:
                 bits = _add(bits, 'F11', AUTOMATIC | INFORMATION)
                 if name in ('fan',) or name.startswith('fan_generic '):
                     bits = _add(bits, 'F03', AUTOMATIC)
+            if ('maintenance.thermal_ab_fan:' + name) in services and tach:
+                bits = _add(bits, 'F13', AUTOMATIC)
         elif (name == 'heater_bed' or name.startswith('extruder') and
               name[8:].isdigit() or name == 'extruder' or
               name.startswith('heater_generic ')):
@@ -187,9 +214,16 @@ def discover(state, services=()):
             if (_is_number(min_temp) and _is_number(max_temp)
                     and min_temp < max_temp):
                 heaters.add(name)
+                temperature_sensors.add(name)
                 for f in ('H01', 'H05', 'H06', 'H07', 'H08', 'H09', 'H13'):
                     bits = _add(bits, f, AUTOMATIC)
                 bits = _add(bits, 'H11', INFORMATION)
+                if ('maintenance.heater_baseline:' + name) in services:
+                    bits = _add(bits, 'H10', AUTOMATIC | INFORMATION)
+                if ('maintenance.heater_wattage:' + name) in services:
+                    bits = _add(bits, 'H12', INFORMATION)
+                if ('maintenance.thermal_ab_heater:' + name) in services:
+                    bits = _add(bits, 'H18', AUTOMATIC)
                 if name == 'heater_bed':
                     bits = _add(bits, 'H03', CALIBRATION)
                 elif name.startswith('heater_generic '):
@@ -200,10 +234,18 @@ def discover(state, services=()):
                               'temperature_mcu ')):
             family = 'sensor'
             bits = _add(bits, 'H14', INFORMATION)
+            temperature_sensors.add(name)
+            if _is_number(_get(device_status, 'humidity')):
+                bits = _add(bits, 'H16', INFORMATION)
+                humidity_sensors.add(name)
+            if (_is_number(_get(device_status, 'pressure')) or
+                    _is_number(_get(device_status, 'gas'))):
+                bits = _add(bits, 'H16', INFORMATION)
         elif name.startswith(('tmc2130 ', 'tmc2208 ', 'tmc2209 ', 'tmc2240 ',
                               'tmc2660 ', 'tmc5160 ', 'tmc5161 ')):
             family = 'driver'
-            bits = _add(bits, 'M09', INFORMATION)
+            if _is_number(_get(cfg, 'run_current')) or _is_number(_get(device_status, 'run_current')):
+                bits = _add(bits, 'M09', INFORMATION)
             # DUMP_TMC is textual G-code, not a structured status API.
             # Do not advertise fault/temperature tests without actual fields.
             if _is_number(_get(device_status, 'temperature')):
@@ -232,29 +274,37 @@ def discover(state, services=()):
             family = 'filament'
             bits = _add(bits, 'E05', AUTOMATIC | INFORMATION | EXTERNAL)
             bits = _add(bits, 'E06', AUTOMATIC | INFORMATION)
-        elif name.startswith(('adxl345', 'lis2dw', 'mpu9250', 'icm20948',
-                              'lis3dh', 'bmi160', 'bmi270')):
+        elif name in accelerometers:
             family = 'accelerometer'
             bits = _add(bits, 'R01', AUTOMATIC | INFORMATION)
-            if has_resonance:
+            if name in assigned_chips:
                 bits = _add(bits, 'R02', AUTOMATIC)
                 bits = _add(bits, 'R03', AUTOMATIC)
                 bits = _add(bits, 'R04', CALIBRATION)
         elif name == 'load_cell' or name.startswith('load_cell '):
             family = 'load_cell'
             bits = _add(bits, 'E08', AUTOMATIC | INFORMATION)
-            bits = _add(bits, 'E09', CALIBRATION | EXTERNAL)
+            if 'maintenance.loadcell_reference' in services:
+                bits = _add(bits, 'E09', CALIBRATION | EXTERNAL)
         elif name.startswith('gcode_button '):
             family = 'button'
-            # Firmware buttons may execute macros on press: no generic test.
+            # A press could run a macro; require an explicit safe integration.
+            if ('maintenance.safe_button:' + name) in services and 'state' in device_status:
+                bits = _add(bits, 'O01', AUTOMATIC | USER)
         elif name.startswith(('led ', 'neopixel ', 'dotstar ', 'pca9632 ',
                               'display_template ')):
             family = 'led'
             if not name.startswith('display_template '):
                 bits = _add(bits, 'O04', USER)
         elif name.startswith(('output_pin ', 'servo ', 'manual_stepper ')):
-            # Unknown actuators have no safe generic test protocol.
+            # Never infer actuator safety from its name or Klipper object type.
             family = 'actuator'
+            if ('maintenance.safe_servo:' + name) in services and name.startswith('servo '):
+                bits = _add(bits, 'O02', USER)
+            elif ('maintenance.safe_pin:' + name) in services and name.startswith('output_pin '):
+                bits = _add(bits, 'O03', USER)
+            elif ('maintenance.safe_stepper:' + name) in services and name.startswith('manual_stepper '):
+                bits = _add(bits, 'M15', USER | EXTERNAL)
         elif name.startswith('canbus_stats '):
             family = 'can'
             bits = _add(bits, 'S07', AUTOMATIC | INFORMATION)
@@ -263,22 +313,26 @@ def discover(state, services=()):
             bits = _add(bits, 'H14', INFORMATION)
             if _is_number(_get(device_status, 'humidity')):
                 bits = _add(bits, 'H16', INFORMATION)
+                humidity_sensors.add(name)
+            temperature_sensors.add(name)
         if family is not None and bits:
             results.append(DeviceCapabilities(name, family, bits))
 
     global_bits = 0
     if has_motion:
-        global_bits = _add(global_bits, 'M03', CALIBRATION | USER)
+        global_bits = _add(global_bits, 'M03', CALIBRATION)
         global_bits = _add(global_bits, 'M14', INFORMATION)
     if physical_endstops and 'query_endstops' in names:
         global_bits = _add(global_bits, 'M01', AUTOMATIC | USER)
-        global_bits = _add(global_bits, 'M02', AUTOMATIC | USER)
+        # M02 (pressing sensorless virtual endstop) is deliberately hidden.
     if 'stepper_enable' in names:
         global_bits = _add(global_bits, 'M11', INFORMATION)
     if 'endstop_phase' in names:
         global_bits = _add(global_bits, 'M12', INFORMATION | CALIBRATION)
-    if 'dual_carriage' in names:
+    if 'dual_carriage' in names or 'generic_cartesian' in names:
         global_bits = _add(global_bits, 'M16', INFORMATION)
+    if any(n.startswith('angle ') for n in names):
+        global_bits = _add(global_bits, 'M13', INFORMATION)
     if (has_manual_probe and 'stepper_z' in names and
             _get(_get(settings, 'stepper_z', {}), 'endstop_pin')):
         global_bits = _add(global_bits, 'P06', CALIBRATION | USER)
@@ -291,13 +345,17 @@ def discover(state, services=()):
             global_bits = _add(global_bits, 'P05', CALIBRATION)
     if load_cell_probe:
         global_bits = _add(global_bits, 'P02', AUTOMATIC | USER)
-        global_bits = _add(global_bits, 'P20', AUTOMATIC | INFORMATION)
+        if any(_is_number(v) for key in ('force_g', 'force', 'force_sensor_raw')
+               for v in (_get(_get(status, 'load_cell_probe', {}), key),)):
+            global_bits = _add(global_bits, 'P20', AUTOMATIC | INFORMATION)
     if has_mesh:
         global_bits = _add(global_bits, 'P08', CALIBRATION | USER)
         if probe or load_cell_probe:
             global_bits = _add(global_bits, 'P07', CALIBRATION)
         if _get(_get(status, 'bed_mesh', {}), 'probed_matrix'):
             global_bits = _add(global_bits, 'P09', INFORMATION)
+            if 'maintenance.mesh_baseline' in services:
+                global_bits = _add(global_bits, 'P10', AUTOMATIC | INFORMATION)
     if 'screws_tilt_adjust' in names and (probe or load_cell_probe):
         global_bits = _add(global_bits, 'P11', CALIBRATION)
     for obj, feature in (('bed_screws', 'P12'), ('z_tilt', 'P13'),
@@ -309,6 +367,7 @@ def discover(state, services=()):
         global_bits = _add(global_bits, 'P18', CALIBRATION)
         if any(n.startswith('temperature_probe ') for n in names):
             global_bits = _add(global_bits, 'P22', CALIBRATION)
+            global_bits = _add(global_bits, 'H17', CALIBRATION)
     if 'bltouch' in names:
         global_bits = _add(global_bits, 'P19', USER)
     if 'skew_correction' in names and has_motion:
@@ -317,6 +376,11 @@ def discover(state, services=()):
         global_bits = _add(global_bits, 'R02', AUTOMATIC)
         global_bits = _add(global_bits, 'R03', AUTOMATIC)
         global_bits = _add(global_bits, 'R04', CALIBRATION)
+        if 'maintenance.resonance_baseline' in services:
+            global_bits = _add(global_bits, 'R05', AUTOMATIC | INFORMATION)
+        kin = _get(_get(settings, 'printer', {}), 'kinematics', '')
+        if kin in ('corexy', 'corexz') and 'maintenance.belt_resonance_profile' in services:
+            global_bits = _add(global_bits, 'R06', AUTOMATIC | INFORMATION)
     if 'extruder' in heaters:
         global_bits = _add(global_bits, 'E01', USER)
         global_bits = _add(global_bits, 'E02', EXTERNAL)
@@ -325,6 +389,16 @@ def discover(state, services=()):
         mmu = _get(status, 'mmu', {})
         if _get(mmu, 'sensors'):
             global_bits = _add(global_bits, 'E11', AUTOMATIC | USER)
+            if 'petrel.mmu_test_adapter' in services:
+                global_bits = _add(global_bits, 'E12', AUTOMATIC | USER)
+    if 'spoolman' in services and 'maintenance.material_usage' in services:
+        global_bits = _add(global_bits, 'E13', INFORMATION)
+    if 'maintenance.dryer_profile' in services and any(n.startswith('heater_generic ') for n in heaters):
+        global_bits = _add(global_bits, 'E14', CALIBRATION)
+    if humidity_sensors and 'maintenance.chamber_humidity_sensor' in services:
+        global_bits = _add(global_bits, 'E15', INFORMATION)
+    if len(temperature_sensors) > 1 and 'maintenance.sensor_pairs' in services:
+        global_bits = _add(global_bits, 'H15', AUTOMATIC | INFORMATION)
     if 'machine.proc_stats' in services:
         global_bits = _add(global_bits, 'S01', INFORMATION)
     if 'machine.cpu_temp' in services:
@@ -343,17 +417,19 @@ def discover(state, services=()):
         if service in services:
             mode = USER if feature in ('S17', 'S18') else INFORMATION
             global_bits = _add(global_bits, feature, mode)
+    if 'maintenance.travel_counter' in services:
+        global_bits = _add(global_bits, 'S13', INFORMATION)
     if 'webhooks' in names:
         global_bits = _add(global_bits, 'S08', INFORMATION)
     if 'gcode_store' in services:
         global_bits = _add(global_bits, 'S09', INFORMATION)
     if any(n == 'mcu' or n.startswith('mcu ') for n in names):
         global_bits = _add(global_bits, 'S06', INFORMATION)
-    if 'maintenance.ambient_sensor' in services:
+    if 'maintenance.ambient_sensor' in services and temperature_sensors:
         # Do not equate every generic temperature probe with an ambient probe.
         global_bits = _add(global_bits, 'O05', INFORMATION)
     if 'maintenance.guided_service' in services:
         global_bits = _add(global_bits, 'O06', USER)
-    # Feature codes not positively proven are encoded as NONE (hidden).
+    # Features without positive evidence and ALWAYS_HIDDEN IDs remain NONE.
     return MaintenanceSnapshot(state.epoch, tuple(results), global_bits,
                                id(settings), tuple(sorted(services)))

@@ -58,3 +58,50 @@ The benchmark reports discovery duration, `tracemalloc` retained allocation delt
 2. Wire the existing lazy Maintenance snapshot owner to Maintenance entry only; do not alter the printing hot path.
 3. Connect relevant Moonraker service evidence and **on-demand** test telemetry without always-on subscriptions.
 4. Build execution/safety arbitration independently from discovery; design the UI only after the discovery matrix is verified.
+
+## Extended API-backed discovery and complete ID contract
+
+The completed discovery *decision engine* recognizes the entire 121-ID
+contract. This does **not** mean every ID becomes visible: unsupported,
+unsafe or unmeasurable tests are deliberately hidden (`NONE`). In particular,
+`M02`, `M17`, `R07`, `R08`, `E10`, `O07`, and `O08` have no general valid
+measurement method. Historical trends, controller overrides, travel counters,
+MMU tests, and arbitrary actuators require a verified, explicitly registered
+integration/baseline/safe operating profile; they cannot be inferred by name.
+
+| Area | Requirements for visibility |
+|---|---|
+| Fans | Individual Klipper fan object; tachometer pin only for RPM-based modes. A plain PWM fan retains a meaningful user-confirmed test; automatic heater/controller fans are **not** forcibly bypassed. |
+| Heating | Independently identified hotend, bed and generic heater plus configured thermal limits; heater trend and electrical-energy estimates require *separate* verified records. |
+| Motion | Real physical switch for press/release test. TMC register, temperature or current modes need actual structured fields or configured current. No physical-position accuracy is inferred from commanded coordinates. |
+| Probe / mesh | Load-cell and eddy probes use their own methods. Manual mesh remains separate from probe-based mesh. Historical drift requires a stored, compatible baseline. |
+| Resonance | Explicit accelerometer assignment in `[resonance_tester]`, not mere accelerometer presence. Frequency, belt comparisons and trends never accept unaided human estimates. |
+| Filament / MMU | Presence and motion sensors are distinct; unrestricted servos, macro names and actuators never qualify as safe tests. |
+| Host | Positive Moonraker API responses only. No invented disk API and no large directory listing at global discovery. |
+
+### Entry-only service evidence
+
+`maintenance_services.parse_evidence(responses)` classifies verified Moonraker
+JSON responses. `probe(client, cancelled)` performs small read-only calls to
+`/server/info`, `/machine/proc_stats`, `/machine/system_info`, and
+`/server/history/totals`, **only when invoked by the Maintenance entry owner**.
+It reuses Petrel's existing HTTP transport and read worker; it does not create
+connections or run during the regular print tick. Optional endpoints fail
+closed. `MaintenanceDiscoverySession` owns the temporary Future and cancellation
+flag, clears them after completion and drops its snapshot on exit. Already
+in-flight HTTP requests cannot be interrupted forcibly, but cancel stops the
+next request from being started.
+
+Other capability tags (`maintenance.*` or `petrel.*`) are explicit positive
+evidence contracts for **future independently verified integrations**, not
+claims that Petrel already records every baseline or has a safe actuation
+profile. Until an integration provides that evidence, the feature stays hidden.
+
+### Explicit performance and integration boundary
+
+The display only loads this module when entering Maintenance. The existing
+`PrinterCapabilities` is untouched. The feature/UI lookup does not run in the
+printing hot path, and exiting Maintenance releases the cached snapshot. CPU,
+RSS, USS and PSS must still be measured on real Pi Zero 2 W hardware before
+claiming an absolute production memory budget. Unit tests and synthetic
+benchmarks are not proof of real printing-time zero overhead.

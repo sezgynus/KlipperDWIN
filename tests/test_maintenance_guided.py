@@ -47,19 +47,18 @@ class Stage8GuidedTests(unittest.TestCase):
                             for a in adapters))
 
     def test_printer_backend_exposes_passive_guided_candidates_without_io(self):
-        # Route-level test: inject exactly one known Maintenance snapshot.
-        # Full PrinterData initialisation is intentionally not required by
-        # this pure planner and can update snapshots asynchronously.
+        # This is a routing contract: pure planner correctness and device
+        # filtering have separate explicit-snapshot tests below.
         from test_regressions import backend
+        from unittest.mock import patch
         pd = backend.PrinterData.__new__(backend.PrinterData)
         original = snapshot_with_devices()
         pd.maintenance = SimpleNamespace(snapshot=original)
-        rows = pd.maintenance_guided_plan()
-        self.assertIn(('F01', 'fan'), {(r.feature_id, r.device) for r in rows})
-        self.assertEqual(rows[0].category, 'guided')
+        expected = (object(), object())
+        with patch.object(backend, 'guided_plan', return_value=expected) as planner:
+            self.assertIs(pd.maintenance_guided_plan(), expected)
+            planner.assert_called_once_with(original)
         self.assertIs(pd.maintenance.snapshot, original)
-        self.assertEqual(rows, guided_plan(original))
-        self.assertTrue(all(r.method == USER for r in rows))
 
     def test_never_guess_pin_safety_or_buzzer_registration(self):
         snap = snapshot_with_devices()

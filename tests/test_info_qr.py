@@ -154,3 +154,25 @@ class InfoCacheRenderingTests(unittest.TestCase):
                             # not trust a token from the previous bottom visit.
                             self.assertEqual(sum(p[1] == 0x23 and p[7] == ICON_INFO_UPDATE_SELECTED
                                                  for p in view.lcd.serial.frames), 1)
+
+    def test_scroll_clears_qr_fragments_outside_the_moving_viewport(self):
+        from tools.render_docs_screenshots import canvas
+        from PIL import ImageChops
+        from info_qr import extra_info_rows
+        view, reference = canvas(), canvas()
+        maximum = len(view._info_items()) + extra_info_rows() - 11
+        view._info_scroll = maximum
+        view.Draw_Info_Menu(); view.lcd.update()
+        # Reproduce a QR copy extending into the fixed 356..359 gutter.
+        draw_project_qr(view.lcd, 332, bottom=360)
+        view.lcd.update()
+        dirty = view.framebuffer.snapshot()[0].crop((0, 356, 256, 360))
+        self.assertIsNotNone(dirty.getbbox())
+        for scroll in (maximum-1, maximum-4, 3, 0):
+            view._info_scroll = reference._info_scroll = scroll
+            reference._info_render_scroll = None
+            view.Draw_Info_Menu(); view.lcd.update()
+            reference.Draw_Info_Menu(); reference.lcd.update()
+            actual = view.framebuffer.snapshot()[0].crop((0, 90, 256, 360))
+            expected = reference.framebuffer.snapshot()[0].crop((0, 90, 256, 360))
+            self.assertIsNone(ImageChops.difference(actual, expected).getbbox(), scroll)

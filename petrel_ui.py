@@ -3000,6 +3000,11 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             else:
                 self._draw_info_row(label, value, y)
         if not stationary:
+            # The list ends at 355; the dashboard starts at STATUS_Y (360).
+            # Pixels in this fixed gutter never participate in move_area.
+            # Clear old QR fragments here, including those from earlier renders.
+            self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black,
+                                    0, 356, 255, self.STATUS_Y - 1)
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 256, 76, 271, 89)
             if self._info_scroll:
                 self._draw_menu_text('^', 256, 76)

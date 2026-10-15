@@ -75,7 +75,7 @@ Usage steps: [Daily use](user-guide.md) · [Print/Tune](print-controls.md) · [M
 | Incomplete hold returns without selecting a menu item | <a href="assets/screens/hold-cancel.png"><img src="assets/screens/framed/hold-cancel.png" width="176" alt="Incomplete hold returns without selecting a menu item"></a> | [Full-size PNG](assets/screens/hold-cancel.png) |
 | Printer power-off confirmation | <a href="assets/screens/power-confirm.png"><img src="assets/screens/framed/power-confirm.png" width="176" alt="Printer power-off confirmation"></a> | [Full-size PNG](assets/screens/power-confirm.png) |
 | Power off is blocked while a print is active | <a href="assets/screens/power-blocked.png"><img src="assets/screens/framed/power-blocked.png" width="176" alt="Power off is blocked while a print is active"></a> | [Full-size PNG](assets/screens/power-blocked.png) |
-| Maintenance placeholder | <a href="assets/screens/maintenance.png"><img src="assets/screens/framed/maintenance.png" width="176" alt="Maintenance placeholder"></a> | [Full-size PNG](assets/screens/maintenance.png) |
+| Historical Maintenance placeholder (not current UI) | <a href="assets/screens/maintenance.png"><img src="assets/screens/framed/maintenance.png" width="176" alt="Maintenance placeholder"></a> | [Full-size PNG](assets/screens/maintenance.png) |
 | Power off selected | <a href="assets/screens/power-off-selected.png"><img src="assets/screens/framed/power-off-selected.png" width="176" alt="Power off selected"></a> | [Full-size PNG](assets/screens/power-off-selected.png) |
 
 ## Bed leveling and calibration

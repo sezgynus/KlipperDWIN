@@ -2,7 +2,7 @@
 
 [English](maintenance-discovery.md) · [Türkçe](maintenance-discovery_TR.md)
 
-**Status:** Discovery is triggered once per Klipper READY configuration epoch. Physical test execution is not enabled; the snapshot is not a test runner.
+**Status:** This discovery module runs once per Klipper READY configuration epoch and remains passive. The separate [Stage-8 Maintenance engine](maintenance-stage8-acceptance.md) now implements guarded opt-in hardware tests; discovery never starts a test itself.
 
 ## Design constraints
 

@@ -2,7 +2,7 @@
 
 [English](maintenance-discovery.md) · [Türkçe](maintenance-discovery_TR.md)
 
-**Durum:** Keşif, Klipper yapılandırmasının her READY bağlantı döneminde bir kez çalışır. Fiziksel test yürütme etkin değildir; snapshot bir test yürütücüsü değildir.
+**Durum:** Bu keşif modülü Klipper READY bağlantı döneminde bir kez çalışır ve pasif kalır. Ayrı [Aşama 8 Maintenance motoru](maintenance-stage8-acceptance_TR.md) artık güvenlik kontrollü, açık izinli fiziksel testler sunar; keşif kendi başına test başlatmaz.
 
 ## Tasarım sınırları
 

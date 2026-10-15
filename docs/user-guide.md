@@ -179,13 +179,13 @@ Open **Display → Buzzer** to choose one of the configured `[pwm_cycle_time nam
 
 Press an audio setting, rotate to adjust it and press again to save. Volume uses 10% steps from 0 to 100%. Tones include Off, Tick, Short beep, Low, High and Double. Output and sound preferences survive restarts. Sounds play in the background; rapid rotations do not build a sound queue. If the selected section is removed from Klipper configuration, sound controls are hidden until an available output is chosen.
 
-## Maintenance
+## Maintenance (experimental feature branch)
 
-<p align="center">
-  <img src="assets/screens/framed/maintenance.png" width="360" alt="Maintenance menu">
-</p>
+**Home → Maintenance** is the tile before Info. Its **Diagnostics** menu reads supported host/Klipper information on demand, while **Self Tests** shows only discovered, explicitly permitted part fan, generic fan, case light, LED or buzzer targets. No command runs merely by opening a menu.
 
-**Home → Maintenance** is the tile before Info. It currently contains only **Back**, which returns to the same home tile.
+Select a physical test, allow the safety/baseline check, deliberately choose **Run short pulse** (the default is Cancel), and wait for the original setting to be verified after the pulse. Only then can you report **Yes, observed** or **Not observed**; this user-observed result is not measured RPM or an automatic hardware PASS. An unknown output or failed restore remains blocked or inconclusive.
+
+The older placeholder screenshot is preserved in the [gallery](screenshots.md) as a historical reference, **not** a depiction of the current menu. See [safe output profile registration](maintenance-profiles.md), [LCD interaction](maintenance-ui.md), and [real Raspberry Pi acceptance](maintenance-stage8-acceptance.md). Real actuator tests are not yet physically accepted.
 
 ## Info and updates
 

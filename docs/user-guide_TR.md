@@ -179,13 +179,13 @@ Yapılandırılmış `[pwm_cycle_time ad]` çıkışlarından birini veya **Disa
 
 Ses ayarına basın, çevirmeyle değiştirin ve tekrar basarak kaydedin. Ses seviyesi %0–100 arasında 10’ar adımla değişir. Tonlar Off, Tick, Short beep, Low, High ve Double seçeneklerini içerir. Çıkış ve ses tercihleri yeniden başlatmada korunur. Sesler arka planda çalar; hızlı çevirmelerde birikmez. Seçili section Klipper yapılandırmasından kaldırılırsa kullanılabilir bir çıkış seçilene kadar ses kontrolleri gizlenir.
 
-## Bakım
+## Maintenance (deneysel feature dalı)
 
-<p align="center">
-  <img src="assets/screens/framed/maintenance.png" width="360" alt="Bakım menüsü">
-</p>
+**Home → Maintenance**, Info’dan önceki menüdür. **Diagnostics** bölümü desteklenen host/Klipper bilgilerini istek üzerine okur. **Self Tests** yalnız keşfedilen ve açıkça izin verilen part fan, generic fan, case light, LED veya buzzer hedeflerini gösterir. Menüye giriş asla komut çalıştırmaz.
 
-**Home → Maintenance**, Info’dan önceki menüdür. Şimdilik yalnızca **Back** seçeneğini içerir; bu seçenek ana menüde aynı ikona döner.
+Fiziksel testi seç, güvenlik/başlangıç durumunun kontrol edilmesini bekle, varsayılan Cancel yerine bilinçli olarak **Run short pulse** seç ve pulse sonrası başlangıç değerinin doğrulanmasını bekle. Ancak bundan sonra **Yes, observed** veya **Not observed** ile gözlemini bildir; bu ölçülmüş RPM veya otomatik donanım PASS değildir. Bilinmeyen çıkış veya başarısız geri alma BLOCKED ya da INCONCLUSIVE kalır.
+
+Eski placeholder görüntüsü [galeride](screenshots_TR.md) tarihsel referans olarak korunmuştur; **güncel menüyü temsil etmez**. [Güvenli çıkış profilini](maintenance-profiles_TR.md), [LCD etkileşimini](maintenance-ui_TR.md) ve [gerçek Pi kabulünü](maintenance-stage8-acceptance_TR.md) incele. Gerçek aktüatör testleri henüz fiziksel olarak kabul edilmedi.
 
 ## Info ve güncellemeler
 

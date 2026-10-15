@@ -8,6 +8,7 @@
 |---|---|
 | [Kurulum ve yapılandırma](installation_TR.md) | Bağlantı, kurulum, harici ayarlar, güncellemeler ve sorun giderme |
 | [Günlük kullanım](user-guide_TR.md) | Baskı, hareket, ısıtma, kalibrasyon, Display, Info, ışık ve güç |
+| [Maintenance öz testleri](maintenance-stage8-acceptance_TR.md) | Güvenlik kontrollü fiziksel testler, çıkış izinleri, kullanıcı gözlemi ve gerçek Pi kabulü |
 | [MMU ve filament](mmu-guide_TR.md) | Happy Hare kanalları, makara atama, takım eşlemesi, EndlessSpool ve kurtarma |
 | [LCD uyumluluğu](lcd-assets_TR.md) | Desteklenen ekranı seçme ve panel kaynaklarını kontrol etme |
 | [Orijinal DWIN kaynaklarına dönüş](restore-stock-dwin_TR.md) | Kalıcı Flash uyarısı, Creality DWIN_SET paketi ve LCD microSD geri yükleme adımları |

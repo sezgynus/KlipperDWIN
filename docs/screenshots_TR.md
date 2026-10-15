@@ -75,7 +75,7 @@ Kullanım adımları: [Günlük kullanım](user-guide_TR.md) · [Print/Tune](pri
 | Yarım basılı tutma menü seçmeden geri döner | <a href="assets/screens/hold-cancel.png"><img src="assets/screens/framed/hold-cancel.png" width="176" alt="Yarım basılı tutma menü seçmeden geri döner"></a> | [Tam boyut PNG](assets/screens/hold-cancel.png) |
 | Yazıcıyı kapatma onayı | <a href="assets/screens/power-confirm.png"><img src="assets/screens/framed/power-confirm.png" width="176" alt="Yazıcıyı kapatma onayı"></a> | [Tam boyut PNG](assets/screens/power-confirm.png) |
 | Aktif baskıda güç kapatma engellenir | <a href="assets/screens/power-blocked.png"><img src="assets/screens/framed/power-blocked.png" width="176" alt="Aktif baskıda güç kapatma engellenir"></a> | [Tam boyut PNG](assets/screens/power-blocked.png) |
-| Bakım menüsü | <a href="assets/screens/maintenance.png"><img src="assets/screens/framed/maintenance.png" width="176" alt="Bakım menüsü"></a> | [Tam boyut PNG](assets/screens/maintenance.png) |
+| Eski Maintenance placeholder (güncel UI değil) | <a href="assets/screens/maintenance.png"><img src="assets/screens/framed/maintenance.png" width="176" alt="Bakım menüsü"></a> | [Tam boyut PNG](assets/screens/maintenance.png) |
 | Güç kapatma seçili | <a href="assets/screens/power-off-selected.png"><img src="assets/screens/framed/power-off-selected.png" width="176" alt="Güç kapatma seçili"></a> | [Tam boyut PNG](assets/screens/power-off-selected.png) |
 
 ## Tabla ayarı ve kalibrasyon

@@ -44,7 +44,7 @@ The interface uses the existing encoder and native panel drawing commands. The h
 | Light and power | Configured PWM case light and Moonraker power device; encoder hold with confirmation and active-print blocking |
 | After Job | Three optional policy switches; only set pins, while your macros perform end-print actions |
 
-MMU and Spoolman are optional. Menus depend on discovered configuration and valid status; on-screen labels remain English. Maintenance currently contains only Back. See the [complete Print/Tune field table](docs/print-controls.md).
+MMU and Spoolman are optional. Menus depend on discovered configuration and valid status; on-screen labels remain English. Maintenance offers opt-in Diagnostics and guarded, user-confirmed Self Tests in this feature branch. Physical actuator behavior has not yet been accepted on a real printer; [see the Stage 8 guide](docs/maintenance-stage8-acceptance.md). See the [complete Print/Tune field table](docs/print-controls.md).
 
 ## Compatibility and requirements
 

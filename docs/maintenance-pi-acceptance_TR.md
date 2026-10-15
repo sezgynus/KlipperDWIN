@@ -15,10 +15,10 @@ cd ~/Petrel
 git fetch origin feature/maintenance-test-engine
 git worktree add --detach /tmp/petrel-maintenance-acceptance origin/feature/maintenance-test-engine
 cd /tmp/petrel-maintenance-acceptance
-~/klipperdwin-env/bin/python tools/validate_maintenance_pi.py --output /tmp/petrel-maintenance-readonly.json
+/home/sezgynpi/petrel-env/bin/python tools/validate_maintenance_pi.py --output /tmp/petrel-maintenance-readonly.json
 ```
 
-Python yolu örnektir; Pi'deki gerçek Petrel sanal ortamını kullan. Araç **geçici ikinci Petrel backend bağlantısı** açıp yalnız bilgi kontrollerini yapar; DWIN UI göstermez, heater/motion testi yapmaz, çıkışta tüm bağlantıları kapatır. `READ_ONLY_SMOKE_OK`, S01 ve S08 için güncel/geçerli bilginin okunduğunu gösterir; fiziksel donanım PASS'i **değildir**. `INCOMPLETE` veya `BLOCKED` başarı sayılmaz; nedenini incele. Meşgul kuyruk, baskı, manual probe, MMU, eksik alan veya bağlantı geçişinde sorgu engellenmelidir, güvenlik atlatılmamalıdır.
+Python yolu kabul testi yapılan Pi'nin doğrulanan Petrel sanal ortamıdır. Doğrudan çalıştırılan araç proje import'larını artık PYTHONPATH gerektirmeden bulur. Araç **geçici ikinci Petrel backend bağlantısı** açıp yalnız bilgi kontrollerini yapar; DWIN UI göstermez, heater/motion testi yapmaz, çıkışta tüm bağlantıları kapatır. `READ_ONLY_SMOKE_OK`, S01 ve S08 için güncel/geçerli bilginin okunduğunu gösterir; fiziksel donanım PASS'i **değildir**. `INCOMPLETE` veya `BLOCKED` başarı sayılmaz; nedenini incele. Meşgul kuyruk, baskı, manual probe, MMU, eksik alan veya bağlantı geçişinde sorgu engellenmelidir, güvenlik atlatılmamalıdır.
 
 ```sh
 git -C ~/Petrel worktree remove /tmp/petrel-maintenance-acceptance
@@ -31,7 +31,7 @@ Aynı fiziksel yazıcı ve iş yükünde **master** referansını kaydet:
 ```sh
 cd ~/Petrel
 PID=$(systemctl show -p MainPID --value Petrel.service)
-python3 tools/measure_petrel_resources.py capture --pid "$PID" --seconds 30 --output /tmp/petrel-master.json
+python3 /tmp/petrel-maintenance-acceptance/tools/measure_petrel_resources.py capture --pid "$PID" --seconds 30 --output /tmp/petrel-master.json
 ```
 
 Yalnız güvenli, boşta yeniden başlatmada feature branch'i gerçek serviste devreye alıp aynı koşulda tekrar ölç:

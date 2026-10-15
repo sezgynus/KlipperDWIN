@@ -4,6 +4,8 @@ These mock-only tests DO NOT run the real Pi smoke or touch Moonraker.
 """
 from pathlib import Path
 import importlib.util
+import subprocess
+import tempfile
 import unittest
 import sys
 from types import SimpleNamespace
@@ -108,6 +110,26 @@ class PiAcceptanceLogicTests(unittest.TestCase):
                             for v in report['observations'].values()))
         self.assertTrue(all(v['status'] != 'PASSED'
                             for v in report['observations'].values()))
+
+    def test_direct_script_imports_printer_backend_from_other_cwd(self):
+        # -I removes PYTHONPATH/current-directory shortcuts; exercise the
+        # entry script exactly as Pi operators launch it from tools/.
+        snippet = ("import runpy; runpy.run_path(%r, run_name='maint_test'); "
+                   "from printerInterface import PrinterData; "
+                   "assert PrinterData is not None") % str(SCRIPT)
+        with tempfile.TemporaryDirectory() as cwd:
+            result = subprocess.run(
+                [sys.executable, '-I', '-c', snippet], cwd=cwd,
+                capture_output=True, text=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_direct_cli_help_does_not_need_pi_or_moonraker(self):
+        with tempfile.TemporaryDirectory() as cwd:
+            result = subprocess.run(
+                [sys.executable, '-I', str(SCRIPT), '--help'], cwd=cwd,
+                capture_output=True, text=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('--moonraker', result.stdout)
 
     def test_invalid_timeout_is_rejected_without_printer_access(self):
         printer = Printer()

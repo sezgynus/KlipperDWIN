@@ -11,7 +11,15 @@ import json
 import math
 from pathlib import Path
 import tempfile
+import sys
 from time import monotonic, sleep
+
+# Executing tools/validate_maintenance_pi.py directly sets sys.path[0] to
+# tools/, not the Petrel project root. Resolve imports from this script's
+# checkout; never depend on cwd, PYTHONPATH, or the running service path.
+_PROJECT_ROOT = str(Path(__file__).resolve().parents[1])
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 
 REQUIRED_FEATURES = ('S01', 'S08')

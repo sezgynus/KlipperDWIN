@@ -15,10 +15,10 @@ cd ~/Petrel
 git fetch origin feature/maintenance-test-engine
 git worktree add --detach /tmp/petrel-maintenance-acceptance origin/feature/maintenance-test-engine
 cd /tmp/petrel-maintenance-acceptance
-~/klipperdwin-env/bin/python tools/validate_maintenance_pi.py --output /tmp/petrel-maintenance-readonly.json
+/home/sezgynpi/petrel-env/bin/python tools/validate_maintenance_pi.py --output /tmp/petrel-maintenance-readonly.json
 ```
 
-The python path is illustrative: use the actual Petrel virtualenv installed on your Pi. The script creates a **temporary second Petrel backend connection** solely for read-only checks; it does not display a DWIN UI or run heater/motion tests. It exits and closes all its connections. `READ_ONLY_SMOKE_OK` requires S01 and S08 to return fresh, valid information; this is NOT a physical hardware PASS. `INCOMPLETE` or `BLOCKED` is not a test success; inspect the reason. An active queue, print, manual probe, MMU, missing fields or connection changes should prevent a read, not be bypassed.
+The Python path is the confirmed Petrel virtualenv on the accepted Pi. The direct script now resolves its repository imports without requiring PYTHONPATH. The script creates a **temporary second Petrel backend connection** solely for read-only checks; it does not display a DWIN UI or run heater/motion tests. It exits and closes all its connections. `READ_ONLY_SMOKE_OK` requires S01 and S08 to return fresh, valid information; this is NOT a physical hardware PASS. `INCOMPLETE` or `BLOCKED` is not a test success; inspect the reason. An active queue, print, manual probe, MMU, missing fields or connection changes should prevent a read, not be bypassed.
 
 ```sh
 git -C ~/Petrel worktree remove /tmp/petrel-maintenance-acceptance
@@ -31,7 +31,7 @@ Capture the **master** baseline while the same real printer and workload are use
 ```sh
 cd ~/Petrel
 PID=$(systemctl show -p MainPID --value Petrel.service)
-python3 tools/measure_petrel_resources.py capture --pid "$PID" --seconds 30 --output /tmp/petrel-master.json
+python3 /tmp/petrel-maintenance-acceptance/tools/measure_petrel_resources.py capture --pid "$PID" --seconds 30 --output /tmp/petrel-master.json
 ```
 
 Only after a safe, idle service restart using the feature branch (never during printing), repeat the capture with the service running the feature code:

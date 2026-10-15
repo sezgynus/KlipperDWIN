@@ -14,7 +14,7 @@ class ResourceProbeTests(unittest.TestCase):
 
     def test_stat_with_spaces_and_parentheses(self):
         stat = "1201 (Petrel python (display)) S " + " ".join(
-            ['0'] * 11 + ['120', '90', '0'])
+            ['0'] * 10 + ['120', '90', '0'])
         self.assertEqual(cpu_ticks(stat), 210)
 
     def test_report_uses_median_uss_and_detects_budget_violation(self):

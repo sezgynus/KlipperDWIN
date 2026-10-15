@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from maintenance_cache import MaintenanceCache
 from maintenance_discovery import (
     discover, MaintenanceSnapshot, FEATURE_COUNT, NONE, AUTOMATIC,
     USER, EXTERNAL, CALIBRATION, INFORMATION,
@@ -107,6 +108,26 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(snap.method('S10'), INFORMATION)
         self.assertEqual(snap.method('S03'), INFORMATION)
         self.assertEqual(snap.method('S18'), USER)
+
+    def test_lazy_cache_only_retains_discovery_results(self):
+        source = Snapshot(objects=('fan',), settings={'fan': {'max_power': 1.}})
+        cache = MaintenanceCache()
+        self.assertIsNone(cache.snapshot)
+        first = cache.get(source)
+        self.assertIs(first, cache.snapshot)
+        self.assertIs(first, cache.get(source))
+        source.status = {'fan': {'speed': 1.}}
+        self.assertIs(first, cache.get(source))
+        new = cache.get(source, services=('history',))
+        self.assertIsNot(first, new)
+        self.assertEqual(new.method('S10'), INFORMATION)
+        source.epoch += 1
+        self.assertIsNot(new, cache.get(source, services=('history',)))
+        source.ready = False
+        self.assertIsNone(cache.get(source))
+        self.assertIsNone(cache.snapshot)
+        source.ready = True
+        self.assertIsNotNone(cache.get(source))
 
     def test_idle_source_and_compact_snapshot(self):
         snap = discover(Snapshot(ready=False, epoch=42), services=('history',))

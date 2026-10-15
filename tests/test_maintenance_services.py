@@ -72,6 +72,28 @@ class Tests(unittest.TestCase):
                          AUTOMATIC | INFORMATION)
         self.assertEqual(caps.method('M08', 'tmc2209 stepper_y'), NONE)
 
+    def test_service_responses_are_released_before_next_request(self):
+        import weakref
+
+        seen = []
+        class Response(dict):
+            pass
+
+        class Client:
+            def get(self, path):
+                self.assert_freed()
+                response = Response({'result': {'components': ['update_manager']}})
+                seen.append(weakref.ref(response))
+                return response
+
+            def assert_freed(self):
+                self.assert_all = all(ref() is None for ref in seen)
+                if not self.assert_all:
+                    raise AssertionError('Prior API response retained')
+
+        self.assertIn('update_manager', probe(Client()))
+        self.assertTrue(all(ref() is None for ref in seen))
+
     def test_optional_endpoint_failures_and_no_gcode(self):
         calls = []
         class Client:

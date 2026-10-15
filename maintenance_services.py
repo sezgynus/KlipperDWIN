@@ -31,14 +31,9 @@ def parse_evidence(responses):
         keys.add('machine.throttled_state')
     if isinstance(proc.get('network'), Mapping) and proc['network']:
         keys.add('machine.network')
-    machine = _result(responses.get('/machine/system_info'))
-    # Moonraker has no documented /machine/disk_usage. The file manager's
-    # /server/files/directory?path=gcodes can expose disk_usage but might
-    # return a huge file listing; never fetch it in global capability discovery.
-    # The storage screen may query disk usage on demand separately.
-    # machine/system_info is NOT proof of free disk space.
-    if isinstance(machine.get('system_info'), Mapping):
-        keys.add('machine.system_info')
+    # Do not fetch machine/system_info at startup: it can be large and its
+    # presence proves no testable feature. Storage capacity requires a
+    # separate, on-demand disk_usage source with positive evidence.
     history = _result(responses.get('/server/history/totals'))
     if isinstance(history.get('job_totals'), Mapping):
         keys.add('history')
@@ -71,28 +66,26 @@ def parse_evidence(responses):
 
 # Short read-only requests. G-code help/console and full histories are NEVER
 # fetched during discovery; those may allocate substantial response bodies.
-_ENDPOINTS = ('/server/info', '/machine/proc_stats', '/machine/system_info',
+_ENDPOINTS = ('/server/info', '/machine/proc_stats',
               '/server/history/totals',
               '/printer/objects/query?heaters=available_monitors')
 
 
 def probe(client, cancelled=None):
-    """Read minimal evidence synchronously on an existing off-UI read worker.
+    """Collect small READY-epoch API evidence, releasing every reply promptly.
 
-    ``client`` is Petrel's already-open MoonrakerClient, NOT a new connection.
-    Individual unavailable optional endpoints are ignored. Errors do not
-    fabricate support for missing services. An optional cancellation Event
-    can terminate superseded startup discovery between requests.
+    There is no response accumulator: one JSON reply is parsed and discarded
+    before the next HTTP request. No new client, socket, subscriber or G-code.
+    Optional endpoints fail closed without blocking other evidence.
     """
-    responses = {}
-    try:
-        for path in _ENDPOINTS:
-            if cancelled is not None and cancelled.is_set():
-                break
-            try:
-                responses[path] = client.get(path)
-            except (OSError, ValueError, RuntimeError):
-                continue
-        return parse_evidence(responses)
-    finally:
-        responses.clear()
+    evidence = set()
+    for path in _ENDPOINTS:
+        if cancelled is not None and cancelled.is_set():
+            break
+        try:
+            # No long-lived response object: the temporary dict and reply
+            # are eligible for collection before the next endpoint starts.
+            evidence.update(parse_evidence({path: client.get(path)}))
+        except (OSError, ValueError, RuntimeError):
+            continue
+    return tuple(sorted(evidence))

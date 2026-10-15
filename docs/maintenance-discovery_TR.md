@@ -121,3 +121,7 @@ Tanınan Klipper TMC nesnelerinde belgelenen yapılandırılmış `drv_status` a
 CI artık tam regresyon paketinin yanında sentetik 150 fanlık Maintenance keşfinin süresini, Python tahsislerini ve mevcutsa Linux RSS/PSS/USS değerlerini de raporlar. GitHub runner sonuçları erken regresyon göstergesidir; **Pi Zero 2 W kabul ölçümünün yerine geçmez**. Master'a birleşmeden önce gerçek Petrel process'inde önce/sonra karşılaştırması gereklidir.
 
 **Benchmark yorumlama:** RSS/PSS/USS için enstrümansız process, Python tahsisleri için ayrı `--trace` process çalıştırılır. İzleme mekanizması RSS'yi ciddi biçimde artırabilir; izlemeli RSS **üretim ortamındaki tüketim değildir**. Her iki GitHub runner ölçümü de gerçek Pi Zero 2 W üzerindeki Petrel process karşılaştırmasının yerine geçmez. Değişmez snapshot'ın yaklaşık boyutu ayrıca raporlanır.
+
+### Sınırlı başlangıç kanıtı ve bellek temizliği
+
+READY keşfi yalnız dört küçük belgelenmiş API uç noktasını sorgular (`/server/info`, `/machine/proc_stats`, `/server/history/totals`, `/printer/objects/query?heaters=available_monitors`). Kullanılmayan, büyük olabilen `/machine/system_info` isteği kaldırıldı. Her JSON yanıtı kısa kanıt etiketlerine çevrilir ve **bir sonraki sorgudan önce** bırakılır; tam API yanıtlarının bir listesi veya sözlüğü tutulmaz. Disk alanı keşif sırasında tahmin edilmez, gerektiğinde sorgulanır.

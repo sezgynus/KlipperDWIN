@@ -121,3 +121,7 @@ For recognized Klipper TMC driver objects, the documented structured `drv_status
 CI runs the full regression suite and reports the synthetic 150-fan Maintenance discovery timing plus Python allocations and available Linux RSS/PSS/USS. These Linux runner values are an early regression signal, **not** the Pi Zero 2 W acceptance measurement; a real before/after Petrel process test on that target remains mandatory before merge.
 
 **Benchmark interpretation:** Run the uninstrumented process separately from the `--trace` Python-allocation process. Tracing can itself inflate RSS substantially; its RSS is *not* the production footprint. Neither runner result replaces a real Pi Zero 2 W Petrel process comparison. The approximate immutable snapshot size is printed separately.
+
+### Bounded startup evidence handling
+
+READY discovery requests only four small documented API endpoints (`/server/info`, `/machine/proc_stats`, `/server/history/totals`, `/printer/objects/query?heaters=available_monitors`). The unnecessary potentially large `/machine/system_info` request has been removed. Each JSON response is parsed into short evidence tokens and discarded **before** the next request; no list or dictionary of full endpoint replies is retained. Disk space remains an on-demand feature, not guessed at startup.

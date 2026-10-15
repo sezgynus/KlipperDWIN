@@ -65,7 +65,11 @@ class PiAcceptanceLogicTests(unittest.TestCase):
         p = Printer()
         report = self.run_smoke(p)
         self.assertEqual(report['verdict'], 'READ_ONLY_SMOKE_OK')
-        self.assertEqual(set(report['observations']), {'S01', 'S08'})
+        self.assertEqual(set(report['observations']),
+                         {'S01', 'S08', 'S02', 'S03', 'S05', 'S10'})
+        self.assertTrue(all(
+            report['observations'][key]['status'] == 'UNAVAILABLE'
+            for key in ('S02', 'S03', 'S05', 'S10')))
         self.assertTrue(report['ready'])
         self.assertEqual(report['observations']['S01']['status'], 'OBSERVED')
         self.assertIn('not physical hardware PASS', report['note'])

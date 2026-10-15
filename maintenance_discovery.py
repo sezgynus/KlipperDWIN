@@ -87,6 +87,7 @@ class DeviceCapabilities:
     name: str
     family: str
     modes: int
+    axes: int = 0  # Resonance measurement axes: X=1, Y=2, Z=4.
 
     def method(self, feature):
         return _mode(self.modes, feature)
@@ -102,17 +103,36 @@ class MaintenanceSnapshot:
 
     def method(self, feature, device=None):
         if device is None:
-            return _mode(self.global_modes, feature)
+            # Aggregated availability: a fan- or heater-only test must
+            # appear in the UI even if it has no global feature bit.
+            mode = _mode(self.global_modes, feature)
+            for item in self.devices:
+                mode |= item.method(feature)
+            return mode
         for item in self.devices:
             if item.name == device:
                 return item.method(feature)
         return NONE
 
     def available_features(self):
-        """Return positive global feature IDs without allocating a retained index."""
+        """Report global AND per-device tests; compute without a retained index."""
+        bits = self.global_modes
+        for item in self.devices:
+            bits |= item.modes
         return tuple(p + str(i).zfill(2)
                      for p, count in _GROUPS for i in range(1, count + 1)
-                     if _mode(self.global_modes, p + str(i).zfill(2)))
+                     if _mode(bits, p + str(i).zfill(2)))
+
+    def axes(self, feature='R02', device=None):
+        """Resonance axis subset (X=1, Y=2, Z=4); no measurement implied."""
+        _index_for(feature)  # Validate before revealing any axes.
+        if feature not in ('R02', 'R03', 'R04'):
+            return 0
+        bits = 0
+        for item in self.devices:
+            if item.family == 'accelerometer' and (device is None or device == item.name):
+                bits |= item.axes
+        return bits
 
     def instances(self, feature):
         """A compact selection of devices offering a requested feature."""
@@ -141,14 +161,22 @@ def discover(state, services=()):
                    'lis3dh', 'bmi160', 'bmi270')
     accelerometers = {n for n in names if n.split(' ')[0] in accel_types}
     resonance_config = _get(settings, 'resonance_tester', {})
-    assigned_chips = set()
+    assigned_axes = {}
     if 'resonance_tester' in names:
-        # Klipper allows either a shared accelerometer or X/Y specific chips.
-        for key in ('accel_chip', 'accel_chip_x', 'accel_chip_y', 'accel_chip_z'):
+        # Mirror Klipper's actual resonance_tester chip selection:
+        # a shared accel_chip is X+Y unless accel_chip_x is configured.
+        explicit_x = _get(resonance_config, 'accel_chip_x', '')
+        chips = (
+            (('x', 'accel_chip_x'), ('y', 'accel_chip_y'))
+            if explicit_x else (('xy', 'accel_chip'),)
+        )
+        for axes, key in chips + (('z', 'accel_chip_z'),):
             raw = _get(resonance_config, key, '')
             if isinstance(raw, str) and raw.strip() in accelerometers:
-                assigned_chips.add(raw.strip())
-    has_resonance = bool(assigned_chips)
+                axis_bits = (1 if 'x' in axes else 0) | (2 if 'y' in axes else 0) | (4 if 'z' in axes else 0)
+                name = raw.strip()
+                assigned_axes[name] = assigned_axes.get(name, 0) | axis_bits
+    has_resonance = bool(assigned_axes)
     load_cell_probe = 'load_cell_probe' in names
     eddy_probe = any(n.startswith('probe_eddy_current ') for n in names)
     probe = ('probe' in names or 'bltouch' in names or
@@ -281,7 +309,7 @@ def discover(state, services=()):
         elif name in accelerometers:
             family = 'accelerometer'
             bits = _add(bits, 'R01', AUTOMATIC | INFORMATION)
-            if name in assigned_chips:
+            if name in assigned_axes:
                 bits = _add(bits, 'R02', AUTOMATIC)
                 bits = _add(bits, 'R03', AUTOMATIC)
                 bits = _add(bits, 'R04', CALIBRATION)
@@ -328,7 +356,9 @@ def discover(state, services=()):
                 humidity_sensors.add(name)
             temperature_sensors.add(name)
         if family is not None and bits:
-            results.append(DeviceCapabilities(name, family, bits))
+            results.append(DeviceCapabilities(
+                name, family, bits,
+                assigned_axes.get(name, 0) if family == 'accelerometer' else 0))
 
     global_bits = 0
     if has_motion:

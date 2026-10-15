@@ -125,3 +125,7 @@ CI artık tam regresyon paketinin yanında sentetik 150 fanlık Maintenance keş
 ### Sınırlı başlangıç kanıtı ve bellek temizliği
 
 READY keşfi yalnız dört küçük belgelenmiş API uç noktasını sorgular (`/server/info`, `/machine/proc_stats`, `/server/history/totals`, `/printer/objects/query?heaters=available_monitors`). Kullanılmayan, büyük olabilen `/machine/system_info` isteği kaldırıldı. Her JSON yanıtı kısa kanıt etiketlerine çevrilir ve **bir sonraki sorgudan önce** bırakılır; tam API yanıtlarının bir listesi veya sözlüğü tutulmaz. Disk alanı keşif sırasında tahmin edilmez, gerektiğinde sorgulanır.
+
+### Dinamik menü listesi ve rezonans eksenleri
+
+`available_features()` ve cihaz adı verilmeden çağrılan `method(feature)`, cihazlara ait maskelerle genel yetenekleri birlikte hesaplar. Cihazlar `instances(feature)` ile ayrı listelenir. Rezonans işlevlerinde `snapshot.axes('R02'|'R03'|'R04', device=None)`, Klipper'ın ortak XY veya ayrı accel_chip_x/accel_chip_y/accel_chip_z tanımlarına uygun X/Y/Z bit maskesi (1/2/4) verir; atanmamış eksen ölçülebilir gösterilmez. Kalıcı özellik sözlüğü veya indeks oluşturulmaz.

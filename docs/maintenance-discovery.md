@@ -125,3 +125,7 @@ CI runs the full regression suite and reports the synthetic 150-fan Maintenance 
 ### Bounded startup evidence handling
 
 READY discovery requests only four small documented API endpoints (`/server/info`, `/machine/proc_stats`, `/server/history/totals`, `/printer/objects/query?heaters=available_monitors`). The unnecessary potentially large `/machine/system_info` request has been removed. Each JSON response is parsed into short evidence tokens and discarded **before** the next request; no list or dictionary of full endpoint replies is retained. Disk space remains an on-demand feature, not guessed at startup.
+
+### Dynamic menu enumeration and resonance axes
+
+`available_features()` and the device-unspecified `method(feature)` now aggregate all per-device method masks together with global capabilities. Individual instances remain inspectable via `instances(feature)`. Resonance capabilities also expose `snapshot.axes('R02'|'R03'|'R04', device=None)` with a compact X/Y/Z bitmask (1/2/4), reflecting Klipper's shared XY or separate accel_chip_x/accel_chip_y/accel_chip_z bindings; unassigned axes must never be offered as measurable. No per-feature dictionary or persistent index is allocated.

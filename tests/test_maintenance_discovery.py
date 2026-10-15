@@ -36,6 +36,20 @@ class DiscoveryTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 empty.method(name)
 
+    def test_device_capabilities_are_visible_in_aggregate_list(self):
+        s = Snapshot(objects=('fan', 'extruder', 'heater_bed'),
+                     settings={'extruder': {'min_temp': 0, 'max_temp': 290},
+                               'heater_bed': {'min_temp': 0, 'max_temp': 125}})
+        snap = discover(s)
+        self.assertIn('F01', snap.available_features())
+        self.assertIn('H01', snap.available_features())
+        self.assertIn('H03', snap.available_features())
+        self.assertEqual(snap.method('F01'), USER)
+        self.assertEqual(snap.method('F01', 'fan'), USER)
+        self.assertEqual(snap.method('F01', 'extruder'), NONE)
+        self.assertEqual(len(snap.instances('H05')), 2)
+        self.assertNotIn('R02', snap.available_features())
+
     def test_open_loop_and_tach_fan(self):
         s = Snapshot(objects=('fan', 'fan_generic exhaust', 'heater_fan heatsink', 'extruder'),
                      settings={'fan': {'max_power': 1., 'off_below': .12},

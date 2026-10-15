@@ -35,6 +35,22 @@ class ExtendedTests(unittest.TestCase):
         self.assertEqual(result.method('R07'), NONE)
         self.assertEqual(result.method('R08'), NONE)
 
+    def test_resonance_chips_are_scoped_to_assigned_axes(self):
+        s = State(('adxl345', 'lis2dw z', 'resonance_tester'),
+                  {'resonance_tester': {'accel_chip': 'adxl345',
+                                        'accel_chip_z': 'lis2dw z'}})
+        result = discover(s)
+        self.assertEqual(result.axes('R02'), 7)
+        self.assertEqual(result.axes('R02', 'adxl345'), 3)
+        self.assertEqual(result.axes('R04', 'lis2dw z'), 4)
+        self.assertEqual(result.axes('P01'), 0)
+        self.assertEqual(result.axes('R02', 'not-a-chip'), 0)
+        separate = discover(State(s.objects, {'resonance_tester': {
+            'accel_chip_x': 'adxl345', 'accel_chip_y': 'lis2dw z'}}))
+        self.assertEqual(separate.axes('R02', 'adxl345'), 1)
+        self.assertEqual(separate.axes('R02', 'lis2dw z'), 2)
+        self.assertEqual(discover(State(s.objects)).axes('R02'), 0)
+
     def test_belt_and_resonance_trends_need_verified_profiles(self):
         objects = ('adxl345', 'resonance_tester')
         settings = {'resonance_tester': {'accel_chip': 'adxl345'}, 'printer': {'kinematics': 'corexy'}}

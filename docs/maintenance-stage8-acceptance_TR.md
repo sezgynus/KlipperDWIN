@@ -1,0 +1,28 @@
+# Maintenance Aşama 8 — Gerçek Raspberry Pi fiziksel kabulü
+
+[English](maintenance-stage8-acceptance.md) · [Çıkış izin profilleri](maintenance-profiles_TR.md) · [LCD kullanım akışı](maintenance-ui_TR.md)
+
+## Kapsam ve ön şartlar
+
+Aşama 8 geliştirmesi GitHub regresyon testleriyle doğrulanır; ancak sahte verili CI **gerçek aktüasyon, çıkış geri yükleme, buzzer sesi veya LED ışığını kanıtlamaz**. Bunlar gerçek yazıcıda kullanıcı onayı gerektirir. Önceki **Aşama 7** salt-okunur Pi kabulünde altı bilgi kaynağı gözlemlendi; bu Aşama 8'in yerini tutmaz.
+
+Yazıcının standby olduğunu, `virtual_sdcard.is_active=false`, `pause_resume.is_paused=false` durumlarını, kuyrukta baskı ve MMU/probe/kalibrasyon/jog recovery işlemi bulunmadığını doğrula. Test sırasında yazıcının başında bulun. Baskı sürerken veya sıcak parçaların soğutulması için fana güvenilirken aktüatör testi yapma. Case-light/buzzer/generic-fan/LED seçenekleri gerçek donanıma uygun `maintenance-test-profiles.json` dosyasıyla açıkça izin verilene kadar kapalıdır. Part fan F01 ek profile gerek duymaz.
+
+## Master'a birleştirmeden devreye alma
+
+Mevcut `/tmp/petrel-maintenance-acceptance` detached worktree'sini kullan; güncel **imzalı ve CI PASS** `feature/maintenance-test-engine` HEAD'ini fetch edip worktree'yi ona ilerlet. Çalışan `~/Petrel` master dizininde feature checkout yapma. LCD testi için **gerçek Petrel.service**, önceki Aşama 7 A/B testindeki gibi geçici systemd drop-in üzerinden detached feature worktree'nin `WorkingDirectory` ve `ExecStart` değerleriyle başlatılmalı. Geri dönüş trap'i kullan, testten önce servis feature worktree'den açıldığını doğrula. Baskı sırasında servis yeniden başlatılmaz.
+
+## Cihaz üstünde manuel test
+
+1. LCD'den **Maintenance → Self Tests** seç. Yalnız gerçek keşifle doğrulanmış ve açıkça güvenli hedefler listelenebilir. Menüye girmek yazıcıyı hareket ettirmemeli veya çıkışları değiştirmemeli.
+2. **F01 fan** veya izin verilmiş opsiyonel çıkışı seç. İhtiyaç anında yapılan kuyruk/başlangıç durumu kontrolünü bekle. BLOCKED görünüyorsa güvenlik denetimini atlatma.
+3. Varsayılan **Cancel** seçeneğinden **Run short pulse** seçeneğine enkoderle git ve üç saniyelik süre içinde basarak açıkça onayla. Derlenen tek kısa script uyarımdan sonra başlangıç değerine dönüşü amaçlar.
+4. Backend'in komut sonrası GET ile geri dönüşü doğrulamasını bekle. Komutun kuyruğa alınması geri yüklemenin gerçekleştiğini kanıtlamaz. INCONCLUSIVE çıkarsa yeni testten önce fiziksel çıkışı ve Klipper durumunu kontrol et.
+5. UI açık kullanıcı gözlemi ister. Ancak kısa fiziksel tepkiyi gördüysen/duyduysan **ve** backend başlangıç değerini doğruladıysa **Yes, observed** seç. Sonuç `PASSED_USER` (insan gözlemi) olur; otomatik PASS veya ölçülmüş RPM değildir. Aksi hâlde **Not observed** (`FAILED_USER`) seç.
+6. Gerçekten takılı güvenli cihazlar için ayrı ayrı tekrarla. Her testten sonra fan hızı, LED rengi ve case-light parlaklığının başlangıca döndüğünü kontrol et. İptal, kuyruk/baskı engeli, eksik profil ve disconnect davranışını sahte/denetimli koşullarda doğrula; değerli donanımda uyarım sürerken tehlikeli bağlantı kesintisi oluşturma.
+
+**Diagnostics** menüsünü ayrıca incele. S01/S02/S03/S05/S08/S10 yalnız izinli sayısal/metinsel bilgileri gösterir. Moonraker token'ları veya baskı dosya adları ekranda olmamalıdır.
+
+## Master'a dönüş ve kabul kaydı
+
+Geçici systemd override'ını kaldır, `sudo systemctl daemon-reload` ve `sudo systemctl restart Petrel.service` çalıştır; aktif servisin `ExecStart=/home/sezgynpi/petrel-env/bin/python /home/sezgynpi/Petrel/run.py`, `WorkingDirectory=/home/sezgynpi/Petrel` ve master'ın temiz olduğunu doğrula. Güç/bağlantı problemi veya çözümlenmemiş donanım durumu varsa fiziksel testleri durdurup Pi'yi denetle. Feature imzalı SHA, kullanılan izin profilleri, her cihazın gözlemi, geri yüklenen değer, sonuç ve operatör yanıtını kaydet. Testler gerçek Pi'de yapılıncaya kadar Aşama 8 fiziksel kabulü **BEKLEMEDE** kalır.

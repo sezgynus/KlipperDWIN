@@ -52,8 +52,10 @@ class MaintenanceViewMixin:
                 return 'Confirm test', (('Cancel', self.ICON_Back, None, None),
                                         ('Run short pulse', self.ICON_FanSpeed, None, None))
             if phase == 'await_observation':
-                return 'Did it work?', (('Not observed', self.ICON_Back, None, None),
-                                        ('Yes, observed', self.ICON_Info, None, None))
+                question = getattr(self.pd.maintenance_pulse,
+                                   'observation_prompt', None) or 'Did it work?'
+                return question[:27], (('Not observed', self.ICON_Back, None, None),
+                                       ('Yes, observed', self.ICON_Info, None, None))
             if phase in ('preflight', 'running', 'verifying'):
                 text = {'preflight': 'Safety checks...', 'running': 'Testing...',
                         'verifying': 'Checking restore...'}[phase]
@@ -67,9 +69,13 @@ class MaintenanceViewMixin:
             outcome = getattr(self, '_maintenance_result', None)
             status = str(getattr(outcome, 'status', 'INCONCLUSIVE'))
             reason = str(getattr(outcome, 'reason', 'unknown'))
-            return 'Result', (back,
-                              (status[:25], self.ICON_Info, None, None),
-                              (reason.replace('_', ' ')[:25], self.ICON_Info, None, None))
+            entries = [back,
+                       (status[:25], self.ICON_Info, None, None),
+                       (reason.replace('_', ' ')[:25], self.ICON_Info, None, None)]
+            for key, value in getattr(outcome, 'evidence', ())[:6]:
+                entries.append(((str(key) + ': ' + str(value))[:25],
+                                self.ICON_Info, None, None))
+            return 'Result', tuple(entries)
         return 'Maintenance', (back,)
 
     def Draw_Maintenance_Menu(self):
@@ -191,9 +197,9 @@ class MaintenanceViewMixin:
         elif self.checkkey == self.MaintenanceMenu and page == 'reading' and reading is not None:
             result = self.pd.poll_maintenance_read()
             if result is not None:
-                self._maintenance_result = SimpleNamespace(
-                    status=result.status or 'OBSERVED',
-                    reason=result.reason)
+                # Keep the executor's already allowlisted scalar evidence.
+                # Never print full Moonraker payloads or private filenames.
+                self._maintenance_result = result
                 self._maintenance_show('result')
             elif reading.pending and hasattr(self, '_loop'):
                 self._loop.set_interval(.1)

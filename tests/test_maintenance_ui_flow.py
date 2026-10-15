@@ -78,6 +78,28 @@ class MaintenanceUIFlows(unittest.TestCase):
                 d.pd.observe_maintenance_physical.assert_called_once_with(expected)
                 self.assertEqual(d._maintenance_page, 'result')
 
+
+    def test_diagnostic_result_renders_bounded_observed_values(self):
+        d = self.setup_view()
+        d._maintenance_page = 'reading'
+        d.pd.poll_maintenance_read = Mock(return_value=SimpleNamespace(
+            status=None, reason='observed_information',
+            evidence=(('cpu_temp_c', 52.5), ('memory.total', 1024))))
+        d._poll_maintenance_ui()
+        self.assertEqual(d._maintenance_page, 'result')
+        title, entries = d._maintenance_rows()
+        self.assertEqual(title, 'Result')
+        self.assertIn('OBSERVED', [e[0] for e in entries])
+        self.assertIn('cpu_temp_c: 52.5', [e[0] for e in entries])
+        self.assertIn('memory.total: 1024', [e[0] for e in entries])
+
+    def test_guided_observation_question_is_visible_in_title(self):
+        d = self.setup_view()
+        d._maintenance_page = 'pulse'
+        d.pd.maintenance_pulse.phase = 'await_observation'
+        d.pd.maintenance_pulse.observation_prompt = 'Did the part fan rotate?'
+        self.assertEqual(d._maintenance_rows()[0], 'Did the part fan rotate?')
+
     def test_navigation_and_diagnostics_are_passive_until_selection(self):
         d = self.setup_view()
         d.pd.maintenance_read_plan = Mock(return_value=(

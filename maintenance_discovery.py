@@ -82,6 +82,14 @@ def _pwm_steps(config):
     return (_is_number(lo) and _is_number(hi) and hi > lo and hi > 0)
 
 
+def _stepper_section(name):
+    # Standard Klipper stepper sections are effective configuration, not
+    # necessarily separately queryable printer.objects.list members.
+    return (isinstance(name, str)
+            and name[:9] in ('stepper_x', 'stepper_y', 'stepper_z')
+            and (len(name) == 9 or name[9:].isdigit()))
+
+
 @dataclass(frozen=True, slots=True)
 class DeviceCapabilities:
     name: str
@@ -154,6 +162,11 @@ def discover(state, services=()):
     settings, status = state.settings, state.status
     objects = state.objects
     names = set(objects)             # Temporary; never retained.
+    # Stepper sections are authoritative in configfile.settings even if
+    # Klipper does not expose them as individual status objects. Consider
+    # only supported X/Y/Z names; never promote arbitrary config sections.
+    if isinstance(settings, Mapping):
+        names.update(section for section in settings if _stepper_section(section))
     services = frozenset(services)   # Explicit API evidence, never guesses.
     results = []
     physical_endstops = False
@@ -285,12 +298,16 @@ def discover(state, services=()):
             if (_is_number(_get(device_status, 'temperature')) or
                     'maintenance.driver_thermal_monitor:' + name in services):
                 bits = _add(bits, 'M08', AUTOMATIC | INFORMATION)
-        elif name.startswith(('stepper_x', 'stepper_y', 'stepper_z')):
+        elif _stepper_section(name):
             family = 'stepper'
             if has_motion:
+                # STEPPER_BUZZ may address a named motor, including stepper_z1.
                 bits = _add(bits, 'M04', USER)
-                bits = _add(bits, 'M05', USER)
-                bits = _add(bits, 'M06', EXTERNAL)
+                if len(name) == 9:
+                    # Ordinary coordinated G1 axis motion does not directly
+                    # control an individual auxiliary motor such as stepper_z1.
+                    bits = _add(bits, 'M05', USER)
+                    bits = _add(bits, 'M06', EXTERNAL)
             pin = str(_get(cfg, 'endstop_pin', ''))
             if pin and 'virtual_endstop' not in pin:
                 physical_endstops = True
@@ -375,8 +392,8 @@ def discover(state, services=()):
         global_bits = _add(global_bits, 'M16', INFORMATION)
     if any(n.startswith('angle ') for n in names):
         global_bits = _add(global_bits, 'M13', INFORMATION)
-    if (has_manual_probe and 'stepper_z' in names and
-            _get(_get(settings, 'stepper_z', {}), 'endstop_pin')):
+    z_endstop = str(_get(_get(settings, 'stepper_z', {}), 'endstop_pin', ''))
+    if has_manual_probe and z_endstop and 'virtual_endstop' not in z_endstop:
         global_bits = _add(global_bits, 'P06', CALIBRATION | USER)
     if switch_probe:
         global_bits = _add(global_bits, 'P01', AUTOMATIC)

@@ -148,3 +148,7 @@ python3 tools/measure_petrel_resources.py compare --baseline /tmp/petrel-master.
 ```
 
 The tool is an **external, explicitly run** standard-library-only sampler reading Linux `/proc/<pid>/smaps_rollup` and CPU ticks. It does not attach a debugger, instrument Petrel, inject G-code or create a background service. The comparison reports median RSS/PSS/USS and single-core CPU usage. A PASS requires both median RSS and USS to stay within their limits and is valid only for comparable workloads; no Pi measurements have been performed by this development branch itself. Both warm-idle and identical printing scenarios should be checked. Independently verify startup latency and memory peak during Klipper READY.
+
+### Config-backed steppers are not necessarily printer status objects
+
+The active `configfile.settings` is authoritative for `stepper_x/y/z` (and numbered variants), even when `printer.objects.list` lacks those section names. Maintenance discovery now includes only these recognized **effective configuration sections** in a temporary candidate set; the final snapshot retains only compact per-device results. This restores motor M04/M05/M06 and physical endstop M01 recognition without requesting additional status or issuing G-code. Numbered auxiliary Z motors expose only coarse `STEPPER_BUZZ` capability, not independent coordinated G1 travel/measurement. Z-endstop P06 requires a physical, non-virtual endstop pin.

@@ -148,3 +148,7 @@ python3 tools/measure_petrel_resources.py compare --baseline /tmp/petrel-master.
 ```
 
 Araç yalnız kullanıcı çalıştırdığında devreye giren, standart Python kütüphanesini kullanan **haricî ölçücüdür**. Linux `/proc/<pid>/smaps_rollup` ve CPU tick'lerini okur; Petrel'e debugger bağlamaz, G-code göndermez veya arka plan servisi kurmaz. Medyan RSS/PSS/USS farkını ve tek çekirdek CPU kullanımını karşılaştırır. PASS hem medyan RSS hem USS artışının limitleri aşmamasını gerektirir ve yalnızca benzer iş yükleri için geçerlidir; geliştirme dalında fiziksel Pi ölçümü yapılmış değildir. Hem boşta hem aynı baskı senaryosunda kontrol ve Klipper READY sırasındaki başlangıç bellek tepesi ayrıca gereklidir.
+
+### Yapılandırılmış step motorlar her zaman ayrı Klipper durum nesnesi değildir
+
+Etkin `configfile.settings`, `printer.objects.list` içinde aynı adlar ayrı durum nesneleri olarak bulunmasa bile `stepper_x/y/z` ve numaralı varyantları için yetkili kaynaktır. Maintenance artık yalnız bu tanınmış **etkin yapılandırma bölümlerini** geçici keşif adaylarına ekler ve sonuçta yalnız sıkıştırılmış cihaz yeteneklerini tutar. Böylece ek durum aboneliği veya G-code olmadan M04/M05/M06 motor ve M01 fiziksel endstop yetenekleri keşfedilir. Numaralı yardımcı Z motorlarında bağımsız G1 seyahat/mesafe testi sunulmaz; yalnız kaba `STEPPER_BUZZ` desteği vardır. P06, sanal olmayan fiziksel Z-endstop pini gerektirir.

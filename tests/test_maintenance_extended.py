@@ -65,6 +65,40 @@ class ExtendedTests(unittest.TestCase):
                              ('maintenance.belt_resonance_profile',))
         self.assertEqual(cartesian.method('R06'), NONE)
 
+    def test_configured_steppers_exist_without_klipper_object_status(self):
+        # Real Klipper exposes these configured sections through
+        # configfile.settings without necessarily advertising matching
+        # printer.objects.list entries. The previous implementation missed
+        # axis motor, endstop and Z-endstop calibration capabilities.
+        objects = ('toolhead', 'gcode_move', 'query_endstops', 'manual_probe')
+        settings = {
+            'stepper_x': {'step_pin': 'PA0', 'endstop_pin': '^PA1'},
+            'stepper_y': {'step_pin': 'PA2', 'endstop_pin': '^PA3'},
+            'stepper_z': {'step_pin': 'PA4', 'endstop_pin': '^PA5'},
+            'stepper_z1': {'step_pin': 'PB1'},
+            'stepper_xy_unsupported': {'step_pin': 'PB2'},
+        }
+        caps = discover(State(objects, settings))
+        for name in ('stepper_x', 'stepper_y', 'stepper_z'):
+            self.assertEqual(caps.method('M04', name), USER)
+            self.assertEqual(caps.method('M05', name), USER)
+            self.assertEqual(caps.method('M06', name), EXTERNAL)
+        self.assertEqual(caps.method('M01'), AUTOMATIC | USER)
+        self.assertEqual(caps.method('P06'), CALIBRATION | USER)
+        self.assertEqual(caps.method('M04', 'stepper_z1'), USER)
+        self.assertEqual(caps.method('M05', 'stepper_z1'), NONE)
+        self.assertEqual(caps.method('M04', 'stepper_xy_unsupported'), NONE)
+        self.assertIn('M04', caps.available_features())
+
+        settings['stepper_z']['endstop_pin'] = 'probe:z_virtual_endstop'
+        virtual = discover(State(objects, settings))
+        self.assertEqual(virtual.method('P06'), NONE)
+        self.assertEqual(virtual.method('M01'), AUTOMATIC | USER)
+        settings['stepper_x']['endstop_pin'] = 'tmc2209_stepper_x:virtual_endstop'
+        settings['stepper_y']['endstop_pin'] = 'tmc2209_stepper_y:virtual_endstop'
+        virtual = discover(State(objects, settings))
+        self.assertEqual(virtual.method('M01'), NONE)
+
     def test_virtual_endstops_are_never_hand_pressed(self):
         c = discover(State(('stepper_x', 'query_endstops', 'toolhead', 'gcode_move'),
                            {'stepper_x': {'endstop_pin': 'tmc2209_stepper_x:virtual_endstop'}}))

@@ -56,10 +56,11 @@ MOONRAKER_CONFIG=/path/to/moonraker.conf ./install.sh
 
 ## LCD kaynakları ve ilk açılış
 
-1. [LCD fontunu kurun](lcd-assets_TR.md#lcd-fontu). Font SD karttan bir kez yüklenir; ikonlar ve açılış görseli UART üzerinden otomatik yönetilir.
-2. Petrel açılış ilerlemesi tamamlanıp **Home** görünene kadar bekleyin.
-3. Enkoderi çevirip bir menü açın; sıcaklıkların web arayüzüyle uyuştuğunu kontrol edin.
-4. Yazılar/ikonlar yanlışsa [LCD kaynak rehberini](lcd-assets_TR.md), bağlantı hatası varsa aşağıdaki sorun giderme tablosunu izleyin.
+**LCD fontunu değiştirmek isteğe bağlıdır.** Petrel stok DWIN fontuyla çalışır. Petrel'in ekran görüntülerindeki yazı görünümünü isteyenler [paketle sunulan LCD fontunu](lcd-assets_TR.md#lcd-fontu) ekranın SD yuvasından isteğe bağlı yükleyebilir. İkonlar ve açılış görseli UART üzerinden otomatik eşitlenir.
+
+1. Petrel açılış ilerlemesi tamamlanıp **Home** görünene kadar bekleyin.
+2. Enkoderi çevirip bir menü açın; sıcaklıkların web arayüzüyle uyuştuğunu kontrol edin.
+3. Yazılar/ikonlar yanlışsa [LCD kaynak rehberini](lcd-assets_TR.md), bağlantı hatası varsa aşağıdaki sorun giderme tablosunu izleyin.
 
 Moonraker, Petrel bağlantısına izin vermelidir. Kimlik doğrulama gerekiyorsa `MOONRAKER_API_KEY` ayarlayın. Seri port ve GPIO erişimi için servis kullanıcısının izinlerini kontrol edin; installer `dialout` ve `gpio` gruplarını yapılandırır.
 

@@ -56,10 +56,11 @@ MOONRAKER_CONFIG=/path/to/moonraker.conf ./install.sh
 
 ## LCD resources and first start
 
-1. [Install the LCD font](lcd-assets.md#lcd-font). The font is installed once from SD; icons and boot artwork are managed automatically over UART.
-2. Wait for Petrel startup progress to finish and **Home** to appear.
-3. Rotate the encoder and open a menu; check temperatures against the web interface.
-4. For wrong text/icons, follow the [LCD resource guide](lcd-assets.md); for connection failures, use the troubleshooting table below.
+**LCD font installation is optional.** Petrel works with the stock DWIN font. For the typography shown in Petrel's screenshots, you may optionally [install the bundled LCD font](lcd-assets.md#lcd-font) from the display's SD slot. Icons and boot artwork synchronize automatically over UART.
+
+1. Wait for Petrel startup progress to finish and **Home** to appear.
+2. Rotate the encoder and open a menu; check temperatures against the web interface.
+3. For wrong text/icons, follow the [LCD resource guide](lcd-assets.md); for connection failures, use the troubleshooting table below.
 
 Moonraker must authorize the Petrel connection. Set `MOONRAKER_API_KEY` if authentication is required. Check the service user's serial/GPIO permissions; the installer configures the `dialout` and `gpio` groups.
 

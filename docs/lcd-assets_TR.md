@@ -6,7 +6,7 @@
 
 Petrel, uyumlu 4,3 inç Ender 3 V2 panelinde kullanılan **272×480 dikey DWIN T5UIC1** düzenini hedefler. DWIN, DACAI ve TJC firmware/kaynak paketleri birbirinin yerine kullanılamaz.
 
-Panel, T5UIC1 komutlarını ve ekran yönü **1** düzenini desteklemelidir. Petrel yazıları native fontla çizer; [LCD fontunu](#lcd-fontu) SD karttan kurun. Uygulama açılış görselini ve library **3** ikonlarını repo kaynaklarından otomatik yükler; stok `3.ICO` veya İngilizce bitmap yazılar önkoşul değildir.
+Panel, T5UIC1 komutlarını ve ekran yönü **1** düzenini desteklemelidir. Petrel yazıları **stok DWIN fontuyla** çizer; [paketle sunulan LCD fontu](#lcd-fontu) farklı bir yazı görünümü isteyenler için **isteğe bağlıdır**. Uygulama açılış görselini ve library **3** ikonlarını repo kaynaklarından otomatik yükler; stok `3.ICO` veya İngilizce bitmap yazılar önkoşul değildir.
 
 ## Kalıcı LCD kaynakları ve stok görsellere dönüş
 
@@ -15,7 +15,7 @@ Panel, T5UIC1 komutlarını ve ekran yönü **1** düzenini desteklemelidir. Pet
 - **Açılış JPEG'i:** Petrel `assets/petrel_bootsplash.jpg` görselini Picture Flash **0** numaralı yuvaya eşitler.
 - **3 numaralı ikon kütüphanesi:** `assets/icons/` içindeki baseline JPEG'ler 32 KiB bloklara paketlenir; **3** numaralı yuvadan başlayarak **3–15** aralığında yalnız değişen bloklar yazılır. Böylece menü ikonları, seçim durumları, baskı kontrolleri ve animasyon kareleri yeniden tekrar tekrar çizilmeden kullanılır.
 - **Gereksiz yazmaları önleme:** İçerik parmak izleri ayrı bir kalıcı Data Flash alanında tutulur; eşleşen kaynaklar normalde atlanır. Bu parmak izleri **orijinal OEM görsellerin yedeği değildir**.
-- **Otomatik üzerine yazılmayanlar:** Stok resim yuvaları **1–2**, LCD kernel'i ve font kaynakları. Baskı önizlemeleri geçici SRAM'e taşınır; Petrel'e ait ayrı ASCII fontu **SD kartla kurulur**.
+- **Otomatik üzerine yazılmayanlar:** Stok resim yuvaları **1–2**, LCD kernel'i ve font kaynakları. Baskı önizlemeleri geçici SRAM'e taşınır. Paketle sunulan ASCII fontu **isteğe bağlıdır** ve yalnız kullanıcı isterse SD kartla yüklenir.
 
 **Stok Creality açılış görseline ve ikonlarına dönmek için**, Petrel'i durdurduktan sonra [orijinal DWIN_SET](../assets/stock-dwin/DWIN_SET) paketini LCD'nin microSD yuvasından yükleyin. Adımlar [orijinal DWIN'e dönüş rehberinde](restore-stock-dwin_TR.md) bulunur. Host yazılımını kaldırmak tek başına Picture Flash'ı geri yüklemez. Bu paket yalnızca **DWIN T5UIC1** içindir; DACAI/TJC ile kullanılamaz. LCD kaynakları yazıcının ana kart firmware'ini de geri yüklemez.
 
@@ -55,4 +55,4 @@ Katkı görselleri için `tools/pack_icon_library.py kaynak.ICO hedef.ICO --libr
 
 ## LCD fontu
 
-İkon kütüphanesi UART üzerinden otomatik güncellenir. Petrel ile aynı yazı görünümü için `assets/fonts/DWIN_SET/0T5UIC1.HZK` içindeki ASCII fontunu da LCD’nin SD kart kaynak güncelleme yöntemiyle kurun. Depodaki `DWIN_SET` klasörünü uyumlu LCD güncelleme kartına kopyalayın, yazıcıyı kapatın, kartı LCD’nin kart okuyucusuna takın, enerjiyi verin ve kaynak güncellemesi bitene kadar bekleyin. Yazıcıyı kapatıp kartı çıkarın ve normal başlatın. Pi servisi font Flash’ını UART üzerinden yüklemez. Emülatör aynı fontu kullanır; DejaVu lisansı `assets/emulator/Petrel-font-license.txt` içindedir.
+**İsteğe bağlı — Petrel stok DWIN LCD fontuyla çalışır.** Font değişimi, Petrel'in özellikleri veya performansı için gerekli değildir; yalnızca yazı görünümüne ilişkin bir tercihtir. Paketle sunulan ASCII fontu, fiziksel ekrandaki yazıları Petrel'in dokümantasyon ekran görüntülerine benzetebilir. Bunu tercih ederseniz `0T5UIC1.HZK` içeren yalnızca font amaçlı `assets/fonts/DWIN_SET` klasörünü uyumlu bir LCD güncelleme SD kartına kopyalayın. Yazıcıyı kapatın, kartı LCD'nin kart okuyucusuna takın ve enerjiyi verin. Kaynak güncellemesi tamamlanınca kapatın, kartı çıkarın ve normal başlatın. **Bu isteğe bağlı font değişimi için stok geri yükleme paketi olan `assets/stock-dwin/DWIN_SET` klasörünü kullanmayın.** Petrel açılış görselini ve ikon kütüphanesini UART üzerinden otomatik günceller; Pi servisi font Flash'ını kendiliğinden yazmaz. Emülatör paketle sunulan fontu kullandığından stok fontlu fiziksel ekrandaki yazılarla ekran görüntüleri farklı görünebilir. Fontun DejaVu lisansı `assets/emulator/Petrel-font-license.txt` içindedir.

@@ -12,7 +12,7 @@ Bu dosyalar Pi üzerinde ekran görüntüsü çiziminde kullanılır. Emülatör
 | `0T5UIC1.HZK` | Graphite ASCII karakterleri; özgün diğer font bankaları korunur |
 | `0_DWIN_ASC.HZK` | Alternatif DGUS ASCII fontu; yalnız uygun olduğunda açıkça seçin |
 
-Özel panel fontu için servis ortamında `PETREL_EMULATOR_FONT` değişkenine eşleşen dosyayı verip yeniden başlatın. [Ek emülatör ayarlarına](../../docs/ui-emulator_TR.md#ek-ayarlar) bakın. Ekran görüntüsüyle fiziksel ekranı karşılaştırırken kaynakların eşleşmesi önemlidir.
+Özel panel fontu için servis ortamında `PETREL_EMULATOR_FONT` değişkenine eşleşen dosyayı verip yeniden başlatın. [Ek emülatör ayarlarına](../../docs/ui-emulator_TR.md#ek-ayarlar) bakın. Petrel stok DWIN fontuyla da çalışır; fiziksel panele paketle sunulan fontu yüklemek isteğe bağlıdır ve yalnızca yazı görünümünü değiştirir. Ekran görüntüsüyle fiziksel ekranı karşılaştırırken font kaynaklarının eşleşmesine dikkat edin.
 
 ## Kaynak kökeni
 

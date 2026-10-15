@@ -109,6 +109,22 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(snap.method('S03'), INFORMATION)
         self.assertEqual(snap.method('S18'), USER)
 
+    def test_load_cell_eddy_and_controller_fan_special_cases(self):
+        load = discover(Snapshot(objects=('probe', 'load_cell_probe')))
+        self.assertEqual(load.method('P02'), AUTOMATIC | USER)
+        self.assertEqual(load.method('P01'), NONE)
+        eddy = discover(Snapshot(objects=('probe', 'probe_eddy_current scanner',
+                                          'temperature_probe scanner')))
+        self.assertEqual(eddy.method('P18'), CALIBRATION)
+        self.assertEqual(eddy.method('P22'), CALIBRATION)
+        self.assertEqual(eddy.method('P01'), NONE)
+        fan = discover(Snapshot(objects=('controller_fan mcu', 'extruder'),
+                                settings={'extruder': {'min_temp': 0, 'max_temp': 280}}))
+        self.assertEqual(fan.method('F08', 'controller_fan mcu'), USER)
+        self.assertEqual(fan.method('O05'), NONE)
+        sensor = discover(Snapshot(objects=('temperature_sensor chamber',)))
+        self.assertEqual(sensor.method('O05'), NONE)
+
     def test_lazy_cache_only_retains_discovery_results(self):
         source = Snapshot(objects=('fan',), settings={'fan': {'max_power': 1.}})
         cache = MaintenanceCache()

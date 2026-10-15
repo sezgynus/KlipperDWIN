@@ -100,7 +100,7 @@ class ExtendedTests(unittest.TestCase):
         for f, name in [('O02', 'servo cutter'), ('O03', 'output_pin laser'),
                         ('M15', 'manual_stepper load'), ('O01', 'gcode_button emergency')]:
             self.assertEqual(a.method(f, name), NONE)
-        b = discover(State(s.objects, status={'gcode_button emergency': {'state': 'RELEASED'}}),
+        b = discover(State(s.objects),
                      ('maintenance.safe_servo:servo cutter',
                       'maintenance.safe_pin:output_pin laser',
                       'maintenance.safe_stepper:manual_stepper load',
@@ -110,12 +110,27 @@ class ExtendedTests(unittest.TestCase):
         self.assertEqual(b.method('M15', 'manual_stepper load'), USER | EXTERNAL)
         self.assertEqual(b.method('O01', 'gcode_button emergency'), AUTOMATIC | USER)
 
-    def test_load_cell_numeric_force_is_required(self):
+    def test_load_cell_capability_does_not_depend_on_startup_force(self):
         a = discover(State(('load_cell_probe',)))
         self.assertEqual(a.method('P02'), AUTOMATIC | USER)
-        self.assertEqual(a.method('P20'), NONE)
+        self.assertEqual(a.method('P20'), AUTOMATIC | INFORMATION)
         b = discover(State(('load_cell_probe',), status={'load_cell_probe': {'force_g': 1.25}}))
         self.assertEqual(b.method('P20'), AUTOMATIC | INFORMATION)
+        self.assertEqual(discover(State(('probe',))).method('P20'), NONE)
+
+    def test_mesh_capability_does_not_depend_on_active_mesh_at_startup(self):
+        a = discover(State(('bed_mesh',), status={'bed_mesh': {'probed_matrix': [[]], 'profiles': {}}}))
+        self.assertEqual(a.method('P09'), INFORMATION)
+        self.assertEqual(a.method('P10'), NONE)
+        self.assertEqual(discover(State(('bed_mesh',))).method('P09'), INFORMATION)
+        self.assertEqual(discover(State(())).method('P09'), NONE)
+        b = discover(State(('bed_mesh',)), ('maintenance.mesh_baseline',))
+        self.assertEqual(b.method('P10'), AUTOMATIC | INFORMATION)
+
+    def test_temperature_fan_information_without_subscribed_status(self):
+        a = discover(State(('temperature_fan chamber',)))
+        self.assertEqual(a.method('F09', 'temperature_fan chamber'), INFORMATION)
+        self.assertEqual(discover(State(())).method('F09', 'temperature_fan chamber'), NONE)
 
     def test_mmupath_and_filament_dryer_do_not_follow_generic_names(self):
         s = State(('mmu', 'mmu_machine', 'heater_generic dryer', 'extruder'),

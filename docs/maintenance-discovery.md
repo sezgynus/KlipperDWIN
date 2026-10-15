@@ -105,3 +105,7 @@ printing hot path, and exiting Maintenance preserves the snapshot. CPU,
 RSS, USS and PSS must still be measured on real Pi Zero 2 W hardware before
 claiming an absolute production memory budget. Unit tests and synthetic
 benchmarks are not proof of real printing-time zero overhead.
+
+### READY-time static capability vs test-time measurements
+
+At Klipper READY, the compact snapshot records **structural capabilities**, not a sample of instantaneous health. A configured `bed_mesh` can be inspected after a later calibration even if no mesh was active at startup; `load_cell_probe` includes structured force telemetry by Klipper contract even if no force sample has been taken; `temperature_fan` has a temperature status field regardless of subscription at startup. An explicitly whitelisted `gcode_button` may be observed by its documented status field without subscribing during discovery. These capabilities require **fresh, validated API observations at test execution time** before a result can be marked successful. No new always-on telemetry subscription is added. Unsupported capabilities still fail closed.

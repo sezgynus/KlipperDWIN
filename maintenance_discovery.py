@@ -194,8 +194,10 @@ def discover(state, services=()):
                     _get(cfg, 'heater', 'extruder') or _get(cfg, 'stepper')):
                 bits = _add(bits, 'F08', method)
             elif name.startswith('temperature_fan '):
-                if 'temperature' in device_status or 'sensor_type' in cfg:
-                    bits = _add(bits, 'F09', INFORMATION)
+                # The configured temperature_fan exposes temperature via
+                # Klipper's status API; the field need not be subscribed or
+                # populated at READY. Read it only when the view opens.
+                bits = _add(bits, 'F09', INFORMATION)
                 if ('maintenance.safe_temperature_fan:' + name) in services:
                     bits = _add(bits, 'F10', method)
             if tach:
@@ -289,7 +291,10 @@ def discover(state, services=()):
         elif name.startswith('gcode_button '):
             family = 'button'
             # A press could run a macro; require an explicit safe integration.
-            if ('maintenance.safe_button:' + name) in services and 'state' in device_status:
+            if ('maintenance.safe_button:' + name) in services:
+                # gcode_button always exposes 'state', but its press action
+                # may run arbitrary macros. Require an explicit safe profile.
+                # No status subscription is needed at discovery.
                 bits = _add(bits, 'O01', AUTOMATIC | USER)
         elif name.startswith(('led ', 'neopixel ', 'dotstar ', 'pca9632 ',
                               'display_template ')):
@@ -345,17 +350,20 @@ def discover(state, services=()):
             global_bits = _add(global_bits, 'P05', CALIBRATION)
     if load_cell_probe:
         global_bits = _add(global_bits, 'P02', AUTOMATIC | USER)
-        if any(_is_number(v) for key in ('force_g', 'force', 'force_sensor_raw')
-               for v in (_get(_get(status, 'load_cell_probe', {}), key),)):
-            global_bits = _add(global_bits, 'P20', AUTOMATIC | INFORMATION)
+        # Klipper load_cell_probe includes load_cell status fields such as
+        # force_g. An actual force reading need not exist at READY; the
+        # diagnostic will validate fresh samples when explicitly started.
+        global_bits = _add(global_bits, 'P20', AUTOMATIC | INFORMATION)
     if has_mesh:
         global_bits = _add(global_bits, 'P08', CALIBRATION | USER)
         if probe or load_cell_probe:
             global_bits = _add(global_bits, 'P07', CALIBRATION)
-        if _get(_get(status, 'bed_mesh', {}), 'probed_matrix'):
-            global_bits = _add(global_bits, 'P09', INFORMATION)
-            if 'maintenance.mesh_baseline' in services:
-                global_bits = _add(global_bits, 'P10', AUTOMATIC | INFORMATION)
+        # The mesh can be generated, loaded or selected after Klipper READY.
+        # Snapshot visibility must represent the capability to inspect it,
+        # not whether a mesh happened to be active during startup.
+        global_bits = _add(global_bits, 'P09', INFORMATION)
+        if 'maintenance.mesh_baseline' in services:
+            global_bits = _add(global_bits, 'P10', AUTOMATIC | INFORMATION)
     if 'screws_tilt_adjust' in names and (probe or load_cell_probe):
         global_bits = _add(global_bits, 'P11', CALIBRATION)
     for obj, feature in (('bed_screws', 'P12'), ('z_tilt', 'P13'),

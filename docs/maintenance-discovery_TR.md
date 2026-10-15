@@ -105,3 +105,7 @@ değişmez. Normal baskı işleme döngüsüne özellik kontrolü eklenmez ve me
 çıkınca snapshot korunur. Kesin kaynak tüketimi iddiası için gerçek Pi Zero
 2 W üzerinde CPU, RSS, USS ve PSS ölçümü gerekir; sentetik benchmark ve birim
 testleri fiziksel doğrulamanın yerine geçmez.
+
+### READY anındaki statik yetenek ve test anındaki ölçüm ayrımı
+
+Klipper READY durumunda oluşturulan sıkıştırılmış snapshot, anlık cihaz sağlığını değil **yapısal yetenekleri** kaydeder. Açılışta etkin mesh bulunmasa da yapılandırılmış `bed_mesh`, sonradan kalibrasyonla oluşturulan mesh'in incelenmesini destekler. `load_cell_probe`, ilk ölçüm henüz alınmamış olsa da Klipper sözleşmesinde kuvvet telemetrisi sağlar. `temperature_fan` sıcaklık durumunu sunar. Açıkça güvenli olarak tanımlanmış `gcode_button` durum alanı da keşif sırasında abone olunmadan test zamanında okunabilir. Bu yeteneklerin başarılı sayılabilmesi için **test sırasında güncel ve doğrulanmış API ölçümü** gereklidir. Sürekli telemetri aboneliği eklenmez; desteklenmeyen testler gizlenir.

@@ -2938,6 +2938,11 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                        getattr(self, '_info_render_items', None) == items)
         band = (332, 356) if delta > 0 else (90, 114)
         if incremental:
+            # Moving the viewport can evict the update control entirely. Its
+            # screen-space cache cannot survive a scroll out and back to the
+            # same coordinates, even when label, selection and message match.
+            self._info_update_render = None
+            self._info_update_message = None
             self.lcd.move_area(1, self.DWIN_SCROLL_UP if delta > 0 else self.DWIN_SCROLL_DOWN,
                                24, self.lcd.Color_Bg_Black, 0, 90, 271, 355)
             self.lcd.draw_rectangle(1, self.lcd.Color_Bg_Black, 0, 90, 255, 91)

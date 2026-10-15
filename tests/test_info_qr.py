@@ -119,3 +119,38 @@ class InfoCacheRenderingTests(unittest.TestCase):
             a = v.framebuffer.snapshot()[0].crop((0, 90, 256, 356))
             b = reference.framebuffer.snapshot()[0].crop((0, 90, 256, 356))
             self.assertIsNone(ImageChops.difference(a, b).getbbox(), scroll)
+
+
+    def test_update_control_survives_repeated_short_bottom_scroll_round_trips(self):
+        from tools.render_docs_screenshots import canvas
+        from info_qr import extra_info_rows
+        from lcd_resources import ICON_INFO_UPDATE_SELECTED
+        from PIL import ImageChops
+        for phase, label, message in (
+                ('idle', 'Check for updates', ''),
+                ('current', 'Up to date', 'Petrel is up to date'),
+                ('available', 'Update', 'Petrel update available')):
+            with self.subTest(phase=phase):
+                view, reference = canvas(), canvas()
+                for panel in (view, reference):
+                    panel._software_update = Mock(phase=phase, label=label, message=message)
+                maximum = len(view._info_items()) + extra_info_rows() - 11
+                view._info_scroll = reference._info_scroll = maximum
+                view.Draw_Info_Menu(); view.lcd.update()
+                reference.Draw_Info_Menu(); reference.lcd.update()
+                expected = reference.framebuffer.snapshot()[0].crop((0, 90, 256, 356))
+                for depth in (1, 2, 3, 4):
+                    for repeat in range(3):
+                        with self.subTest(depth=depth, repeat=repeat):
+                            for offset in (list(range(1, depth+1))
+                                           + list(range(depth-1, -1, -1))):
+                                view._info_scroll = maximum-offset
+                                view.lcd.serial.frames.clear()
+                                view.Draw_Info_Menu(); view.lcd.update()
+                                self.assertFalse(any(p[1] == 0x25 for p in view.lcd.serial.frames))
+                            actual = view.framebuffer.snapshot()[0].crop((0, 90, 256, 356))
+                            self.assertIsNone(ImageChops.difference(expected, actual).getbbox())
+                            # The last incremental step must restore the backing,
+                            # not trust a token from the previous bottom visit.
+                            self.assertEqual(sum(p[1] == 0x23 and p[7] == ICON_INFO_UPDATE_SELECTED
+                                                 for p in view.lcd.serial.frames), 1)

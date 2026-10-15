@@ -33,9 +33,9 @@ Bayraklar birleşebilir. 121 standart ID'nin (`F01–F13`, `H01–H18`, `M01–M
 
 `MaintenanceSnapshot.method(feature, device=None)`, tek bir cihaz veya genel özellik için bayrakları döndürür. `instances(feature)` ilgili cihazları seçer. Nesneler değişmezdir; kalıcı özellik sözlükleri oluşturulmaz.
 
-## İlk keşif aşaması
+## Uygulanan yetenek kapsamı
 
-İlk sürüm; yapılandırılmış ısıtıcıları, yaygın Klipper fan türlerini, fiziksel endstop adaylarını, hareket/step motor tanımlarını, TMC'nin doğrulanabilen kısıtlı alanlarını, standart ve load-cell probe seçeneklerini, manuel ve otomatik bed-mesh ön koşullarını, ivmeölçer/rezonans ön koşullarını, filament sensörlerini, sınırlı sayıda çevresel sensör ve LED'i, ayrıca API ile doğrulanmış host/servis yeteneklerini kapsar.
+Keşif uygulaması; yapılandırılmış ısıtıcıları, yaygın Klipper fan türlerini, fiziksel endstop adaylarını, hareket/step motor tanımlarını, TMC'nin doğrulanabilen kısıtlı alanlarını, standart ve load-cell probe seçeneklerini, manuel ve otomatik bed-mesh ön koşullarını, ivmeölçer/rezonans ön koşullarını, filament sensörlerini, sınırlı sayıda çevresel sensör ve LED'i, ayrıca API ile doğrulanmış host/servis yeteneklerini kapsar.
 
 **Henüz otomatik desteklendiği iddia edilmeyenler:** Kanıtı bulunmayan TMC kayıtları, geçmiş referansı olmadan ileri trend analizleri, bilinmeyen aktüatör işlevleri, rastgele G-code makroları, keyfî servo hareketleri, yapılandırılmamış tanılama entegrasyonları ve sensör yanıtlarına yapılandırılmış API ile erişilemeyen testler. Adaptör ve kanıt politikaları eklenene kadar ilgili ID'ler gizli kalır.
 
@@ -124,7 +124,7 @@ CI artık tam regresyon paketinin yanında sentetik 150 fanlık Maintenance keş
 
 ### Sınırlı başlangıç kanıtı ve bellek temizliği
 
-READY keşfi yalnız dört küçük belgelenmiş API uç noktasını sorgular (`/server/info`, `/machine/proc_stats`, `/server/history/totals`, `/printer/objects/query?heaters=available_monitors`). Kullanılmayan, büyük olabilen `/machine/system_info` isteği kaldırıldı. Her JSON yanıtı kısa kanıt etiketlerine çevrilir ve **bir sonraki sorgudan önce** bırakılır; tam API yanıtlarının bir listesi veya sözlüğü tutulmaz. Disk alanı keşif sırasında tahmin edilmez, gerektiğinde sorgulanır.
+READY keşfi yalnız beş küçük belgelenmiş API uç noktasını sorgular (`/server/info`, `/machine/proc_stats`, `/server/history/totals`, `/printer/objects/query?heaters=available_monitors`, `/server/files/roots`). Kullanılmayan, büyük olabilen `/machine/system_info` isteği kaldırıldı. Her JSON yanıtı kısa kanıt etiketlerine çevrilir ve **bir sonraki sorgudan önce** bırakılır; tam API yanıtlarının bir listesi veya sözlüğü tutulmaz. Disk alanı keşif sırasında tahmin edilmez, gerektiğinde sorgulanır.
 
 ### Dinamik menü listesi ve rezonans eksenleri
 
@@ -144,7 +144,7 @@ python3 tools/measure_petrel_resources.py capture --pid "$PID" --seconds 30 --ou
 Aynı cihazda ve eşdeğer yükte feature branch kurulup çıktı `/tmp/petrel-feature.json` olarak kaydedilir; ardından:
 
 ```sh
-python3 tools/measure_petrel_resources.py compare --baseline /tmp/petrel-master.json --candidate /tmp/petrel-feature.json --max-uss-kib 1024
+python3 tools/measure_petrel_resources.py compare --baseline /tmp/petrel-master.json --candidate /tmp/petrel-feature.json --max-uss-kib 1024 --max-rss-kib 1024
 ```
 
-Araç yalnız kullanıcı çalıştırdığında devreye giren, standart Python kütüphanesini kullanan **haricî ölçücüdür**. Linux `/proc/<pid>/smaps_rollup` ve CPU tick'lerini okur; Petrel'e debugger bağlamaz, G-code göndermez veya arka plan servisi kurmaz. Medyan RSS/PSS/USS farkını ve tek çekirdek CPU kullanımını karşılaştırır. PASS yalnızca benzer iş yükleri için geçerlidir; geliştirme dalında fiziksel Pi ölçümü yapılmış değildir. Hem boşta hem aynı baskı senaryosunda kontrol ve Klipper READY sırasındaki başlangıç bellek tepesi ayrıca gereklidir.
+Araç yalnız kullanıcı çalıştırdığında devreye giren, standart Python kütüphanesini kullanan **haricî ölçücüdür**. Linux `/proc/<pid>/smaps_rollup` ve CPU tick'lerini okur; Petrel'e debugger bağlamaz, G-code göndermez veya arka plan servisi kurmaz. Medyan RSS/PSS/USS farkını ve tek çekirdek CPU kullanımını karşılaştırır. PASS hem medyan RSS hem USS artışının limitleri aşmamasını gerektirir ve yalnızca benzer iş yükleri için geçerlidir; geliştirme dalında fiziksel Pi ölçümü yapılmış değildir. Hem boşta hem aynı baskı senaryosunda kontrol ve Klipper READY sırasındaki başlangıç bellek tepesi ayrıca gereklidir.

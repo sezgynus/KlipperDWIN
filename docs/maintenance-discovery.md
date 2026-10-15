@@ -33,9 +33,9 @@ Multiple flags can coexist. 121 standardized IDs (`F01–F13`, `H01–H18`, `M01
 
 `MaintenanceSnapshot.method(feature, device=None)` returns the flags for one device or a global feature. `instances(feature)` selects the supported devices. All objects are immutable; no persistent per-feature dictionaries are created.
 
-## First discovery milestone
+## Implemented capability coverage
 
-The first pass covers configured heaters, the common Klipper fan families, physical endstop candidates, motion/stepper entries, a conservative subset of TMC fields, standard and load-cell probe support, manual and automatic bed-mesh prerequisites, resonance/accelerometer prerequisites, filament sensors, a restricted group of environmental sensors and LEDs, and explicitly confirmed host/service capabilities.
+The discovery implementation covers configured heaters, the common Klipper fan families, physical endstop candidates, motion/stepper entries, a conservative subset of TMC fields, standard and load-cell probe support, manual and automatic bed-mesh prerequisites, resonance/accelerometer prerequisites, filament sensors, a restricted group of environmental sensors and LEDs, and explicitly confirmed host/service capabilities.
 
 **Not yet claimed as automatically supported:** unproven TMC register fields, hidden advanced analysis without historical baselines, unknown actuator functions, arbitrary G-code macros, arbitrary servo motions, unconfigured diagnostic integrations, and tests whose sensor reports cannot be accessed as structured data. Those IDs remain hidden until their adapter and evidence policy are implemented.
 
@@ -55,7 +55,7 @@ The benchmark reports discovery duration, `tracemalloc` retained allocation delt
 ## Next stages
 
 1. Complete the remaining recognized test adapters with verified API evidence and dedicated regression cases.
-2. Keep the snapshot in the backend between Maintenance visits; rediscover only on Klipper READY transitions.
+2. Preserve the current READY-epoch snapshot between Maintenance visits and invalidate it on disconnect.
 3. Read Moonraker service evidence once at READY; subscribe to any additional test telemetry only when a user starts a test.
 4. Build execution/safety arbitration independently from discovery; design the UI only after the discovery matrix is verified.
 
@@ -118,13 +118,13 @@ On each Klipper READY epoch, the existing read worker makes a single read-only `
 
 For recognized Klipper TMC driver objects, the documented structured `drv_status` attribute may be `null` while the motor is disabled. M07/M10 are therefore recognized as diagnostic **capabilities**, never as a PASSED test at startup. Runtime fault checks must obtain a fresh non-null status and apply driver-specific bit interpretation. No `DUMP_TMC` is sent during discovery; driver temperature remains gated on `heaters.available_monitors`.
 
-CI runs the full regression suite and reports the synthetic 150-fan Maintenance discovery timing plus Python allocations and available Linux RSS/PSS/USS. These Linux runner values are an early regression signal, **not** the Pi Zero 2 W acceptance measurement; a real before/after Petrel process test on that target remains mandatory before merge.
+CI runs the full regression suite and reports synthetic 150-fan Maintenance discovery timing, Python allocations and available Linux RSS/PSS/USS. These Linux runner values are an early regression signal, **not** the Pi Zero 2 W acceptance measurement; a real before/after Petrel process test on that target remains mandatory before merge.
 
 **Benchmark interpretation:** Run the uninstrumented process separately from the `--trace` Python-allocation process. Tracing can itself inflate RSS substantially; its RSS is *not* the production footprint. Neither runner result replaces a real Pi Zero 2 W Petrel process comparison. The approximate immutable snapshot size is printed separately.
 
 ### Bounded startup evidence handling
 
-READY discovery requests only four small documented API endpoints (`/server/info`, `/machine/proc_stats`, `/server/history/totals`, `/printer/objects/query?heaters=available_monitors`). The unnecessary potentially large `/machine/system_info` request has been removed. Each JSON response is parsed into short evidence tokens and discarded **before** the next request; no list or dictionary of full endpoint replies is retained. Disk space remains an on-demand feature, not guessed at startup.
+READY discovery requests five small documented API endpoints (`/server/info`, `/machine/proc_stats`, `/server/history/totals`, `/printer/objects/query?heaters=available_monitors`). The unnecessary potentially large `/machine/system_info` request has been removed. Each JSON response is parsed into short evidence tokens and discarded **before** the next request; no list or dictionary of full endpoint replies is retained. Disk space remains an on-demand feature, not guessed at startup.
 
 ### Dynamic menu enumeration and resonance axes
 
@@ -144,7 +144,7 @@ python3 tools/measure_petrel_resources.py capture --pid "$PID" --seconds 30 --ou
 Repeat with the feature branch **on the same device and equivalent workload**, saving `/tmp/petrel-feature.json`. Then:
 
 ```sh
-python3 tools/measure_petrel_resources.py compare --baseline /tmp/petrel-master.json --candidate /tmp/petrel-feature.json --max-uss-kib 1024
+python3 tools/measure_petrel_resources.py compare --baseline /tmp/petrel-master.json --candidate /tmp/petrel-feature.json --max-uss-kib 1024 --max-rss-kib 1024
 ```
 
-The tool is an **external, explicitly run** standard-library-only sampler reading Linux `/proc/<pid>/smaps_rollup` and CPU ticks. It does not attach a debugger, instrument Petrel, inject G-code or create a background service. The comparison reports median RSS/PSS/USS and single-core CPU usage. A PASS is only valid for comparable workloads; no Pi measurements have been performed by this development branch itself. Both warm-idle and identical printing scenarios should be checked. Independently verify startup latency and memory peak during Klipper READY.
+The tool is an **external, explicitly run** standard-library-only sampler reading Linux `/proc/<pid>/smaps_rollup` and CPU ticks. It does not attach a debugger, instrument Petrel, inject G-code or create a background service. The comparison reports median RSS/PSS/USS and single-core CPU usage. A PASS requires both median RSS and USS to stay within their limits and is valid only for comparable workloads; no Pi measurements have been performed by this development branch itself. Both warm-idle and identical printing scenarios should be checked. Independently verify startup latency and memory peak during Klipper READY.

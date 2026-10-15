@@ -78,7 +78,7 @@ def capture(pid, seconds, interval):
     }
 
 
-def compare(baseline, candidate, max_uss_kib):
+def compare(baseline, candidate, max_uss_kib, max_rss_kib=1024):
     result = {
         key: round(candidate['memory_kib'][key]['median'] -
                    baseline['memory_kib'][key]['median'], 2)
@@ -89,10 +89,17 @@ def compare(baseline, candidate, max_uss_kib):
     print('Median memory change (KiB):', json.dumps(result, sort_keys=True))
     print('Process CPU change (percentage points of one core):', cpu_diff)
     print('WARNING: Compare only equivalent workload and the same hardware.')
+    violations = []
     if result['USS'] > max_uss_kib:
-        print('FAIL: USS delta exceeds %.1f KiB target' % max_uss_kib)
+        violations.append('USS %+g KiB exceeds %g KiB' %
+                          (result['USS'], max_uss_kib))
+    if result['Rss'] > max_rss_kib:
+        violations.append('RSS %+g KiB exceeds %g KiB' %
+                          (result['Rss'], max_rss_kib))
+    if violations:
+        print('FAIL:', '; '.join(violations))
         return 1
-    print('PASS: measured median USS delta within %.1f KiB target' % max_uss_kib)
+    print('PASS: median USS and RSS deltas both within configured budgets')
     return 0
 
 
@@ -108,6 +115,7 @@ def main():
     diff.add_argument('--baseline', required=True)
     diff.add_argument('--candidate', required=True)
     diff.add_argument('--max-uss-kib', type=float, default=1024)
+    diff.add_argument('--max-rss-kib', type=float, default=1024)
     args = parser.parse_args()
     if args.command == 'capture':
         report = capture(args.pid, args.seconds, args.interval)
@@ -118,7 +126,7 @@ def main():
     return compare(
         json.loads(Path(args.baseline).read_text(encoding='utf-8')),
         json.loads(Path(args.candidate).read_text(encoding='utf-8')),
-        args.max_uss_kib)
+        args.max_uss_kib, args.max_rss_kib)
 
 
 if __name__ == '__main__':

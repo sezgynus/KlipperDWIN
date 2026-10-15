@@ -24,6 +24,10 @@ class ResourceProbeTests(unittest.TestCase):
         with patch('builtins.print'):
             self.assertEqual(compare(report(1000), report(1800), 1024), 0)
             self.assertEqual(compare(report(1000), report(2400), 1024), 1)
+            base = report(1000)
+            cand = report(1000)
+            cand['memory_kib']['Rss']['median'] = 2400
+            self.assertEqual(compare(base, cand, 1024), 1)
 
 
 if __name__ == '__main__':

@@ -57,6 +57,8 @@ Başlamadan önce [ekran/kaynaklar](docs/lcd-assets_TR.md) ve [bağlantıları](
 
 ## Hızlı başlangıç
 
+> **⚠️ Önemli — Petrel LCD'nin kalıcı görsel kaynaklarını değiştirir.** Desteklenen DWIN T5UIC1 ekranlarda güncel Petrel sürümleri, stok açılış JPEG'ini ve ikon kütüphanesi verilerini daha akıcı ve tutarlı arayüz için LCD'nin kalıcı Picture Flash belleğinde otomatik olarak değiştirir. Pi üzerindeki yazılımı güncellemek veya kaldırmak **stok görselleri geri getirmez**. Orijinal Creality ikonlarına ve JPEG'lerine dönmek için Petrel'i durdurup [repodaki orijinal DWIN_SET](assets/stock-dwin/DWIN_SET) paketini **LCD'nin microSD yuvasından** yükleyin; önce [stok kaynaklara dönüş rehberini](docs/restore-stock-dwin_TR.md) okuyun. Bu işlem yazıcının ana kart firmware'ini geri yüklemez.
+
 Petrel'i kurun:
 
 ```bash

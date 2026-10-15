@@ -8,6 +8,17 @@ Petrel targets the **272×480 portrait DWIN T5UIC1** layout used by the compatib
 
 The panel must support T5UIC1 commands and display direction **1**. Petrel draws native text; install the [LCD font](#lcd-font) from SD. The application automatically uploads boot artwork and library **3** icons from repository sources; stock `3.ICO` and English bitmap labels are not prerequisites.
 
+## Persistent LCD assets and stock recovery
+
+> **⚠️ Stock artwork is replaced automatically.** The original Ender-3 V2 resource set did not provide the complete icon states, animations and artwork needed by Petrel's modern UI. To preserve predictable visuals and responsive native icon drawing, Petrel now manages its own images in non-volatile **Picture Flash**. This is **not temporary** and is not undone by uninstalling Petrel.
+
+- **Boot JPEG:** Petrel synchronizes its `assets/petrel_bootsplash.jpg` to Picture Flash **slot 0**.
+- **Icon library 3:** Petrel packs the baseline JPEGs under `assets/icons/` into 32 KiB blocks starting at **slot 3**, within slots **3–15**, and uploads only changed blocks. This provides menu icons, selected states, print controls and animation frames without redrawing all artwork as primitives.
+- **Write reduction:** Content fingerprints are kept in a separate persistent Data Flash area, so matching resources are normally skipped. These fingerprints are **not a backup** of the original OEM images.
+- **Not overwritten automatically:** Stock picture slots **1–2**, the LCD kernel and font resources. Print thumbnails are transferred to volatile SRAM; Petrel's separately supplied ASCII font requires an **SD-card installation**.
+
+**To restore the stock Creality boot image and icon resources, flash the [original DWIN_SET](../assets/stock-dwin/DWIN_SET) from the LCD microSD slot** after stopping Petrel. Follow the [original DWIN restoration guide](restore-stock-dwin.md). Merely uninstalling the host service cannot restore Picture Flash. This package is for **DWIN T5UIC1 only**; it is not interchangeable with DACAI/TJC. The original LCD files also do not restore the printer mainboard firmware.
+
 ## Before installing or replacing a panel
 
 Check the controller family and installed resource pack, not just the screen size. The application installer does not flash LCD kernel firmware or install the LCD font. For panel firmware work, use the optional [T5UIC1 reference](t5uic1-reference.md).

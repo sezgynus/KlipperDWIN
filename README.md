@@ -57,6 +57,8 @@ Check [display/resources](docs/lcd-assets.md) and [wiring](docs/installation.md#
 
 ## Quick start
 
+> **⚠️ Important — Petrel permanently changes LCD artwork.** On supported DWIN T5UIC1 screens, current Petrel releases automatically replace the stock boot JPEG and icon-library data in the LCD's non-volatile Picture Flash with resources optimized for Petrel's interface and drawing performance. Updating or uninstalling the Pi software alone **does not restore the stock images**. To return to Creality's original icons and JPEGs, stop Petrel and flash the [bundled original DWIN_SET](assets/stock-dwin/DWIN_SET) through the **LCD's microSD slot**; follow the [stock restoration guide](docs/restore-stock-dwin.md). This does **not** restore the printer mainboard firmware.
+
 Install Petrel:
 
 ```bash

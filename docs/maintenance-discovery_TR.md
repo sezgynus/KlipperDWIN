@@ -2,7 +2,7 @@
 
 [English](maintenance-discovery.md) · [Türkçe](maintenance-discovery_TR.md)
 
-**Durum:** Yalnızca keşif çekirdeği ve birim testleri. Maintenance arayüzündeki işlemler veya yazıcı üzerinde çalıştırılacak testler henüz etkinleştirilmedi. Bu ilk uygulama aşamasıdır; nihai destek matrisi değildir.
+**Durum:** Yalnızca keşif çekirdeği, tembel yüklenen snapshot yöneticisi ve birim testleri. Maintenance arayüzündeki işlemler veya yazıcı üzerinde çalıştırılacak testler henüz etkinleştirilmedi. Bu ilk uygulama aşamasıdır; nihai destek matrisi değildir.
 
 ## Tasarım sınırları
 
@@ -13,6 +13,10 @@
 - Makro adlarından, keyfî çıkış pinlerinden veya yalnızca `ok` döndüren komutlardan başarı çıkarılmaz. Anlamlı doğrulama yoksa test gizli kalır.
 - Kalıcı sonuçlarda yalnızca değişmez epoch, cihaz adı/türü, sıkıştırılmış tamsayı yöntem maskesi ve genel yöntem maskesi tutulur. API yanıtı, ayar/durum sözlüğü veya örnekleme geçmişi tutulmaz.
 - Keşif modülü ileride Maintenance açıldığında **tembel yükleme** için tasarlanmıştır. **Henüz çalışan Petrel arayüzü tarafından import edilmez**; dolayısıyla bu aşama normal baskı kod yoluna ek işlem yüklemez.
+
+## Tembel yüklenen snapshot yöneticisi
+
+`maintenance_cache.py`, `MaintenanceCache.get(state, services=())` arayüzünü sağlar. `get` çağrılmadan keşif modülünü import etmez. Klipper epoch’u, etkin ayar nesnesinin kimliği ve olumlu doğrulanmış servis kümesi aynıysa **aynı** değişmez snapshot döndürülür; yeni yapılandırma/epoch veya servis kümesi değişirse yeniden hesaplanır. Bağlantı kopmuş durum snapshot’ı temizler. Cache yalnızca sonuç nesnesini tutar, kaynak durumu saklamaz. **Bu yönetici henüz UI’ye bağlanmadı.**
 
 ## Yöntem bayrakları
 

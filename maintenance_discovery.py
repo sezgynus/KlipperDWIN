@@ -93,6 +93,8 @@ class MaintenanceSnapshot:
     epoch: int
     devices: tuple = ()
     global_modes: int = 0
+    config_marker: int = 0
+    service_key: tuple = ()
 
     def method(self, feature, device=None):
         if device is None:
@@ -341,4 +343,5 @@ def discover(state, services=()):
     if 'maintenance.guided_service' in services:
         global_bits = _add(global_bits, 'O06', USER)
     # Feature codes not positively proven are encoded as NONE (hidden).
-    return MaintenanceSnapshot(state.epoch, tuple(results), global_bits)
+    return MaintenanceSnapshot(state.epoch, tuple(results), global_bits,
+                               id(settings), tuple(sorted(services)))

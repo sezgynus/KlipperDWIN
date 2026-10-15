@@ -32,7 +32,8 @@ class ReloadIconTests(unittest.TestCase):
                     patch.object(tool.sys, 'argv', ['reload_icons.py']), \
                     patch.object(tool.subprocess, 'run', return_value=Mock(stdout='inactive\n')), \
                     patch.object(tool, 'ManualDisplay', return_value=lcd) as display, \
-                    patch.object(tool, 'sync_library', side_effect=error) as sync:
+                    patch.object(tool, 'sync_library', side_effect=error) as sync, \
+                    patch.object(tool, 'sync_shared_artwork') as shared:
                 if error:
                     with self.assertRaises(TimeoutError):
                         tool.main()
@@ -40,4 +41,8 @@ class ReloadIconTests(unittest.TestCase):
                     tool.main()
                 display.assert_called_once_with('/dev/serial0')
                 sync.assert_called_once_with(lcd, force=True, automatic=False)
+                if error:
+                    shared.assert_not_called()
+                else:
+                    shared.assert_called_once_with(lcd, force=True)
                 lcd.close.assert_called_once_with()

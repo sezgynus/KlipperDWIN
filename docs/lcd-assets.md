@@ -13,9 +13,10 @@ The panel must support T5UIC1 commands and display direction **1**. Petrel rende
 > **⚠️ Stock artwork is replaced automatically.** The original Ender-3 V2 resource set did not provide the complete icon states, animations and artwork needed by Petrel's modern UI. To preserve predictable visuals and responsive native icon drawing, Petrel now manages its own images in non-volatile **Picture Flash**. This is **not temporary** and is not undone by uninstalling Petrel.
 
 - **Boot JPEG:** Petrel synchronizes its `assets/petrel_bootsplash.jpg` to Picture Flash **slot 0**.
+- **Shared UI JPEG:** Petrel synchronizes `assets/petrel_shared.jpg` to Picture Flash **slot 1**. Info copies QR regions from its decoded Area 1 cache.
 - **Icon library 3:** Petrel packs the baseline JPEGs under `assets/icons/` into 32 KiB blocks starting at **slot 3**, within slots **3–15**, and uploads only changed blocks. This provides menu icons, selected states, print controls and animation frames without redrawing all artwork as primitives.
 - **Write reduction:** Content fingerprints are kept in a separate persistent Data Flash area, so matching resources are normally skipped. These fingerprints are **not a backup** of the original OEM images.
-- **Not overwritten automatically:** Stock picture slots **1–2**, the LCD kernel and font resources. Print thumbnails are transferred to volatile SRAM. The bundled ASCII font is **optional** and is installed manually by SD card only if the user chooses it.
+- **Not overwritten automatically:** Stock picture slot **2**, the LCD kernel and font resources. Print thumbnails are transferred to volatile SRAM. The bundled ASCII font is **optional** and is installed manually by SD card only if the user chooses it.
 
 **To restore the stock Creality boot image and icon resources, flash the [original DWIN_SET](../assets/stock-dwin/DWIN_SET) from the LCD microSD slot** after stopping Petrel. Follow the [original DWIN restoration guide](restore-stock-dwin.md). Merely uninstalling the host service cannot restore Picture Flash. This package is for **DWIN T5UIC1 only**; it is not interchangeable with DACAI/TJC. The original LCD files also do not restore the printer mainboard firmware.
 

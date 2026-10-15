@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the opaque 168px project QR SVG from the original Petrel brand PNG."""
+"""Regenerate the branded QR source JPEG for the shared artwork packer."""
 import base64
 from collections import deque
 from io import BytesIO
@@ -43,6 +43,15 @@ def main():
     parts.append('<rect x="57" y="54" width="54" height="60" fill="white"/>')
     encoded=base64.b64encode(buffer.getvalue()).decode()
     parts.append(f'<image x="63.5" y="59" width="41" height="50" xlink:href="data:image/png;base64,{encoded}"/></svg>\n')
-    (ROOT/'assets/icon-source/155.svg').write_text(''.join(parts))
+    source = ROOT/'assets/picture-source/project-qr.svg'
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text(''.join(parts))
+    import cairosvg  # Developer dependency; the service uses the shipped JPEG.
+    png = cairosvg.svg2png(bytestring=source.read_bytes())
+    with Image.open(BytesIO(png)) as image:
+        destination = ROOT/'assets/shared-artwork/qr.jpg'
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        image.convert('RGB').save(destination, 'JPEG', quality=100,
+                                  subsampling=2, progressive=False)
 
 if __name__=='__main__': main()

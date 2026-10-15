@@ -24,7 +24,7 @@ def main():
             continue
         root = ET.fromstring(path.read_bytes())
         width, height = int(root.attrib['width']), int(root.attrib['height'])
-        scale = 1 if int(path.stem) == 155 else 4
+        scale = 4
         png = cairosvg.svg2png(bytestring=path.read_bytes(), output_width=width * scale,
                               output_height=height * scale)
         with Image.open(BytesIO(png)) as image:
@@ -53,7 +53,7 @@ def main():
                 args.output_directory / (path.stem + '.jpg'), 'JPEG',
                 # Physical T5UIC1 testing showed corrupted selected tiles and
                 # homing artwork with 4:4:4, even after verified SRAM transfer.
-                quality=100 if icon_id in (0, 155) or fan_frame or button_frame else 94, subsampling=2, progressive=False)
+                quality=100 if icon_id == 0 or fan_frame or button_frame else 94, subsampling=2, progressive=False)
 
 
 if __name__ == '__main__':

@@ -4,7 +4,7 @@
 
 ## Kurulumdan önce
 
-> **⚠️ LCD'nin kalıcı kaynakları değiştirilecektir:** Petrel ilk bağlantıda veya görseller değiştiğinde kendi açılış JPEG'ini ve ikon kütüphanesini DWIN LCD'nin kalıcı Picture Flash belleğine otomatik yazar. Stok görsellerin ilgili alanları değiştirilir; bu değişiklik güç kesilince veya Pi yazılımı kaldırılınca geri alınmaz. Petrel'in güncel simgeleri, animasyonları ve hızlı yerel çizim düzeni için bu işlem gereklidir. [Orijinal Creality DWIN_SET](../assets/stock-dwin/DWIN_SET) paketi ve [stok görsellere dönüş rehberi](restore-stock-dwin_TR.md) repoda yer alır. **Kurulumdan veya güncellemeden önce okuyun.**
+> **⚠️ LCD'nin kalıcı kaynakları değiştirilecektir:** Petrel ilk bağlantıda veya görseller değiştiğinde kendi açılış JPEG'ini, ortak slot-1 JPEG sayfasını ve ikon kütüphanesini DWIN LCD'nin kalıcı Picture Flash belleğine otomatik yazar. Stok görsellerin ilgili alanları değiştirilir; bu değişiklik güç kesilince veya Pi yazılımı kaldırılınca geri alınmaz. Petrel'in güncel simgeleri, animasyonları ve hızlı yerel çizim düzeni için bu işlem gereklidir. [Orijinal Creality DWIN_SET](../assets/stock-dwin/DWIN_SET) paketi ve [stok görsellere dönüş rehberi](restore-stock-dwin_TR.md) repoda yer alır. **Kurulumdan veya güncellemeden önce okuyun.**
 
 Uyumlu DWIN T5UIC1 panel, UART/GPIO erişimli Linux SBC, Python 3.11+ ve çalışan Klipper/Moonraker kurulumu kullanın. [LCD uyumluluğunu](lcd-assets_TR.md) kontrol edin. Kurulum betiği LCD kernel firmware'ini veya fontunu yüklemez; Petrel ikonlarını uygulama ilk LCD bağlantısında otomatik eşitler.
 

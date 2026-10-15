@@ -40,7 +40,7 @@ class UARTTests(unittest.TestCase):
         # from managed icon persistence, covered in test_managed_icon_library.py.
         with patch.object(serial_module, 'Serial', return_value=port, create=True), \
                 patch.object(Driver.__init__.__globals__['time'], 'sleep'), \
-                patch('boot_artwork.sync'), patch('icon_library.sync_library'):
+                patch('boot_artwork.sync'), patch('shared_artwork.sync'), patch('icon_library.sync_library'):
             return Driver('/dev/fake', **kwargs)
 
     def test_first_handshake_frame_and_fragmented_ack_with_noise(self):

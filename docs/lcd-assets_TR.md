@@ -13,9 +13,10 @@ Panel, T5UIC1 komutlarını ve ekran yönü **1** düzenini desteklemelidir. Pet
 > **⚠️ Stok görseller otomatik değiştirilir.** Orijinal Ender-3 V2 kaynakları Petrel'in modern arayüzünün ihtiyaç duyduğu tüm ikon durumlarını, animasyonları ve görselleri sağlamıyordu. Petrel, tutarlı görünüm ve hızlı yerel ikon çizimi için kalıcı **Picture Flash** belleğindeki kaynaklarını artık kendisi yönetir. Bu işlem **geçicî değildir** ve Petrel kaldırılınca geri alınmaz.
 
 - **Açılış JPEG'i:** Petrel `assets/petrel_bootsplash.jpg` görselini Picture Flash **0** numaralı yuvaya eşitler.
+- **Ortak UI JPEG’i:** Petrel `assets/petrel_shared.jpg` görselini Picture Flash **1** numaralı yuvaya eşitler. Info, QR bölgelerini bu sayfanın çözülmüş Area 1 önbelleğinden kopyalar.
 - **3 numaralı ikon kütüphanesi:** `assets/icons/` içindeki baseline JPEG'ler 32 KiB bloklara paketlenir; **3** numaralı yuvadan başlayarak **3–15** aralığında yalnız değişen bloklar yazılır. Böylece menü ikonları, seçim durumları, baskı kontrolleri ve animasyon kareleri yeniden tekrar tekrar çizilmeden kullanılır.
 - **Gereksiz yazmaları önleme:** İçerik parmak izleri ayrı bir kalıcı Data Flash alanında tutulur; eşleşen kaynaklar normalde atlanır. Bu parmak izleri **orijinal OEM görsellerin yedeği değildir**.
-- **Otomatik üzerine yazılmayanlar:** Stok resim yuvaları **1–2**, LCD kernel'i ve font kaynakları. Baskı önizlemeleri geçici SRAM'e taşınır. Paketle sunulan ASCII fontu **isteğe bağlıdır** ve yalnız kullanıcı isterse SD kartla yüklenir.
+- **Otomatik üzerine yazılmayanlar:** Stok resim yuvası **2**, LCD kernel'i ve font kaynakları. Baskı önizlemeleri geçici SRAM'e taşınır. Paketle sunulan ASCII fontu **isteğe bağlıdır** ve yalnız kullanıcı isterse SD kartla yüklenir.
 
 **Stok Creality açılış görseline ve ikonlarına dönmek için**, Petrel'i durdurduktan sonra [orijinal DWIN_SET](../assets/stock-dwin/DWIN_SET) paketini LCD'nin microSD yuvasından yükleyin. Adımlar [orijinal DWIN'e dönüş rehberinde](restore-stock-dwin_TR.md) bulunur. Host yazılımını kaldırmak tek başına Picture Flash'ı geri yüklemez. Bu paket yalnızca **DWIN T5UIC1** içindir; DACAI/TJC ile kullanılamaz. LCD kaynakları yazıcının ana kart firmware'ini de geri yüklemez.
 

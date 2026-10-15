@@ -591,7 +591,7 @@ class CapabilityMenuTests(unittest.TestCase):
             for _ in range(20):
                 result.HMI_Info()
             self.assertEqual(result._info_scroll, maximum)
-            self.assertEqual(draw_qr.call_args.args[1], 188)
+            self.assertEqual(draw_qr.call_args.args[1], 116)
             result.get_encoder_state = Mock(return_value=result.ENCODER_DIFF_CCW)
             result.HMI_Info()
             self.assertEqual(result._info_scroll, maximum - 1)

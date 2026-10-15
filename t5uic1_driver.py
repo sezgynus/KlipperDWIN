@@ -188,6 +188,7 @@ class T5UIC1Display:
                 startup_progress(self, 40)
                 self.update()
             self._startup_sync_icons()
+            self._startup_sync_shared_artwork()
             from lcd_resources import ICON_LIBRARY_ID
             self._boot_animation_library = ICON_LIBRARY_ID
             if startup_progress is not None:
@@ -212,6 +213,10 @@ class T5UIC1Display:
     def _startup_sync_icons(self):
         from icon_library import sync_library
         sync_library(self)
+
+    def _startup_sync_shared_artwork(self):
+        from shared_artwork import sync
+        sync(self)
 
     def close(self):
         if not getattr(self, "_closed", False):
@@ -801,6 +806,12 @@ class T5UIC1Display:
         if area != 1:
             raise ValueError("cache-only JPEG loading supports virtual area 1; use show_jpeg for area 0")
         self._send(0x25, bytes((area, jpeg_id)))
+        self._cached_picture1 = jpeg_id
+
+    def ensure_cached_picture(self, jpeg_id):
+        """Reuse Area 1 until another picture or connection replaces it."""
+        if getattr(self, '_cached_picture1', None) != jpeg_id:
+            self.cache_jpeg(jpeg_id)
 
     def copy_cache1(self, x0, y0, x1, y1, x, y):
         self._send(0x26, self._words(x0, y0, x1, y1, x, y))
@@ -1057,6 +1068,8 @@ class T5UIC1Display:
     def store_sram_as_picture(self, picture_id, *, timeout=2.5):
         if not isinstance(picture_id, int) or not 0 <= picture_id <= 15:
             raise ValueError("picture ID must be 0..15")
+        if getattr(self, '_cached_picture1', None) == picture_id:
+            self._cached_picture1 = None
         with self._transaction_lock:
             self._send(0x33, b"\x5A\xA5" + bytes((picture_id,)))
             payload = self._wait_response(0x33, timeout, self._ok)

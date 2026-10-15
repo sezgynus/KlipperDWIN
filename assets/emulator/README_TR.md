@@ -14,6 +14,8 @@ Bu dosyalar Pi üzerinde ekran görüntüsü çiziminde kullanılır. Emülatör
 
 Özel panel fontu için servis ortamında `PETREL_EMULATOR_FONT` değişkenine eşleşen dosyayı verip yeniden başlatın. [Ek emülatör ayarlarına](../../docs/ui-emulator_TR.md#ek-ayarlar) bakın. Petrel stok DWIN fontuyla da çalışır; fiziksel panele paketle sunulan fontu yüklemek isteğe bağlıdır ve yalnızca yazı görünümünü değiştirir. Ekran görüntüsüyle fiziksel ekranı karşılaştırırken font kaynaklarının eşleşmesine dikkat edin.
 
+Resim slotu **1**, `../petrel_shared.jpg` dosyasından gelir; Area 1, portre sayfanın sol üstündeki QR alanını kullanır. ICO kaynakları artık QR ID 155 içermez.
+
 ## Kaynak kökeni
 
 - `0T5UIC1.HZK`: [Quint097/DWIN_Font_Tools](https://github.com/Quint097/DWIN_Font_Tools/blob/main/HZK%20Font%20Files/DWIN%20Font%20(Original)/0T5UIC1.HZK).

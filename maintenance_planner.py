@@ -60,7 +60,7 @@ def _registered(adapters):
         if not isinstance(adapter, AdapterRegistration):
             raise ValueError('Invalid Maintenance adapter registration')
         spec = definition_for(adapter.feature_id)
-        if (adapter.method not in _METHODS
+        if (type(adapter.method) is not int or adapter.method not in _METHODS
                 or not adapter.adapter_id or not isinstance(adapter.adapter_id, str)
                 or adapter.safety_profile != spec.safety_profile
                 or adapter.evidence_contract != spec.evidence_contract

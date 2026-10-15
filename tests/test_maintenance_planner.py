@@ -97,6 +97,7 @@ class PlannerTests(unittest.TestCase):
                 AdapterRegistration('H01', AUTOMATIC, 'bad', definition_for('H01').evidence_contract, 'read_only'),
                 AdapterRegistration('H01', 3, 'bad', definition_for('H01').evidence_contract, 'heater'),
                 AdapterRegistration('H01', True, 'bad', definition_for('H01').evidence_contract, 'heater'),
+                AdapterRegistration('H01', False, 'bad', definition_for('H01').evidence_contract, 'heater'),
                 AdapterRegistration('H01', AUTOMATIC, '', definition_for('H01').evidence_contract, 'heater')):
             with self.subTest(adapter=adapter), self.assertRaises(ValueError):
                 build_plan(self.snapshot, (adapter,))

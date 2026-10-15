@@ -83,11 +83,16 @@ class PhysicalPulseTests(unittest.TestCase):
             compile_pulse(row, snap, status, settings)
 
     def test_buzzer_requires_exact_off_status_and_profile(self):
-        snap, settings, status = environment((), ('petrel.buzzer',))
+        snap, settings, status = environment(
+            (), ('petrel.buzzer', 'maintenance.buzzer_output:tick'))
         settings['pwm_cycle_time tick'] = {'scale': 1, 'shutdown_value': 0}
         status['pwm_cycle_time tick'] = {'value': 0}
         row = next(r for r in guided_plan(snap) if r.feature_id == 'S18')
         p = compile_pulse(row, snap, status, settings, buzzer_output='tick')
+        denied = MaintenanceSnapshot(snap.epoch, snap.devices, snap.global_modes,
+                                     snap.config_marker, ('petrel.buzzer',))
+        with self.assertRaises(ValueError):
+            compile_pulse(row, denied, status, settings, buzzer_output='tick')
         self.assertIn('CYCLE_TIME=0.00062500', p.stimulus)
         self.assertEqual(p.duration_ms, 150)
         self.assertTrue(restored(p, status))

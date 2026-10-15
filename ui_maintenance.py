@@ -67,7 +67,7 @@ class MaintenanceViewMixin:
                                    ('Reading...', self.ICON_Info, None, None))
         if page == 'result':
             outcome = getattr(self, '_maintenance_result', None)
-            status = str(getattr(outcome, 'status', 'INCONCLUSIVE'))
+            status = str(getattr(outcome, 'status', None) or 'OBSERVED')
             reason = str(getattr(outcome, 'reason', 'unknown'))
             entries = [back,
                        (status[:25], self.ICON_Info, None, None),

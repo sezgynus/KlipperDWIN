@@ -31,8 +31,14 @@ def environment(features=('F01',), services=()):
             settings[name] = {'color_order': 'GRB'}
             status[name] = {'color_data': [(1., .0, .2, .0)]}
         devices.append(DeviceCapabilities(name, family, _add(0, feature, USER)))
+    allow = set(services)
+    for item in devices:
+        if item.family == 'led':
+            allow.add('maintenance.safe_led:' + item.name)
+        if item.name.startswith('fan_generic '):
+            allow.add('maintenance.safe_fan:' + item.name)
     snap = MaintenanceSnapshot(4, tuple(devices), _add(0, 'S18', USER),
-                               id(settings), tuple(services))
+                               id(settings), tuple(sorted(allow)))
     return snap, settings, status
 
 

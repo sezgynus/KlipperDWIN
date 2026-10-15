@@ -34,6 +34,8 @@ class ProfileTests(unittest.TestCase):
                     '{"version":1,"case_light":true,"extra":1}',
                     '{"version":1,"buzzer_output":"tick\\nM109"}',
                     '{"version":2,"case_light":true}',
+                    '{"version":1,"fan_generic_output":"x;M109"}',
+                    '{"version":1,"led_output":"servo mmu"}',
                     'x' * (MAX_BYTES + 1)):
                 path.write_text(value, encoding='utf-8')
                 self.assertEqual(read_profiles(path), ())
@@ -58,6 +60,7 @@ class ProfileTests(unittest.TestCase):
                 'version': 1, 'case_light': True, 'buzzer_output': 'tick'}),
                 encoding='utf-8')
             allow = read_profiles(path)
+            self.assertEqual(allow, (True, 'tick', '', ''))
             p = state()
             snap = discover(p, approved_integrations(p, allow))
             self.assertIn(('O03', 'output_pin case_light'),
@@ -76,6 +79,22 @@ class ProfileTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compile_pulse(row, snap, status, p.settings,
                           buzzer_output='heater')
+
+
+    def test_generic_fan_and_led_need_exact_explicit_names(self):
+        p = state()
+        p.objects += ('fan_generic aux', 'neopixel board')
+        p.settings.update({
+            'fan_generic aux': {'pin': 'PA4'},
+            'neopixel board': {'pin': 'PA5'}})
+        keys = approved_integrations(
+            p, (False, '', 'aux', 'neopixel board'))
+        self.assertIn('maintenance.safe_fan:fan_generic aux', keys)
+        self.assertIn('maintenance.safe_led:neopixel board', keys)
+        self.assertNotIn('maintenance.safe_fan:fan_generic unknown', keys)
+        p.objects = ('fan_generic aux',)
+        self.assertNotIn('maintenance.safe_led:neopixel board',
+                         approved_integrations(p, (False, '', 'aux', 'neopixel board')))
 
     def test_optional_discovery_manager_uses_profile_once_per_epoch(self):
         from maintenance_session import MaintenanceDiscoveryManager

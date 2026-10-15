@@ -49,12 +49,16 @@ def _trusted_target(row, snapshot):
     if (row.feature_id == 'F01'):
         return row.device == 'fan'
     if row.feature_id == 'F04':
-        return isinstance(row.device, str) and row.device.startswith('fan_generic ')
+        return (isinstance(row.device, str)
+                and row.device.startswith('fan_generic ')
+                and 'maintenance.safe_fan:' + row.device in snapshot.service_key)
     if row.feature_id == 'O03':
         return (row.device == 'output_pin case_light'
                 and 'maintenance.safe_pin:output_pin case_light' in snapshot.service_key)
     if row.feature_id == 'O04':
-        return isinstance(row.device, str) and row.device.startswith(_DEVICE_PREFIXES)
+        return (isinstance(row.device, str)
+                and row.device.startswith(_DEVICE_PREFIXES)
+                and 'maintenance.safe_led:' + row.device in snapshot.service_key)
     return row.feature_id == 'S18' and row.device is None and 'petrel.buzzer' in snapshot.service_key
 
 

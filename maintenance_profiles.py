@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 
 _SAFE = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,47}\Z')
+_LED_TYPES = ('led', 'neopixel', 'dotstar', 'pca9632')
 MAX_BYTES = 2048
 
 
@@ -26,14 +27,25 @@ def read_profiles(path=None):
             return ()
         raw = json.loads(target.read_text(encoding='utf-8'))
         if (not isinstance(raw, dict) or set(raw) - {
-                'version', 'case_light', 'buzzer_output'}
+                'version', 'case_light', 'buzzer_output',
+                'fan_generic_output', 'led_output'}
                 or type(raw.get('version')) is not int or raw['version'] != 1
                 or type(raw.get('case_light', False)) is not bool):
             return ()
         buzzer = raw.get('buzzer_output', '')
         if not isinstance(buzzer, str) or (buzzer and not _SAFE.fullmatch(buzzer)):
             return ()
-        return (bool(raw.get('case_light', False)), buzzer)
+        generic = raw.get('fan_generic_output', '')
+        led = raw.get('led_output', '')
+        if not isinstance(generic, str) or (generic and not _SAFE.fullmatch(generic)):
+            return ()
+        if not isinstance(led, str):
+            return ()
+        if led:
+            parts = led.split(' ', 1)
+            if len(parts) != 2 or parts[0] not in _LED_TYPES or not _SAFE.fullmatch(parts[1]):
+                return ()
+        return (bool(raw.get('case_light', False)), buzzer, generic, led)
     except (OSError, ValueError, TypeError, UnicodeError):
         return ()
 
@@ -41,9 +53,10 @@ def read_profiles(path=None):
 def approved_integrations(state, profiles):
     """Return positive, specific service keys only; never writable targets."""
     if (not getattr(state, 'ready', False)
-            or not isinstance(profiles, tuple) or len(profiles) != 2):
+            or not isinstance(profiles, tuple) or len(profiles) not in (2, 4)):
         return ()
-    allow_case, buzzer = profiles
+    allow_case, buzzer = profiles[:2]
+    generic, led = profiles[2:] if len(profiles) == 4 else ('', '')
     settings, names = state.settings, set(state.objects)
     if not isinstance(settings, Mapping):
         return ()
@@ -66,4 +79,14 @@ def approved_integrations(state, profiles):
                     and 0 < scale <= 2 and start == 0 and stop == 0):
                 services.extend(('petrel.buzzer',
                                  'maintenance.buzzer_output:' + buzzer))
+    if generic and _SAFE.fullmatch(generic):
+        name = 'fan_generic ' + generic
+        if name in names and isinstance(settings.get(name), Mapping):
+            services.append('maintenance.safe_fan:' + name)
+    if led and isinstance(led, str):
+        parts = led.split(' ', 1)
+        if (len(parts) == 2 and parts[0] in _LED_TYPES
+                and _SAFE.fullmatch(parts[1]) and led in names
+                and isinstance(settings.get(led), Mapping)):
+            services.append('maintenance.safe_led:' + led)
     return tuple(services)

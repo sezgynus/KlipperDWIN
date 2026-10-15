@@ -64,18 +64,21 @@ class Stage8GuidedTests(unittest.TestCase):
         snap = snapshot_with_devices()
         rows = guided_plan(snap)
         self.assertEqual({(r.feature_id, r.device) for r in rows},
-                         {('F01', 'fan'), ('F04', 'fan_generic extruder'),
-                          ('O04', 'neopixel frame')})
+                         {('F01', 'fan')})
         self.assertFalse(any(r.device == 'fan_generic tach' for r in rows))
         self.assertFalse(any(r.device == 'output_pin heater_enable' for r in rows))
         self.assertFalse(any(r.feature_id == 'S18' for r in rows))
 
     def test_explicit_service_evidence_enables_buzzer_and_case_light(self):
         snap = snapshot_with_devices((
-            'maintenance.safe_pin:output_pin case_light', 'petrel.buzzer'))
+            'maintenance.safe_pin:output_pin case_light', 'petrel.buzzer',
+            'maintenance.safe_fan:fan_generic extruder',
+            'maintenance.safe_led:neopixel frame'))
         keys = {(r.feature_id, r.device) for r in guided_plan(snap)}
         self.assertIn(('O03', 'output_pin case_light'), keys)
         self.assertIn(('S18', None), keys)
+        self.assertIn(('F04', 'fan_generic extruder'), keys)
+        self.assertIn(('O04', 'neopixel frame'), keys)
         self.assertNotIn(('O03', 'output_pin heater_enable'), keys)
 
     def test_consent_requires_positive_safety_and_never_claims_pass(self):

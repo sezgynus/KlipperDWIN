@@ -25,6 +25,7 @@ from printer_capabilities import PrinterCapabilities
 from maintenance_session import MaintenanceDiscoveryManager
 from maintenance_controller import MaintenanceReadController
 from maintenance_guided import guided_plan
+from maintenance_physical import MaintenancePulseController
 from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
 
 class xyze_t:
@@ -276,6 +277,8 @@ class PrinterData:
         # Created without I/O; reads happen only after an explicit request.
         self.maintenance_reader = MaintenanceReadController(
             self, self._maintenance_worker, self.client)
+        self.maintenance_pulse = MaintenancePulseController(
+            self, self._maintenance_worker, self.client)
 
     def _read(self, key, work, stamp=None):
         if stamp is None:
@@ -462,6 +465,7 @@ class PrinterData:
         self.MACHINE_SIZE = 'x'.join('{:g}'.format(value) for value in caps.build_size)
 
     def close(self):
+        self.maintenance_pulse.close()
         self.maintenance_reader.close()
         self.maintenance.clear()
         self.subscription.close()
@@ -476,6 +480,21 @@ class PrinterData:
     def maintenance_guided_plan(self):
         # Passive target discovery only; not an actuation authorization.
         return guided_plan(self.maintenance.snapshot)
+
+    def start_maintenance_physical(self, feature_id, device=None, **kwargs):
+        return self.maintenance_pulse.start(feature_id, device, **kwargs)
+
+    def poll_maintenance_physical(self):
+        return self.maintenance_pulse.poll()
+
+    def confirm_maintenance_physical(self):
+        return self.maintenance_pulse.confirm()
+
+    def observe_maintenance_physical(self, seen):
+        return self.maintenance_pulse.observe(seen)
+
+    def cancel_maintenance_physical(self):
+        return self.maintenance_pulse.cancel()
 
     def start_maintenance_read(self, feature_id, timeout=8.0):
         return self.maintenance_reader.start(feature_id, timeout=timeout)
@@ -556,6 +575,8 @@ class PrinterData:
                                 guard=device_is_off, report_error=False)
 
     def power_off_block_reason(self):
+        if self.maintenance_pulse.pending:
+            return 'Maintenance operation is active'
         snapshot = self.subscription.snapshot()
         status = snapshot.get('status', {})
         if status.get('print_stats', {}).get('state') in ('printing', 'paused', 'pausing'):
@@ -862,6 +883,7 @@ class PrinterData:
                 state = PrinterState.from_snapshot(self.subscription.snapshot())
             if not state.ready:
                 if self.state.ready:
+                    self.maintenance_pulse.cancel()
                     self.maintenance_reader.cancel()
                     self.maintenance.clear()
                 self.state = state
@@ -998,6 +1020,7 @@ class PrinterData:
         self._apply_capabilities(caps)
         self.SHORT_BUILD_VERSION = state.software_version
         if state.epoch != self._file_epoch:
+            self.maintenance_pulse.cancel()
             self.maintenance_reader.cancel()
             # Reuse the existing Klipper READY epoch transition. Never
             # rediscover on menu entry or during ordinary print updates.
@@ -1058,6 +1081,8 @@ class PrinterData:
         return 0
 
     def openAndPrintFile(self, path):
+        if self.maintenance_pulse.pending:
+            raise ValueError('Wait for Maintenance pulse to finish')
         if self.jog_recovery_required:
             raise ValueError('Restore jog state before starting a print')
         if (not isinstance(path, str) or not self._files_loaded or self.file_error

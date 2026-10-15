@@ -154,6 +154,32 @@ class PhysicalControllerTests(unittest.TestCase):
         self.runner.poll(); self.worker.next()
         self.assertEqual(self.runner.poll().status, 'ABORTED')
 
+    def test_petrel_backend_creates_opt_in_physical_controller(self):
+        from test_regressions import backend
+        from unittest.mock import patch
+        from read_fixture import ImmediateReadWorker
+        import tempfile
+        with patch.object(backend, 'MoonrakerClient'), \
+                patch.object(backend, 'MoonrakerSubscription'), \
+                patch.object(backend, 'ReadWorker', ImmediateReadWorker):
+            pd = backend.PrinterData(
+                settings_path=tempfile.mktemp(prefix='petrel-physical-', suffix='.json'))
+        self.assertIs(pd.maintenance_pulse._printer, pd)
+        self.assertIs(pd.maintenance_pulse._worker, pd._maintenance_worker)
+        self.assertFalse(pd.maintenance_pulse.pending)
+        self.assertFalse(pd.start_maintenance_physical('F01', 'fan')[0])
+        self.assertIsNone(pd.poll_maintenance_physical())
+        pd.close()
+
+    def test_physical_runner_blocks_power_off_and_print_start(self):
+        from test_regressions import backend
+        pd = backend.PrinterData.__new__(backend.PrinterData)
+        pd.maintenance_pulse = SimpleNamespace(pending=True)
+        self.assertEqual(pd.power_off_block_reason(),
+                         'Maintenance operation is active')
+        with self.assertRaisesRegex(ValueError, 'Maintenance'):
+            pd.openAndPrintFile('test.gcode')
+
     def test_unregistered_and_busy_read_blocked(self):
         self.assertFalse(self.runner.start('F01', 'wrong')[0])
         self.assertFalse(self.runner.start('S18')[0])

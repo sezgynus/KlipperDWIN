@@ -46,10 +46,10 @@ class MenuLiveValueTests(unittest.TestCase):
         view.Draw_Temperature_Menu()
         view.Draw_Menu_Line = Mock()
         data['status']['extruder']['target'] = 200
-        data['status']['heater_bed']['target'] = 60
+        data['status']['heater_bed']['target'] = 65
         self.publish(view, data)
         self.assertEqual(view._list_render['values'][view.TEMP_CASE_TEMP], 200)
-        self.assertEqual(view._list_render['values'][view.TEMP_CASE_BED], 60)
+        self.assertEqual(view._list_render['values'][view.TEMP_CASE_BED], 65)
         self.assertEqual([c.args[0] for c in view.Draw_Menu_Line.call_args_list], [1, 2])
         view.lcd.reset_mock()
         view.Draw_Menu_Line.reset_mock()
@@ -87,7 +87,7 @@ class MenuLiveValueTests(unittest.TestCase):
                 view.Draw_Menu_Line.assert_called_once()
                 self.assertEqual(view.Draw_Menu_Line.call_args.args[0], index + 1)
 
-    def test_live_refresh_does_not_overwrite_active_thermal_or_preset_drafts(self):
+    def test_live_refresh_does_not_overwrite_active_thermal_drafts(self):
         for key, attr, handler in (('FAN', 'Fan_speed', 'FanSpeed'),
                                    ('TEMP', 'E_Temp', 'ETemp'),
                                    ('BED', 'Bed_Temp', 'BedTemp')):

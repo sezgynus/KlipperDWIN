@@ -115,3 +115,5 @@ Klipper'ın `bme280`, `htu21d`, `sht3x` ve `aht10` sensör nesneleri, Petrel'in 
 ### TMC sıcaklık monitörleri: tek seferlik yapılandırılmış API kanıtı
 
 Her Klipper READY döneminde mevcut read worker, sınırlı Moonraker servis sorgularına ek olarak bir kez salt okunur `GET /printer/objects/query?heaters=available_monitors` isteği yapar. Klipper sürücü devre dışıyken canlı `temperature` alanı `null` olsa bile sıcaklık monitörü sağlayan sürücüleri listeler. Yalnızca tanınan TMC nesneleri küçük olumlu kanıt etiketlerine çevrilir (en fazla 64); API yanıtları ve ham nesneler atılır. Sürücü etkinleştirilmez, G-code gönderilmez, abonelik eklenmez. Gerçek test başladığında güncel ölçüm ayrıca doğrulanır.
+
+Tanınan Klipper TMC nesnelerinde belgelenen yapılandırılmış `drv_status` alanı, motor devre dışıyken `null` olabilir. Bu nedenle M07/M10 açılışta başarılı test değil, tanılama **yeteneği** olarak keşfedilir. Gerçek hata değerlendirmesi güncel ve `null` olmayan durumla sürücüye özel bit çözümlemesi gerektirir. Keşif sırasında `DUMP_TMC` gönderilmez; sürücü sıcaklığı yalnız `heaters.available_monitors` ile belirlenir.

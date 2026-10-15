@@ -248,17 +248,15 @@ def discover(state, services=()):
             family = 'driver'
             if _is_number(_get(cfg, 'run_current')) or _is_number(_get(device_status, 'run_current')):
                 bits = _add(bits, 'M09', INFORMATION)
-            # DUMP_TMC is textual G-code, not a structured status API.
-            # Do not advertise fault/temperature tests without actual fields.
+            # Klipper defines drv_status for recognized TMC objects but
+            # returns null while idle/disabled. Do not confuse absence of
+            # a READY sample with lack of a diagnostic capability. Only
+            # a fresh non-null measurement can pass a runtime test.
+            bits = _add(bits, 'M07', AUTOMATIC | INFORMATION)
+            bits = _add(bits, 'M10', AUTOMATIC)
             if (_is_number(_get(device_status, 'temperature')) or
                     'maintenance.driver_thermal_monitor:' + name in services):
-                # Heater.available_monitors confirms the driver offers a
-                # temperature monitor. A null/absent sample at READY does
-                # not imply the channel is unsupported.
                 bits = _add(bits, 'M08', AUTOMATIC | INFORMATION)
-            if isinstance(_get(device_status, 'drv_status'), Mapping):
-                bits = _add(bits, 'M07', AUTOMATIC | INFORMATION)
-                bits = _add(bits, 'M10', AUTOMATIC)
         elif name.startswith(('stepper_x', 'stepper_y', 'stepper_z')):
             family = 'stepper'
             if has_motion:

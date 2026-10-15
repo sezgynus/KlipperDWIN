@@ -59,15 +59,19 @@ class ExtendedTests(unittest.TestCase):
         self.assertEqual(physical.method('M01'), AUTOMATIC | USER)
         self.assertEqual(physical.method('M02'), NONE)
 
-    def test_tmc_does_not_guess_driver_registers(self):
+    def test_tmc_status_capability_not_hidden_when_driver_is_disabled(self):
         a = device('tmc2208 stepper_x')
-        for feature in ('M07', 'M08', 'M09', 'M10'):
-            self.assertEqual(a.method(feature, 'tmc2208 stepper_x'), NONE)
+        self.assertEqual(a.method('M07', 'tmc2208 stepper_x'), AUTOMATIC | INFORMATION)
+        self.assertEqual(a.method('M10', 'tmc2208 stepper_x'), AUTOMATIC)
+        self.assertEqual(a.method('M08', 'tmc2208 stepper_x'), NONE)
+        self.assertEqual(a.method('M09', 'tmc2208 stepper_x'), NONE)
         b = device('tmc2209 stepper_x', {'run_current': .65},
-                   {'temperature': None, 'drv_status': {'otpw': False}})
+                   {'temperature': None, 'drv_status': None})
         self.assertEqual(b.method('M09', 'tmc2209 stepper_x'), INFORMATION)
         self.assertEqual(b.method('M08', 'tmc2209 stepper_x'), NONE)
         self.assertEqual(b.method('M07', 'tmc2209 stepper_x'), AUTOMATIC | INFORMATION)
+        self.assertEqual(b.method('M10', 'tmc2209 stepper_x'), AUTOMATIC)
+        self.assertEqual(device('tmc9999 stepper_x').method('M07', 'tmc9999 stepper_x'), NONE)
 
     def test_temperature_history_only_after_baseline(self):
         name = 'heater_bed'

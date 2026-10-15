@@ -3444,6 +3444,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self._focus_tune_tick()
         elif self.checkkey in (self.TuneEdit, self.PrintErrorDetails):
             self._focus_tick_quiet()
+        elif update and self.checkkey == self.TemperatureID:
+            self.Draw_Temperature_Menu()
+        elif update and self.checkkey == self.AxisMove:
+            self.Draw_Move_Menu()
         elif update and self.checkkey == self.Motion:
             self.Draw_Motion_Menu()
         elif update and self.checkkey == self.BedMeshMenu:

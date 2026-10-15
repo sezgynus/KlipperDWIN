@@ -84,6 +84,24 @@ class ExtendedTests(unittest.TestCase):
         self.assertEqual(tagged.method('H12', name), INFORMATION)
         self.assertEqual(tagged.method('H18', name), AUTOMATIC)
 
+    def test_environmental_driver_capabilities_without_live_subscription(self):
+        sensors = State(('bme280 chamber', 'sht3x chamber',
+                         'htu21d cabinet', 'aht10 feeder'))
+        result = discover(sensors)
+        for name in sensors.objects:
+            self.assertEqual(result.method('H14', name), INFORMATION)
+            self.assertEqual(result.method('H16', name), INFORMATION)
+        self.assertEqual(result.method('E15'), NONE)
+        mapped = discover(sensors, ('maintenance.chamber_humidity_sensor',))
+        self.assertEqual(mapped.method('E15'), INFORMATION)
+
+        # A BME280 driver can also manage a pressure-only BMP280; the
+        # humidity-dependent chamber feature must not be assumed.
+        bmp = discover(State(('bme280 pressure_only',)),
+                       ('maintenance.chamber_humidity_sensor',))
+        self.assertEqual(bmp.method('H16', 'bme280 pressure_only'), INFORMATION)
+        self.assertEqual(bmp.method('E15'), NONE)
+
     def test_humidity_not_automatically_chamber_identity(self):
         s = State(('temperature_sensor chamber',),
                   status={'temperature_sensor chamber': {'temperature': 34, 'humidity': 48}})

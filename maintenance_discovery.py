@@ -316,8 +316,13 @@ def discover(state, services=()):
         elif name.startswith(('bme280 ', 'htu21d ', 'sht3x ', 'aht10 ')):
             family = 'sensor'
             bits = _add(bits, 'H14', INFORMATION)
-            if _is_number(_get(device_status, 'humidity')):
-                bits = _add(bits, 'H16', INFORMATION)
+            # These Klipper modules expose additional structured status
+            # fields even when Petrel does not subscribe to them at READY.
+            # A BME280 driver may attach to a BMP280 (pressure only);
+            # never assume its humidity channel exists.
+            bits = _add(bits, 'H16', INFORMATION)
+            if (name.startswith(('htu21d ', 'sht3x ', 'aht10 ')) or
+                    _is_number(_get(device_status, 'humidity'))):
                 humidity_sensors.add(name)
             temperature_sensors.add(name)
         if family is not None and bits:

@@ -11,6 +11,9 @@ class MaintenanceUIFlows(unittest.TestCase):
         d.checkkey = d.MaintenanceMenu
         d._maintenance_page = 'root'
         d._maintenance_selection = 0
+        # A lightweight fake supplies mutable phase for UI-navigation tests.
+        # The real controller exposes phase as a read-only property.
+        d.pd.maintenance_pulse = SimpleNamespace(phase=None, pending=False)
         d.get_encoder_state = Mock()
         d.Draw_Maintenance_Menu()
         d.pd.client.get.reset_mock()

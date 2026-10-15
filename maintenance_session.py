@@ -3,8 +3,11 @@
 The owner retains a compact immutable capability snapshot, not source state,
 HTTP replies, a client, worker, Future or a background polling task.
 """
+import logging
 from threading import Lock
 from maintenance_cache import MaintenanceCache
+
+_log = logging.getLogger(__name__)
 
 IDLE_STATES = frozenset(('standby', 'complete', 'cancelled', 'error'))
 
@@ -38,8 +41,11 @@ class MaintenanceDiscoveryManager:
 
     def clear(self):
         with self._lock:
+            previous = self.cache.snapshot
             self._generation += 1
             self.cache.invalidate()
+        if previous is not None:
+            _log.info('Maintenance discovery: CLEAR epoch=%d', previous.epoch)
 
     def ready(self, state, client=None, worker=None, latest=None):
         """Once per READY epoch: discover and optionally gather service evidence.
@@ -58,6 +64,11 @@ class MaintenanceDiscoveryManager:
             self._generation += 1
             generation = self._generation
             snapshot = self.cache.get(state)
+        # One record per actual READY epoch, never per telemetry revision
+        # or per UI navigation. Do not log config names, values or tokens.
+        _log.info('Maintenance discovery: READY epoch=%d devices=%d features=%d',
+                  state.epoch, len(snapshot.devices),
+                  len(snapshot.available_features()))
 
         if client is None or worker is None or latest is None:
             return snapshot
@@ -67,8 +78,6 @@ class MaintenanceDiscoveryManager:
         def work():
             try:
                 services = probe(client)
-                if not services:
-                    return
                 current = latest()
                 if not current.ready or current.epoch != epoch or id(current.settings) != marker:
                     return
@@ -77,7 +86,15 @@ class MaintenanceDiscoveryManager:
                         return
                     # This is the completion phase of the same startup
                     # discovery, not a new scan on entering Maintenance.
-                    self.cache.get(current, services)
+                    if services:
+                        result = self.cache.get(current, services)
+                    else:
+                        result = self.cache.snapshot
+                if result is not None:
+                    _log.info(
+                        'Maintenance discovery: EVIDENCE epoch=%d services=%d devices=%d features=%d',
+                        epoch, len(services), len(result.devices),
+                        len(result.available_features()))
             except Exception:
                 # Optional service evidence must never disrupt printer work.
                 return

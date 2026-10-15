@@ -143,6 +143,48 @@ class Tests(unittest.TestCase):
         self.assertIs(manager.ready(s, client, worker, lambda: s), with_services)
         self.assertEqual(worker.calls, 1)
 
+    def test_lifecycle_logs_only_at_ready_evidence_and_invalidation(self):
+        s = State()
+        manager = MaintenanceDiscoveryManager()
+        worker = Worker()
+        class Client:
+            def get(self, path):
+                if path == '/server/history/totals':
+                    return {'result': {'job_totals': {}}}
+                return {'result': {}}
+
+        with self.assertLogs('maintenance_session', level='INFO') as captured:
+            first = manager.ready(s, Client(), worker, lambda: s)
+            self.assertIs(manager.ready(s, Client(), worker, lambda: s), first)
+            worker.drain()
+            enriched = manager.snapshot
+            self.assertIs(manager.ready(s, Client(), worker, lambda: s), enriched)
+            manager.clear()
+
+        lines = [record.getMessage() for record in captured.records]
+        self.assertEqual(
+            [line.split(': ')[1].split()[0] for line in lines],
+            ['READY', 'EVIDENCE', 'CLEAR'])
+        self.assertIn('epoch=3', lines[0])
+        self.assertIn('services=1', lines[1])
+        self.assertEqual(worker.calls, 1)
+
+    def test_no_evidence_still_completes_ready_lifecycle_once(self):
+        manager = MaintenanceDiscoveryManager()
+        worker = Worker()
+        s = State()
+        class Client:
+            def get(self, path):
+                return {'result': {}}
+
+        with self.assertLogs('maintenance_session', level='INFO') as captured:
+            manager.ready(s, Client(), worker, lambda: s)
+            worker.drain()
+        lines = [r.getMessage() for r in captured.records]
+        self.assertEqual(len(lines), 2)
+        self.assertIn('READY epoch=3', lines[0])
+        self.assertIn('EVIDENCE epoch=3 services=0', lines[1])
+
     def test_discovery_can_run_at_ready_even_during_print_but_entry_cannot(self):
         s = SimpleNamespace(ready=True, epoch=3, objects=('fan',),
                             settings={'fan': {'max_power': 1.}},

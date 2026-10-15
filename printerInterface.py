@@ -23,6 +23,7 @@ from preset_store import PresetStore
 from printer_state import PrinterState
 from printer_capabilities import PrinterCapabilities
 from maintenance_session import MaintenanceDiscoveryManager
+from maintenance_controller import MaintenanceReadController
 from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
 
 class xyze_t:
@@ -271,6 +272,9 @@ class PrinterData:
         self.probe_wizard = ProbeWizard(self)
         self.screws_tilt = ScrewsTiltSession(self)
         self.bed_mesh = BedMeshSession(self)
+        # Created without I/O; reads happen only after an explicit request.
+        self.maintenance_reader = MaintenanceReadController(
+            self, self._maintenance_worker, self.client)
 
     def _read(self, key, work, stamp=None):
         if stamp is None:
@@ -457,12 +461,25 @@ class PrinterData:
         self.MACHINE_SIZE = 'x'.join('{:g}'.format(value) for value in caps.build_size)
 
     def close(self):
+        self.maintenance_reader.close()
         self.maintenance.clear()
         self.subscription.close()
         self._read_worker.close()
         self._maintenance_worker.close()
         self.spoolman_client.close()
         self.client.close()
+
+    def maintenance_read_plan(self):
+        return self.maintenance_reader.available()
+
+    def start_maintenance_read(self, feature_id, timeout=8.0):
+        return self.maintenance_reader.start(feature_id, timeout=timeout)
+
+    def poll_maintenance_read(self):
+        return self.maintenance_reader.poll()
+
+    def cancel_maintenance_read(self):
+        return self.maintenance_reader.cancel()
 
     def check_command_results(self):
         from queue import Empty
@@ -840,6 +857,7 @@ class PrinterData:
                 state = PrinterState.from_snapshot(self.subscription.snapshot())
             if not state.ready:
                 if self.state.ready:
+                    self.maintenance_reader.cancel()
                     self.maintenance.clear()
                 self.state = state
                 self._files_loaded = False
@@ -975,6 +993,7 @@ class PrinterData:
         self._apply_capabilities(caps)
         self.SHORT_BUILD_VERSION = state.software_version
         if state.epoch != self._file_epoch:
+            self.maintenance_reader.cancel()
             # Reuse the existing Klipper READY epoch transition. Never
             # rediscover on menu entry or during ordinary print updates.
             self.maintenance.ready(state, self.client, self._maintenance_worker,

@@ -49,8 +49,11 @@ class Stage8GuidedTests(unittest.TestCase):
     def test_printer_backend_exposes_passive_guided_candidates_without_io(self):
         from test_capabilities import printer, snapshot
         pd = printer(snapshot())
+        # This UI-oriented printer fixture doesn't declare all Maintenance
+        # services; inject a controlled discovery snapshot to test only the
+        # backend's passive plan route without guessing hardware from UI data.
+        pd.maintenance.cache._result = snapshot_with_devices()
         original = pd.maintenance.snapshot
-        self.assertIsNotNone(original)
         pd.client.get.reset_mock()
         rows = pd.maintenance_guided_plan()
         self.assertIn(('F01', 'fan'), {(r.feature_id, r.device) for r in rows})

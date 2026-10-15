@@ -152,3 +152,7 @@ The tool is an **external, explicitly run** standard-library-only sampler readin
 ### Config-backed steppers are not necessarily printer status objects
 
 The active `configfile.settings` is authoritative for `stepper_x/y/z` (and numbered variants), even when `printer.objects.list` lacks those section names. Maintenance discovery now includes only these recognized **effective configuration sections** in a temporary candidate set; the final snapshot retains only compact per-device results. This restores motor M04/M05/M06 and physical endstop M01 recognition without requesting additional status or issuing G-code. Numbered auxiliary Z motors expose only coarse `STEPPER_BUZZ` capability, not independent coordinated G1 travel/measurement. Z-endstop P06 requires a physical, non-virtual endstop pin.
+
+### Effective configuration is required for accelerometers and resonance tester
+
+Klipper `printer.objects.list` returns only objects with a `get_status()` method. Drivers such as ADXL345 and the `ResonanceTester` may not implement this method, even when correctly configured and fully supported. Maintenance now recognizes the loaded `configfile.settings` sections `adxl345`, `lis2dw` and other supported accelerometer types (with named variants), and `resonance_tester`. It validates the configured chip-to-axis bindings before offering R02/R03/R04. A pin named `adxl_power` **does not** prove a sensor is configured. Successful live data collection remains a separate test-time requirement; no sensor is energized during discovery.

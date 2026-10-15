@@ -165,14 +165,22 @@ def discover(state, services=()):
     # Stepper sections are authoritative in configfile.settings even if
     # Klipper does not expose them as individual status objects. Consider
     # only supported X/Y/Z names; never promote arbitrary config sections.
+    accel_types = ('adxl345', 'lis2dw', 'mpu9250', 'icm20948',
+                   'lis3dh', 'bmi160', 'bmi270')
     if isinstance(settings, Mapping):
-        names.update(section for section in settings if _stepper_section(section))
+        # printer.objects.list is ONLY status-capable Klipper objects.
+        # ResonanceTester and accelerometer drivers such as ADXL345 do
+        # not expose get_status(), so a valid, loaded config section is
+        # the authoritative structural evidence for these features.
+        names.update(section for section in settings
+                     if _stepper_section(section)
+                     or section == 'resonance_tester'
+                     or (isinstance(section, str)
+                         and section.split(' ', 1)[0] in accel_types))
     services = frozenset(services)   # Explicit API evidence, never guesses.
     results = []
     physical_endstops = False
-    accel_types = ('adxl345', 'lis2dw', 'mpu9250', 'icm20948',
-                   'lis3dh', 'bmi160', 'bmi270')
-    accelerometers = {n for n in names if n.split(' ')[0] in accel_types}
+    accelerometers = {n for n in names if n.split(' ', 1)[0] in accel_types}
     resonance_config = _get(settings, 'resonance_tester', {})
     assigned_axes = {}
     if 'resonance_tester' in names:

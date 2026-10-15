@@ -23,6 +23,49 @@ def device(name, cfg=None, status=None, others=()):
 
 
 class ExtendedTests(unittest.TestCase):
+    def test_config_only_accelerometer_and_resonance_are_discovered(self):
+        # Klipper objects/list filters objects lacking get_status; an
+        # attached ADXL345 and ResonanceTester may exist only in the
+        # effective configfile.settings received at Klipper READY.
+        state = State(
+            ('toolhead', 'gcode_move', 'output_pin adxl_power'),
+            {'adxl345': {'cs_pin': 'rpi:None'},
+             'resonance_tester': {'accel_chip': 'adxl345',
+                                  'probe_points': [[100., 100., 20.]]}})
+        caps = discover(state)
+        self.assertEqual(caps.method('R01', 'adxl345'), AUTOMATIC | INFORMATION)
+        self.assertEqual(caps.method('R02', 'adxl345'), AUTOMATIC)
+        self.assertEqual(caps.method('R03'), AUTOMATIC)
+        self.assertEqual(caps.method('R04'), CALIBRATION)
+        self.assertEqual(caps.axes('R02'), 3)
+        self.assertIn('R02', caps.available_features())
+        self.assertEqual(len(caps.instances('R01')), 1)
+
+        # A power pin name alone is NOT accelerometer evidence.
+        power_only = discover(State(('output_pin adxl_power',)))
+        self.assertEqual(power_only.method('R01'), NONE)
+        self.assertEqual(power_only.method('R02'), NONE)
+        no_tester = discover(State((), {'adxl345': {'cs_pin': 'rpi:None'}}))
+        self.assertEqual(no_tester.method('R01', 'adxl345'),
+                         AUTOMATIC | INFORMATION)
+        self.assertEqual(no_tester.method('R02'), NONE)
+        mismatched_chip = discover(State(
+            (), {'adxl345': {}, 'resonance_tester': {'accel_chip': 'lis2dw'}}))
+        self.assertEqual(mismatched_chip.method('R01'), AUTOMATIC | INFORMATION)
+        self.assertEqual(mismatched_chip.method('R02'), NONE)
+
+    def test_config_only_named_accelerometers_keep_axis_assignment(self):
+        state = State((), {
+            'adxl345 toolhead': {'cs_pin': 'rpi:None'},
+            'lis2dw bed': {'cs_pin': 'rpi:None'},
+            'resonance_tester': {'accel_chip_x': 'adxl345 toolhead',
+                                 'accel_chip_y': 'lis2dw bed'}})
+        caps = discover(state)
+        self.assertEqual(caps.axes('R02', 'adxl345 toolhead'), 1)
+        self.assertEqual(caps.axes('R02', 'lis2dw bed'), 2)
+        self.assertEqual(caps.axes('R02'), 3)
+        self.assertEqual(len(caps.instances('R01')), 2)
+
     def test_resonance_requires_sensor_assignment_and_correct_chip(self):
         s = State(('adxl345', 'lis2dw extra', 'resonance_tester'),
                   {'resonance_tester': {'accel_chip_x': 'lis2dw extra'}})

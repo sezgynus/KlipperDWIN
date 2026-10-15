@@ -152,3 +152,7 @@ Araç yalnız kullanıcı çalıştırdığında devreye giren, standart Python 
 ### Yapılandırılmış step motorlar her zaman ayrı Klipper durum nesnesi değildir
 
 Etkin `configfile.settings`, `printer.objects.list` içinde aynı adlar ayrı durum nesneleri olarak bulunmasa bile `stepper_x/y/z` ve numaralı varyantları için yetkili kaynaktır. Maintenance artık yalnız bu tanınmış **etkin yapılandırma bölümlerini** geçici keşif adaylarına ekler ve sonuçta yalnız sıkıştırılmış cihaz yeteneklerini tutar. Böylece ek durum aboneliği veya G-code olmadan M04/M05/M06 motor ve M01 fiziksel endstop yetenekleri keşfedilir. Numaralı yardımcı Z motorlarında bağımsız G1 seyahat/mesafe testi sunulmaz; yalnız kaba `STEPPER_BUZZ` desteği vardır. P06, sanal olmayan fiziksel Z-endstop pini gerektirir.
+
+### İvmeölçer ve rezonans testinde etkin yapılandırma kanıtı
+
+Klipper `printer.objects.list` yalnız `get_status()` metodu olan nesneleri listeler. ADXL345 gibi sürücüler ve `ResonanceTester` bu metodu sağlamadığında, geçerli ve çalışan yapılandırmaya rağmen listede görünmeyebilir. Maintenance artık etkin `configfile.settings` içindeki `adxl345`, `lis2dw` ve diğer desteklenen ivmeölçer bölümlerini (adlandırılmış varyantlarla) ve `resonance_tester` bölümünü tanır. R02/R03/R04 için ivmeölçer-eksen atamasını doğrular. Yalnız `adxl_power` adlı bir pin bulunması sensör kanıtı **değildir**. Gerçek sensör verisi ve başarılı ölçüm test sırasında ayrıca doğrulanır; keşifte sensöre enerji verilmez.

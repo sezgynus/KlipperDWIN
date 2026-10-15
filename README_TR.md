@@ -57,16 +57,16 @@ Başlamadan önce [ekran/kaynaklar](docs/lcd-assets_TR.md) ve [bağlantıları](
 
 ## Hızlı başlangıç
 
-Bu belgeler, Petrel'in `master` ile birleşecek `feature/graphite-theme` dalındaki güncel arayüz restorasyonu geliştirmesini anlatır. Buradaki ekranları elde etmek için bu dalı kullanın:
+Petrel'i kurun:
 
 ```bash
 cd ~
-git clone --branch feature/graphite-theme https://github.com/sezgynus/Petrel.git
+git clone https://github.com/sezgynus/Petrel.git
 cd ~/Petrel
 ./install.sh
 ```
 
-Installer bağımlılıkları, `Petrel.service` servisini, harici ayarları ve Moonraker Update Manager kaydını hazırlar. [LCD fontu ve ilk açılış kontrollerini](docs/installation_TR.md#lcd-kaynakları-ve-ilk-açılış) tamamlayın. Update Manager şu anda `master` izler; geliştirme kopyasını güncellemeden önce [güncelleme rehberini](docs/installation_TR.md#güncelleme) okuyun. Mevcut kurulumların ayarları [geçişte](docs/installation_TR.md#güncelleme) korunur.
+Installer bağımlılıkları, `Petrel.service` servisini, harici ayarları ve Moonraker Update Manager kaydını hazırlar. [LCD fontu ve ilk açılış kontrollerini](docs/installation_TR.md#lcd-kaynakları-ve-ilk-açılış) tamamlayın. Petrel'i Moonraker Update Manager veya LCD'deki Info ekranından güncelleyebilirsiniz; ayrıntılar için [güncelleme rehberine](docs/installation_TR.md#güncelleme) bakın. Mevcut kurulumların ayarları [geçişte](docs/installation_TR.md#güncelleme) korunur.
 
 Bağlantı/enkoder/güç ayarlarını daha sonra değiştirmek için `~/Petrel` içinde `./configure.sh` çalıştırın. Gezinmek için çevirin, seçmek için basın; sayısal değerlerde çevirip yeniden basarak onaylayın. Tune düzenleyicisi **Apply** kullanır; bazı sayfalarda ayrıca **Save** gerekir. **Back** geri döner; Home sayfaları arasında ilerlemek için çevirmeye devam edin.
 

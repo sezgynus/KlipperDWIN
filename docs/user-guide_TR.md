@@ -204,8 +204,6 @@ Ses ayarına basın, çevirmeyle değiştirin ve tekrar basarak kaydedin. Ses se
   <img src="assets/screens/framed/info-update-current.png" width="360" alt="Güncel">
 </p>
 
-`feature/graphite-theme` kullanıyorsanız dalı korumak için [geliştirme dalı güncelleme adımlarını](installation_TR.md#geliştirme-dalını-güncelleme) izleyin; aşağıdaki Update/Soft recovery yolu `master` kurulumları içindir.
-
 Repoyu açmak için proje QR kodunu tarayın. LCD'den güncellemek için:
 
 1. Yazıcıyı boşta bırakın ve **Check for updates** düğmesine kaydırın. Encodere basın.

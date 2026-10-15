@@ -57,16 +57,16 @@ Check [display/resources](docs/lcd-assets.md) and [wiring](docs/installation.md#
 
 ## Quick start
 
-These documents describe Petrel's current UI restoration development on `feature/graphite-theme`, which will merge into `master`. Use this branch to reproduce the screens shown here:
+Install Petrel:
 
 ```bash
 cd ~
-git clone --branch feature/graphite-theme https://github.com/sezgynus/Petrel.git
+git clone https://github.com/sezgynus/Petrel.git
 cd ~/Petrel
 ./install.sh
 ```
 
-The installer prepares dependencies, `Petrel.service`, external settings and Moonraker Update Manager. Complete the [LCD font and first-start checks](docs/installation.md#lcd-resources-and-first-start). Update Manager currently follows `master`; read the [update guidance](docs/installation.md#update) before updating this development checkout. Existing installations preserve settings during [migration](docs/installation.md#update).
+The installer prepares dependencies, `Petrel.service`, external settings and Moonraker Update Manager. Complete the [LCD font and first-start checks](docs/installation.md#lcd-resources-and-first-start). You can update Petrel through Moonraker Update Manager or the LCD Info screen; see the [update guidance](docs/installation.md#update). Existing installations preserve settings during [migration](docs/installation.md#update).
 
 To change connection/encoder/power settings later, run `./configure.sh` from `~/Petrel`. Rotate to navigate and press to select; confirm numeric values by rotating and pressing again. The Tune editor uses **Apply**; some pages also require **Save**. **Back** returns; keep rotating to move between Home pages.
 

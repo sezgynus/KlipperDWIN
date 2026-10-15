@@ -204,8 +204,6 @@ Open **Home → Info** or **Control → Info**, then rotate to scroll through Ma
   <img src="assets/screens/framed/info-update-current.png" width="360" alt="Up to date">
 </p>
 
-If you use `feature/graphite-theme`, follow the [development-branch update steps](installation.md#update-the-development-branch) to retain it; the Update/Soft recovery path below is for `master` installations.
-
 Scan the project QR to open the repository. To update from the LCD:
 
 1. Leave the printer idle and scroll to **Check for updates**. Press the encoder.

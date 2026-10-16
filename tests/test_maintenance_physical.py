@@ -32,10 +32,13 @@ class Client:
         self.status = {'fan': {'speed': .35}}
         self.queue = {'queue_state': 'ready', 'queued_jobs': []}
         self.components = ['job_queue']
+        self.raw_config = {}
     def get(self, path):
         self.paths.append(path)
         if path == '/server/info': return {'result': {'components': self.components}}
         if path == '/server/job_queue/status': return {'result': self.queue}
+        if path == '/printer/objects/query?configfile':
+            return {'result': {'status': {'configfile': {'config': self.raw_config}}}}
         if path.startswith('/printer/objects/query?'):
             return {'result': {'status': self.status}}
         raise AssertionError('Unexpected GET')
@@ -284,6 +287,7 @@ class PhysicalControllerTests(unittest.TestCase):
             'scale': 1.0, 'cycle_time': 0.001}}
         raw['objects'] = ('webhooks',)  # Excluded from objects/list by Klipper.
         self.printer.state = PrinterState.from_snapshot(raw)
+        self.client.raw_config = {'pwm_cycle_time Buzzer': {'pin': 'PB13'}}
         services = approved_integrations(self.printer.state,
                                          (False, 'buzzer', '', ''))
         self.printer.maintenance.snapshot = discover(self.printer.state, services)
@@ -297,10 +301,12 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertIsNone(self.runner.poll())
         self.assertEqual(self.runner.phase, 'await_confirmation')
         self.assertFalse(any(path.startswith('/printer/objects/query?')
+                             and path != '/printer/objects/query?configfile'
                              for path in self.client.paths))
         self.assertEqual(self.runner.confirm(), (True, 'bounded_pulse_queued'))
         self.assertEqual(len(self.commands), 1)
-        self.assertIn('SET_PIN PIN=buzzer VALUE=0', self.commands[0][1]['script'])
+        self.assertIn('SET_PIN PIN=Buzzer VALUE=0', self.commands[0][1]['script'])
+        self.assertNotIn('PIN=buzzer', self.commands[0][1]['script'])
         self.assertTrue(self.commands[0][2]())
         self.commands[0][0].set_result({'result': 'ok'})
         self.assertIsNone(self.runner.poll())
@@ -309,11 +315,42 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertIsNone(self.runner.poll())
         self.assertEqual(self.runner.phase, 'await_observation')
         self.assertFalse(any(path.startswith('/printer/objects/query?')
+                             and path != '/printer/objects/query?configfile'
                              for path in self.client.paths))
         result = self.runner.observe(True)
         self.assertEqual(result.status, 'OBSERVED_USER')
         self.assertFalse(result.restore_verified)
         self.assertIn('no_readback', result.reason)
+
+    def test_s18_missing_or_mismatched_original_name_blocks_without_gcode(self):
+        from maintenance_physical import _resolve_buzzer_gcode_name
+        self.configure_config_only_buzzer()
+        settings = self.printer.state.settings['pwm_cycle_time buzzer']
+        self.assertEqual(_resolve_buzzer_gcode_name(
+            self.client, 'pwm_cycle_time buzzer', settings), 'Buzzer')
+        bad = (
+            {},
+            {'pwm_cycle_time BUZZER': {'pin': 'PA3'}},
+            {'pwm_cycle_time Buzzer': {'pin': 'PB13'},
+             'pwm_cycle_time buzzer': {'pin': 'PB13'}},
+            {'pwm_cycle_time buzzer\nM112': {'pin': 'PB13'}},
+        )
+        for raw in bad:
+            with self.subTest(raw=raw):
+                self.client.raw_config = raw
+                self.assertTrue(self.runner.start('S18')[0])
+                self.worker.next()
+                result = self.runner.poll()
+                self.assertEqual(result.status, 'BLOCKED')
+                self.assertEqual(result.reason, 'preflight_failed')
+                self.assertEqual(self.commands, [])
+        self.client.raw_config = {'pwm_cycle_time Buzzer': {'pin': 'PB13'}}
+        self.assertTrue(self.runner.start('S18')[0])
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertEqual(self.commands, [])
+        self.assertEqual(self.runner.cancel().status, 'ABORTED')
 
     def test_s18_cannot_start_with_wrong_profile_or_claim_automatic_pass(self):
         self.configure_config_only_buzzer()

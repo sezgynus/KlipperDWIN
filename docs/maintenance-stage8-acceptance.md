@@ -34,3 +34,7 @@ During live Remote Display acceptance on 2026-10-16, the F01 part-cooling fan vi
 ## S18: field finding and separate pending readback acceptance
 
 On the Pi, `configfile.settings['pwm_cycle_time buzzer']` had pin PB13, value=0, shutdown_value=0, scale=1, but `printer.objects.list` omitted the buzzer and `printer.objects.query` had no status. The updated S18 opt-in path uses configuration-only discovery and **human audible observation**; the result `OBSERVED_USER` does not indicate verified restoration. S18's telemetry-backed restoration acceptance is **not available** with this Klipper object. Enable `buzzer_output='buzzer'` only after checking the actual buzzer and observing it can be safely actuated when the printer is idle. Do not count a CI fake as a real test.
+
+## S18 case-sensitive G-code field observation
+
+On 2026-10-16 the new S18 entry appeared, but its first physical attempt failed with `INCONCLUSIVE / script_failed_or_restore_unknown`: Klipper listed valid mux option `Buzzer`, whereas Petrel generated `PIN=buzzer`. The pin was **not** confirmed actuated. The signed fix resolves the original case-sensitive section name during a read-only preflight. Stage 8 S18 stays **PENDING** until a new idle-printer physical test demonstrates a brief sound **and silence afterward**, recorded as `OBSERVED_USER` without claiming status-based restore verification.

@@ -34,3 +34,7 @@ Geçici systemd override'ını kaldır, `sudo systemctl daemon-reload` ve `sudo 
 ## S18: saha bulgusu ve bekleyen geri okuma kabulü
 
 Pi'de `configfile.settings['pwm_cycle_time buzzer']` için pin PB13, value=0, shutdown_value=0, scale=1 doğrulandı; ancak `printer.objects.list` nesneyi içermiyor ve `printer.objects.query` durum sunmuyor. Güncellenen S18 izinli akışı yalnız yapılandırmadan keşif ve **insanın ses gözlemi** üzerine kuruludur; `OBSERVED_USER` sonucu doğrulanmış geri yükleme anlamına gelmez. Bu Klipper nesnesinde S18'in telemetriyle geri yükleme kabulü **mümkün değildir**. `buzzer_output='buzzer'` izni, fiziksel buzzer'ın doğru ve yazıcı boşta iken güvenli uyarılabilir olduğundan emin olunduktan sonra kullanılmalıdır. CI sahte testini gerçek donanım kabulü sayma.
+
+## S18 büyük/küçük harfe duyarlı G-code saha bulgusu
+
+2026-10-16 tarihinde S18 listede görünmeye başladı, ancak ilk fiziksel deneme `INCONCLUSIVE / script_failed_or_restore_unknown` ile sonuçlandı: Klipper'ın geçerli mux seçeneği `Buzzer` iken Petrel `PIN=buzzer` üretti. Çıkışın gerçekten uyarıldığı **doğrulanmadı**. İmzalı düzeltme salt-okunur ön kontrolde özgün, büyük/küçük harfe duyarlı bölüm adını çözümler. Yeni ve boşta yazıcı üzerinde kısa sesin **çıkıp ardından kesildiğini** gösteren fiziksel test `OBSERVED_USER` olarak kaydedilene kadar Aşama 8 S18 **BEKLEMEDE** kalır; durum geri okuma doğrulaması iddia edilmez.

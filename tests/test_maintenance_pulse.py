@@ -95,26 +95,37 @@ class PhysicalPulseTests(unittest.TestCase):
                                            'value': 0, 'shutdown_value': 0}
         # The genuine Klipper object is config-only: no status exists.
         row = next(r for r in guided_plan(snap) if r.feature_id == 'S18')
-        p = compile_pulse(row, snap, status, settings, buzzer_output='tick')
+        p = compile_pulse(row, snap, status, settings, buzzer_output='tick',
+                          buzzer_command_name='Tick')
         denied = MaintenanceSnapshot(snap.epoch, snap.devices, snap.global_modes,
                                      snap.config_marker, ('petrel.buzzer',))
         with self.assertRaises(ValueError):
-            compile_pulse(row, denied, status, settings, buzzer_output='tick')
+            compile_pulse(row, denied, status, settings, buzzer_output='tick',
+                          buzzer_command_name='Tick')
         self.assertIn('CYCLE_TIME=0.00062500', p.stimulus)
+        self.assertIn('PIN=Tick', p.stimulus)
+        self.assertNotIn('PIN=tick', p.script)
         self.assertEqual(p.duration_ms, 200)
         self.assertEqual(p.read_path, '')
-        self.assertEqual(p.script, 'SET_PIN PIN=tick VALUE=0\nG4 P50\n'
-                         'SET_PIN PIN=tick VALUE=0.2500 CYCLE_TIME=0.00062500\n'
-                         'G4 P150\nSET_PIN PIN=tick VALUE=0')
+        self.assertEqual(p.script, 'SET_PIN PIN=Tick VALUE=0\nG4 P50\n'
+                         'SET_PIN PIN=Tick VALUE=0.2500 CYCLE_TIME=0.00062500\n'
+                         'G4 P150\nSET_PIN PIN=Tick VALUE=0')
         self.assertFalse(restored(p, status))
         self.assertFalse(restored(p, {'pwm_cycle_time tick': {'value': 0}}))
         status['pwm_cycle_time tick'] = {'value': .2}
         with self.assertRaises(ValueError):
-            compile_pulse(row, snap, status, settings, buzzer_output='tick')
+            compile_pulse(row, snap, status, settings, buzzer_output='tick',
+                          buzzer_command_name='Tick')
         status.clear()
         settings['pwm_cycle_time tick']['value'] = .2
         with self.assertRaises(ValueError):
-            compile_pulse(row, snap, status, settings, buzzer_output='tick')
+            compile_pulse(row, snap, status, settings, buzzer_output='tick',
+                          buzzer_command_name='Tick')
+        settings['pwm_cycle_time tick']['value'] = 0
+        for invalid in (None, 'Other', 'tick\nM112'):
+            with self.subTest(name=invalid), self.assertRaises(ValueError):
+                compile_pulse(row, snap, status, settings,
+                              buzzer_output='tick', buzzer_command_name=invalid)
 
     def test_unknown_programs_cannot_inject_macros_or_modify_heaters(self):
         snap, settings, status = environment(('F04',))

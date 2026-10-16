@@ -47,7 +47,8 @@ def _command(name, value):
         ' WHITE=%.4f' % value[3] if value[3] else '')
 
 
-def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None):
+def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None,
+                  buzzer_command_name=None):
     """Compile a short, self-restoring script from *fresh* printer status.
 
     The caller must independently verify live safety and target discovery
@@ -140,9 +141,12 @@ def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None):
         if type(scale) not in (int, float) or not math.isfinite(scale) or not 0 < scale <= 2:
             raise ValueError('invalid_buzzer_scale')
         name = _name(buzzer_output)
+        command_name = _name(buzzer_command_name)
+        if command_name.casefold() != name.casefold():
+            raise ValueError('buzzer_gcode_name_mismatch')
         start = 'SET_PIN PIN=%s VALUE=%.4f CYCLE_TIME=%.8f' % (
-            name, scale * .25, _TONE)
-        restore = 'SET_PIN PIN=%s VALUE=0' % name
+            command_name, scale * .25, _TONE)
+        restore = 'SET_PIN PIN=%s VALUE=0' % command_name
         evidence = (0.0,)  # Configured OFF, NOT observed live output state.
         object_name = target
         observation = 'Did the buzzer sound briefly and then stop?'

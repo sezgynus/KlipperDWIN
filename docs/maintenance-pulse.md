@@ -11,3 +11,5 @@ The future executor must keep the printer idle, verify Moonraker job queue and o
 ## S18 readback limitation
 
 The opt-in `pwm_cycle_time` buzzer has no Klipper status readback. Its bounded script first commands OFF, waits 50 ms, sends a 150-ms tone, and commands OFF again. The 200-ms program **attempts** restoration but does not establish that it physically occurred; `restored()` deliberately never accepts S18 as telemetry-verified, even when handed a fabricated status value. Only the exact explicitly permitted, default-OFF effective configuration is admitted.
+
+The S18 script compiler now requires a separately verified case-preserved `buzzer_command_name` from Klipper's raw configuration. It rejects missing or case-insensitively different identifiers, and uses only this validated spelling for every `SET_PIN PIN=` command.

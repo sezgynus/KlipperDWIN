@@ -54,6 +54,52 @@ def _read_target(client, name):
     return status if isinstance(status, Mapping) else None
 
 
+
+
+def _resolve_buzzer_gcode_name(client, object_name, settings):
+    """Resolve the *case-sensitive* SET_PIN mux name from original config.
+
+    Klipper's configfile.settings lowercases section names, while its
+    configfile.config preserves the actual section spelling used when
+    registering the SET_PIN PIN mux value. Never guess capitalization or
+    accept a name based only on the HTTP error's suggested options.
+    """
+    if (not isinstance(object_name, str)
+            or not object_name.startswith('pwm_cycle_time ')
+            or not isinstance(settings, Mapping)):
+        raise ValueError('invalid_buzzer_target')
+    configured_name = object_name.split(' ', 1)[1]
+    if not _OUTPUT.fullmatch(configured_name):
+        raise ValueError('invalid_buzzer_target')
+    expected_pin = settings.get('pin')
+    if not isinstance(expected_pin, str) or not expected_pin.strip():
+        raise ValueError('buzzer_config_pin_missing')
+    reply = client.get('/printer/objects/query?configfile')
+    result = reply.get('result') if isinstance(reply, Mapping) else None
+    status = result.get('status') if isinstance(result, Mapping) else None
+    configfile = status.get('configfile') if isinstance(status, Mapping) else None
+    raw = configfile.get('config') if isinstance(configfile, Mapping) else None
+    if not isinstance(raw, Mapping):
+        raise ValueError('buzzer_original_config_unavailable')
+    matches = []
+    for section, section_config in raw.items():
+        if not isinstance(section, str) or not section.startswith('pwm_cycle_time '):
+            continue
+        actual = section.split(' ', 1)[1]
+        if actual.casefold() != configured_name.casefold():
+            continue
+        if not _OUTPUT.fullmatch(actual) or not isinstance(section_config, Mapping):
+            raise ValueError('buzzer_original_config_invalid')
+        original_pin = section_config.get('pin')
+        if (not isinstance(original_pin, str)
+                or original_pin.strip().casefold() != expected_pin.strip().casefold()):
+            raise ValueError('buzzer_original_config_pin_mismatch')
+        matches.append(actual)
+    if len(matches) != 1:
+        raise ValueError('buzzer_name_missing_or_ambiguous')
+    return matches[0]
+
+
 class MaintenancePulseController:
     """Explicit interactive state machine; no automatic test entry or PASS."""
 
@@ -172,16 +218,21 @@ class MaintenancePulseController:
                     not self._safety_check(snap, evidence)):
                 return None
             if row.feature_id == 'S18':
-                # Config-only pwm_cycle_time does not have a status endpoint.
-                # Never fabricate an OFF readback for this output.
+                # Config-only pwm_cycle_time has no status endpoint. Consult
+                # raw config solely for the case-preserved SET_PIN mux name.
+                # It must identify the exact same pin as effective settings.
+                buzzer_command_name = _resolve_buzzer_gcode_name(
+                    self._client, target, self._printer.state.settings.get(target, {}))
                 state = {}
             else:
+                buzzer_command_name = None
                 state = _read_target(self._client, target)
                 if state is None:
                     return None
             program = compile_pulse(row, snap, state,
                                     self._printer.state.settings,
-                                    buzzer_output=buzzer_output)
+                                    buzzer_output=buzzer_output,
+                                    buzzer_command_name=buzzer_command_name)
             return evidence, program
 
         try:

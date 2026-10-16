@@ -128,11 +128,15 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         o04 = by_target[('O04', 'neopixel mmu_leds')]
         self.assertEqual(o04['status'], 'accepted')  # Prior PASS is historical.
         self.assertTrue(o04['retest_required'])
-        self.assertEqual(o04['latest_attempt']['controller_result'], 'BLOCKED')
-        self.assertEqual(o04['latest_attempt']['controller_reason'],
+        self.assertEqual(o04['previous_attempts'][0]['controller_result'], 'BLOCKED')
+        self.assertEqual(o04['previous_attempts'][0]['controller_reason'],
                          'mmu_led_not_enabled_or_readable')
-        self.assertFalse(o04['latest_attempt']['operator_confirmation_requested'])
+        self.assertEqual(o04['latest_attempt']['controller_result'], 'not_reported')
+        self.assertTrue(o04['latest_attempt']['operator_confirmation_requested'])
+        self.assertIn('blue stage was not visible', o04['latest_attempt']['observation'])
         self.assertIsNone(o04['latest_attempt']['restore_verified'])
+        self.assertNotEqual(o04['latest_attempt']['tested_signed_head'],
+                            o04['acceptance'].get('tested_signed_head'))
 
 
 

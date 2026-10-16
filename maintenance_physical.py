@@ -445,12 +445,13 @@ class MaintenancePulseController:
             return (self._current() and
                     self._safety.guard(session, self._snapshot(), self._context()).allowed)
 
-        # MoonrakerClient defaults to a 5-second HTTP timeout. A F02
-        # script has three 2-second G4 dwells: a 5-second POST timeout would
-        # report an ambiguous failure despite completed physical movement.
-        # Extend ONLY this validated bounded F02 script; no global timeout
-        # changes and no command replay on a transport failure.
-        extended = program.feature_id == 'F02'
+        # Long F02 stages and synchronized Happy Hare O04 frames can exceed
+        # the default 5-second HTTP timeout (G4 + M400 waits in real time).
+        # Bound the override to these two compiled Maintenance protocols:
+        # other commands retain their normal timeout, and failures never
+        # replay ambiguous physical writes.
+        extended = (program.feature_id == 'F02'
+                    or (program.feature_id == 'O04' and program.managed_hh))
         http_timeout = min(15.0, program.duration_ms / 1000 + 4.0) if extended else None
         options = {'json': {'script': program.script},
                    'report_error': False, 'dispatch_guard': guard}

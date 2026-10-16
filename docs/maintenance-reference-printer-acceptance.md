@@ -112,7 +112,7 @@
 | F02 / `fan` | **Previous version:** 800 ms/stage was operator-approved. **Longer version:** all three 2,000-ms stages actuated but returned INCONCLUSIVE without user confirmation; no restore proof. A bounded F02 HTTP timeout fix now awaits retest. | `PASSED_USER` (old), `INCONCLUSIVE` (new attempt) | `true` (old), unknown (new) |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sound heard; no live readback from Klipper pwm_cycle_time | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Case light changed and returned to original reported output | `PASSED_USER` | `true` |
-| O04 / `neopixel mmu_leds` | Previously approved four-color Happy Hare test. Later O04 blocked at preflight: HH returned string flags `enabled='True'`, `animation='True'`; strict parsing fix requires a new real-printer retest. No actuation during the blocked attempt. | `OBSERVED_USER` (prior), `BLOCKED` (latest) | `false` (prior); unknown (blocked) |
+| O04 / `neopixel mmu_leds` | Historical four-color acceptance preserved. HH string-flag preflight was fixed; newer physical test showed **red → green → white, but no blue**. `G4` dwell alone did not reliably separate HH reactor-timed frames; `G4 + M400` revision awaits retest. | `OBSERVED_USER` (historical); latest LCD result unreported | `false` (historical); unverified (new) |
 
 ## Next implementation
 

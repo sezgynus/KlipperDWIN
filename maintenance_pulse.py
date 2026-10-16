@@ -398,7 +398,12 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, mach
             instructions.append(
                 'MMU_SET_LED UNIT=%d %s DURATION=%.2f FADETIME=0' % (
                     unit_index, args, _HH_EFFECT_S))
+        # G4 only advances Klipper's toolhead timing; it does not by itself
+        # guarantee wall-clock progress of Happy Hare's reactor LED timer.
+        # M400 drains the dwell before the next timed HH update so deferred
+        # effects cannot coalesce and silently skip a middle color.
         instructions.append('G4 P%d' % _LED_STEP_MS)
+        instructions.append('M400')
     script = '\n'.join(instructions)
     if '\r' in script or len(script) > _MAX_LED_SCRIPT:
         raise ValueError('unsafe_mmu_led_program')

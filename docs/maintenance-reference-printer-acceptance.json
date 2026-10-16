@@ -816,7 +816,7 @@
       "reference": "confirmed",
       "status": "accepted",
       "adapter": "implemented",
-      "note": "4-pixel neopixel chain under Happy Hare; no raw SET_LED ownership theft.",
+      "note": "Historical four-color O04 approval preserved. Latest physical attempt skipped blue; revised synchronized HH frames require a new four-color operator acceptance.",
       "acceptance": {
         "date": "2026-10-16",
         "source": "user_explicit_physical_observation",
@@ -827,15 +827,27 @@
       "retest_required": true,
       "latest_attempt": {
         "date": "2026-10-16",
-        "source": "operator_live_result_plus_pi_journal",
-        "controller_result": "BLOCKED",
-        "controller_reason": "mmu_led_not_enabled_or_readable",
-        "operator_confirmation_requested": false,
+        "source": "user_explicit_physical_color_observation",
+        "controller_result": "not_reported",
+        "operator_confirmation_requested": true,
         "restore_verified": null,
-        "observation": "O04 was discovered but preflight rejected Happy Hare live status enabled='True' and animation='True' (literal strings). No physical actuation during blocked attempt.",
-        "tested_signed_head": "70159750abc5886e0535bbac43925348085b861e",
-        "resolution": "Strict boolean/string normalization in shared O04 preflight and controller readback requires signed-head CI and physical retest."
-      }
+        "observation": "The Happy Hare-managed O04 test ran after boolean-string support, but user observed red -> green -> white only; blue stage was not visible. Four-color physical acceptance is NOT established.",
+        "tested_signed_head": "0e1de54a48bee9dd75e1ce0c985703415ef53a3c",
+        "resolution": "G4 alone is not a guaranteed host/reactor wall-time barrier. Add G4 P650 + M400 after each timed MMU_SET_LED frame; keep O04 pending physical retest."
+      },
+      "previous_attempts": [
+        {
+          "date": "2026-10-16",
+          "source": "operator_live_result_plus_pi_journal",
+          "controller_result": "BLOCKED",
+          "controller_reason": "mmu_led_not_enabled_or_readable",
+          "operator_confirmation_requested": false,
+          "restore_verified": null,
+          "observation": "O04 was discovered but preflight rejected Happy Hare live status enabled='True' and animation='True' (literal strings). No physical actuation during blocked attempt.",
+          "tested_signed_head": "70159750abc5886e0535bbac43925348085b861e",
+          "resolution": "Strict boolean/string normalization in shared O04 preflight and controller readback requires signed-head CI and physical retest."
+        }
+      ]
     },
     {
       "feature_id": "O06",

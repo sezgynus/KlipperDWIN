@@ -112,7 +112,7 @@
 | F02 / `fan` | **Eski sürüm:** 0,8 sn/kademe kullanıcı onaylı. **Yeni sürüm:** 2 sn × 3 kademe çalıştı ama onay ekranı çıkmadan INCONCLUSIVE verdi; geri yükleme kanıtı yok. Sınırlandırılmış HTTP timeout düzeltmesi yeniden test edilecek. | `PASSED_USER` (eski), `INCONCLUSIVE` (son deneme) | `true` (eski), bilinmiyor (yeni) |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sesi duyuldu; Klipper PWM geri okuması yok. | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Kasa ışığı değişti; önceki raporlanan durumu doğrulandı. | `PASSED_USER` | `true` |
-| O04 / `neopixel mmu_leds` | Önceki dört renk testi kabul edilmişti. Sonraki denemede Happy Hare `enabled='True'`, `animation='True'` metinleri nedeniyle O04 preflight BLOCKED oldu; yeni katı metin/boolean uyumluluk düzeltmesi fiziksel yeniden test bekliyor. Engellenen denemede LED komutu gönderilmedi. | `OBSERVED_USER` (önceki), `BLOCKED` (son) | `false` (önceki), bilinmiyor (engellenen) |
+| O04 / `neopixel mmu_leds` | Önceki dört renk kabulü korundu. HH metin-bayrak ön kontrolü düzeldikten sonraki fiziksel testte **kırmızı → yeşil → beyaz görüldü, mavi görünmedi**. `G4` tek başına HH reactor zamanlayıcısını ayırmadı; `G4 + M400` düzeltmesi yeniden test edilecek. | `OBSERVED_USER` (tarihî), son LCD sonucu bildirilmedi | `false` (tarihî), yeni sürüm doğrulanmadı |
 
 ## Sıradaki uygulama
 

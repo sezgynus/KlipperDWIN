@@ -565,20 +565,23 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertTrue(self.runner.confirm()[0])
         self.assertEqual(len(self.commands), 1)
         script = self.commands[0][1]['script']
-        self.assertEqual(len(script.splitlines()), 8)
+        self.assertEqual(len(script.splitlines()), 12)
         expected = [(1., 0., 0.), (0., 0., 1.),
                     (0., 1., 0.), (1., 1., 1.)]
         for phase, rgb in enumerate(expected):
-            command, dwell = script.splitlines()[phase * 2:phase * 2 + 2]
+            command, dwell, barrier = script.splitlines()[phase * 3:phase * 3 + 3]
             self.assertEqual(
                 command,
                 'MMU_SET_LED UNIT=0 EXIT_EFFECT=(%.3f,%.3f,%.3f) '
                 'DURATION=0.40 FADETIME=0' % rgb)
             self.assertEqual(dwell, 'G4 P650')
+            self.assertEqual(barrier, 'M400')
+        self.assertEqual(script.count('M400'), 4)
         self.assertNotIn('SET_LED LED=', script)
         self.assertNotIn('MMU_LED QUIET', script)
         self.assertNotIn('SET_LED LED=', script)
         self.assertEqual(script.count('DURATION=0.40'), 4)
+        self.assertAlmostEqual(self.commands[0][0].request_timeout, 6.6)
         self.assertTrue(self.commands[0][2]())
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
@@ -613,6 +616,7 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(len(self.commands), 1)
         command = self.commands[0][1]['script']
         self.assertIn('MMU_SET_LED UNIT=0 EXIT_EFFECT=', command)
+        self.assertEqual(command.count('M400'), 4)
         self.assertNotIn('UNIT=unit0', command)
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
@@ -778,7 +782,8 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertIn('STATUS_EFFECT=', script)
         self.assertIn('LOGO_EFFECT=', script)
         self.assertNotIn('EXIT_EFFECT=', script)
-        self.assertEqual(len(script.splitlines()), 8)
+        self.assertEqual(len(script.splitlines()), 12)
+        self.assertEqual(script.count('M400'), 4)
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
         self.advance(3.1)
@@ -816,7 +821,8 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertIsNone(self.runner.poll())
         self.assertTrue(self.runner.confirm()[0])
         script = self.commands[0][1]['script']
-        self.assertEqual(len(script.splitlines()), 12)
+        self.assertEqual(len(script.splitlines()), 16)
+        self.assertEqual(script.count('M400'), 4)
         self.assertIn('UNIT=1 EXIT_EFFECT=', script)
         self.assertIn('UNIT=0 ENTRY_EFFECT=', script)
         self.commands[0][0].set_result({'result': 'ok'})

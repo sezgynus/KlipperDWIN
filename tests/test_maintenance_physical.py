@@ -345,6 +345,22 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertFalse(self.runner.pending)
         self.assertEqual(len(self.commands), 1)
 
+    def test_f12_kick_start_preflight_blocks_before_consent_or_gcode(self):
+        from maintenance_discovery import _add, DeviceCapabilities, USER, MaintenanceSnapshot
+        old = self.printer.maintenance.snapshot
+        self.printer.maintenance.snapshot = MaintenanceSnapshot(
+            old.epoch, (DeviceCapabilities('fan', 'fan', _add(0, 'F12', USER)),),
+            old.global_modes, old.config_marker, old.service_key)
+        self.client.status['fan']['speed'] = 0.0
+        self.assertEqual(self.runner.start('F12', 'fan'),
+                         (True, 'preflight_queued'))
+        self.worker.next()
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'BLOCKED')
+        self.assertEqual(result.reason, 'f12_kick_start_active')
+        self.assertEqual(self.commands, [])
+        self.assertFalse(self.runner.pending)
+
     def test_f12_five_separately_verified_stages_and_next_round(self):
         # Match the queue evidence clock to the controller's simulated clock.
         runtime_clock = patch('maintenance_runtime.monotonic',
@@ -356,6 +372,14 @@ class PhysicalControllerTests(unittest.TestCase):
         self.printer.maintenance.snapshot = MaintenanceSnapshot(
             old.epoch, (DeviceCapabilities('fan', 'fan', _add(0, 'F12', USER)),),
             old.global_modes, old.config_marker, old.service_key)
+        # Override the effective immutable Klipper config for this F12 test:
+        # only an explicitly disabled kick_start_time permits calibration.
+        raw = self.printer.subscription.snapshot.return_value
+        raw['settings'] = {'fan': {'pin': 'PA3', 'kick_start_time': 0.0}}
+        self.printer.state = PrinterState.from_snapshot(raw)
+        self.printer.maintenance.snapshot = MaintenanceSnapshot(
+            old.epoch, self.printer.maintenance.snapshot.devices,
+            old.global_modes, id(self.printer.state.settings), old.service_key)
         self.client.status['fan']['speed'] = 0.0
         self.assertEqual(self.runner.start('F12', 'fan'), (True, 'preflight_queued'))
         self.worker.next()

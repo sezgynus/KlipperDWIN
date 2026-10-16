@@ -75,7 +75,8 @@ class PhysicalPulseTests(unittest.TestCase):
 
     def test_f12_adaptive_five_stage_restoration_and_safety(self):
         snap, settings, status = environment(('F12',))
-        settings['fan'].update({'off_below': .05, 'max_power': .95, 'min_power': .0})
+        settings['fan'].update({'off_below': .05, 'max_power': .95,
+                                'min_power': .0, 'kick_start_time': 0.0})
         status['fan']['speed'] = 0.0
         p = compile_pulse(guided_plan(snap)[0], snap, status, settings)
         self.assertEqual(p.feature_id, 'F12')
@@ -95,6 +96,27 @@ class PhysicalPulseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'f12_requires_fan_initially_off'):
             compile_pulse(guided_plan(snap)[0], snap, status, settings)
         status['fan']['speed'] = 0.0
+
+    def test_f12_kick_start_is_explicitly_disabled_before_any_stimulus(self):
+        snap, settings, status = environment(('F12',))
+        status['fan']['speed'] = 0.0
+        row = guided_plan(snap)[0]
+        # Klipper's undocumented-in-config runtime default is 0.100s.
+        with self.assertRaisesRegex(ValueError, 'f12_kick_start_active'):
+            compile_pulse(row, snap, status, settings)
+        for invalid in (0.1, 0.5, 2, True, '0', None, -0.1, float('nan')):
+            with self.subTest(kick=invalid):
+                settings['fan']['kick_start_time'] = invalid
+                with self.assertRaisesRegex(ValueError, '^f12_kick_start_'):
+                    compile_pulse(row, snap, status, settings)
+        settings['fan']['kick_start_time'] = 0
+        self.assertEqual(compile_pulse(row, snap, status, settings).feature_id,
+                         'F12')
+        # Other fan diagnostics must NOT impose F12's calibration-only rule.
+        snap, settings, status = environment(('F01',))
+        settings['fan']['kick_start_time'] = 0.3
+        self.assertEqual(compile_pulse(guided_plan(snap)[0], snap, status,
+                                       settings).feature_id, 'F01')
 
     def test_f02_blocks_unusable_limits_and_invalid_baseline(self):
         snap, settings, status = environment(('F02',))

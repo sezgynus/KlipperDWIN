@@ -330,6 +330,10 @@ class MaintenancePulseController:
                 logging.warning(
                     'Maintenance physical preflight blocked: '
                     'feature=%s reason=%s', self._row.feature_id, code)
+                if (self._row.feature_id == 'F12' and
+                        code in ('f12_kick_start_active',
+                                 'f12_kick_start_unknown')):
+                    return self._finish('BLOCKED', code)
                 return self._finish('BLOCKED', 'preflight_failed')
             if found is None:
                 return self._finish('BLOCKED', 'preflight_not_verified')

@@ -10,13 +10,35 @@
 
 LCD arayüzü ve gerçek Pi aktüatör kabulü ayrı doğrulanmalıdır; CI taklitleri fiziksel donanımın çalıştığını kanıtlamaz.
 
-## F12 adaptif beş kademeli arama
+## F12 — güvenli beş kademeli adaptif fan kalkış eşiği
 
-F12 ilk turda %0–50 aralığını 2 saniyelik beş artan M106 kademe komutuyla tarar. Her kademe öncesinde OFF ve 1,5 saniyelik bekleme bulunur, bitiminde tekrar OFF uygulanır. LCD gerçekten gönderilen kademe komutunu gösterir; geçen süreye göre tahmin yapmaz. Beş kademenin her biri ayrı bir sınırlı REST programıyla çalışır. Her kademenin sonunda iki ayrı kapalı durum okuması doğrulanır, sonraki kademeden önce taze kuyruk ve güvenlik kontrolü yapılır. Bu gösterim takometre verisi değildir. Geri yükleme doğrulanınca kullanıcı ilk kalkış görülen kademeyi veya None seçer. Aralık son başarısız ve ilk başarılı adım arasına daralır; None ilk üst aralığa geçer. Sonraki iterasyondan önce kullanıcı fanın fiziksel durduğunu onaylar ve yeni önkontrol/çalıştırma onayı gerekir. Başlangıç fanı kapalı olmalıdır. Fiziksel durma otomatik beklemeden kesin olarak çıkarılamaz; fan kademe arasında durmadıysa kabul verilmemelidir.
+F12, **duruştan kalkış için gözlenen en düşük M106 komutunu** bulur;
+gerçek elektriksel PWM veya RPM ölçümü yapmaz. İlk turda %0–50 aralığının
+artan beş komutu 2'şer saniye uygulanır. Her kademe, sonunda fanı kapatan
+ayrı ve sınırlı bir programla gönderilir. LCD gerçekten gönderilen kademe
+numarasını gösterir. İki ayrı Klipper durum okuması kademeler arasında
+fan komutunun OFF olduğunu doğrular; fakat bu, pervanenin mekanik olarak
+durduğunu kanıtlamaz. Kullanıcı ilk kalkış kademesini veya None seçer;
+son başarısız ve ilk başarılı kademe arasında yeniden daraltma yapılır.
+Sonraki iterasyon öncesi kullanıcı fiziksel durmayı ayrıca onaylar.
 
-## F12 — kullanıcı gözlemli minimum kullanılabilir fan komutu
+**Zorunlu test koşulu:** Klipper `[fan]` için varsayılan
+`kick_start_time: 0.100` saniyedir. Fan OFF durumundan çalıştırılırken,
+düşük M106 komutunda bile fan kısa süre **tam güçle** başlatılır.
+Bu yüzden F12, etkin Klipper `kick_start_time` değerinin **sıfır**
+olduğunu doğrulamadan hiçbir fan komutu göndermez. Alan hiç
+tanımlanmamışsa Klipper'ın sıfır olmayan varsayılanı dikkate alınır ve
+test engellenir. LCD'de `Set kick_start_time: 0` ve
+`RESTART Klipper` uyarısı görünür.
 
-F12, mevcut parça soğutma fanının ön kontrol, ikinci kullanıcı onayı, güvenlik ve iki ayrı geri yükleme okumasını kullanır. Test, doğrulanmış `off_below`/`max_power` aralığında yükselen beş M106 S kademesini 1,8'er saniye uygular ve aynı sınırlı G-code programının sonunda başlangıç hızına döner. LCD'de kararlı dönmenin görüldüğü **ilk** kademe veya “None stable” seçilir. Sonuç yalnızca komutlanan M106 düzeyini gösterir; RPM ölçümü ya da gerçek elektriksel PWM eşiği değildir. Başlatmadan önce fanın serbest olduğundan ve yazıcının güvenli/boşta olduğundan emin olun. Eksik gözlemde başarısız seçin ve fanın eski haline döndüğünü doğrulamadan yeniden denemeyin. Zaman aşımı veya geri yükleme doğrulama hatası PASS üretmez.
+Yazıcı güvenli ve boşta iken, yalnızca ölçüm süresince mevcut
+`[fan]` bölümüne `kick_start_time: 0` ekleyip Klipper'da `RESTART`
+uygulayın. Testten sonra önceki kick-start ayarını geri getirin ve
+yeniden `RESTART` yapın. **Petrel yapılandırmayı kendisi değiştirmez
+ve Klipper'ı yeniden başlatmaz.** Kick-start etkin durumdaki asgari
+normal kullanım devri farklı bir ölçümdür. `off_below` ve
+`max_power` sonuç üzerinde etkili kalır; fiziksel PWM/RPM doğrudan
+ölçülmez.
 
 ## Gecikmeli Moonraker geri yükleme telemetrisi (Aşama 8 F01 kabulü)
 

@@ -160,6 +160,16 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
             raise ValueError('fan_speed_unavailable')
         levels_for_user = ()
         if feature == 'F12':
+            # Klipper fan.py sends max_power for kick_start_time on EVERY
+            # startup from zero. A short full-power kick makes a minimum
+            # startup threshold trial invalid even if M106 S is tiny.
+            # Missing config uses Klipper's actual default: 0.100 seconds.
+            kick = cfg.get('kick_start_time', 0.1)
+            if (type(kick) not in (int, float) or not math.isfinite(kick)
+                    or kick < 0):
+                raise ValueError('f12_kick_start_unknown')
+            if kick != 0:
+                raise ValueError('f12_kick_start_active')
             if original != 0:
                 raise ValueError('f12_requires_fan_initially_off')
             lo, hi = cfg.get('off_below', 0), cfg.get('max_power', 1)

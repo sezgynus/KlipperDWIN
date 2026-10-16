@@ -96,6 +96,12 @@ class MaintenanceViewMixin:
             entries = [back,
                        (status[:25], self.ICON_Info, None, None),
                        (reason.replace('_', ' ')[:25], self.ICON_Info, None, None)]
+            if reason == 'f12_kick_start_active':
+                entries.extend((
+                    ('Set kick_start_time: 0', self.ICON_Info, None, None),
+                    ('RESTART Klipper', self.ICON_Info, None, None)))
+            elif reason == 'f12_kick_start_unknown':
+                entries.append(('Check fan config', self.ICON_Info, None, None))
             for key, value in getattr(outcome, 'evidence', ())[:6]:
                 entries.append(((str(key) + ': ' + str(value))[:25],
                                 self.ICON_Info, None, None))

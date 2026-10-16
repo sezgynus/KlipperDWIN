@@ -10,13 +10,37 @@ IMPORTANT: a Moonraker timeout/connection interruption can leave a command's exe
 
 The LCD interface and accepted real-Pi hardware stimuli require separate validation; CI fakes cannot prove any physical actuator works.
 
-## F12 — operator-observed minimum usable fan command
+## F12 — guarded five-stage adaptive fan startup threshold
 
-F12 reuses the proven part-fan preflight/consent/guard and two-read restoration gate. An opt-in test sends exactly five ascending M106 S levels at 1.8 seconds each, within the validated effective `off_below`/`max_power` range, then restores the initial fan speed in the same bounded script. The LCD asks which **first** of the five levels showed stable rotation, or “None stable”. No automatic PASS, tachometer RPM or precise electrical PWM threshold is inferred; the result identifies the selected *commanded* M106 level only. Verify fan clearance and safe idle state before triggering. If a step is missed, cancel/decline and repeat only after confirming the fan returned to its original state. Timeout, stale status or failed restoration cannot earn a PASS.
+F12 finds the **minimum observed cold-start M106 command** (not measured RPM
+or true electrical PWM). It begins with five ascending commanded duty steps
+over 0–50%, each 2 seconds. Each stage is dispatched as an independently
+bounded, OFF-restoring script. The LCD displays the actual dispatched stage.
+Two separate Klipper status readbacks must report fan speed OFF between
+stages; however, commanded OFF does not prove that the rotor has stopped
+mechanically. The operator selects the first stage to start from rest, or
+None; the next range is the preceding failed / first successful step.
+Before another iteration, the operator confirms physical standstill.
 
-## F12 adaptive five-step search
+**Required calibration configuration:** Klipper's `[fan]` object normally
+defaults to `kick_start_time: 0.100`. Klipper sends *full power* briefly
+when starting the fan from OFF, regardless of the low M106 duty request.
+This invalidates a cold-start threshold measurement. F12 therefore
+**fails closed before any G-code** unless the *effective* Klipper
+`kick_start_time` value is explicitly verified to be **zero**. A missing
+setting is interpreted as Klipper's nonzero default and blocks the test.
+The LCD shows `Set kick_start_time: 0` and `RESTART Klipper`.
 
-F12 starts with five ascending 2-second M106 duty stages spanning the 0–50% command band. Each stage is preceded by an OFF command and a 1.5-second dwell, then restores OFF. The LCD shows the exact commanded stage when the controller dispatches it. Each of five stages is an independent bounded REST script and is followed by two confirmed OFF status reads before a fresh safety/queue preflight permits the next stage; no guessed elapsed-time index is used. This is an accurate command-stage indicator, not tachometer feedback. After a verified return to baseline, the user selects the first stage to start rotation or None. The bracket narrows to the previous non-starting and first starting stage; None moves the range above the previous high bound. Before a new round the user confirms the fan is physically stopped, then a fresh preflight and explicit dispatch approval are required. The test starts only from a known OFF baseline, and stops when the bracket reaches 8-bit PWM resolution. No RPM or electrically measured PWM is inferred. Automatic dwell cannot prove that the rotor reached rest between stages: physically validate this condition and decline acceptance if it did not.
+To perform a meaningful measurement, **only when safe to change fan
+configuration and while the printer is idle**, temporarily put
+`kick_start_time: 0` under the existing `[fan]` section of the Klipper
+printer configuration and run `RESTART`. Repeat the F12 test, then
+restore the original kick-start value and `RESTART` once calibration is
+complete. **Petrel neither edits that configuration nor restarts Klipper.**
+If you need a minimum *normal-operation* speed with kick-start enabled,
+that is a different measurement, not the F12 cold-start threshold.
+`off_below` and `max_power` still affect the observed M106 threshold;
+no automatic PID, RPM, or independent electrical-power verification exists.
 
 ## Delayed Moonraker restore telemetry (Stage 8 F01 acceptance)
 

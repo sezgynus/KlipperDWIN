@@ -367,7 +367,7 @@ class PhysicalControllerTests(unittest.TestCase):
                 self.assertEqual(future.request_timeout, 9.0)
                 self.assertTrue(guard())
                 self.assertIn('M106 S%d' % pwm, payload['script'])
-                self.assertTrue(payload['script'].endswith('M106 S0\\nM400'))
+                self.assertTrue(payload['script'].endswith('M106 S0\nM400'))
                 self.assertEqual(payload['script'].count('G4 P2000'), 1)
                 future.set_result({'result': 'ok'})
                 self.assertIsNone(self.runner.poll())

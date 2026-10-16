@@ -11,6 +11,7 @@ from time import monotonic, time
 from collections.abc import Mapping
 
 from maintenance_catalog import definition_for
+from maintenance_motion_info import FIELDS as MOTION_FIELDS, path_for as motion_path, read_fields as motion_fields
 from maintenance_discovery import INFORMATION, MaintenanceSnapshot
 from maintenance_planner import AdapterRegistration, PlannedTest
 from maintenance_safety import MaintenanceSafetyCoordinator
@@ -39,7 +40,7 @@ def read_only_adapters():
         feature, INFORMATION, 'maintenance.read.' + feature,
         definition_for(feature).evidence_contract,
         definition_for(feature).safety_profile)
-        for feature in (*_ENDPOINTS, *_THERMAL_FIELDS))
+        for feature in (*_ENDPOINTS, *_THERMAL_FIELDS, *MOTION_FIELDS))
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +65,8 @@ def _read_fields(feature, reply, device=None):
     result = reply.get('result')
     if not isinstance(result, Mapping):
         return ()
+    if feature in MOTION_FIELDS:
+        return motion_fields(feature, reply, device)
     if feature in _THERMAL_FIELDS:
         status = result.get('status')
         values = status.get(device) if isinstance(status, Mapping) else None
@@ -164,9 +167,9 @@ class MaintenanceReadExecutor:
             return False, 'executor_busy_or_closed'
         if not isinstance(row, PlannedTest):
             return False, 'invalid_plan'
-        if (row.feature_id not in (*_ENDPOINTS, *_THERMAL_FIELDS)
+        if (row.feature_id not in (*_ENDPOINTS, *_THERMAL_FIELDS, *MOTION_FIELDS)
                 or (row.feature_id in _ENDPOINTS and row.device is not None)
-                or (row.feature_id in _THERMAL_FIELDS and
+                or (row.feature_id in (*_THERMAL_FIELDS, *MOTION_FIELDS) and
                     row not in __import__('maintenance_planner').build_plan(
                         self._snapshot(), read_only_adapters()))
                 or row.method != INFORMATION or row.category != 'informational'
@@ -186,7 +189,9 @@ class MaintenanceReadExecutor:
         if not decision.allowed:
             return False, decision.reason
         from urllib.parse import quote
-        path = (_ENDPOINTS[row.feature_id] if row.feature_id in _ENDPOINTS
+        path = (motion_path(row.feature_id, row.device, context.state)
+                if row.feature_id in MOTION_FIELDS else
+                _ENDPOINTS[row.feature_id] if row.feature_id in _ENDPOINTS
                 else '/printer/objects/query?' + quote(row.device, safe='') +
                 '=' + ','.join(_THERMAL_FIELDS[row.feature_id]))
 

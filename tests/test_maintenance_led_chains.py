@@ -135,10 +135,16 @@ class LedChainTests(unittest.TestCase):
                 pulse = compile_mmu_led_pulse(
                     row, snap, physical, settings, status, {'action': 'Idle'})
                 self.assertTrue(pulse.managed_hh)
-                self.assertEqual(
-                    pulse.script,
-                    'MMU_SET_LED UNIT=unit5 %s_EFFECT=(0.000,0.350,0.000) '
-                    'DURATION=1 FADETIME=0' % segment.upper())
+                self.assertTrue(pulse.script.startswith(
+                    'MMU_SET_LED UNIT=unit5 %s_EFFECT=(' % segment.upper()))
+                self.assertTrue(pulse.script.endswith(
+                    ') DURATION=1 FADETIME=0'))
+                values = pulse.script.split('_EFFECT=(', 1)[1].split(')', 1)[0]
+                rgb = tuple(float(x) for x in values.split(','))
+                self.assertEqual(len(rgb), 3)
+                for original in COLORS:
+                    self.assertTrue(any(abs(a - b) >= .08
+                                        for a, b in zip(rgb, original)))
                 self.assertNotIn('SET_LED LED=', pulse.script)
                 self.assertNotIn('ENABLE=0', pulse.script)
                 self.assertTrue(restored(pulse, status))

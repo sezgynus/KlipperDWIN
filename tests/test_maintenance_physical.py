@@ -521,9 +521,15 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertTrue(self.runner.confirm()[0])
         self.assertEqual(len(self.commands), 1)
         script = self.commands[0][1]['script']
-        self.assertEqual(script, (
-            'MMU_SET_LED UNIT=unit0 EXIT_EFFECT=(0.000,0.350,0.000) '
-            'DURATION=1 FADETIME=0'))
+        self.assertTrue(script.startswith(
+            'MMU_SET_LED UNIT=unit0 EXIT_EFFECT=('))
+        self.assertTrue(script.endswith(') DURATION=1 FADETIME=0'))
+        rgb = tuple(float(v) for v in
+                    script.split('EXIT_EFFECT=(', 1)[1].split(')', 1)[0].split(','))
+        self.assertEqual(len(rgb), 3)
+        for original in self.client.status['neopixel diagnostic']['color_data']:
+            self.assertTrue(any(abs(a - b) >= .08
+                                for a, b in zip(rgb, original)))
         self.assertNotIn('SET_LED LED=', script)
         self.assertNotIn('MMU_LED QUIET', script)
         self.assertTrue(self.commands[0][2]())

@@ -18,6 +18,7 @@ from threading import Lock
 from ui_events import UIEventLoop, InputEvent
 from ui_case_light import CaseLightMixin
 from ui_maintenance import MaintenanceViewMixin
+from ui_recovery import RecoveryViewMixin
 from ui_power import PowerShortcutMixin
 from ui_mmu import MMUViewMixin
 from ui_buzzer import BuzzerViewMixin
@@ -74,7 +75,7 @@ class select_t:
         return self.changed()
 
 
-class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUViewMixin, CaseLightMixin, MaintenanceViewMixin, ScrewsTiltMixin, BedMeshMixin, FilePreviewMixin):
+class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUViewMixin, CaseLightMixin, MaintenanceViewMixin, ScrewsTiltMixin, BedMeshMixin, FilePreviewMixin):
 
     TROWS = 6
     MROWS = TROWS - 1  # Total rows, and other-than-Back
@@ -642,10 +643,14 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                 self.Draw_Maintenance_Menu()
             if getattr(self, 'checkkey', None) == self.BuzzerMenu:
                 self.Draw_Buzzer_Menu()
+            if getattr(self, 'checkkey', None) == self.RecoveryScreen:
+                self.Clear_Popup_Area()
+                self._recovery_render = None
+                self.Draw_Recovery()
             self.lcd.update()
             if (self.pd.connection_error and self.checkkey != self.MMUMenu
                     and not getattr(self, '_boot_active', False)):
-                self._show_message('Moonraker unavailable')
+                self._poll_recovery_ui()
             self._uart_online = True
             if hasattr(self, '_loop'):
                 self._loop.set_interval(.5)
@@ -707,7 +712,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         snapshot = self.pd.subscription.snapshot()
         if snapshot['state'] != 'ready':
             self.pd.update_variable()
-            self._draw_boot_progress(70)
+            if not self._poll_recovery_ui():
+                self._draw_boot_progress(70)
             return
         self._draw_boot_progress(80)
         self.pd.update_variable()
@@ -1349,6 +1355,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             return
         if (not getattr(self, '_uart_online', True)
                 or event.ui_epoch != getattr(self, '_uart_epoch', 0)):
+            return
+        if (getattr(self, 'checkkey', None) == self.RecoveryScreen
+                and self.pd.connection_error and not self._closed):
+            self._recovery_input(event)
             return
         snapshot = self._ui_lifecycle()
         if ((snapshot['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu) or snapshot['epoch'] != event.epoch
@@ -3370,6 +3380,16 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         update = self.pd.update_variable()
         self._poll_maintenance_ui()
         self._focus_tick_quiet()
+        if self.pd.connection_error:
+            # Invalidate active operation sessions before the recovery screen
+            # takes over; do not leave mesh/probe sessions running invisibly.
+            self._poll_screws_tilt()
+            self._poll_bed_mesh()
+            self.pd.probe_wizard.update()
+            if self._poll_recovery_ui():
+                return
+        else:
+            self._poll_recovery_ui()
         if not self.pd.connection_error and self.checkkey not in (self.SelectFile, self.FilePreview):
             self.pd.prefetch_files()
         if not self.pd.connection_error and self._configure_menus():
@@ -3586,6 +3606,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
             self.PrintProcess: self.Goto_PrintProcess,
             self.TuneEdit: self._focus_edit_draw,
             self.PrintErrorDetails: self._focus_error_draw,
+            self.RecoveryScreen: self.Draw_Recovery,
             self.ScrewsTiltMenu: self.Draw_Screws_Menu,
             self.ScrewsTiltResult: self.Draw_Screws_Result,
             self.ProbeWizardID: self.Draw_Probe_Wizard,

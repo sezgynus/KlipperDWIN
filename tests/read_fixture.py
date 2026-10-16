@@ -6,7 +6,7 @@ class ImmediateReadWorker:
     def __init__(self, *args, **kwargs):
         pass
 
-    def submit(self, work):
+    def submit(self, work, queue_timeout=None):
         future = Future()
         try:
             future.set_result(work())

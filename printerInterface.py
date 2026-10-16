@@ -1,3 +1,4 @@
+from klipper_recovery import KlipperRecovery
 import copy
 from dataclasses import replace
 import logging
@@ -274,6 +275,8 @@ class PrinterData:
         self._directory_cache = {}
         self._preset_original = copy.deepcopy(self.material_preset)
         self.subscription = MoonrakerSubscription(URL, API_Key, timeout)
+        self.recovery = KlipperRecovery(self.client, self._read_worker,
+            lambda: bool(self.connection_error) or not self.state.ready)
         self.probe_wizard = ProbeWizard(self)
         self.screws_tilt = ScrewsTiltSession(self)
         self.bed_mesh = BedMeshSession(self)
@@ -471,6 +474,7 @@ class PrinterData:
         self.MACHINE_SIZE = 'x'.join('{:g}'.format(value) for value in caps.build_size)
 
     def close(self):
+        self.recovery.close()
         self.maintenance_pulse.close()
         self.maintenance_reader.close()
         self.maintenance.clear()

@@ -16,6 +16,11 @@ class BootSplashTests(unittest.TestCase):
         v.lcd = packets.lcd()
         v._uart_online = True
         v.EachMomentUpdate = Mock()
+        # These splash tests model an in-flight status check, not a reported
+        # shutdown/unavailable result (covered by test_recovery_ui).
+        from types import SimpleNamespace
+        from klipper_recovery import RecoveryState
+        v.pd.recovery = SimpleNamespace(state=RecoveryState(), poll=Mock())
         return v
 
     def test_waiting_for_klipper_only_draws_lower_bar_and_stage(self):

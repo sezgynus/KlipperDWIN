@@ -17,7 +17,7 @@ class UIModularityTests(unittest.TestCase):
     def test_feature_views_are_composed_as_mixins(self):
         cls = self._class()
         bases = {base.id for base in cls.bases if isinstance(base, ast.Name)}
-        self.assertEqual(bases, {'PrintFocusMixin', 'PowerShortcutMixin', 'BuzzerViewMixin', 'MMUViewMixin', 'CaseLightMixin', 'MaintenanceViewMixin', 'ScrewsTiltMixin', 'BedMeshMixin', 'FilePreviewMixin'})
+        self.assertEqual(bases, {'RecoveryViewMixin', 'PrintFocusMixin', 'PowerShortcutMixin', 'BuzzerViewMixin', 'MMUViewMixin', 'CaseLightMixin', 'MaintenanceViewMixin', 'ScrewsTiltMixin', 'BedMeshMixin', 'FilePreviewMixin'})
         methods = {
             node.name for node in cls.body
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))

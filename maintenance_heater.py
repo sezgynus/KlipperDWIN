@@ -409,11 +409,11 @@ class MaintenanceHeaterController:
 
 class MaintenancePhysicalRouter:
     """One UI operation owner for pulse and thermal domains."""
-    def __init__(self, pulse, heater, motion=None, switches=None, probe=None, resonance=None, filament=None):
+    def __init__(self, pulse, heater, motion=None, switches=None, probe=None, resonance=None, filament=None, panel=None):
         self._pulse, self._heater = pulse, heater
         self._motion, self._switches, self._probe = motion, switches, probe
-        self._resonance, self._filament = resonance, filament
-        self._owners = tuple(x for x in (pulse, heater, motion, switches, probe, resonance, filament) if x is not None)
+        self._resonance, self._filament, self._panel = resonance, filament, panel
+        self._owners = tuple(x for x in (pulse, heater, motion, switches, probe, resonance, filament, panel) if x is not None)
         self._active = pulse
 
     def __getattr__(self, key):
@@ -429,7 +429,8 @@ class MaintenancePhysicalRouter:
     def start(self, feature_id, device=None, **kwargs):
         if self.pending:
             return False, 'maintenance_busy'
-        self._active = (self._filament if feature_id.startswith('E') else
+        self._active = (self._panel if feature_id in ('S16','S17') else
+                        self._filament if feature_id.startswith('E') else
                         self._resonance if feature_id.startswith('R') else
                         self._probe if feature_id.startswith('P') else
                         self._switches if feature_id in ('M01', 'M10') else

@@ -495,7 +495,7 @@ def discover(state, services=()):
                              ('update_manager', 'S19'),
                              ('maintenance.report_export', 'S20')):
         if service in services:
-            mode = USER if feature == 'S17' else INFORMATION
+            mode = USER if feature == 'S17' else USER | INFORMATION if feature == 'S16' else INFORMATION
             global_bits = _add(global_bits, feature, mode)
     if 'maintenance.travel_counter' in services:
         global_bits = _add(global_bits, 'S13', INFORMATION)

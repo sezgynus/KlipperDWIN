@@ -31,6 +31,9 @@ from maintenance_motion_controller import MaintenanceMotionController
 from maintenance_probe import MaintenanceProbeController
 from maintenance_resonance import MaintenanceResonanceController
 from maintenance_filament import MaintenanceFilamentController
+from maintenance_panel import MaintenancePanelController
+from maintenance_records import MaintenanceBook
+from maintenance_system import travel_profile
 from maintenance_physical import MaintenancePulseController
 from maintenance_heater import MaintenanceHeaterController, MaintenancePhysicalRouter, thermal_plan
 from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
@@ -207,6 +210,8 @@ class PrinterData:
         self._jog_restore = None
         self._jog_state_name = '_PETREL_JOG_' + uuid.uuid4().hex
         self.state = PrinterState()
+        self.maintenance_book = MaintenanceBook(self._maintenance_worker)
+        self._maintenance_panel_api = None
         self.maintenance = MaintenanceDiscoveryManager()
         self.capabilities = PrinterCapabilities()
         self._apply_capabilities(self.capabilities)
@@ -286,6 +291,7 @@ class PrinterData:
         # Created without I/O; reads happen only after an explicit request.
         self.maintenance_reader = MaintenanceReadController(
             self, self._maintenance_worker, self.client)
+        self.maintenance_panel = MaintenancePanelController(self,self._maintenance_worker,self.client)
         self.maintenance_pulse = MaintenancePhysicalRouter(
             MaintenancePulseController(self, self._maintenance_worker, self.client),
             MaintenanceHeaterController(self, self._maintenance_worker, self.client),
@@ -293,7 +299,8 @@ class PrinterData:
             switches=MaintenanceSwitchController(self, self._maintenance_worker, self.client),
             probe=MaintenanceProbeController(self, self._maintenance_worker, self.client),
             resonance=MaintenanceResonanceController(self, self._maintenance_worker, self.client),
-            filament=MaintenanceFilamentController(self, self._maintenance_worker, self.client))
+            filament=MaintenanceFilamentController(self, self._maintenance_worker, self.client),
+            panel=self.maintenance_panel)
 
     def _read(self, key, work, stamp=None):
         if stamp is None:
@@ -490,6 +497,39 @@ class PrinterData:
         self.spoolman_client.close()
         self.client.close()
 
+    def _note_maintenance_state(self,state):
+        book = getattr(self,'maintenance_book',None)
+        if book is not None:
+            book.note(state)
+
+    def maintenance_integrations(self,state):
+        services = ['maintenance.records','maintenance.usage_counters','maintenance.report_export']
+        if travel_profile(state):
+            services.append('maintenance.travel_counter')
+        if callable(getattr(self,'_maintenance_panel_api',None)):
+            services.extend(('petrel.uart_diagnostics','petrel.encoder_diagnostics',
+                             'petrel.lcd_diagnostics','petrel.backlight'))
+        return tuple(services)
+
+    def maintenance_local_read(self,feature):
+        if feature in ('S11','S12','S20'):
+            return self.maintenance_book.read(feature)
+        if feature in ('S14','S15','S16') and callable(getattr(self,'_maintenance_panel_api',None)):
+            data = self._maintenance_panel_api('info')
+            prefix = 'gpio_' if feature=='S15' else None
+            keys = ('startup_assets_synced','uart_epoch') if feature=='S16' else (
+                    tuple(k for k in data if k.startswith(prefix)) if prefix else
+                    tuple(k for k in data if not k.startswith('gpio_')))
+            return tuple((k,data[k]) for k in keys if type(data.get(k)) in (int,float,bool))
+        return ()
+
+    def _record_maintenance_result(self,result,method,plan=None):
+        if result is not None:
+            book = getattr(self,'maintenance_book',None)
+            if book is not None:
+                book.record(result,method,self.state,plan)
+        return result
+
     def maintenance_read_plan(self):
         return self.maintenance_reader.available()
 
@@ -502,28 +542,33 @@ class PrinterData:
         return self.maintenance_pulse.start(feature_id, device, **kwargs)
 
     def poll_maintenance_physical(self):
-        return self.maintenance_pulse.poll()
+        row = getattr(self.maintenance_pulse,'_row',None)
+        return self._record_maintenance_result(self.maintenance_pulse.poll(),getattr(row,'method',None),row)
 
     def confirm_maintenance_physical(self):
         return self.maintenance_pulse.confirm()
 
     def observe_maintenance_physical(self, seen):
-        return self.maintenance_pulse.observe(seen)
+        row = getattr(self.maintenance_pulse,'_row',None)
+        return self._record_maintenance_result(self.maintenance_pulse.observe(seen),getattr(row,'method',None),row)
 
     def confirm_maintenance_f12_stopped(self):
         return self.maintenance_pulse.f12_confirm_stopped()
 
     def cancel_maintenance_physical(self):
-        return self.maintenance_pulse.cancel()
+        row = getattr(self.maintenance_pulse,'_row',None)
+        return self._record_maintenance_result(self.maintenance_pulse.cancel(),getattr(row,'method',None),row)
 
     def start_maintenance_read(self, feature_id, timeout=8.0, device=None):
         return self.maintenance_reader.start(feature_id, timeout=timeout, device=device)
 
     def poll_maintenance_read(self):
-        return self.maintenance_reader.poll()
+        row = self.maintenance_reader._row
+        return self._record_maintenance_result(self.maintenance_reader.poll(),16,row)
 
     def cancel_maintenance_read(self):
-        return self.maintenance_reader.cancel()
+        row = self.maintenance_reader._row
+        return self._record_maintenance_result(self.maintenance_reader.cancel(),16,row)
 
     def check_command_results(self):
         from queue import Empty
@@ -916,6 +961,7 @@ class PrinterData:
                     self.maintenance_reader.cancel()
                     self.maintenance.clear()
                 self.state = state
+                self._note_maintenance_state(state)
                 self._files_loaded = False
                 self.connection_error = state.error or 'Klipper is not ready'
                 return False
@@ -1044,6 +1090,7 @@ class PrinterData:
         self.connection_error = None
         changed = state != self.state or spoolman_changed or presets_changed or sort_changed
         self.state = state
+        self._note_maintenance_state(state)
         self.capabilities = caps
         self._caps_cache_key = caps_key
         self._apply_capabilities(caps)
@@ -1054,7 +1101,7 @@ class PrinterData:
             # Reuse the existing Klipper READY epoch transition. Never
             # rediscover on menu entry or during ordinary print updates.
             self.maintenance.ready(state, self.client, self._maintenance_worker,
-                                   lambda: self.state)
+                                   lambda: self.state, integrations=self.maintenance_integrations(state))
             self._files_loaded = False
             self.files = []
             self._file_epoch = state.epoch

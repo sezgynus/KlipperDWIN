@@ -163,6 +163,8 @@ class T5UIC1Display:
         self._rx_discarded_frames = 0
         self._rx_discarded_aux = 0
         self._crc_errors = 0
+        self._diagnostic_counts = {}
+        self._backlight_raw = None
         self._transaction_lock = Lock()
         self._packet_observer = packet_observer
 
@@ -213,6 +215,7 @@ class T5UIC1Display:
     def _startup_sync_icons(self):
         from icon_library import sync_library
         sync_library(self)
+        self._assets_synced = True
 
     def _startup_sync_shared_artwork(self):
         from shared_artwork import sync
@@ -282,6 +285,12 @@ class T5UIC1Display:
         if written != len(frame):
             self.close()
             raise IOError("Incomplete LCD frame write")
+        counts = getattr(self,'_diagnostic_counts',None)
+        if counts is not None:
+            counts['tx_frames'] = counts.get('tx_frames',0)+1
+            counts['tx_bytes'] = counts.get('tx_bytes',0)+len(frame)
+            if command==0x00:
+                counts['handshake_requests'] = counts.get('handshake_requests',0)+1
         observer = getattr(self, '_packet_observer', None)
         if observer is not None:
             try:
@@ -298,7 +307,11 @@ class T5UIC1Display:
         try:
             waiting = int(getattr(self.serial, "in_waiting", 0) or 0)
             if waiting:
-                self._rx.extend(self.serial.read(min(waiting, 4096)))
+                data = self.serial.read(min(waiting, 4096))
+                self._rx.extend(data)
+                counts = getattr(self,'_diagnostic_counts',None)
+                if counts is not None:
+                    counts['rx_bytes'] = counts.get('rx_bytes',0)+len(data)
                 self._parse_rx()
         except OSError:
             self.close()
@@ -350,6 +363,9 @@ class T5UIC1Display:
                 self._aux_rx.append(_AuxFrame(payload[1:]))
             elif command == 0xFF:
                 self._crc_errors += 1
+                counts = getattr(self,'_diagnostic_counts',None)
+                if counts is not None:
+                    counts['crc_notifications'] = counts.get('crc_notifications',0)+1
             else:
                 frame = _ReceivedFrame(command, payload)
                 expected = getattr(self, '_expected_response', None)
@@ -411,6 +427,9 @@ class T5UIC1Display:
                     return payload
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
+                    counts = getattr(self,'_diagnostic_counts',None)
+                    if counts is not None:
+                        counts['response_timeouts'] = counts.get('response_timeouts',0)+1
                     raise T5UIC1TimeoutError(f"Timed out waiting for opcode 0x{command:02X}")
                 self._read_available()
                 if not getattr(self.serial, "in_waiting", 0):
@@ -491,8 +510,14 @@ class T5UIC1Display:
         if self.read_flash(buzzer_control.ADDRESS, len(record)) != record:
             raise OSError('Buzzer settings verification failed')
 
+    def diagnostics(self):
+        counts = dict(getattr(self,'_diagnostic_counts',{}))
+        counts.update(self.rx_discard_counts())
+        return counts
+
     def set_backlight(self, brightness):
         self._send(0x30, bytes((self._u8(brightness, "brightness"),)))
+        self._backlight_raw = brightness
 
     def set_orientation(self, direction, wait_ack=False, timeout=1.0):
         if direction not in (0, 1, 2, 3):

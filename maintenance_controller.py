@@ -25,7 +25,8 @@ class MaintenanceReadController:
         self._executor = MaintenanceReadExecutor(
             worker, client,
             lambda: live_safety_context(self._printer, self._queue),
-            lambda: self._printer.maintenance.snapshot)
+            lambda: self._printer.maintenance.snapshot,
+            local_reader=lambda feature:self._printer.maintenance_local_read(feature))
         self._row = None
         self._preflight = None
         self._deadline = 0.0

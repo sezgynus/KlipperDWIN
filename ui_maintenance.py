@@ -52,6 +52,10 @@ class MaintenanceViewMixin:
             phase = self.pd.maintenance_pulse.phase
             if phase == 'workflow':
                 owner = self.pd.maintenance_pulse
+                if owner.feature_id=='S16':
+                    return 'LCD color observation', (
+                        ('Cancel workflow', self.ICON_Back, None, None),
+                        *((label[:26], self.ICON_Info, None, None) for label,action in owner.workflow_choices))
                 return 'Guided '+str(owner.feature_id), (
                     ('Cancel workflow', self.ICON_Back, None, None),
                     *((label[:26], self.ICON_Info, None, None)
@@ -67,7 +71,7 @@ class MaintenanceViewMixin:
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
                               feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
-                if feature_id and feature_id.startswith(('P','R','E')):
+                if feature_id and feature_id.startswith(('P','R','E','S')):
                     return 'Confirm '+feature_id, (
                         ('Cancel', self.ICON_Back, None, None),
                         ('Start firmware workflow', self.ICON_Info, None, None),
@@ -135,7 +139,7 @@ class MaintenanceViewMixin:
                             ('Cancel test', self.ICON_Back, None, None),
                             ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
                             ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
-                if (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith(('P','R','E')):
+                if (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith(('P','R','E','S')):
                     return 'Firmware workflow', (
                         ('Stop / cancel workflow', self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None)
@@ -177,17 +181,25 @@ class MaintenanceViewMixin:
                     ('RESTART Klipper', self.ICON_Info, None, None)))
             elif reason == 'f12_kick_start_unknown':
                 entries.append(('Check fan config', self.ICON_Info, None, None))
-            for key, value in getattr(outcome, 'evidence', ())[:6]:
+            for key, value in getattr(outcome, 'evidence', ())[:32]:
                 entries.append(((str(key) + ': ' + str(value))[:25],
                                 self.ICON_Info, None, None))
             return 'Result', tuple(entries)
         return 'Maintenance', (back,)
 
     def Draw_Maintenance_Menu(self):
+        owner = getattr(self.pd,'maintenance_pulse',None)
+        color = getattr(owner,'display_color',None) if getattr(self,'_maintenance_page',None)=='pulse' else None
+        if color is None and getattr(self,'_maintenance_color_visible',False):
+            self.lcd.clear(self.lcd.Color_Bg_Black)
+            self._list_render = None
+        self._maintenance_color_visible = color is not None
         title, entries = self._maintenance_rows()
         self._maintenance_selection = max(0, min(
             getattr(self, '_maintenance_selection', 0), len(entries) - 1))
         self._draw_list_menu(title, entries, self._maintenance_selection)
+        if color is not None:
+            self.lcd.draw_rectangle(1,color,16,150,255,460)
 
     def _maintenance_show(self, page, selection=0):
         self._maintenance_page = page

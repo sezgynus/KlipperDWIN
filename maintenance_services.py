@@ -43,7 +43,7 @@ def parse_evidence(responses):
         components = frozenset(x for x in components if isinstance(x, str))
         if 'update_manager' in components:
             keys.add('update_manager')
-        if 'gcode_store' in components:
+        if 'gcode_store' in components or 'data_store' in components:
             keys.add('gcode_store')
     spool = _result(responses.get('/server/spoolman/spool_id'))
     if 'spool_id' in spool and (spool['spool_id'] is None or

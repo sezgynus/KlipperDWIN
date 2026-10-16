@@ -378,6 +378,8 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
         self.checkkey = self.MainMenu
         self.pd = PrinterData(api_key, url, timeout, settings_path=settings_path,
                               power_device=power_device)
+        self._maintenance_button_presses = 0
+        self.pd._maintenance_panel_api = self._maintenance_panel_api
         self.pd.init_Webservices()
         self._power_monitor = PowerMonitor(self.pd.client, self.pd.power_device)
         self._relay_status = None
@@ -399,7 +401,8 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
                 from dwin_emulator.remote import RemoteDisplayServer
                 self._remote_display = RemoteDisplayServer(
                     self._emulator, self._remote_input,
-                    port=self._remote_options[1], host=self._remote_options[2])
+                    port=self._remote_options[1], host=self._remote_options[2],
+                    report_provider=self.pd.maintenance_book.exported)
             except (OSError, RuntimeError, ValueError):
                 # The normal physical LCD must remain functional even if
                 # The chosen interface is unavailable or port 8088 is occupied.
@@ -1235,6 +1238,7 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
             self._enqueue_input('rotate', delta, delta * multiplier, rate)
 
     def _button_pressed(self):
+        self._maintenance_button_presses = getattr(self,'_maintenance_button_presses',0)+1
         # A zero hold time makes the press edge itself request printer power.
         if getattr(self, 'power_on_hold_ms', 2000) == 0 and getattr(self, '_relay_status', None) != 'on':
             self._request_power_on()
@@ -1773,7 +1777,39 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
 
         self.lcd.update()
 
+    def _maintenance_panel_api(self,action,*args):
+        lcd = self.lcd
+        if lcd is None or not self._uart_online:
+            raise ValueError('lcd_offline')
+        if action=='info':
+            info = {'uart_epoch':self._uart_epoch,
+                    'startup_assets_synced':bool(getattr(lcd,'_assets_synced',False)),
+                    'gpio_button_presses':getattr(self,'_maintenance_button_presses',0)}
+            provider = getattr(lcd,'diagnostics',None)
+            if callable(provider):
+                info.update(provider())
+            provider = getattr(self.encoder,'diagnostics',None)
+            if callable(provider):
+                info.update(provider())
+            return info
+        if action=='capture':
+            raw = getattr(lcd,'_backlight_raw',None)
+            if type(raw) is not int:
+                raise ValueError('runtime_brightness_unknown')
+            return raw
+        if action in ('brightness','restore'):
+            value,epoch = args
+            if epoch!=self._uart_epoch:
+                raise ValueError('lcd_session_changed')
+            lcd.set_backlight(display_settings.raw_brightness(value) if action=='brightness' else value)
+            return True
+        raise ValueError('panel_action_unavailable')
+
     def _display_activity(self):
+        panel = getattr(getattr(self,'pd',None),'maintenance_panel',None)
+        if panel is not None and panel.pending:
+            self._display_last_activity = time.monotonic()
+            return False
         self._display_last_activity = time.monotonic()
         if getattr(self, '_display_dimmed', False):
             self._display_dimmed = False
@@ -1782,6 +1818,9 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
         return False
 
     def _display_idle_tick(self):
+        panel = getattr(getattr(self,'pd',None),'maintenance_panel',None)
+        if panel is not None and panel.pending:
+            return
         values = getattr(self, '_display_values', None)
         if (values and values[1] and not getattr(self, '_display_dimmed', False)
                 and time.monotonic() - self._display_last_activity >= values[1] * 60

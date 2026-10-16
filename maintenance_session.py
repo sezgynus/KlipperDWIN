@@ -49,7 +49,7 @@ class MaintenanceDiscoveryManager:
         if previous is not None:
             _log.info('Maintenance discovery: CLEAR epoch=%d', previous.epoch)
 
-    def ready(self, state, client=None, worker=None, latest=None):
+    def ready(self, state, client=None, worker=None, latest=None, integrations=()):
         """Once per READY epoch: discover and optionally gather service evidence.
 
         Never called from Maintenance menu navigation. Future evidence is
@@ -67,6 +67,7 @@ class MaintenanceDiscoveryManager:
             generation = self._generation
             local_services = approved_integrations(
                 state, read_profiles(self._profile_path))
+            local_services = tuple(set(local_services) | set(integrations))
             snapshot = self.cache.get(state, local_services)
         # One record per actual READY epoch, never per telemetry revision
         # or per UI navigation. Do not log config names, values or tokens.

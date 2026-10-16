@@ -11,6 +11,7 @@ from time import monotonic, time
 from collections.abc import Mapping
 
 from maintenance_catalog import definition_for
+from maintenance_system import FIELDS as SYSTEM_FIELDS, LOCAL as SYSTEM_LOCAL, path_for as system_path, read_fields as system_fields
 from maintenance_filament_info import FIELDS as FILAMENT_FIELDS, path_for as filament_path, read_fields as filament_fields
 from maintenance_motion_info import FIELDS as MOTION_FIELDS, path_for as motion_path, read_fields as motion_fields
 from maintenance_discovery import INFORMATION, MaintenanceSnapshot
@@ -24,7 +25,7 @@ _ENDPOINTS = {
     'S02': '/machine/proc_stats',
     'S03': '/machine/proc_stats',
     'S05': '/machine/proc_stats',
-    'S08': '/printer/objects/query?webhooks',
+    'S08': '/printer/objects/query?webhooks&configfile=warnings',
     'S10': '/server/history/totals',
 }
 
@@ -41,7 +42,7 @@ def read_only_adapters():
         feature, INFORMATION, 'maintenance.read.' + feature,
         definition_for(feature).evidence_contract,
         definition_for(feature).safety_profile)
-        for feature in (*_ENDPOINTS, *_THERMAL_FIELDS, *MOTION_FIELDS, *FILAMENT_FIELDS))
+        for feature in (*_ENDPOINTS, *_THERMAL_FIELDS, *MOTION_FIELDS, *FILAMENT_FIELDS, *SYSTEM_FIELDS))
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +67,8 @@ def _read_fields(feature, reply, device=None):
     result = reply.get('result')
     if not isinstance(result, Mapping):
         return ()
+    if feature in SYSTEM_FIELDS:
+        return system_fields(feature,reply,device)
     if feature in FILAMENT_FIELDS:
         return filament_fields(feature,reply,device)
     if feature in MOTION_FIELDS:
@@ -120,7 +123,8 @@ def _read_fields(feature, reply, device=None):
         status = result.get('status')
         webhooks = status.get('webhooks') if isinstance(status, Mapping) else None
         state = webhooks.get('state') if isinstance(webhooks, Mapping) else None
-        return (('webhooks_state', state),) if state in ('ready', 'startup', 'error', 'shutdown') else ()
+        warnings = status.get('configfile',{}).get('warnings',()) if isinstance(status,Mapping) else ()
+        return (('webhooks_state', state),('configuration_warnings',len(warnings) if isinstance(warnings,(list,tuple)) else 0)) if state in ('ready', 'startup', 'error', 'shutdown') else ()
     if feature == 'S10':
         totals = result.get('job_totals')
         fields = []
@@ -137,12 +141,13 @@ class MaintenanceReadExecutor:
     """One active bounded read; poll on the UI owner, no callback side effects."""
 
     __slots__ = ('_worker', '_client', '_safety', '_context', '_snapshot',
-                 '_active', '_future', '_deadline', '_closed')
+                 '_active', '_future', '_deadline', '_closed', '_local_reader')
 
     def __init__(self, worker, client, context_provider, snapshot_provider,
-                 safety=None):
+                 safety=None, local_reader=None):
         if not callable(context_provider) or not callable(snapshot_provider):
             raise ValueError('Fresh context and snapshot providers are required')
+        self._local_reader = local_reader
         self._worker = worker
         self._client = client
         self._context = context_provider
@@ -170,9 +175,9 @@ class MaintenanceReadExecutor:
             return False, 'executor_busy_or_closed'
         if not isinstance(row, PlannedTest):
             return False, 'invalid_plan'
-        if (row.feature_id not in (*_ENDPOINTS, *_THERMAL_FIELDS, *MOTION_FIELDS, *FILAMENT_FIELDS)
+        if (row.feature_id not in (*_ENDPOINTS, *_THERMAL_FIELDS, *MOTION_FIELDS, *FILAMENT_FIELDS, *SYSTEM_FIELDS)
                 or (row.feature_id in _ENDPOINTS and row.device is not None)
-                or (row.feature_id in (*_THERMAL_FIELDS, *MOTION_FIELDS, *FILAMENT_FIELDS) and
+                or (row.feature_id in (*_THERMAL_FIELDS, *MOTION_FIELDS, *FILAMENT_FIELDS, *SYSTEM_FIELDS) and
                     row not in __import__('maintenance_planner').build_plan(
                         self._snapshot(), read_only_adapters()))
                 or row.method != INFORMATION or row.category != 'informational'
@@ -193,7 +198,9 @@ class MaintenanceReadExecutor:
             return False, decision.reason
         try:
             from urllib.parse import quote
-            path = (filament_path(row.feature_id,row.device,context.state)
+            path = (None if row.feature_id in SYSTEM_LOCAL else
+                    system_path(row.feature_id,row.device,context.state) if row.feature_id in SYSTEM_FIELDS else
+                    filament_path(row.feature_id,row.device,context.state)
                     if row.feature_id in FILAMENT_FIELDS else
                     motion_path(row.feature_id, row.device, context.state)
                     if row.feature_id in MOTION_FIELDS else
@@ -210,6 +217,8 @@ class MaintenanceReadExecutor:
                 current, fresh = self._context_and_snapshot()
                 if not self._safety.guard(session, current, fresh).allowed:
                     return ()
+                if row.feature_id in SYSTEM_LOCAL:
+                    return self._local_reader(row.feature_id) if callable(self._local_reader) else ()
                 return _read_fields(row.feature_id, self._client.get(path), row.device)
             except Exception:
                 # Never log/persist response payloads, tokens or transport details.
@@ -232,7 +241,7 @@ class MaintenanceReadExecutor:
         self._future = None
         self._deadline = 0.0
         return ReadResult(row.feature_id, row.device, status,
-                          (_ENDPOINTS.get(row.feature_id) or '/printer/objects/query'), observed_at,
+                          (_ENDPOINTS.get(row.feature_id) or ('petrel:diagnostics' if row.feature_id in SYSTEM_LOCAL else '/printer/objects/query')), observed_at,
                           tuple(evidence), reason)
 
     def poll(self):

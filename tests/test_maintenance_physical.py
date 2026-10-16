@@ -450,13 +450,16 @@ class PhysicalControllerTests(unittest.TestCase):
             raw['settings']['mmu_leds unit0'] = {
                 'exit_leds': 'neopixel:diagnostic (1-4)'}
             raw['settings']['mmu_machine'] = {'units': ['unit0']}
-        raw['objects'] = (('neopixel diagnostic', 'mmu_leds unit0', 'mmu')
+        raw['objects'] = (('neopixel diagnostic', 'mmu_leds unit0',
+                           'mmu_machine', 'mmu')
                           if managed else ('neopixel diagnostic',))
         self.printer.state = PrinterState.from_snapshot(raw)
         self.client.status = {'neopixel diagnostic': {'color_data': lights}}
         if managed:
             self.client.status.update({
                 'mmu_leds unit0': {'enabled': True, 'animation': True, 'exit': 4},
+                'mmu_machine': {
+                    'num_units': 1, 'unit_0': {'name': 'unit0'}},
                 'mmu': {'action': 'Idle'}})
         roles = approved_integrations(
             self.printer.state, (('led', 'neopixel diagnostic'),))
@@ -547,6 +550,54 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(self.client.status['mmu_leds unit0'],
                          {'enabled': True, 'animation': True, 'exit': 4})
 
+    def test_hh_auto_discovered_live_machine_status_preflight_and_user_consent(self):
+        self.configure_led_chain(managed=True)
+        raw = self.printer.subscription.snapshot.return_value
+        raw['settings']['mmu_machine'] = {}  # effective Klipper settings omit units
+        raw['status']['mmu_machine'] = {
+            'num_units': 1, 'unit_0': {'name': 'unit0'}}
+        self.printer.state = PrinterState.from_snapshot(raw)
+        roles = approved_integrations(self.printer.state, ())
+        self.assertIn('maintenance.safe_led:neopixel diagnostic', roles)
+        self.printer.maintenance.snapshot = discover(self.printer.state, roles)
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertEqual(self.commands, [])
+        self.assertTrue(self.runner.confirm()[0])
+        self.assertEqual(len(self.commands), 1)
+        command = self.commands[0][1]['script']
+        self.assertIn('MMU_SET_LED UNIT=0 EXIT_EFFECT=', command)
+        self.assertNotIn('UNIT=unit0', command)
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.advance(1.9)
+        self.poll_verify()
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'await_observation')
+        result = self.runner.observe(True)
+        self.assertEqual(result.status, 'OBSERVED_USER')
+        self.assertFalse(result.restore_verified)
+        self.assertIn('mmu_machine', ''.join(self.client.paths))
+
+    def test_hh_machine_order_change_blocks_before_dispatch(self):
+        self.configure_led_chain(managed=True)
+        raw = self.printer.subscription.snapshot.return_value
+        raw['status']['mmu_machine'] = {
+            'num_units': 1, 'unit_0': {'name': 'unit0'}}
+        self.printer.state = PrinterState.from_snapshot(raw)
+        roles = approved_integrations(self.printer.state, ())
+        self.printer.maintenance.snapshot = discover(self.printer.state, roles)
+        # Config and live machine list disagree at physical preflight.
+        self.client.status['mmu_machine']['unit_0']['name'] = 'other'
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        blocked = self.runner.poll()
+        self.assertEqual(blocked.status, 'BLOCKED')
+        self.assertEqual(self.commands, [])
+
     def test_mmu_unresolved_numeric_unit_fails_before_any_command(self):
         self.configure_led_chain(managed=True)
         raw = self.printer.subscription.snapshot.return_value
@@ -622,7 +673,7 @@ class PhysicalControllerTests(unittest.TestCase):
             'mmu_leds second': {'entry_leds': 'neopixel:diagnostic (3-4)'},
             'mmu_machine': {'units': ['second', 'first']}}
         raw['objects'] = ('neopixel diagnostic', 'mmu_leds first',
-                          'mmu_leds second', 'mmu')
+                          'mmu_leds second', 'mmu_machine', 'mmu')
         self.printer.state = PrinterState.from_snapshot(raw)
         roles = approved_integrations(self.printer.state, ())
         self.printer.maintenance.snapshot = discover(self.printer.state, roles)
@@ -631,6 +682,10 @@ class PhysicalControllerTests(unittest.TestCase):
                 (0., 0., 0., 0.) for _ in range(4)]},
             'mmu_leds first': {'enabled': True, 'animation': True, 'exit': 2},
             'mmu_leds second': {'enabled': True, 'animation': False, 'entry': 2},
+            'mmu_machine': {
+                'num_units': 2,
+                'unit_0': {'name': 'second'},
+                'unit_1': {'name': 'first'}},
             'mmu': {'action': 'Idle'}}
         self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
         self.worker.next()

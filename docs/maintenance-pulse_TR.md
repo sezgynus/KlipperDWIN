@@ -27,3 +27,7 @@ Bütün fiziksel testlerde çift açık onay, güncel yazıcı/kuyruk/işlem gü
 ### Happy Hare sayısal UNIT uyumluluğu
 
 [mmu_leds AD] bölümündeki ek, G-code UNIT indeksi olmak zorunda değil; birim ADIDIR. Bazı Happy Hare sürümleri yalnızca sayısal UNIT argümanı kabul eder. Petrel sayısal indeksi, Happy Hare'nin birimleri oluştururken kullandığı yetkili [mmu_machine] units sıralamasından çözer. Birim adındaki rakamdan indeks çıkarmaz ve ilk birimin adını unit0 varsaymaz. Eksik, yinelenmiş veya tutarsız eşleme G-code gönderilmeden testi engeller. Böylece gerçek sistemlerde görülen "unable to parse unit0" hatası giderilir.
+
+### Happy Hare birim eşlemesinin canlı durumdan alınması
+
+Etkin Klipper `configfile.settings` yanıtı, Happy Hare READY olsa bile `[mmu_machine] units` alanını içermeyebilir. Petrel bu nedenle gerçek `mmu_machine` durumunu yetkili sıralı birim eşlemesi olarak kabul eder: `num_units` ve her birinde doğrulanmış `name` bulunan, ardışık `unit_0`, `unit_1` vb. kayıtları. Yapılandırma ve canlı durum salt okunur; ikisi de eşleme sunuyorsa aynı sırayı vermelidir. Eksik, tutarsız, bozuk, yinelenen veya çelişen veride O04 tahmini indeksle çalıştırılmaz. Keşifte abonelikten gelen `mmu_machine` durumu, fiziksel ön kontrolde ise güncel durumun yeniden sorgulanması kullanılır. Gerçekte gözlenen `units` alanı eksikliği ayrıca regresyonlarla kapsanır.

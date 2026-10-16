@@ -60,10 +60,10 @@ def _read_target(client, name):
 
 def _read_targets(client, names):
     """Read bounded, specifically identified objects in one Moonraker call."""
-    if (not isinstance(names, (tuple, list)) or not 1 <= len(names) <= 9
+    if (not isinstance(names, (tuple, list)) or not 1 <= len(names) <= 10
             or len(names) != len(set(names))
             or any(not isinstance(name, str) or len(name) > 96
-                   or not (name == 'mmu' or
+                   or not (name in ('mmu', 'mmu_machine') or
                            (name.startswith('mmu_leds ') and
                             _OUTPUT.fullmatch(name.split(' ', 1)[1])))
                    for name in names)):
@@ -247,11 +247,12 @@ class MaintenancePulseController:
                       if row.feature_id == 'O04' else None)
             if owners is not None:
                 live = _read_targets(self._client, (
-                    'mmu', *(owner.section for owner in owners)))
+                    'mmu', 'mmu_machine', *(owner.section for owner in owners)))
                 if live is None:
                     raise ValueError('mmu_led_live_status_unknown')
                 program = compile_mmu_led_pulse(
-                    row, snap, state, settings, live, live.get('mmu', {}))
+                    row, snap, state, settings, live, live.get('mmu', {}),
+                    live.get('mmu_machine'))
             else:
                 program = compile_pulse(
                     row, snap, state, settings,

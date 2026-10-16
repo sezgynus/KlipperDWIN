@@ -27,3 +27,7 @@ All physical tests keep double explicit user consent, fresh printer/queue/operat
 ### Happy Hare numeric UNIT compatibility
 
 The suffix of [mmu_leds NAME] is a unit NAME, not necessarily its G-code UNIT index. Some Happy Hare releases accept only numeric UNIT arguments. Petrel resolves the numeric index from the authoritative ordered [mmu_machine] units configuration (the same list used by Happy Hare to construct its units). It never parses digits out of unit names or assumes the first unit is always named unit0. An absent, duplicate or inconsistent mapping blocks the test before G-code dispatch. This fixes real installations reporting "unable to parse unit0".
+
+### Happy Hare unit mapping from live state
+
+Some active Klipper `configfile.settings` responses omit `[mmu_machine] units` even with Happy Hare installed and READY. Petrel therefore accepts the actual `mmu_machine` status as the authoritative ordered unit map: `num_units` and consecutive `unit_0`, `unit_1`, etc. records, each with a validated `name`. Both config and status are read-only; if both mappings are present they must agree. An absent, incomplete, duplicate, malformed or conflicting mapping blocks O04 rather than guessing numeric indexes. At discovery the subscribed `mmu_machine` status is used; a fresh query of the same status participates in the physical preflight before dispatch. The previously observed missing-`units` case is now explicitly covered by regression tests.

@@ -309,7 +309,7 @@ class LedChainTests(unittest.TestCase):
             'logo_leds': 'neopixel:diagnostic (1-4)'}}
         _, snap, _, settings = fixture(extra_settings=owner)
         state = SimpleNamespace(
-            ready=True, epoch=42, objects=(TARGET, 'mmu_leds unit7'),
+            ready=True, epoch=42, objects=(TARGET, 'mmu_leds unit7', 'mmu_machine'),
             settings=settings, status={})
         keys = auto_happy_hare_led_services(state)
         self.assertEqual(keys, ('maintenance.safe_led:' + TARGET,))
@@ -319,10 +319,98 @@ class LedChainTests(unittest.TestCase):
                             for row in guided_plan(discovery)))
         state.objects = (TARGET,)  # MMU controller absent -> no automatic role
         self.assertEqual(auto_happy_hare_led_services(state), ())
-        state.objects = (TARGET, 'mmu_leds unit7')
+        state.objects = (TARGET, 'mmu_leds unit7', 'mmu_machine')
         state.settings['mmu_leds unit7']['logo_leds'] = (
             'neopixel:diagnostic (0-4)')
         self.assertEqual(auto_happy_hare_led_services(state), ())
+
+    def test_hh_live_machine_status_enables_discovery_when_settings_units_absent(self):
+        owner = {'mmu_leds unit0': {
+            'exit_leds': 'neopixel:diagnostic (1-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        settings['mmu_machine'] = {}  # actual effective config can omit units
+        machine = {'num_units': 1, 'unit_0': {'name': 'unit0'}}
+        state = SimpleNamespace(
+            ready=True, epoch=42,
+            objects=(TARGET, 'mmu_leds unit0', 'mmu_machine', 'mmu'),
+            settings=settings,
+            status={'mmu_machine': machine, 'mmu': {'action': 'Idle'}})
+        keys = approved_integrations(state, ())
+        self.assertIn('maintenance.safe_led:' + TARGET, keys)
+        discovery = discover(state, keys)
+        self.assertEqual(
+            [item.device for item in guided_plan(discovery)
+             if item.feature_id == 'O04'], [TARGET])
+        live = {'mmu_leds unit0': {
+            'enabled': True, 'animation': True, 'exit': 4}}
+        program = compile_mmu_led_pulse(
+            row, snap, physical, settings, live, {'action': 'Idle'}, machine)
+        self.assertIn('MMU_SET_LED UNIT=0 EXIT_EFFECT=', program.script)
+        self.assertNotIn('UNIT=unit0', program.script)
+
+    def test_hh_live_machine_order_controls_numeric_dispatch(self):
+        owners = {
+            'mmu_leds first': {'status_leds': 'neopixel:diagnostic (1-2)'},
+            'mmu_leds second': {'logo_leds': 'neopixel:diagnostic (3-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owners)
+        settings['mmu_machine'] = {'units': None}
+        machine = {
+            'num_units': 2,
+            'unit_0': {'name': 'second'},
+            'unit_1': {'name': 'first'}}
+        controls = {
+            'mmu_leds first': {'enabled': True, 'animation': True, 'status': 2},
+            'mmu_leds second': {'enabled': True, 'animation': False, 'logo': 2}}
+        p = compile_mmu_led_pulse(
+            row, snap, physical, settings, controls, {'action': 'Idle'},
+            machine)
+        self.assertIn('UNIT=1 STATUS_EFFECT=', p.script)
+        self.assertIn('UNIT=0 LOGO_EFFECT=', p.script)
+        self.assertNotIn('UNIT=first', p.script)
+        self.assertNotIn('UNIT=second', p.script)
+
+    def test_hh_live_machine_missing_conflicting_or_malformed_fail_closed(self):
+        owner = {'mmu_leds unit0': {
+            'exit_leds': 'neopixel:diagnostic (1-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        settings['mmu_machine'] = {}
+        controls = {'mmu_leds unit0': {
+            'enabled': True, 'animation': True, 'exit': 4}}
+        state = SimpleNamespace(
+            ready=True, epoch=42,
+            objects=(TARGET, 'mmu_leds unit0', 'mmu_machine'),
+            settings=settings, status={})
+        invalid = [
+            None,
+            {},
+            {'num_units': 0},
+            {'num_units': True, 'unit_0': {'name': 'unit0'}},
+            {'num_units': 2, 'unit_0': {'name': 'unit0'}},
+            {'num_units': 1, 'unit_1': {'name': 'unit0'}},
+            {'num_units': 1, 'unit_0': {'name': 'wrong'}},
+            {'num_units': 1, 'unit_0': {'name': 'unit0'},
+             'unit_1': {'name': 'extra'}},
+            {'num_units': 2, 'unit_0': {'name': 'unit0'},
+             'unit_1': {'name': 'unit0'}},
+            {'num_units': 1, 'unit_0': {'name': 'unit0;M112'}},
+            {'num_units': 1, 'unit_0': 'unit0'},
+        ]
+        for machine in invalid:
+            with self.subTest(machine=machine):
+                state.status = {'mmu_machine': machine} if machine is not None else {}
+                self.assertEqual(approved_integrations(state, ()), ())
+                with self.assertRaises(ValueError):
+                    compile_mmu_led_pulse(
+                        row, snap, physical, settings, controls,
+                        {'action': 'Idle'}, machine)
+        machine = {'num_units': 1, 'unit_0': {'name': 'unit0'}}
+        settings['mmu_machine']['units'] = 'elsewhere'
+        state.status = {'mmu_machine': machine}
+        self.assertEqual(approved_integrations(state, ()), ())
+        with self.assertRaisesRegex(ValueError, 'unit_order_conflict'):
+            compile_mmu_led_pulse(
+                row, snap, physical, settings, controls, {'action': 'Idle'},
+                machine)
 
     def test_missing_explicit_profile_not_even_guided(self):
         row, snap, status, settings = fixture()

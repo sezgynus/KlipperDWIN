@@ -257,7 +257,7 @@ def _hh_color(pixels):
     raise ValueError('mmu_led_test_color_not_distinguishable')
 
 
-def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu):
+def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, machine_status=None):
     """Use Happy Hare's own timed API for all discovered physical segments.
 
     Groups are resolved from effective [mmu_leds ...] mappings without any
@@ -278,7 +278,7 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu):
         raise ValueError('too_many_mmu_led_units')
     # HH numeric UNIT indexes follow the authoritative ordered
     # [mmu_machine] units list. A config section suffix is NOT an index.
-    unit_indices = mmu_unit_indices(settings, owners)
+    unit_indices = mmu_unit_indices(settings, owners, machine_status)
     cfg = settings.get(row.device)
     state = physical.get(row.device)
     colors = state.get('color_data') if isinstance(state, Mapping) else None

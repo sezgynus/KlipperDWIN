@@ -118,7 +118,7 @@ Bütün durumlar gerçek UI/driver ile örnek verilerden üretilir; fiziksel yaz
 
 ## İsteğe bağlı canlı Remote Display (8088 portu)
 
-Petrel, LCD framebuffer'ını küçük bir HTTP sunucusuyla canlı sunabilir ve sanal enkoder girişlerini kabul eder: mouse tekerleği enkoderi döndürür, orta tuş ENTER üretir. Gerçek LCD ve enkoder de çalışmaya devam eder.
+Petrel, LCD framebuffer'ını küçük bir HTTP sunucusuyla canlı sunabilir ve sanal enkoder girişlerini kabul eder: mouse tekerleği enkoderi döndürür, orta tuş ENTER üretir. Ekrandaki **CCW**, **Enter** ve **CW** butonları, dokunmatik ekranlar dahil aynı girişleri sağlar. Her döndürme butonu tıklaması enkoderi bir adım ilerletir. Gerçek LCD ve enkoder de çalışmaya devam eder.
 
 `~/.config/Petrel/Petrel.env` dosyasında etkinleştir:
 

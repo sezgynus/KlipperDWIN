@@ -1,4 +1,5 @@
 """Remote emulator viewer: all IPv4 interfaces by default, no GPIO or printer writes."""
+from html.parser import HTMLParser
 from io import BytesIO
 import json
 import time
@@ -49,6 +50,34 @@ class RemoteDisplayTests(unittest.TestCase):
             self.assertEqual(response.headers["Cache-Control"], "no-store")
         self.assertEqual(self.emulator.calls, 0)
         self.enqueue.assert_not_called()
+
+    def test_buttons_have_accessible_labels_and_use_existing_encoder_protocol(self):
+        class Buttons(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.items = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "button":
+                    self.items.append(dict(attrs))
+
+        with self.request("/") as response:
+            parser = Buttons()
+            parser.feed(response.read().decode())
+        self.assertEqual(len(parser.items), 3)
+        actions = []
+        for button in parser.items:
+            self.assertEqual(button["type"], "button")
+            self.assertTrue(button["aria-label"])
+            body = {"kind": button["data-kind"]}
+            if body["kind"] == "rotate":
+                body["value"] = int(button["data-value"])
+            time.sleep(.03)
+            with self.request("/input", body) as response:
+                self.assertEqual(response.status, 202)
+            actions.append(self.enqueue.call_args.args)
+        # Positive encoder input is CCW; negative is CW.
+        self.assertEqual(actions, [("rotate", 1), ("press", 1), ("rotate", -1)])
 
     def test_image_on_demand_is_native_panel_and_in_memory(self):
         with self.request("/frame.jpg?t=1") as response:

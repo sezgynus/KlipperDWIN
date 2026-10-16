@@ -25,6 +25,12 @@ def build_parser():
     parser.add_argument('--emulator-socket', default=os.environ.get('PETREL_EMULATOR_SOCKET'))
     parser.add_argument('--emulator-font', default=os.environ.get('PETREL_EMULATOR_FONT'))
     parser.add_argument('--screenshot-directory', default=os.environ.get('PETREL_SCREENSHOT_DIRECTORY'))
+    parser.add_argument('--remote', action=argparse.BooleanOptionalAction,
+                        default=os.environ.get('PETREL_REMOTE', '0').lower() in ('1', 'true', 'yes', 'on'),
+                        help='Enable loopback-only web mirror and virtual encoder (default: off)')
+    parser.add_argument('--remote-port', type=int,
+                        default=os.environ.get('PETREL_REMOTE_PORT', '8088'),
+                        help='Local remote-display port (default: 8088)')
     return parser
 
 
@@ -44,6 +50,8 @@ def parse_args(argv=None):
             raise ValueError('Power device must not be empty')
         if args.power_on_hold_ms < 0:
             raise ValueError('Power-on hold time must be zero or greater')
+        if not 1 <= args.remote_port <= 65535:
+            raise ValueError('Remote display port must be 1..65535')
     except (TypeError, ValueError) as error:
         parser.error(str(error))
     return args
@@ -62,7 +70,7 @@ def main():
              settings_path=args.settings_file, power_device=args.power_device,
              power_on_hold_ms=args.power_on_hold_ms, emulator=args.emulator,
              emulator_socket=args.emulator_socket, screenshot_directory=args.screenshot_directory,
-             emulator_font=args.emulator_font)
+             emulator_font=args.emulator_font, remote=args.remote, remote_port=args.remote_port)
     signal.signal(signal.SIGTERM, lambda *_: display.lcdExit())
     try:
         display.wait()

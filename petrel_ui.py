@@ -321,7 +321,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
     def __init__(self, USARTx, encoder_pins, button_pin, octoPrint_API_Key,
                  moonraker_url='http://127.0.0.1:7125', request_timeout=5.0, settings_path=None,
                  power_device='Printer', power_on_hold_ms=2000,
-                 emulator=False, emulator_socket=None, screenshot_directory=None, emulator_font=None):
+                 emulator=False, emulator_socket=None, screenshot_directory=None, emulator_font=None,
+                 remote=False, remote_port=8088):
         self._closed = False
         self._uart_epoch = 0
         self._uart_online = False
@@ -335,7 +336,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self._boot_files_started = (None, 0)
         self._boot_progress = -1
         self.encoder = self.button = self.lcd = self.pd = None
-        self._emulator_options = (emulator, emulator_socket, screenshot_directory, emulator_font)
+        self._emulator_options = (bool(emulator or remote), emulator_socket, screenshot_directory, emulator_font)
+        self._remote_options = (bool(remote), remote_port)
         self._settings = (USARTx, encoder_pins, button_pin, octoPrint_API_Key,
                           moonraker_url, request_timeout, settings_path, power_device, power_on_hold_ms)
         self._input_lock = Lock()
@@ -391,6 +393,10 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         self.button.when_pressed = self._button_pressed
         self.button.when_released = self._button_released
         self.button.when_held = self._button_held
+        if self._remote_options[0]:
+            from dwin_emulator.remote import RemoteDisplayServer
+            self._remote_display = RemoteDisplayServer(
+                self._emulator, self._remote_input, port=self._remote_options[1])
 
     def _uart_failed(self):
         self._power_hold_started = None
@@ -1140,7 +1146,8 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         if self._closed:
             return
         self._closed = True
-        for resource in (getattr(self, '_buzzer_player', None),
+        for resource in (getattr(self, '_remote_display', None),
+                         getattr(self, '_buzzer_player', None),
                          getattr(self, '_screenshot_server', None),
                          getattr(self, '_emulator', None),
                          getattr(self, '_power_monitor', None), self.button, self.encoder, self.pd):
@@ -1166,12 +1173,25 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
         feedback = getattr(self, '_action_feedback', None)
         if (self.pd is None or self._closed or not getattr(self, '_uart_online', True)
                 or (feedback is not None and not (feedback.phase == 'error' and kind == 'press'))):
-            return
+            return False
         snapshot = self.pd.subscription.snapshot()
         if snapshot['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu:
-            return
-        if not self._loop.post(InputEvent(kind, value, snapshot['epoch'], getattr(self, '_uart_epoch', 0), accelerated_value, rate)):
+            return False
+        accepted = self._loop.post(InputEvent(
+            kind, value, snapshot['epoch'], getattr(self, '_uart_epoch', 0),
+            accelerated_value, rate))
+        if not accepted:
             logging.warning('LCD input queue full or closed; input discarded')
+        return accepted
+
+    def _remote_input(self, kind, value):
+        # The HTTP thread may ONLY post ordinary epoch-bound events. No GPIO
+        # simulation, direct UI calls, long-press power, or Moonraker access.
+        if kind == 'press' and value == 1:
+            return self._enqueue_input('press', 1)
+        if kind == 'rotate' and type(value) is int and 0 < abs(value) <= 6:
+            return self._enqueue_input('rotate', value, value)
+        return False
 
     def encoder_has_data(self, value):
         # GPIO thread: capture rotation only; never draw or execute UI handlers.

@@ -114,3 +114,25 @@ Tek üretim oturumunda aynı checkout'tan bütün çıktıları yenileyin:
 İkinci/üçüncü komut Print/Tune başarı akışını özgün/çerçeveli GIF olarak üretir. Son komut güç basılı tutma/iptal/engelleme, iki kırmızı ret yanıp sönmesi, uzun MMU hatası kaydırması ve 0/1/50/100% panel-native fan animasyonu için iki biçimde GIF üretir. Özgün GIF'ler `docs/assets/`, sunum kopyaları `docs/assets/framed/` içindedir. PNG komutu bu GIF'leri yenilemez.
 
 Bütün durumlar gerçek UI/driver ile örnek verilerden üretilir; fiziksel yazıcıya bağlanılmaz. Hata yanıtları test doubles ile sağlanır. Saat 12:34'tür; animasyonlar kontrollü geçen zamanla örneklenir. Eksik preview/katman, azaltılmış Tune ve uzun hata örnekleri galeriye dahildir. Fan GIF'i panel animasyon komutlarını emüle eder; fiziksel JPEG decoder doğrulaması yerine geçmez.
+
+
+## İsteğe bağlı canlı Remote Display (8088 portu)
+
+Çalışan DWIN emülatörü artık tarayıcıda **canlı görüntü** sunabilir. Mouse tekerleği normal enkoder dönüşlerini, **orta tuşa tıklama** kısa enkoder basışını üretir. Gerçek LCD/enkoder kullanılmaya devam eder. Ek UART, Moonraker bağlantısı veya ekran görüntüsü dosyası üretilmez.
+
+Özelliği `~/.config/Petrel/Petrel.env` dosyasında aç:
+
+```ini
+PETREL_REMOTE=1
+PETREL_REMOTE_PORT=8088
+```
+
+Yazıcı güvenli şekilde boşta iken yalnızca **Petrel.service** servisini yeniden başlat. `PETREL_REMOTE=1` mevcut emülatörü otomatik açar; ayrıca `PETREL_EMULATOR=1` yazmak gerekmez. Sunucu **yalnız 127.0.0.1:8088** adresini dinler. Yazıcıyı kontrol edebildiğinden bilerek `0.0.0.0` üzerinde açılmaz. Başka bir bilgisayardan güvenli erişim için SSH tüneli kur:
+
+```bash
+ssh -N -L 8088:127.0.0.1:8088 sezgynpi@<pi-adresi>
+```
+
+Ardından o bilgisayarın tarayıcısında **http://127.0.0.1:8088** adresini aç. Pi üstünde de aynı adres doğrudan kullanılabilir. 8088 portunu açık internete yönlendirme veya kimlik doğrulama/iletişim koruması olmadan ters proxy arkasına koyma. Görüntü açıkken yaklaşık 250 ms'de bir yerel 272×480 JPEG alınır; enkoder girdileri mevcut UI olay kuyruğuna eklenir ve LCD/oturum uygun değilse reddedilir. Orta tuşu basılı tutmak güvenlik gereği güç uzun basışını simüle **etmez**. Görüntüden fan, buzzer veya LED'in fiziksel olarak çalıştığı kanıtlanamaz.
+
+Kapatmak için `PETREL_REMOTE=0` yapıp Petrel'i yeniden başlat. Port doluysa `PETREL_REMOTE_PORT` değerini değiştirip SSH tünelini de aynı porta uyarla. Mevcut `PETREL_EMULATOR` ve Unix screenshot servisi bağımsız çalışmaya devam eder.

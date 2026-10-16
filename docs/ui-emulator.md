@@ -114,3 +114,25 @@ The first command produces native 272×480 panel PNGs plus 528×900 presentation
 The second/third commands produce the successful Print/Tune walkthrough as native/framed GIF. The final command produces both forms of power hold/cancel/blocking, two red rejection blinks, long MMU error scrolling and 0/1/50/100% panel-native fan animation. Native GIFs go in `docs/assets/`, presentation copies in `docs/assets/framed/`. The PNG command does not refresh these GIFs.
 
 All states use the real UI/driver with example data and no physical printer connection. Error replies are supplied by test doubles. The clock is 12:34 and animations are sampled at controlled elapsed times. Missing preview/layers, reduced Tune and long errors are included in the gallery. The fan GIF emulates the panel animation commands; it does not validate the physical JPEG decoder.
+
+
+## Optional live Remote Display (port 8088)
+
+The running DWIN emulator can also supply a **live browser mirror**. The browser scroll wheel sends the normal encoder rotations; **middle-mouse click** sends a short encoder press. The real LCD/encoder remain usable. No extra serial port, Moonraker connection or screenshot files are created.
+
+Enable the opt-in feature in `~/.config/Petrel/Petrel.env`:
+
+```ini
+PETREL_REMOTE=1
+PETREL_REMOTE_PORT=8088
+```
+
+Restart **Petrel.service** only when the printer is safely idle. `PETREL_REMOTE=1` enables the existing emulator automatically; setting `PETREL_EMULATOR=1` separately is not required. The server listens **only on 127.0.0.1:8088** and is deliberately not exposed on `0.0.0.0` (it can control a printer). To access it securely from another computer, forward the port over SSH:
+
+```bash
+ssh -N -L 8088:127.0.0.1:8088 sezgynpi@<pi-host>
+```
+
+Then open **http://127.0.0.1:8088** in that computer's browser. On the Pi itself, the same URL works directly. Do not expose port 8088 to the public Internet or proxy it without authentication and transport protection. The viewer requests a native 272×480 JPEG frame every ~250 ms only while visible; any encoder input is sent via Petrel's existing UI event queue and discarded if the screen/session is unavailable. Holding the middle button does **not** emulate the power long-press, by design. No physical fan, buzzer or LED observation can be inferred from a framebuffer.
+
+Disable with `PETREL_REMOTE=0` and restart Petrel. If another service occupies the port, use `PETREL_REMOTE_PORT` and adjust the SSH tunnel accordingly. `PETREL_EMULATOR` and the existing private Unix screenshot service continue to work independently.

@@ -41,3 +41,33 @@ reddedilir. M12 yalnız yapılandırılmış fiziksel endstop phase, gerçek las
 geçmişi ve bekleyen config yokken derlenir; kaydetmeden trigger_phase bekletir.
 Yazılım geri okuması fiziksel konum kanıtı değildir. Bunlar salt sözleşmelerdir;
 controller/UI kayıtları CI sonrasında ayrı değişiklikle gelir.
+
+## Kayıtlı fiziksel controller
+M03/M04/M05/M06 ve stepper bazlı M12 artık fiziksel router'a katılır. Satır
+seçimi salt-okunur ön kontroldür; ayrı boş-yol onayı tek guarded tamamlanma
+RPC'sini gönderir. Aktif adımlarda sınırlı durum/kuyruk verisi yenilenir.
+İki taze geri okuma beklenen komutlanan konum/modal ayarları doğrular;
+kullanıcı gözlemi yine zorunludur. Gerçek mesafe ölçülmüş sayılmaz.
+Aktif iptal, güvensiz yaşam döngüsü/kuyruk/işlem, belirsiz komut veya eksik
+geri yükleme kanıtı bir kez acil shutdown ister; tekrar/kör ters hareket yoktur.
+Belirsizlik sonrasında controller yeni hareketi kilitler. Sonlu normal
+protokoller modları kendi programında geri yükler; firmware korumaları korunur.
+
+M06 10 mm ileri hareketten sonra durur. Gerçek cetvel/kumpas mesafesini encoder
+ile gir (0,1 mm adımlar); başlangıçtaki 10 mm yalnız değiştirilebilir öneridir,
+açık operatör girişi/onayı olmadan kabul edilmez. Ters hareketten önce yeni
+ön kontrol ve ayrı Return to start onayı gerekir. Sabit ölçüm ve dönüş onayı
+ekranları süresizdir. Değişmiş konum/mod, kapalı motor veya kayıp homing,
+tahmin edilmek yerine dönüşü engeller. Sabit aşamada iptal arabayı ölçüm
+durağında bırakır; otomatik dönüş yapmaz, geri yükleme false bildirilir.
+En çok 0,2 mm hata + doğrulanmış dönüş/kullanıcı gözlemi bu sınırlı tanılamayı
+geçirir; rotation_distance değişmez. Bu kullanıcı bildirimi ölçümüdür;
+kalibre metroloji iddiası değildir.
+
+M12 bir yapılandırılmış fiziksel endstop stepper'ı için mevcut Klipper homing
+geçmişini kullanır. Otomatik homing ve SAVE_CONFIG yoktur. Tam hedefin bekleyen
+trigger_phase sonucu, korunmuş mod/konum ve sonra kullanıcı gözlemi gerekir.
+Bekleyen kalibrasyon config'i bilerek geri alınmadığı için sonuç OBSERVED_USER,
+restore_verified=false olur. Önceden bekleyen config başlangıcı engeller.
+M01 ve M12 katalog kapsamları cihaz satırlarını destekler; cihaz bazlı kanıt
+yokken eski global bilgi fallback'i korunur. Uygulama ve CI fiziksel kabul vermez.

@@ -26,6 +26,7 @@ from maintenance_session import MaintenanceDiscoveryManager
 from maintenance_controller import MaintenanceReadController
 from maintenance_guided import guided_plan
 from maintenance_switches import MaintenanceSwitchController
+from maintenance_motion_controller import MaintenanceMotionController
 from maintenance_physical import MaintenancePulseController
 from maintenance_heater import MaintenanceHeaterController, MaintenancePhysicalRouter, thermal_plan
 from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
@@ -282,6 +283,7 @@ class PrinterData:
         self.maintenance_pulse = MaintenancePhysicalRouter(
             MaintenancePulseController(self, self._maintenance_worker, self.client),
             MaintenanceHeaterController(self, self._maintenance_worker, self.client),
+            motion=MaintenanceMotionController(self, self._maintenance_worker, self.client),
             switches=MaintenanceSwitchController(self, self._maintenance_worker, self.client))
 
     def _read(self, key, work, stamp=None):

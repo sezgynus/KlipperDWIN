@@ -324,6 +324,8 @@ def discover(state, services=()):
                 physical_endstops = True
                 if name in ('stepper_x', 'stepper_y', 'stepper_z'):
                     bits = _add(bits, 'M01', AUTOMATIC | USER)
+                    if 'endstop_phase '+name in settings:
+                        bits = _add(bits, 'M12', CALIBRATION | INFORMATION)
         elif name.startswith(('filament_switch_sensor ',
                               'filament_motion_sensor ')):
             family = 'filament'

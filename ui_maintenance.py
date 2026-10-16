@@ -41,7 +41,9 @@ class MaintenanceViewMixin:
             for item in options:
                 entries.append((item.feature_id + ' ' + {
                     'S01': 'Host', 'S02': 'CPU temp', 'S03': 'Throttling',
-                    'S05': 'Network', 'S08': 'Klipper', 'S10': 'History'
+                    'S05': 'Network', 'S08': 'Klipper', 'S10': 'History',
+                    'M11': 'Stepper enable', 'M13': 'Angle telemetry',
+                    'M14': 'Motion state', 'M16': 'Carriage mode'
                 }.get(item.feature_id, getattr(item, 'device', None) or 'Info'), self.ICON_Info, None, None))
             if not options:
                 entries.append(('No information', self.ICON_Info, None, None))
@@ -65,6 +67,13 @@ class MaintenanceViewMixin:
                         (action, self.ICON_FanSpeed, None, None),
                         *((text[:26], self.ICON_Info, None, None) for text in live[:1]),
                         ('Cancel = Klipper shutdown', self.ICON_Info, None, None))
+                if feature_id in ('M03','M04','M05','M06','M12'):
+                    if feature_id == 'M06' and self.pd.maintenance_pulse.returning:
+                        action = 'Return to start'
+                    return 'Confirm clear path', (
+                        ('Cancel', self.ICON_Back, None, None),
+                        (action[:26], self.ICON_Info, None, None),
+                        *((text[:26], self.ICON_Info, None, None) for text in self.pd.maintenance_pulse.live_text))
                 if feature_id == 'M01':
                     return self.pd.maintenance_pulse.prompt, (
                         ('Cancel', self.ICON_Back, None, None),
@@ -72,6 +81,16 @@ class MaintenanceViewMixin:
                         *((text[:26], self.ICON_Info, None, None) for text in self.pd.maintenance_pulse.live_text))
                 return 'Confirm test', (('Cancel', self.ICON_Back, None, None),
                                         (action, self.ICON_FanSpeed, None, None))
+            if phase == 'await_measurement':
+                return 'Measure actual travel', (
+                    ('Cancel: stays here', self.ICON_Back, None, None),
+                    ('Enter measured distance', self.ICON_Info, None, None),
+                    ('Use ruler / caliper', self.ICON_Info, None, None))
+            if phase == 'measurement_edit':
+                return 'Actual measured mm', (
+                    ('%.2f mm' % self.pd.maintenance_pulse.measurement_value, self.ICON_Info, None, None),
+                    ('Turn: change actual value', self.ICON_Info, None, None),
+                    ('ENTER: confirm / return', self.ICON_Info, None, None))
             if phase in ('await_press', 'await_release'):
                 return self.pd.maintenance_pulse.prompt, (
                     ('Cancel', self.ICON_Back, None, None),
@@ -104,13 +123,17 @@ class MaintenanceViewMixin:
                     return 'Thermal test', (
                         ('Stop: Klipper shutdown', self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None) for text in live))
+                if getattr(self.pd.maintenance_pulse, 'feature_id', '') in ('M03','M04','M05','M06','M12'):
+                    return 'Motion test', (
+                        ('Stop: Klipper shutdown', self.ICON_Back, None, None),
+                        *((text[:26], self.ICON_Info, None, None) for text in self.pd.maintenance_pulse.live_text))
                 text = {'preflight': 'Safety checks...', 'running': 'Testing...',
                         'verifying': 'Checking restore...',
                         'f12_next_preflight': 'Next stage safety...'}[phase]
                 return 'Self Test', (('Cancel test', self.ICON_Back, None, None),
                                      (text, self.ICON_Info, None, None))
             if phase == 'stopping':
-                return 'Stopping heat', (('Shutdown requested', self.ICON_Info, None, None),
+                return 'Stopping test', (('Shutdown requested', self.ICON_Info, None, None),
                                          ('Check printer is safe', self.ICON_Info, None, None))
             return 'Self Test', (('Back', self.ICON_Back, None, None),)
         if page == 'reading':
@@ -124,7 +147,7 @@ class MaintenanceViewMixin:
                        (status[:25], self.ICON_Info, None, None),
                        (reason.replace('_', ' ')[:25], self.ICON_Info, None, None)]
             if 'SHUTDOWN_UNCONFIRMED' in reason:
-                entries.extend((('CHECK HEATER POWER NOW', self.ICON_Info, None, None),
+                entries.extend((('CHECK PRINTER SAFETY NOW', self.ICON_Info, None, None),
                                 ('Use physical power switch', self.ICON_Info, None, None)))
             if reason == 'f12_kick_start_active':
                 entries.extend((
@@ -157,6 +180,13 @@ class MaintenanceViewMixin:
         page = getattr(self, '_maintenance_page', 'root')
         _, entries = self._maintenance_rows()
         selected = getattr(self, '_maintenance_selection', 0)
+        if (page == 'pulse' and self.pd.maintenance_pulse.phase == 'measurement_edit'
+                and event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW)):
+            steps = max(1, int(getattr(self, '_menu_batch_steps', 1)))
+            self.pd.maintenance_pulse.adjust_measurement(
+                .1 * steps * (1 if event == self.ENCODER_DIFF_CW else -1))
+            self._maintenance_show('pulse')
+            return
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):
             steps = max(1, int(getattr(self, '_menu_batch_steps', 1)))
             delta = steps if event == self.ENCODER_DIFF_CW else -steps
@@ -215,11 +245,23 @@ class MaintenanceViewMixin:
                         self._maintenance_show('result')
                     else:
                         self._maintenance_show('pulse')
-                else:
+                elif selected == 0:
                     outcome = self.pd.cancel_maintenance_physical()
                     self._maintenance_result = outcome or SimpleNamespace(
                         status='ABORTED', reason='user_cancelled')
                     self._maintenance_show('result')
+            elif phase == 'await_measurement':
+                if selected == 1:
+                    self.pd.maintenance_pulse.begin_measurement()
+                    self._maintenance_show('pulse')
+                elif selected == 0:
+                    self._maintenance_result = self.pd.cancel_maintenance_physical()
+                    self._maintenance_show('result')
+            elif phase == 'measurement_edit':
+                accepted, why = self.pd.maintenance_pulse.record_measurement(
+                    self.pd.maintenance_pulse.measurement_value)
+                if accepted:
+                    self._maintenance_show('pulse')
             elif phase == 'await_observation':
                 seen = (selected if getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12'
                         else selected == 1)

@@ -85,7 +85,7 @@ M08|TMC driver temperature|device|AI|fresh_driver_temperature_reading|read_only
 M09|TMC configured current|device|I|reported_driver_current_setting|read_only
 M10|TMC driver fault diagnostics|device|A|fresh_driver_specific_fault_bits|read_only
 M11|Stepper enable state|global|I|reported_stepper_enable_state|read_only
-M12|Endstop phase calibration|global|IK|klipper_endstop_phase_evidence|calibration
+M12|Endstop phase calibration|mixed|IK|klipper_endstop_phase_evidence|calibration
 M13|Angle sensor status|global|I|reported_angle_sensor_state|read_only
 M14|Motion status|global|I|reported_commanded_motion_state|read_only
 M15|Manual stepper motion|device|UE|allowlisted_motion_and_user_or_instrument|motion

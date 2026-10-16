@@ -78,7 +78,9 @@ def read_fields(feature, reply, device=None):
         if not isinstance(v, Mapping):
             return ()
         out = []
-        for name in sorted(v)[:4]:
+        for name in ((device,) if device is not None else sorted(v)[:4]):
+            if name not in v:
+                continue
             entry = v[name]
             if not isinstance(name, str) or not isinstance(entry, Mapping):
                 continue

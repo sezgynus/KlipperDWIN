@@ -78,7 +78,7 @@ class MaintenanceViewMixin:
                         round_no, step, pwm, low, high = info
                         return ('F12 Round %d Step %d' % (round_no, step)), (
                             ('Cancel test', self.ICON_Back, None, None),
-                            ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
+                            ('Est PWM %d/255' % pwm, self.ICON_FanSpeed, None, None),
                             ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
                 text = {'preflight': 'Safety checks...', 'running': 'Testing...',
                         'verifying': 'Checking restore...'}[phase]

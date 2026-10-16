@@ -17,9 +17,13 @@ class F12Bracket:
     def levels(self):
         if self.high <= self.low or not 0 <= self.low <= self.high <= 255:
             raise ValueError('invalid_f12_bracket')
-        if self.high - self.low < 3:
+        if self.high-self.low <= 2:
             return ()
-        return tuple(self.low + (self.high-self.low)*i//5 for i in range(1,6))
+        # At 8-bit resolution fewer than five distinct commands remain.
+        # Never invent duplicated PWM stages merely to fill the menu.
+        count = min(5,self.high-self.low)
+        return tuple(self.low + (self.high-self.low)*i//count
+                     for i in range(1,count+1))
 
     def next(self, first_moving):
         """first_moving: 1..5; 0 means none started.

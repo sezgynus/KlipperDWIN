@@ -83,14 +83,14 @@ class PhysicalPulseTests(unittest.TestCase):
         self.assertEqual(p.duration_ms, 17500)
         self.assertEqual(p.script.count('G4 P2000'), 5)
         self.assertEqual(p.script.count('M106 S0'), 10)
-        self.assertTrue(p.script.endswith('M106 S0\\nM400'))
+        self.assertTrue(p.script.endswith('M106 S0\nM400'))
         self.assertTrue(restored(p, status))
         from maintenance_f12 import F12Bracket
         from maintenance_pulse import f12_round_program
         next_program = f12_round_program(p, F12Bracket(76, 101))
         self.assertEqual(next_program.pwm_levels, (81, 86, 91, 96, 101))
         self.assertEqual(next_program.script.count('G4 P2000'), 5)
-        self.assertTrue(next_program.script.endswith('M106 S0\\nM400'))
+        self.assertTrue(next_program.script.endswith('M106 S0\nM400'))
         status['fan']['speed'] = .35
         with self.assertRaisesRegex(ValueError, 'f12_requires_fan_initially_off'):
             compile_pulse(guided_plan(snap)[0], snap, status, settings)

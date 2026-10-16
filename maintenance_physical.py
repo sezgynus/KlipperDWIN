@@ -176,7 +176,8 @@ class MaintenancePulseController:
         elapsed = max(0.0, monotonic() - self._f12_round_started)
         # Approximate UI phase only: G-code is serialized in Klipper. The
         # current commanded index is not claimed as electronic readback.
-        index = min(4, int(elapsed / 3.5)) if self._phase == 'running' else 4
+        index = (min(len(self._program.pwm_levels)-1, int(elapsed / 3.5))
+                 if self._phase == 'running' else len(self._program.pwm_levels)-1)
         return (self._f12_bracket.stage + 1, index + 1,
                 self._program.pwm_levels[index],
                 self._f12_bracket.low, self._f12_bracket.high)

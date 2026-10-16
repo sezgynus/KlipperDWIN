@@ -329,14 +329,14 @@ def f12_round_program(program, bracket):
             or program.original != (0.0,) or not isinstance(bracket, F12Bracket)):
         raise ValueError('invalid_f12_round')
     values = bracket.levels()
-    if len(values) != 5 or len(set(values)) != 5:
+    if not 1 <= len(values) <= 5 or len(set(values)) != len(values):
         raise ValueError('f12_resolution_reached')
     script = '\n'.join(
         'M106 S0\nG4 P1500\nM400\nM106 S%d\nG4 P%d\nM400\nM106 S0\nM400'
         % (v, _F12_STEP_MS) for v in values)
     return replace(program, stimulus='\n'.join('M106 S%d' % v for v in values),
                    script=script, pwm_levels=values,
-                   duration_ms=5 * (_F12_STEP_MS + 1500))
+                   duration_ms=len(values) * (_F12_STEP_MS + 1500))
 
 
 

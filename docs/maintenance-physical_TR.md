@@ -4,7 +4,7 @@
 
 `MaintenancePulseController` yalnız kullanıcı isteğiyle çalışan backend durum makinesidir. Desteklenen fiziksel işlemler sadece Aşama 8B'nin hazırladığı `PulseProgram` komutlarıdır; en fazla 950 ms uyarım ve aynı script içinde başlangıç değerine dönüş içerir. Petrel'in mevcut read worker'ını, Moonraker HTTP istemcisini, `postREST` komut kuyruğunu, değişmez discovery'yi, doğrulanmış job queue/operasyon güvenliğini ve açık `GuidedConsentGate` kullanır.
 
-İki ayrı UI eylemi zorunludur: önce keşfedilen testi seçmek (salt okunur kuyruk + başlangıç değeri sorgulanır), ardından ön kontrol bittikten sonra **üç saniye içinde** açıkça onaylamak. Menü girişi veya keşif asla komut göndermez. Dispatch-time guard Klipper epoch/config değişimini, baskı/pause/manual-probe/MMU işlemlerini, eskimiş kuyruk kanıtını ve bilinmeyen durumu reddeder. `postREST` kısa G-code'u kuyruğa alır; tamamlandıktan sonra ayrıca yapılan GET başlangıç değerine dönüşü doğrulamalıdır. Ancak bundan sonra kullanıcıya fiziksel gözlemi sorulur ve **yalnız açık EVET** `PASSED_USER` üretir. Otomatik PASS veya RPM uydurulmaz.
+İki ayrı UI eylemi zorunludur: önce keşfedilen testi seçmek (salt okunur kuyruk + başlangıç değeri sorgulanır), ardından kullanıcı hazır olduğunda açıkça onaylamak. **Kullanıcı seçimleri zaman aşımına uğramaz.** Başlatma onayı öncesinde uzun süre beklendiyse eski güvenlik kanıtıyla işlem yapılmaz; onay önce yeni salt-okunur ön kontrol başlatır, ardından kullanıcıdan yeniden çalıştırma onayı alınır. Menü girişi veya keşif asla komut göndermez. Dispatch-time guard Klipper epoch/config değişimini, baskı/pause/manual-probe/MMU işlemlerini, eskimiş kuyruk kanıtını ve bilinmeyen durumu reddeder. `postREST` kısa G-code'u kuyruğa alır; tamamlandıktan sonra ayrıca yapılan GET başlangıç değerine dönüşü doğrulamalıdır. Ancak bundan sonra kullanıcıya fiziksel gözlemi sorulur ve **yalnız açık EVET** `PASSED_USER` üretir. Otomatik PASS veya RPM uydurulmaz.
 
 ÖNEMLİ: Moonraker timeout/bağlantı kopması, script geri alma içeriyor olsa bile komutun çalışıp çalışmadığını belirsiz bırakabilir. Controller `INCONCLUSIVE` döndürür; zamanı aşmış komutu tekrar göndermez. İptal/timeout sonrasında belirsiz komut çalışmaya devam edebilir. Kullanıcı donanımı kontrol etmelidir; yerel rezervasyon harici Moonraker istemcilerini kilitlemez. Bu tasarım hard real-time fail-safe garantisi vermez. Özellikle orijinal çıkış değeri doğrulanamazsa, kuyruk bilinmiyorsa, template aktifse veya son GET başlangıçla uyuşmuyorsa **başarı engellenir**.
 
@@ -39,6 +39,20 @@ ve Klipper'ı yeniden başlatmaz.** Kick-start etkin durumdaki asgari
 normal kullanım devri farklı bir ölçümdür. `off_below` ve
 `max_power` sonuç üzerinde etkili kalır; fiziksel PWM/RPM doğrudan
 ölçülmez.
+
+## Kullanıcının hızına göre ilerleyen etkileşimli aşamalar
+
+Maintenance kapsamındaki bütün yönlendirmeli donanım testlerinde
+**kullanıcı yanıtları için süre sınırı yoktur**. İlk çalıştırma onayı,
+uyarı sonrası gözlem (S18 ses gözlemi dahil) ve F12 fiziksel fan durma
+onayı kullanıcı cevap verene veya açıkça iptal edene kadar bekler.
+Enkoderin kullanılmaması tek başına `ABORTED`, `INCONCLUSIVE`,
+`FAILED_USER` veya `BLOCKED` üretmez. Güvenlik kanıtının üç saniyelik
+geçerliliği **UI geri sayımı değil, komut gönderme güvenliği** içindir:
+bekleme sonrasında onaya basılması yeni bir salt-okunur güvenlik kontrolü
+başlatır ve taze onay ister. Okuma, fiziksel komut ve geri yükleme
+doğrulaması için teknik zaman aşımları korunur; bunlar kullanıcı yanıt
+süresiyle ilgili değildir.
 
 ## Gecikmeli Moonraker geri yükleme telemetrisi (Aşama 8 F01 kabulü)
 

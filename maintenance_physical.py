@@ -353,12 +353,15 @@ class MaintenancePulseController:
                 return self._finish('BLOCKED', reason)
             self._token = token
             self._phase = 'await_confirmation'
+            # The deadline applies to the safety evidence, not to the
+            # operator's reading/decision time. Expired evidence is refreshed
+            # only if the operator later requests an actual dispatch.
             self._deadline = min(now + 3, evidence.observed_at + 3)
             self._future = None
             return None
         if self._phase == 'await_confirmation':
-            if now >= self._deadline or not self._current() or not self._safety_check(self._snapshot(), self._evidence):
-                return self._finish('ABORTED', 'confirmation_expired_or_unsafe')
+            # No passive timeout or termination while waiting for the user.
+            # confirm() will obtain fresh evidence before a late dispatch.
             return None
         if self._phase == 'f12_next_preflight':
             if not self._current() or now >= self._deadline:
@@ -445,7 +448,7 @@ class MaintenancePulseController:
                 if self._cancelled:
                     return self._finish('ABORTED', 'buzzer_cancelled_restore_unverified')
                 self._phase = 'await_observation'
-                self._deadline = now + 30
+                self._deadline = 0.0  # User observation has no expiry.
                 return None
             if now >= self._deadline:
                 if self._future is not None:
@@ -498,7 +501,7 @@ class MaintenancePulseController:
                                 'INCONCLUSIVE', 'f12_preflight_worker_unavailable', True)
                         return None
                     self._phase = 'await_observation'
-                    self._deadline = now + 30
+                    self._deadline = 0.0  # Only explicit user input advances.
                     return None
             else:
                 # Do not treat a single stale intermediate PWM as a failure;
@@ -509,23 +512,23 @@ class MaintenancePulseController:
                     else 'restore_readback_unavailable')
             self._verify_next_at = now + _VERIFY_RETRY_INTERVAL_S
             return None
-        if self._phase == 'f12_await_stop' and now >= self._deadline:
-            return self._finish('INCONCLUSIVE', 'fan_stop_not_confirmed', True)
-        if self._phase == 'await_observation' and now >= self._deadline:
-            # S18 has no Klipper readback: an expired user-observation window
-            # must never imply that the output was restored.
-            return self._finish('INCONCLUSIVE', 'observation_timeout',
-                                self._program.feature_id != 'S18'
-                                and not self._program.managed_hh)
+        # Human observation, F12 physical-stop confirmation and initial
+        # consent are intentionally unbounded. Neither time nor an idle UI
+        # tick is a negative answer, cancellation or failed observation.
         return None
 
     def confirm(self):
         """A second, deliberate user action starts the guarded G-code script."""
         if self._phase != 'await_confirmation':
             return False, 'not_awaiting_confirmation'
-        if (monotonic() >= self._deadline or not self._current()):
+        if monotonic() >= self._deadline or not self._current():
+            # The user can spend as long as needed reading the question.
+            # A late click never actuates from a stale queue/baseline or an
+            # expired GuidedConsentGate. It requests a fresh read-only
+            # preflight; a second deliberate click will confirm that proof.
+            feature, device = self._row.feature_id, self._row.device
             self._release()
-            return False, 'expired_or_changed'
+            return self.start(feature, device)
         snap, context = self._snapshot(), self._context()
         result, reason = self._gate.approve(self._token, snap, context)
         if result is None:
@@ -587,7 +590,7 @@ class MaintenancePulseController:
             except ValueError:
                 return self._finish('INCONCLUSIVE', 'f12_contradictory_or_invalid_observation', True)
             self._phase = 'f12_await_stop'
-            self._deadline = monotonic() + 30
+            self._deadline = 0.0  # Physical stop is confirmed only by user.
             return None
         if type(seen) is not bool:
             return None

@@ -141,6 +141,40 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(result.reason, 'explicit_user_observation')
         self.assertFalse(self.runner.pending)
 
+    def test_unanswered_initial_consent_stays_open_and_refreshes_on_click(self):
+        self.prepare()
+        # Neither the gate's three-second proof freshness nor elapsed time
+        # should silently end the menu's human-decision phase.
+        self.advance(3600)
+        for _ in range(5):
+            self.assertIsNone(self.runner.poll())
+            self.assertEqual(self.runner.phase, 'await_confirmation')
+            self.assertEqual(self.commands, [])
+        # Late click refreshes read-only evidence without dispatching.
+        self.assertEqual(self.runner.confirm(), (True, 'preflight_queued'))
+        self.assertEqual(self.runner.phase, 'preflight')
+        self.assertEqual(self.commands, [])
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertEqual(self.commands, [])
+        # Second deliberate click now uses fresh guard and queues a pulse.
+        self.assertEqual(self.runner.confirm(), (True, 'bounded_pulse_queued'))
+        self.assertEqual(len(self.commands), 1)
+
+    def test_unanswered_restored_fan_observation_never_expires(self):
+        self.prepare()
+        self.assertTrue(self.runner.confirm()[0])
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.assertIsNone(self.runner.poll())
+        self.verify_ready()
+        self.advance(3600)
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertTrue(self.runner.pending)
+        self.assertEqual(self.runner.observe(True).status, 'PASSED_USER')
+        self.assertEqual(len(self.commands), 1)
+
     def test_no_observation_no_hardware_pass(self):
         self.prepare()
         self.assertIsNone(self.runner.observe(True))
@@ -324,7 +358,7 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertFalse(result.restore_verified)
         self.assertIn('no_readback', result.reason)
 
-    def test_s18_observation_timeout_keeps_restore_unverified(self):
+    def test_s18_user_observation_never_expires_and_does_not_invent_restore(self):
         self.configure_config_only_buzzer()
         self.assertTrue(self.runner.start('S18', 'pwm_cycle_time alarm')[0])
         self.worker.next()
@@ -337,12 +371,14 @@ class PhysicalControllerTests(unittest.TestCase):
         self.advance(.8)
         self.assertIsNone(self.runner.poll())
         self.assertEqual(self.runner.phase, 'await_observation')
-        self.advance(31)
-        result = self.runner.poll()
-        self.assertEqual(result.status, 'INCONCLUSIVE')
-        self.assertEqual(result.reason, 'observation_timeout')
+        self.advance(60 * 60)
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertTrue(self.runner.pending)
+        self.assertEqual(len(self.commands), 1)
+        result = self.runner.observe(True)
+        self.assertEqual(result.status, 'OBSERVED_USER')
         self.assertFalse(result.restore_verified)
-        self.assertFalse(self.runner.pending)
         self.assertEqual(len(self.commands), 1)
 
     def test_f12_kick_start_preflight_blocks_before_consent_or_gcode(self):
@@ -415,6 +451,10 @@ class PhysicalControllerTests(unittest.TestCase):
                 else:
                     self.assertEqual(self.runner.phase, 'await_observation')
         self.assertIsNone(self.runner.observe(4))
+        self.assertEqual(self.runner.phase, 'f12_await_stop')
+        self.assertEqual(len(self.commands), 5)
+        self.advance(3600)
+        self.assertIsNone(self.runner.poll())
         self.assertEqual(self.runner.phase, 'f12_await_stop')
         self.assertEqual(len(self.commands), 5)
         result, why = self.runner.f12_confirm_stopped()

@@ -4,7 +4,7 @@
 
 `MaintenancePulseController` is an on-demand backend state machine. The only supported physical actions are compiled `PulseProgram` scripts from Stage 8B, with a self-contained restore after a maximum 950-ms stimulus. It reuses the existing Petrel read worker, Moonraker HTTP client, `postREST` command queue, immutable discovery, fail-closed job queue/operation evidence and explicit `GuidedConsentGate`.
 
-Two distinct UI actions are mandatory: first, select a discovered test (queues a read-only job-queue + target baseline GET); second, explicitly confirm **within three seconds** after the preflight. Nothing is sent on menu entry or discovery. A dispatch-time guard rejects changed Klipper epoch/config, print/paused/manual-probe/MMU operations, stale queue evidence and unknown status. `postREST` queues the short G-code script; after the command completes, a new bounded GET must confirm the original value was restored. Only then does the runner ask for the user's observation, and **only an explicit YES** returns `PASSED_USER`, never automatic PASS or RPM data.
+Two distinct UI actions are mandatory: first, select a discovered test (queues a read-only job-queue + target baseline GET); second, explicitly confirm whenever the operator is ready. **User choices never expire.** If the operator delays the start confirmation beyond the short lifetime of its queue/baseline proof, pressing confirm initiates a fresh **read-only** preflight, and the operator confirms again before any actuation. Nothing is sent on menu entry or discovery. A dispatch-time guard rejects changed Klipper epoch/config, print/paused/manual-probe/MMU operations, stale queue evidence and unknown status. `postREST` queues the short G-code script; after the command completes, a new bounded GET must confirm the original value was restored. Only then does the runner ask for the user's observation, and **only an explicit YES** returns `PASSED_USER`, never automatic PASS or RPM data.
 
 IMPORTANT: a Moonraker timeout/connection interruption can leave a command's execution ambiguous even if the script includes a restore. The controller marks this `INCONCLUSIVE`; it never replays a timed-out command. An ambiguous command may continue executing after a cancel/timeout. The user must inspect the hardware; the local reservation is not a global lock against other Moonraker clients. This implementation cannot establish hard real-time fail-safe guarantees. In particular, an unverified original output, unknown queue, active template, or mismatching post-command readback **blocks** success.
 
@@ -41,6 +41,19 @@ If you need a minimum *normal-operation* speed with kick-start enabled,
 that is a different measurement, not the F12 cold-start threshold.
 `off_below` and `max_power` still affect the observed M106 threshold;
 no automatic PID, RPM, or independent electrical-power verification exists.
+
+## User-paced interactive prompts
+
+All guided Maintenance hardware tests share the same policy: **no timeout on
+operator decisions**. Initial dispatch confirmation, post-stimulus observation
+(including the configuration-only S18 sound test), and the F12 rotor-stopped
+confirmation stay open until the operator answers or explicitly cancels. An
+idle encoder never creates `ABORTED`, `INCONCLUSIVE`, `FAILED_USER`, or
+`BLOCKED` solely because time passed. The existing three-second evidence
+freshness is a **dispatch safety rule**, not a UI countdown: after waiting,
+confirming re-reads live safety and asks for fresh consent. Bounded read,
+hardware-command and restore-verification timeouts remain and can still
+produce safety-related outcomes independently of any operator response.
 
 ## Delayed Moonraker restore telemetry (Stage 8 F01 acceptance)
 

@@ -285,5 +285,46 @@ class MaintenanceUIFlows(unittest.TestCase):
         self.assertEqual(d._maintenance_result.status, 'INCONCLUSIVE')
 
 
+    def test_motion_confirmation_information_rows_do_not_cancel_or_dispatch(self):
+        d=self.setup_view()
+        d._maintenance_page='pulse'
+        d.pd.maintenance_pulse=SimpleNamespace(
+            phase='await_confirmation',pending=True,feature_id='M05',
+            live_text=('X +1 mm','Clear travel path'),returning=False)
+        d.pd.confirm_maintenance_physical=Mock()
+        d.pd.cancel_maintenance_physical=Mock()
+        d._maintenance_selection=2
+        self.event(d,d.ENCODER_DIFF_ENTER)
+        d.pd.confirm_maintenance_physical.assert_not_called()
+        d.pd.cancel_maintenance_physical.assert_not_called()
+        self.assertEqual(d._maintenance_page,'pulse')
+
+    def test_external_measurement_editor_redraws_and_requires_return_preflight(self):
+        d=self.setup_view()
+        d._maintenance_page='pulse'
+        owner=SimpleNamespace(phase='await_measurement',pending=True,
+            feature_id='M06',measurement_value=10.,live_text=(),returning=False)
+        owner.begin_measurement=Mock(side_effect=lambda:setattr(owner,'phase','measurement_edit'))
+        def adjust(delta):
+            owner.measurement_value+=delta
+        owner.adjust_measurement=Mock(side_effect=adjust)
+        def record(value):
+            owner.phase='preflight'
+            return True,'return_preflight_queued'
+        owner.record_measurement=Mock(side_effect=record)
+        d.pd.maintenance_pulse=owner
+        d._maintenance_selection=1
+        self.event(d,d.ENCODER_DIFF_ENTER)
+        self.assertEqual(owner.phase,'measurement_edit')
+        self.assertEqual(d._maintenance_rows()[0],'Actual measured mm')
+        d._menu_batch_steps=2
+        self.event(d,d.ENCODER_DIFF_CW)
+        self.assertAlmostEqual(owner.measurement_value,10.02)
+        self.event(d,d.ENCODER_DIFF_ENTER)
+        owner.record_measurement.assert_called_once_with(owner.measurement_value)
+        self.assertEqual(owner.phase,'preflight')
+        self.assertEqual(d._maintenance_page,'pulse')
+
+
 if __name__ == '__main__':
     unittest.main()

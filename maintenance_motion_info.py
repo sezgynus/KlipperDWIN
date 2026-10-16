@@ -128,6 +128,12 @@ def tmc2208_faults(values):
     fields = values.get('drv_status')
     if not isinstance(fields, Mapping) or len(fields) > 64:
         return None
+    allowed=set(_FLAGS)|{'cs_actual','stealth'}
+    if any(k not in allowed for k in fields):
+        return None
+    if any(type(v) not in (bool,int) or not 0<=v<=(
+            31 if k=='cs_actual' else 1) for k,v in fields.items()):
+        return None
     keys = ('ot', 'otpw', 's2ga', 's2gb', 's2vsa', 's2vsb',
             't120', 't143', 't150', 't157')
     if any(k in fields and (type(fields[k]) not in (bool, int) or fields[k] not in (0, 1)) for k in keys):

@@ -14,6 +14,8 @@ class MotionInformationTests(unittest.TestCase):
         self.assertEqual(tmc2208_faults({'drv_status': {}}), ())
         self.assertEqual(tmc2208_faults({'drv_status': {'stst': 1, 'otpw': 1}}), ('otpw',))
         self.assertIsNone(tmc2208_faults({'drv_status': {'ot': 'false'}}))
+        self.assertIsNone(tmc2208_faults({'drv_status': {'unknown_schema': 1}}))
+        self.assertEqual(tmc2208_faults({'drv_status': {'cs_actual': 10, 'stealth': 1}}), ())
 
     def test_reported_current_and_temperature_are_not_invented(self):
         v = reply({'tmc2208 stepper_x': {'run_current': .8, 'hold_current': .4, 'temperature': None}})
@@ -43,3 +45,23 @@ class MotionInformationTests(unittest.TestCase):
         v=reply({'endstop_phase': {'last_home': {'stepper_x': {'phase': 7, 'phases': 64, 'mcu_position': 123}}}})
         self.assertIn(('stepper_x.phase', '7/64'), read_fields('M12', v))
         self.assertEqual(read_fields('M12', reply({'endstop_phase': {'last_home': {}}})), ())
+
+    def test_unverified_information_source_releases_session(self):
+        from types import SimpleNamespace
+        from maintenance_executor import MaintenanceReadExecutor,read_only_adapters
+        from maintenance_discovery import MaintenanceSnapshot,INFORMATION,_add
+        from maintenance_planner import build_plan
+        from maintenance_safety import SafetyContext,MaintenanceSafetyCoordinator
+        from test_maintenance_controller import printer
+        backend,_=printer()
+        snap=MaintenanceSnapshot(12,global_modes=_add(0,'M16',INFORMATION),
+                                  config_marker=id(backend.state.settings))
+        context=SafetyContext(backend.state,queue_checked=True,job_queue=None,
+                              operations_checked=True,conflicting_operation=False)
+        safety=MaintenanceSafetyCoordinator()
+        worker=SimpleNamespace(submit=lambda *a,**k: self.fail('must not queue GET'))
+        ex=MaintenanceReadExecutor(worker,None,lambda:context,lambda:snap,safety)
+        row=next(r for r in build_plan(snap,read_only_adapters()) if r.feature_id=='M16')
+        self.assertEqual(ex.start(row),(False,'information_source_unverified'))
+        self.assertFalse(ex.pending)
+        self.assertIsNone(safety.active)

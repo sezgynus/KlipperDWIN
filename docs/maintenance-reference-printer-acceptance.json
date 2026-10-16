@@ -321,8 +321,8 @@
       "method": "AU",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Only X/Y mechanical switches; Z uses probe:z_virtual_endstop.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -332,8 +332,8 @@
       "method": "AU",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Only X/Y mechanical switches; Z uses probe:z_virtual_endstop.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -343,8 +343,8 @@
       "method": "K",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Homing only after collision-safe geometry verification.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -354,8 +354,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Physical stepper moves require safe clearance and user consent.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -365,8 +365,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Physical stepper moves require safe clearance and user consent.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -376,8 +376,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Physical stepper moves require safe clearance and user consent.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -387,8 +387,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Coordinate moves require homing, soft limits, and collision-safe bounds.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -398,8 +398,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Coordinate moves require homing, soft limits, and collision-safe bounds.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -409,8 +409,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Coordinate moves require homing, soft limits, and collision-safe bounds.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -420,8 +420,8 @@
       "method": "E",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Requires external ruler/caliper; firmware position is not distance evidence.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -431,8 +431,8 @@
       "method": "E",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Requires external ruler/caliper; firmware position is not distance evidence.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -442,8 +442,8 @@
       "method": "E",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Requires external ruler/caliper; firmware position is not distance evidence.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -453,8 +453,8 @@
       "method": "AI",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Four UART TMC2208 drivers; fresh validated status needed.",
+      "adapter": "implemented",
+      "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
       "acceptance": null
     },
     {
@@ -464,8 +464,8 @@
       "method": "AI",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Four UART TMC2208 drivers; fresh validated status needed.",
+      "adapter": "implemented",
+      "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
       "acceptance": null
     },
     {
@@ -475,8 +475,8 @@
       "method": "AI",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Four UART TMC2208 drivers; fresh validated status needed.",
+      "adapter": "implemented",
+      "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
       "acceptance": null
     },
     {
@@ -486,8 +486,8 @@
       "method": "AI",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Four UART TMC2208 drivers; fresh validated status needed.",
+      "adapter": "implemented",
+      "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
       "acceptance": null
     },
     {
@@ -497,8 +497,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Do not deliberately induce shorts or overheating; inspect real fault bits.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -508,8 +508,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Do not deliberately induce shorts or overheating; inspect real fault bits.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -519,8 +519,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Do not deliberately induce shorts or overheating; inspect real fault bits.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -530,8 +530,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Do not deliberately induce shorts or overheating; inspect real fault bits.",
+      "adapter": "implemented",
+      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {
@@ -541,8 +541,8 @@
       "method": "K",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Only X/Y endstop_phase present; no physical Z endstop phase.",
+      "adapter": "implemented",
+      "note": "Implemented exact configured physical-stepper phase calibration from existing homing history; pending config only, no automatic SAVE_CONFIG. Pending operator acceptance.",
       "acceptance": null
     },
     {
@@ -552,8 +552,8 @@
       "method": "K",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Only X/Y endstop_phase present; no physical Z endstop phase.",
+      "adapter": "implemented",
+      "note": "Implemented exact configured physical-stepper phase calibration from existing homing history; pending config only, no automatic SAVE_CONFIG. Pending operator acceptance.",
       "acceptance": null
     },
     {

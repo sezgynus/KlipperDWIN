@@ -127,6 +127,15 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(paired['status'], 'conditional')
         self.assertEqual(paired['adapter'], 'not_implemented')
 
+    def test_m_implementation_never_grants_physical_acceptance(self):
+        items=[e for e in ledger()['entries'] if e['feature_id'].startswith('M')
+               and e['reference']=='confirmed']
+        self.assertEqual(len(items),22)
+        for item in items:
+            self.assertEqual(item['adapter'],'implemented')
+            self.assertEqual(item['status'],'pending')
+            self.assertIsNone(item['acceptance'])
+
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}
         confirmed = [('F01', 'fan'), ('S18', 'pwm_cycle_time Buzzer'),

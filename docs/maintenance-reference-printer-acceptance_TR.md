@@ -45,28 +45,28 @@
 | [ ] | H09 | `heater_bed` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `extruder` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | M01 | `physical X endstop` | Fiziksel endstop basma/bırakma | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M01 | `physical Y endstop` | Fiziksel endstop basma/bırakma | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M03 | `Cartesian X/Y/Z homing` | Homing tamamlanması | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M04 | `stepper_x` | Step motoru kaba hareketi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M04 | `stepper_y` | Step motoru kaba hareketi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M04 | `stepper_z` | Step motoru kaba hareketi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M05 | `axis X` | Eksen kaba hareketi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M05 | `axis Y` | Eksen kaba hareketi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M05 | `axis Z` | Eksen kaba hareketi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M06 | `axis X` | Haricî ölçümle eksen mesafesi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M06 | `axis Y` | Haricî ölçümle eksen mesafesi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M06 | `axis Z` | Haricî ölçümle eksen mesafesi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M07 | `tmc2208 stepper_x` | TMC sürücü durumu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M07 | `tmc2208 stepper_y` | TMC sürücü durumu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M07 | `tmc2208 stepper_z` | TMC sürücü durumu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M07 | `tmc2208 extruder` | TMC sürücü durumu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 stepper_x` | TMC hata bitleri | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 stepper_y` | TMC hata bitleri | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 stepper_z` | TMC hata bitleri | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 extruder` | TMC hata bitleri | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M12 | `endstop_phase X` | Endstop phase kalibrasyonu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | M12 | `endstop_phase Y` | Endstop phase kalibrasyonu | Geliştirilecek | **BEKLİYOR** |
+| [ ] | M01 | `physical X endstop` | Fiziksel endstop basma/bırakma | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M01 | `physical Y endstop` | Fiziksel endstop basma/bırakma | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M03 | `Cartesian X/Y/Z homing` | Homing tamamlanması | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M04 | `stepper_x` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M04 | `stepper_y` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M04 | `stepper_z` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M05 | `axis X` | Eksen kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M05 | `axis Y` | Eksen kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M05 | `axis Z` | Eksen kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M06 | `axis X` | Haricî ölçümle eksen mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M06 | `axis Y` | Haricî ölçümle eksen mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M06 | `axis Z` | Haricî ölçümle eksen mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M07 | `tmc2208 stepper_x` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M07 | `tmc2208 stepper_y` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M07 | `tmc2208 stepper_z` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M07 | `tmc2208 extruder` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M10 | `tmc2208 stepper_x` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M10 | `tmc2208 stepper_y` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M10 | `tmc2208 stepper_z` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M10 | `tmc2208 extruder` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M12 | `endstop_phase X` | Endstop phase kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | M12 | `endstop_phase Y` | Endstop phase kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P01 | `probe` | Prob tetikleme | Geliştirilecek | **BEKLİYOR** |
 | [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Geliştirilecek | **BEKLİYOR** |
 | [ ] | P04 | `probe` | Tek prob ölçümü | Geliştirilecek | **BEKLİYOR** |
@@ -120,3 +120,5 @@
 **F12 uygulaması ve bu referans fan hedefinin kullanıcı kabulü tamamlandı.** Sıradaki bekleyen testler için bağımsız keşif, fiziksel güvenlik ve geri yükleme kuralları gerekir. Kalkış eşik komutundan ölçülmüş RPM veya elektriksel PWM çıkarılmaz. Koşullu donanım *otomatik olarak güvenli veya çalıştırılabilir* sayılmaz.
 
 **H uygulama durumu:** Referans yazıcının 16 fiziksel H hedefinin adaptörleri hazır; hiçbirinin fiziksel kabulü henüz yapılmadı. Toplu test sırası ve H01–H18 kapsamı için [termal rehber](maintenance-thermal_TR.md).
+
+**M uygulama durumu:** 22 doğrulanmış M hedefinde adaptör mevcut; fiziksel kabul henüz yok. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).

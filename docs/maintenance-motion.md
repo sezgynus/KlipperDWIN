@@ -23,7 +23,7 @@ critical/warning flags, not proven motor health. Final operator acknowledgment
 is OBSERVED_USER, never automatic hardware PASS. Other chips need their own
 fault schema. No existing F/H acceptance changes.
 
-## Pure motion contract (not yet a production adapter)
+## Motion contracts
 Cartesian/CoreXY coordinated motion is bounded by actual XYZ homing, configured
 limits, cold/OFF heaters, enabled primary motors and explicit clear-path consent.
 M04 uses Klipper's 10-cycle 1 mm STEPPER_BUZZ only for primary Cartesian motors;
@@ -38,8 +38,7 @@ confirms move completion. No FORCE_MOVE, SET_KINEMATIC_POSITION or tuning writes
 M03 is explicit configured XYZ homing; homing_override/macro G28 is rejected.
 M12 compiles only for configured physical endstop phase with real last_home
 history and no pending config, producing pending trigger_phase without save.
-Software readback is not physical position proof. These are pure contracts;
-controller/UI registrations are delivered separately after CI.
+Software readback is not physical position proof. The pure compiler is connected to the registered controller/UI described below.
 
 ## Registered physical controller
 M03/M04/M05/M06 and per-stepper M12 now join the physical router. Selecting a
@@ -53,7 +52,7 @@ The controller locks further motion after ambiguity. Ordinary finite protocols
 restore modes in the script; firmware protections remain enabled.
 
 M06 stops after a 10 mm outward move. Enter actual ruler/caliper travel using
-the encoder (0.1 mm increments); the displayed 10 mm initial value is only an
+the encoder (0.01 mm increments); the displayed 10 mm initial value is only an
 editable suggestion, never accepted without explicit operator input/confirmation.
 A fresh preflight and separate Return to start confirmation precede reversal.
 The stationary measurement and return-consent screens are unlimited. Changed
@@ -71,3 +70,59 @@ pending calibration config is intentionally not rolled back. Existing pending
 config blocks admission. M01 and M12 catalog scopes now support device rows,
 retaining legacy global informational fallback when no per-device evidence
 exists. No physical acceptance is granted by implementation or CI.
+
+## Final scope and field sequence
+| ID | Delivery |
+|---|---|
+| M01 | Physical primary-axis switch open/held/released, per target |
+| M02 | Deliberately hidden virtual-endstop manual-press pseudo-test |
+| M03 | Explicit supported configured XYZ homing with clear-path consent |
+| M04 | Primary Cartesian motor buzz, no independent multi-Z/coupled buzzing |
+| M05 | Supported coordinated XYZ 1 mm roundtrip |
+| M06 | External actual 10 mm travel entry, separately consented return |
+| M07 | Driver monitor INFORMATION only; null is unknown |
+| M08 | Real reported driver temperature only, if discovered |
+| M09 | Reported current settings, not measured winding current |
+| M10 | TMC2208 exact-schema passive fault/warning check and user observation |
+| M11 | Motor enable information |
+| M12 | Per configured physical stepper pending phase calibration; last_home diagnostics |
+| M13 | Available angle-driver temperature status only; no invented shaft angle |
+| M14 | Commanded position/homing/max-velocity information |
+| M15 | No generic manual-stepper motion adapter without an application-specific contract |
+| M16 | Supported reported carriage mode fields; no carriage activation |
+| M17 | Deliberately hidden raw force/register-write pseudo-test |
+
+The 22 confirmed reference M ledger targets now have adapters; M07's four rows
+are INFORMATION adapters, not functional motor tests. All remain physically
+pending; no F/H acceptance was modified. Other driver fault schemas and generic
+manual steppers are not exposed as physical tests just because discovered.
+
+Field order: M01 X/Y with the printer stationary and switches accessible;
+M03 after clearing the bed/homing path; then deliberately position the already
+homed carriage at an interior, raised, clear location through normal printer
+controls. M04/M05/M06 then run per X/Y/Z as supported, cooling heaters first.
+Keep primary motors enabled and clear the bed mesh yourself if the contract
+reports that requirement; the test does not clear compensation or home for you.
+A mechanical clearance acknowledgment cannot prove geometry for arbitrary
+objects on the bed. Do not start a queued print or issue external motion while
+a test owns the printer. Local Petrel motion guards reject competing owned
+operations; external clients cannot be locked by this software reservation.
+
+Run M10 and M07 while driver monitor data actually exists; disabled/null is
+inconclusive, not a clean bill of health and not a reason to auto-enable motors.
+M12 last: obtain homing statistics through deliberate normal homing, select
+the exact configured phase stepper, review and approve pending calibration,
+record the result. Handle pending config explicitly before calibrating a
+second axis. SAVE_CONFIG is never automatic. M12 user outcome remains
+OBSERVED_USER with pending config not restored; no electrical/metrology claim.
+
+No local tests/emulator or physical motion were run during development.
+All checks run on GitHub Actions, on the bot-signed feature HEAD. The same
+result-origin/selection preservation and unlimited operator prompts apply to M.
+
+Final audit: M12 phase history is read on demand; it is not added to the global
+subscription. Dispatch rechecks subscribed position/modes/homing/pending config.
+Mesh preflight requests only profile and bounds, never a matrix. Unknown
+TMC2208 register schemas remain inconclusive. Information source rejection
+releases its reservation. Confirmation information rows are inert; the measured
+distance editor redraws immediately and never dispatches the return itself.

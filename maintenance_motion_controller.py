@@ -103,7 +103,7 @@ class MaintenanceMotionController:
                 'gcode_move':'position,homing_origin,speed,speed_factor,extrude_factor,absolute_coordinates,absolute_extrude',
                 'stepper_enable':'steppers'}
         if 'bed_mesh' in state.settings:
-            fields['bed_mesh']='profile_name,mesh_matrix'
+            fields['bed_mesh']='profile_name,mesh_min,mesh_max'
         if row.feature_id=='M12':
             fields['endstop_phase']='last_home'
             fields['configfile']='save_config_pending,save_config_pending_items'
@@ -216,9 +216,20 @@ class MaintenanceMotionController:
                 queue,program,stamp=self._future.result()
                 if not self._safe(queue):
                     raise ValueError('motion_guard_failed')
-            except Exception:
-                return self._finish('BLOCKED','return_position_unverified_manual_recovery' if self._return_requested
-                                    else 'motion_geometry_or_evidence_unverified')
+            except Exception as exc:
+                code=str(exc) if isinstance(exc,ValueError) else ''
+                safe_codes={
+                    'home_xyz_before_motion_test','move_away_from_axis_limits',
+                    'clear_mesh_before_motion_test','raise_z_for_xy_clearance',
+                    'keep_xyz_motors_enabled','motion_requires_cold_idle_heaters',
+                    'existing_or_unknown_pending_config','home_axis_before_phase_calibration',
+                    'axis_not_homed_for_phase','individual_motor_kinematics_profile_required',
+                    'independent_multi_z_buzz_not_safe','clear_xyz_offsets_before_homing_test',
+                    'motion_command_overridden','motion_kinematics_profile_required',
+                    'motion_transform_profile_required','insufficient_test_travel'}
+                reason=(code if code in safe_codes else 'motion_geometry_or_evidence_unverified')
+                return self._finish('BLOCKED','return_position_unverified_manual_recovery'
+                                    if self._return_requested else reason)
             self._queue,self._program,self._last_stamp=queue,program,stamp
             self._phase='await_confirmation'
             self._future=None

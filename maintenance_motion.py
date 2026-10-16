@@ -79,6 +79,9 @@ def geometry(settings, status, homed=True):
             mesh = status.get('bed_mesh')
             if not isinstance(mesh, Mapping) or mesh.get('profile_name') or mesh.get('mesh_matrix'):
                 raise ValueError('clear_mesh_before_motion_test')
+            if 'mesh_matrix' not in mesh:
+                if vector(mesh.get('mesh_min'), 2) != vector(mesh.get('mesh_max'), 2):
+                    raise ValueError('clear_mesh_before_motion_test')
         enabled = status.get('stepper_enable', {}).get('steppers', {})
         if not isinstance(enabled, Mapping) or any(enabled.get('stepper_'+a) is not True for a in 'xyz'):
             raise ValueError('keep_xyz_motors_enabled')
@@ -233,6 +236,17 @@ def return_program(program, state, status, token):
 
 
 def dispatch_compatible(program,row,state,status,token):
+    if program.feature_id == 'M12':
+        # last_home is deliberately read on demand, not subscribed globally.
+        # Fresh queue/epoch/config guards are provided by the controller.
+        # At dispatch verify current modes/position/homed axis/pending config
+        # from the existing subscription, without requiring last_home there.
+        actual, low, high, velocity = geometry(state.settings,status,homed=False)
+        cfg=status.get('configfile',{})
+        return (program.device[-1] in status['toolhead']['homed_axes']
+                and cfg.get('save_config_pending') is False
+                and position_matches(program.original,actual)
+                and modes_match(program.modes,modal(status)))
     if program.returning:
         outward=tuple(program.original[i]+(program.distance if i==program.axis else 0) for i in range(3))
         base=replace(program,expected=outward,returning=False)

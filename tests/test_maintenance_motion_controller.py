@@ -156,3 +156,38 @@ class MotionControllerTests(unittest.TestCase):
         self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
         self.c.poll()
         self.assertEqual(len(self.commands),2)
+
+    def test_phase_dispatch_does_not_require_global_last_home_subscription(self):
+        self.arm('M12')
+        del self.data['status']['endstop_phase']
+        self.assertTrue(self.c.confirm()[0])
+        self.assertFalse(self.command.done())
+        self.assertEqual(self.commands[0][1]['script'],
+                         'ENDSTOP_PHASE_CALIBRATE STEPPER=stepper_x')
+
+    def test_motion_snapshot_epoch_change_never_retargets_old_command(self):
+        self.arm()
+        self.c.confirm()
+        self.data['epoch']=13
+        self.c.poll()
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
+        # The shutdown guard rejects the new epoch: no claim of restored state.
+        result=self.c.poll()
+        self.assertFalse(result.restore_verified)
+        self.assertIn('SHUTDOWN_UNCONFIRMED',result.reason)
+
+    def test_owned_other_motion_is_blocked_while_maintenance_reserves_printer(self):
+        from types import SimpleNamespace
+        from operation_guards import motion_dispatch_guard
+        self.p.maintenance_pulse=SimpleNamespace(pending=True)
+        with self.assertRaises(ValueError):
+            motion_dispatch_guard(self.p,owner='jog',position=True)
+
+    def test_geometry_block_reason_is_specific_and_no_rpc_is_sent(self):
+        self.data['status']['gcode_move']['position'][2]=1.
+        self.c.start('M05','stepper_x')
+        self.worker.drain()
+        result=self.c.poll()
+        self.assertEqual(result.status,'BLOCKED')
+        self.assertEqual(result.reason,'move_away_from_axis_limits')
+        self.assertEqual(self.commands,[])

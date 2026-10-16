@@ -45,28 +45,28 @@
 | [ ] | H09 | `heater_bed` | Cooling rate | Available; batch acceptance pending | **PENDING** |
 | [ ] | H13 | `extruder` | Heater response warning | Available; batch acceptance pending | **PENDING** |
 | [ ] | H13 | `heater_bed` | Heater response warning | Available; batch acceptance pending | **PENDING** |
-| [ ] | M01 | `physical X endstop` | Physical endstop press/release | Not built | **PENDING** |
-| [ ] | M01 | `physical Y endstop` | Physical endstop press/release | Not built | **PENDING** |
-| [ ] | M03 | `Cartesian X/Y/Z homing` | Homing completion | Not built | **PENDING** |
-| [ ] | M04 | `stepper_x` | Stepper coarse movement | Not built | **PENDING** |
-| [ ] | M04 | `stepper_y` | Stepper coarse movement | Not built | **PENDING** |
-| [ ] | M04 | `stepper_z` | Stepper coarse movement | Not built | **PENDING** |
-| [ ] | M05 | `axis X` | Axis coarse travel | Not built | **PENDING** |
-| [ ] | M05 | `axis Y` | Axis coarse travel | Not built | **PENDING** |
-| [ ] | M05 | `axis Z` | Axis coarse travel | Not built | **PENDING** |
-| [ ] | M06 | `axis X` | Measured axis travel | Not built | **PENDING** |
-| [ ] | M06 | `axis Y` | Measured axis travel | Not built | **PENDING** |
-| [ ] | M06 | `axis Z` | Measured axis travel | Not built | **PENDING** |
-| [ ] | M07 | `tmc2208 stepper_x` | TMC driver status | Not built | **PENDING** |
-| [ ] | M07 | `tmc2208 stepper_y` | TMC driver status | Not built | **PENDING** |
-| [ ] | M07 | `tmc2208 stepper_z` | TMC driver status | Not built | **PENDING** |
-| [ ] | M07 | `tmc2208 extruder` | TMC driver status | Not built | **PENDING** |
-| [ ] | M10 | `tmc2208 stepper_x` | TMC driver fault diagnostics | Not built | **PENDING** |
-| [ ] | M10 | `tmc2208 stepper_y` | TMC driver fault diagnostics | Not built | **PENDING** |
-| [ ] | M10 | `tmc2208 stepper_z` | TMC driver fault diagnostics | Not built | **PENDING** |
-| [ ] | M10 | `tmc2208 extruder` | TMC driver fault diagnostics | Not built | **PENDING** |
-| [ ] | M12 | `endstop_phase X` | Endstop phase calibration | Not built | **PENDING** |
-| [ ] | M12 | `endstop_phase Y` | Endstop phase calibration | Not built | **PENDING** |
+| [ ] | M01 | `physical X endstop` | Physical endstop press/release | Available; physical acceptance pending | **PENDING** |
+| [ ] | M01 | `physical Y endstop` | Physical endstop press/release | Available; physical acceptance pending | **PENDING** |
+| [ ] | M03 | `Cartesian X/Y/Z homing` | Homing completion | Available; physical acceptance pending | **PENDING** |
+| [ ] | M04 | `stepper_x` | Stepper coarse movement | Available; physical acceptance pending | **PENDING** |
+| [ ] | M04 | `stepper_y` | Stepper coarse movement | Available; physical acceptance pending | **PENDING** |
+| [ ] | M04 | `stepper_z` | Stepper coarse movement | Available; physical acceptance pending | **PENDING** |
+| [ ] | M05 | `axis X` | Axis coarse travel | Available; physical acceptance pending | **PENDING** |
+| [ ] | M05 | `axis Y` | Axis coarse travel | Available; physical acceptance pending | **PENDING** |
+| [ ] | M05 | `axis Z` | Axis coarse travel | Available; physical acceptance pending | **PENDING** |
+| [ ] | M06 | `axis X` | Measured axis travel | Available; physical acceptance pending | **PENDING** |
+| [ ] | M06 | `axis Y` | Measured axis travel | Available; physical acceptance pending | **PENDING** |
+| [ ] | M06 | `axis Z` | Measured axis travel | Available; physical acceptance pending | **PENDING** |
+| [ ] | M07 | `tmc2208 stepper_x` | TMC driver status | Available; physical acceptance pending | **PENDING** |
+| [ ] | M07 | `tmc2208 stepper_y` | TMC driver status | Available; physical acceptance pending | **PENDING** |
+| [ ] | M07 | `tmc2208 stepper_z` | TMC driver status | Available; physical acceptance pending | **PENDING** |
+| [ ] | M07 | `tmc2208 extruder` | TMC driver status | Available; physical acceptance pending | **PENDING** |
+| [ ] | M10 | `tmc2208 stepper_x` | TMC driver fault diagnostics | Available; physical acceptance pending | **PENDING** |
+| [ ] | M10 | `tmc2208 stepper_y` | TMC driver fault diagnostics | Available; physical acceptance pending | **PENDING** |
+| [ ] | M10 | `tmc2208 stepper_z` | TMC driver fault diagnostics | Available; physical acceptance pending | **PENDING** |
+| [ ] | M10 | `tmc2208 extruder` | TMC driver fault diagnostics | Available; physical acceptance pending | **PENDING** |
+| [ ] | M12 | `endstop_phase X` | Endstop phase calibration | Available; physical acceptance pending | **PENDING** |
+| [ ] | M12 | `endstop_phase Y` | Endstop phase calibration | Available; physical acceptance pending | **PENDING** |
 | [ ] | P01 | `probe` | Probe trigger response | Not built | **PENDING** |
 | [ ] | P03 | `probe` | Probe repeatability | Not built | **PENDING** |
 | [ ] | P04 | `probe` | Single probe measurement | Not built | **PENDING** |
@@ -120,3 +120,5 @@
 **F12 implementation and operator acceptance are complete for the reference fan target.** Other pending tests require their own discovery, physical safety and restoration contracts. Do not infer measured RPM or electrical PWM from the accepted commanded threshold search. Merely conditional devices are **not automatically safe or runnable**.
 
 **H implementation status:** All 16 reference physical H targets have adapters; none has physical acceptance yet. See the [thermal guide](maintenance-thermal.md) for final batch order and H01–H18 scope.
+
+**M implementation status:** Adapters exist for 22 confirmed M targets; no physical acceptance yet. M07 is INFORMATION only, not a motor-health PASS. H acceptance states are unchanged by this development. [Motion guide](maintenance-motion.md).

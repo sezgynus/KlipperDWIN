@@ -125,7 +125,7 @@ class MaintenanceViewMixin:
                         *((text[:26], self.ICON_Info, None, None) for text in live))
                 if getattr(self.pd.maintenance_pulse, 'feature_id', '') in ('M03','M04','M05','M06','M12'):
                     return 'Motion test', (
-                        ('Stop: Klipper shutdown', self.ICON_Back, None, None),
+                        ('Cancel checks' if phase == 'preflight' else 'Stop: Klipper shutdown', self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None) for text in self.pd.maintenance_pulse.live_text))
                 text = {'preflight': 'Safety checks...', 'running': 'Testing...',
                         'verifying': 'Checking restore...',
@@ -184,7 +184,7 @@ class MaintenanceViewMixin:
                 and event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW)):
             steps = max(1, int(getattr(self, '_menu_batch_steps', 1)))
             self.pd.maintenance_pulse.adjust_measurement(
-                .1 * steps * (1 if event == self.ENCODER_DIFF_CW else -1))
+                .01 * steps * (1 if event == self.ENCODER_DIFF_CW else -1))
             self._maintenance_show('pulse')
             return
         if event in (self.ENCODER_DIFF_CW, self.ENCODER_DIFF_CCW):

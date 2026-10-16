@@ -188,12 +188,16 @@ class MaintenanceReadExecutor:
             return False, 'context_unavailable'
         if not decision.allowed:
             return False, decision.reason
-        from urllib.parse import quote
-        path = (motion_path(row.feature_id, row.device, context.state)
-                if row.feature_id in MOTION_FIELDS else
-                _ENDPOINTS[row.feature_id] if row.feature_id in _ENDPOINTS
-                else '/printer/objects/query?' + quote(row.device, safe='') +
-                '=' + ','.join(_THERMAL_FIELDS[row.feature_id]))
+        try:
+            from urllib.parse import quote
+            path = (motion_path(row.feature_id, row.device, context.state)
+                    if row.feature_id in MOTION_FIELDS else
+                    _ENDPOINTS[row.feature_id] if row.feature_id in _ENDPOINTS
+                    else '/printer/objects/query?' + quote(row.device, safe='') +
+                    '=' + ','.join(_THERMAL_FIELDS[row.feature_id]))
+        except (ValueError, TypeError, AttributeError):
+            self._safety.end(session)
+            return False, 'information_source_unverified'
 
         def work():
             # Recheck immediately before GET; a queued job must not run stale.

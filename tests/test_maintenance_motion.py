@@ -76,3 +76,12 @@ class MotionContractTests(unittest.TestCase):
             'endstop_phase stepper_x':{'trigger_phase':'7/64'}}}
         self.assertTrue(verify_motion(p,self.status))
         self.assertNotIn('SAVE_CONFIG',p.script)
+
+    def test_small_mesh_bounds_prove_clear_without_fetching_matrix(self):
+        self.state.settings['bed_mesh']={}
+        self.status['bed_mesh']={'profile_name':'','mesh_min':[0.,0.],'mesh_max':[0.,0.]}
+        p=compile_motion(self.row(),self.state,self.status,TOKEN)
+        self.assertEqual(p.feature_id,'M05')
+        self.status['bed_mesh']['mesh_max']=[200.,200.]
+        with self.assertRaises(ValueError):
+            compile_motion(self.row(),self.state,self.status,TOKEN)

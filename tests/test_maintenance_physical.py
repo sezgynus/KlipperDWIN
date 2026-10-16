@@ -452,6 +452,10 @@ class PhysicalControllerTests(unittest.TestCase):
         raw['objects'] = ('neopixel diagnostic',)
         self.printer.state = PrinterState.from_snapshot(raw)
         self.client.status = {'neopixel diagnostic': {'color_data': lights}}
+        if managed:
+            self.client.status.update({
+                'mmu_leds unit0': {'enabled': True, 'animation': True},
+                'mmu': {'action': 'Idle'}})
         roles = approved_integrations(
             self.printer.state, (('led', 'neopixel diagnostic'),))
         self.printer.maintenance.snapshot = discover(self.printer.state, roles)
@@ -506,14 +510,68 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertIsNone(self.runner.observe(True))
         self.assertEqual(len(self.commands), 1)
 
-    def test_managed_mmu_chain_denied_before_any_output(self):
+    def test_managed_mmu_chain_uses_its_own_timed_effect_no_raw_led(self):
         self.configure_led_chain(managed=True)
         self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
         self.worker.next()
-        result = self.runner.poll()
-        self.assertEqual(result.status, 'BLOCKED')
-        self.assertEqual(result.reason, 'preflight_failed')
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
         self.assertEqual(self.commands, [])
+        self.assertTrue(self.runner.confirm()[0])
+        self.assertEqual(len(self.commands), 1)
+        script = self.commands[0][1]['script']
+        self.assertEqual(script, (
+            'MMU_SET_LED UNIT=unit0 EXIT_EFFECT=(0,0.35,0) '
+            'DURATION=1 FADETIME=0'))
+        self.assertNotIn('SET_LED LED=', script)
+        self.assertNotIn('MMU_LED QUIET', script)
+        self.assertTrue(self.commands[0][2]())
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.advance(1.9)
+        self.poll_verify()
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'await_observation')
+        result = self.runner.observe(True)
+        self.assertEqual(result.status, 'OBSERVED_USER')
+        self.assertFalse(result.restore_verified)
+        self.assertEqual(self.client.status['mmu_leds unit0'],
+                         {'enabled': True, 'animation': True})
+
+    def test_managed_mmu_chain_inactive_or_busy_rejected_without_dispatch(self):
+        for status_change in (
+                {'mmu_leds unit0': {'enabled': False, 'animation': True}},
+                {'mmu': {'action': 'Loading'}},
+                {'mmu_leds unit0': {'enabled': True, 'animation': None}}):
+            with self.subTest(status_change=status_change):
+                self.configure_led_chain(managed=True)
+                self.client.status.update(status_change)
+                self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+                self.worker.next()
+                result = self.runner.poll()
+                self.assertEqual(result.status, 'BLOCKED')
+                self.assertEqual(result.reason, 'preflight_failed')
+                self.assertEqual(self.commands, [])
+
+    def test_mmu_effect_status_change_never_reports_success(self):
+        self.configure_led_chain(managed=True)
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        self.runner.poll()
+        self.assertTrue(self.runner.confirm()[0])
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.client.status['mmu_leds unit0']['enabled'] = False
+        self.advance(1.9)
+        for _ in range(3):
+            self.poll_verify()
+            self.advance(.35)
+        self.advance(6)
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'INCONCLUSIVE')
+        self.assertFalse(result.restore_verified)
+        self.assertIsNone(self.runner.observe(True))
 
     def test_petrel_backend_creates_opt_in_physical_controller(self):
         from test_regressions import backend

@@ -13,7 +13,8 @@ from time import monotonic
 from urllib.parse import quote
 
 from maintenance_guided import guided_plan, GuidedConsentGate
-from maintenance_pulse import compile_pulse, restored
+from maintenance_pulse import (compile_pulse, compile_mmu_led_pulse,
+                               mmu_led_owner, restored)
 from maintenance_runtime import read_queue_evidence, live_safety_context
 from maintenance_safety import MaintenanceSafetyCoordinator
 
@@ -223,8 +224,21 @@ class MaintenancePulseController:
                 state = _read_target(self._client, target)
                 if state is None:
                     return None
-            program = compile_pulse(row, snap, state, self._printer.state.settings,
-                                    pin_command_name=pin_command_name)
+            settings = self._printer.state.settings
+            owner = (mmu_led_owner(settings, target)
+                     if row.feature_id == 'O04' else None)
+            if owner is not None:
+                unit_status = _read_target(self._client, owner[0])
+                mmu_status = _read_target(self._client, 'mmu')
+                if unit_status is None or mmu_status is None:
+                    raise ValueError('mmu_led_live_status_unknown')
+                program = compile_mmu_led_pulse(
+                    row, snap, state, settings,
+                    unit_status.get(owner[0], {}), mmu_status.get('mmu', {}))
+            else:
+                program = compile_pulse(
+                    row, snap, state, settings,
+                    pin_command_name=pin_command_name)
             return evidence, program
 
         try:
@@ -366,7 +380,8 @@ class MaintenancePulseController:
             # S18 has no Klipper readback: an expired user-observation window
             # must never imply that the output was restored.
             return self._finish('INCONCLUSIVE', 'observation_timeout',
-                                self._program.feature_id != 'S18')
+                                self._program.feature_id != 'S18'
+                                and not self._program.managed_hh)
         return None
 
     def confirm(self):
@@ -407,6 +422,16 @@ class MaintenancePulseController:
         """Human observation is separate from a command or reported PWM."""
         if self._phase != 'await_observation' or type(seen) is not bool:
             return None
+        if self._program.managed_hh:
+            # HH controls its own timed effect and returns to its policy.
+            # Two MMU enabled/animation reads cannot prove that a dynamic
+            # animation returned to the exact original colors. This is
+            # human-observed only; NEVER declare electronic restore verified.
+            return self._finish(
+                'OBSERVED_USER' if seen else 'FAILED_USER',
+                'hh_timed_effect_observed_policy_active_no_pixel_restore_proof'
+                if seen else 'hh_timed_effect_not_observed',
+                False)
         if self._program.feature_id == 'S18':
             # Unlike F01/O03, no Klipper status exists for pwm_cycle_time:
             # human observation is recorded, but telemetry restore is NEVER

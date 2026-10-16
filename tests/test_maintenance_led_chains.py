@@ -11,7 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from maintenance_discovery import discover
 from maintenance_guided import guided_plan
 from maintenance_profiles import approved_integrations
-from maintenance_pulse import compile_pulse, restored
+from maintenance_pulse import (compile_pulse, compile_mmu_led_pulse,
+                               mmu_led_owner, restored)
 
 TARGET = 'neopixel diagnostic'
 COLORS = [(0.1, 0.2, 0.3, 0.0),
@@ -119,6 +120,68 @@ class LedChainTests(unittest.TestCase):
         row, snap, status, settings = fixture(extra_settings={
             'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic_extra (1-4)'}})
         self.assertTrue(restored(compile_pulse(row, snap, status, settings), status))
+
+    def test_happy_hare_native_transient_is_unit_scoped_and_user_observed(self):
+        owner = {'mmu_leds unit5': {'exit_leds': 'neopixel:diagnostic (1-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        self.assertEqual(mmu_led_owner(settings, TARGET),
+                         ('mmu_leds unit5', 'unit5', 4))
+        pulse = compile_mmu_led_pulse(
+            row, snap, physical, settings,
+            {'enabled': True, 'animation': True}, {'action': 'Idle'})
+        self.assertTrue(pulse.managed_hh)
+        self.assertEqual(
+            pulse.script,
+            'MMU_SET_LED UNIT=unit5 EXIT_EFFECT=(0,0.35,0) '
+            'DURATION=1 FADETIME=0')
+        self.assertNotIn('SET_LED LED=', pulse.script)
+        self.assertNotIn('ENABLE=0', pulse.script)
+        self.assertTrue(restored(pulse, {
+            'mmu_leds unit5': {'enabled': True, 'animation': True}}))
+        self.assertFalse(restored(pulse, {
+            'mmu_leds unit5': {'enabled': False, 'animation': True}}))
+        self.assertFalse(restored(pulse, {
+            'mmu_leds unit5': {'enabled': True, 'animation': False}}))
+        self.assertFalse(restored(pulse, {
+            'neopixel diagnostic': {'color_data': COLORS}}))
+
+    def test_happy_hare_direct_handoff_denies_shared_or_partial_led_chain(self):
+        variants = [
+            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (2-4)'}},
+            {'mmu_leds unit0': {'entry_leds': 'neopixel:diagnostic (1-4)'}},
+            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-4)',
+                                'status_leds': 'neopixel:diagnostic (1)'}},
+            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-4)'},
+             'mmu_leds unit1': {'exit_leds': 'neopixel:diagnostic (1-4)'}},
+            {'mmu_leds malicious;M112': {'exit_leds': 'neopixel:diagnostic (1-4)'}},
+        ]
+        for managed in variants:
+            with self.subTest(managed=managed):
+                row, snap, physical, settings = fixture(extra_settings=managed)
+                with self.assertRaises(ValueError):
+                    compile_mmu_led_pulse(
+                        row, snap, physical, settings,
+                        {'enabled': True, 'animation': True},
+                        {'action': 'Idle'})
+
+    def test_happy_hare_failed_live_state_refuses_transient(self):
+        owner = {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        for unit, mmu in [
+            ({'enabled': False, 'animation': True}, {'action': 'Idle'}),
+            ({'enabled': True, 'animation': True}, {'action': 'Loading'}),
+            ({'enabled': True}, {'action': 'Idle'}),
+            ({'enabled': True, 'animation': True}, {}),
+        ]:
+            with self.subTest(unit=unit, mmu=mmu):
+                with self.assertRaises(ValueError):
+                    compile_mmu_led_pulse(row, snap, physical, settings, unit, mmu)
+        settings['led_effect standalone'] = {
+            'leds': 'neopixel:diagnostic (1-4)'}
+        with self.assertRaisesRegex(ValueError, 'independent_led_effect_owner'):
+            compile_mmu_led_pulse(
+                row, snap, physical, settings,
+                {'enabled': True, 'animation': False}, {'action': 'Idle'})
 
     def test_missing_explicit_profile_not_even_guided(self):
         row, snap, status, settings = fixture()

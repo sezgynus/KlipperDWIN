@@ -50,6 +50,13 @@ class MaintenanceViewMixin:
             return 'Diagnostics', tuple(entries)
         if page == 'pulse':
             phase = self.pd.maintenance_pulse.phase
+            if phase == 'workflow':
+                owner = self.pd.maintenance_pulse
+                return 'Guided '+str(owner.feature_id), (
+                    ('Cancel workflow', self.ICON_Back, None, None),
+                    *((label[:26], self.ICON_Info, None, None)
+                      for label, action in owner.workflow_choices),
+                    *((text[:26], self.ICON_Info, None, None) for text in owner.live_text))
             if phase == 'await_confirmation':
                 # The physical controller owns the active feature identity;
                 # avoid calling multi-step tests a short pulse.
@@ -60,6 +67,12 @@ class MaintenanceViewMixin:
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
                               feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
+                if feature_id and feature_id.startswith('P'):
+                    return 'Confirm '+feature_id, (
+                        ('Cancel', self.ICON_Back, None, None),
+                        ('Start probe workflow', self.ICON_Info, None, None),
+                        *((text[:26], self.ICON_Info, None, None)
+                          for text in self.pd.maintenance_pulse.live_text))
                 if feature_id and feature_id.startswith('H'):
                     live = getattr(self.pd.maintenance_pulse, 'live_text', ())
                     return 'Confirm HEAT test', (
@@ -118,6 +131,11 @@ class MaintenanceViewMixin:
                             ('Cancel test', self.ICON_Back, None, None),
                             ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
                             ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
+                if (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith('P'):
+                    return 'Probe workflow', (
+                        ('Stop / cancel workflow', self.ICON_Back, None, None),
+                        *((text[:26], self.ICON_Info, None, None)
+                          for text in self.pd.maintenance_pulse.live_text))
                 if getattr(self.pd.maintenance_pulse, 'feature_id', '').startswith('H'):
                     live = getattr(self.pd.maintenance_pulse, 'live_text', ())
                     return 'Thermal test', (
@@ -236,6 +254,19 @@ class MaintenanceViewMixin:
             return
         if page == 'pulse':
             phase = self.pd.maintenance_pulse.phase
+            if phase == 'workflow':
+                if selected == 0:
+                    outcome = self.pd.cancel_maintenance_physical()
+                    if outcome is not None:
+                        self._maintenance_result = outcome
+                        self._maintenance_show('result')
+                    else:
+                        self._maintenance_show('pulse')
+                elif selected <= len(self.pd.maintenance_pulse.workflow_choices):
+                    accepted, why = self.pd.maintenance_pulse.choose(selected-1)
+                    if accepted:
+                        self._maintenance_show('pulse')
+                return
             if phase == 'await_confirmation':
                 if selected == 1:
                     accepted, why = self.pd.confirm_maintenance_physical()

@@ -1,0 +1,19 @@
+# Maintenance probe workflows
+
+[Turkish](maintenance-probe_TR.md)
+
+P01/P02/P03/P04, P06, P12–P22 have concrete adapters. P05, P07–P11 remain exclusively in Leveling: probe-offset calibration, every bed-mesh operation and screws-tilt adjustment are deliberately not duplicated.
+
+Each selection runs read-only preflight first, then requires explicit Start. Every later action refreshes queue and lifecycle evidence before dispatch. Homing is a prerequisite, not an automatically replayed command. Motion uses the configured firmware routines; clear their entire travel path. Cold, idle heaters and no pending configuration are required at entry. User questions never expire.
+
+- P01 measures released → triggered → released using fresh QUERY_PROBE responses.
+- P02 captures one physical tap with LOAD_CELL_TEST_TAP. The 60-second firmware capture begins only after Start; the preceding question has no timeout.
+- P03 records ten-sample min/max/range/average/median/stddev. P04 records measured XYZ. RPC success alone is not measurement evidence or PASS.
+- P06/P12/P16/P17/P18 expose native interactive points with bounded TESTZ increments, Accept, and explicit abort. P12 also exposes Adjusted.
+- P13/P14 verify firmware applied status. P15/P16/P17/P18 verify the corresponding pending configuration. No workflow sends SAVE_CONFIG.
+- P19 explicitly deploys then stows the BLTouch pin; cancel requests stow before leaving the interaction.
+- P20 records calibrated force and change between explicit captures; raw uncalibrated data is not grams.
+- P21 requires explicit external AC, BD and AD measurements before CALC_MEASURED_SKEW. It does not apply a correction.
+- P22 provides Next/Complete for firmware temperature-drift calibration. It never starts a heater; external warming remains operator-controlled.
+
+Cancellation of an uncertain active movement requests Klipper emergency_stop. A firmware calibration may change live compensation or leave pending config; ending the workflow does not claim rollback. No physical acceptance is recorded by CI. Tests run only through Driver Branch Regression on the signed branch HEAD.

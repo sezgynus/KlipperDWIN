@@ -1,0 +1,192 @@
+"""Probe workflows: CI-only fake worker, firmware and printer evidence."""
+from concurrent.futures import Future
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+import copy
+import unittest
+
+from test_maintenance_controller import printer, Worker
+from maintenance_discovery import MaintenanceSnapshot, _add
+from maintenance_probe import MaintenanceProbeController, METHODS, LEVELING_ONLY, probe_measurement
+from maintenance_workflow import adapters
+
+
+class ProbeEvidenceTests(unittest.TestCase):
+    def test_numeric_accuracy_requires_complete_consistent_firmware_result(self):
+        line = 'probe accuracy results: maximum 1.000000, minimum 0.900000, range 0.100000, average 0.950000, median 0.950000, standard deviation 0.020000'
+        self.assertEqual(dict(probe_measurement('P03',(line,)))['range_mm'],.1)
+        for bad in ('ok',line.replace('0.100000','0.200000'),
+                    line.replace('0.950000','nan')):
+            self.assertEqual(probe_measurement('P03',(bad,)),())
+
+    def test_single_probe_supports_current_and_previous_upstream_result(self):
+        for text in ('probe at 50.000,50.000 is z=0.250000',
+                     'Result: at 50.000,50.000 estimate contact at z=0.250000'):
+            self.assertEqual(dict(probe_measurement('P04',(text,)))['z_mm'],.25)
+        self.assertEqual(probe_measurement('P04',('ok',)),())
+
+    def test_leveling_duplicates_never_registered(self):
+        ids = {r.feature_id for r in adapters(METHODS,'probe')}
+        self.assertFalse(ids & LEVELING_ONLY)
+        self.assertEqual(ids, {'P01','P02','P03','P04','P06','P12','P13','P14',
+                               'P15','P16','P17','P18','P19','P20','P21','P22'})
+
+
+class ProbeWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.p,self.raw = printer()
+        self.status = {'manual_probe':{'is_active':False},
+                       'configfile':{'save_config_pending':False,'save_config_pending_items':{}},
+                       'probe':{'last_query':False},
+                       'toolhead':{'position':[50.,50.,20.,0.],'homed_axes':'xyz',
+                                   'axis_minimum':[0.,0.,0.,0.],
+                                   'axis_maximum':[200.,200.,200.,0.]}}
+        self.raw['status'].update(copy.deepcopy(self.status))
+        self.p.subscription.lifecycle = Mock(return_value={'state':'ready','epoch':12})
+        self.p.subscription.responses_since = self.responses
+        self.p.subscription.request = self.request
+        self.commands, self.lines = [], []
+        self.stamp = 100.
+        self.worker = Worker()
+        self.client = SimpleNamespace(get=self.get)
+        self.owner = MaintenanceProbeController(self.p,self.worker,self.client)
+        modes = 0
+        for f,m in METHODS.items():
+            modes = _add(modes,f,m)
+        self.p.maintenance.snapshot = MaintenanceSnapshot(12,global_modes=modes,
+                                             config_marker=id(self.p.state.settings))
+        self.clock = 1000.
+        self.patches = [patch(name,side_effect=lambda:self.clock)
+                       for name in ('maintenance_workflow.monotonic','maintenance_runtime.monotonic')]
+        for p in self.patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def get(self,path):
+        if path == '/server/info':
+            return {'result':{'components':[]}}
+        if path.startswith('/printer/objects/query?'):
+            self.stamp += 1
+            return {'result':{'status':copy.deepcopy(self.status),'eventtime':self.stamp}}
+        raise AssertionError(path)
+
+    def responses(self,cursor):
+        return len(self.lines), tuple(self.lines[cursor:]) if cursor is not None else ()
+
+    def request(self,method,params=None,guard=None,**kwargs):
+        if guard is not None and not guard():
+            raise ValueError('dispatch_denied')
+        self.commands.append((method,params))
+        self.command = Future()
+        if method == 'printer.emergency_stop':
+            self.command.set_result('ok')
+        return self.command
+
+    def arm(self,feature='P01'):
+        self.assertTrue(self.owner.start(feature)[0])
+        self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'await_confirmation')
+
+    def dispatch(self):
+        self.assertTrue(self.owner.confirm()[0])
+        self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'running')
+
+    def complete(self,lines=()):
+        self.lines.extend(lines)
+        self.command.set_result('ok')
+        self.assertIsNone(self.owner.poll())
+        self.worker.drain()
+        return self.owner.poll()
+
+    def test_entry_and_human_wait_never_dispatch_or_expire(self):
+        self.arm()
+        self.clock += 100000
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'await_confirmation')
+        self.assertEqual(self.commands,[])
+        self.dispatch()
+        self.assertIsNone(self.complete(('probe: open',)))
+        self.assertEqual(self.owner.phase,'workflow')
+        self.clock += 100000
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(len(self.commands),1)
+
+    def test_probe_release_press_release_requires_three_fresh_readings(self):
+        self.arm()
+        self.dispatch()
+        self.assertIsNone(self.complete(('probe: open',)))
+        for state in ('TRIGGERED','open'):
+            self.assertTrue(self.owner.choose(0)[0])
+            self.worker.drain()
+            self.owner.poll()
+            result = self.complete(('probe: '+state,))
+        self.assertEqual(result.status,'PASSED')
+        self.assertEqual(dict(result.evidence)['transitions'],'open > TRIGGERED > open')
+
+    def test_plain_rpc_ok_is_never_probe_accuracy_pass(self):
+        self.arm('P03')
+        self.dispatch()
+        result = self.complete()
+        self.assertEqual(result.status,'INCONCLUSIVE')
+
+    def test_print_start_after_consent_denies_dispatch(self):
+        self.arm()
+        self.raw['status']['print_stats']['state'] = 'printing'
+        self.assertTrue(self.owner.confirm()[0])
+        self.worker.drain()
+        result = self.owner.poll()
+        self.assertEqual(result.status,'BLOCKED')
+        self.assertEqual(self.commands,[])
+
+    def test_active_motion_cancel_uses_emergency_stop_without_replay(self):
+        self.arm('P04')
+        self.dispatch()
+        self.assertIsNone(self.owner.cancel())
+        result = self.owner.poll()
+        self.assertIn('klipper_shutdown',result.reason)
+        self.assertEqual(self.commands[-1],('printer.emergency_stop',None))
+        self.assertEqual(len(self.commands),2)
+
+    def test_stale_or_malformed_measurement_is_not_passed(self):
+        self.arm('P03')
+        self.dispatch()
+        self.stamp = -100
+        self.assertIsNone(self.complete())
+        result = self.owner.poll()
+        self.assertEqual(result.status,'INCONCLUSIVE')
+
+    def test_skew_requires_all_three_explicit_external_measurements(self):
+        self.arm('P21')
+        self.dispatch()
+        self.complete()
+        self.assertEqual(self.owner.phase,'workflow')
+        self.owner.choose(3)
+        self.worker.drain()
+        self.assertEqual(self.owner.poll().reason,'enter_all_three_external_measurements')
+        self.assertEqual(len(self.commands),1)
+
+    def test_owned_manual_z_controls_do_not_automatically_accept_or_save(self):
+        self.arm('P06')
+        self.dispatch()
+        self.status['manual_probe'] = {'is_active':True,'z_position':20.}
+        self.complete()
+        self.assertEqual(self.owner.phase,'workflow')
+        self.assertTrue(self.owner._owned_manual)
+        self.assertIn(('Accept this point','accept'),self.owner.workflow_choices)
+        self.clock += 100000
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(len(self.commands),1)
+        self.assertNotIn('SAVE_CONFIG',str(self.commands))
+
+    def test_tap_prompt_without_completion_is_not_evidence(self):
+        self.arm('P02')
+        self.dispatch()
+        result = self.complete(('Tap the load cell 1 times:',))
+        self.assertEqual(result.status,'INCONCLUSIVE')
+
+
+if __name__ == '__main__':
+    unittest.main()

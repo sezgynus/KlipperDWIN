@@ -41,7 +41,7 @@ class Stage8GuidedTests(unittest.TestCase):
     def test_registry_contracts_match_original_catalog(self):
         adapters = guided_adapters()
         self.assertEqual({a.feature_id for a in adapters},
-                         {'F01', 'F04', 'O03', 'O04', 'S18'})
+                         {'F01', 'F02', 'F04', 'O03', 'O04', 'S18'})
         self.assertTrue(all(a.method == USER and
                             a.evidence_contract == definition_for(a.feature_id).evidence_contract
                             and a.safety_profile == definition_for(a.feature_id).safety_profile

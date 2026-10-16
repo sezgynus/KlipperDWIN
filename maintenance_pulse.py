@@ -408,7 +408,7 @@ def restored(program, status):
     state = status.get(program.object_name)
     if not isinstance(state, Mapping):
         return False
-    if program.feature_id in ('F01', 'F04'):
+    if program.feature_id in ('F01', 'F02', 'F04'):
         value = state.get('speed')
         return _unit(value) and abs(value - program.original[0]) <= .015
     if program.feature_id == 'O03':

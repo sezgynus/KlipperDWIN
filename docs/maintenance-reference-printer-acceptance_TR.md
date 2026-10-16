@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **5 adet** fiziksel test KABUL sayılır. **F02'nin 0,8 saniyelik önceki sürümü kabul edildi; yeni 2 saniyelik kademelerin yeniden test edilmesi gerekir.** Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **5 adet** fiziksel test KABUL sayılır. **F02'nin yeni 2 saniyelik kademeleri ve O04'ün senkron dört renk testi 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 5 KABUL (F02 eski sürümü), 56 BEKLİYOR, 8 KOŞULLU, 1 N/A. **F02 yeni sürüm ve O04 string-durum düzeltmesi için yeniden test kaydı var.**
+**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 5 KABUL (F02 eski sürümü), 56 BEKLİYOR, 8 KOŞULLU, 1 N/A. **F02 ve O04 yeni sürümleri kullanıcı tarafından kabul edildi; son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -19,10 +19,10 @@
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
 | [x] | F01 | `fan` | Parça soğutma fanının dönmesi | Hazır | **KABUL** |
-| [x] | F02 | `fan` | Parça soğutma fanı hız kademeleri | Hazır | **KABUL (0,8 sn) / YENİDEN TEST BEKLİYOR (2 sn)** |
+| [x] | F02 | `fan` | Parça soğutma fanı hız kademeleri | Hazır | **KABUL (2 sn/kademe)** |
 | [x] | S18 | `pwm_cycle_time Buzzer` | Buzzer ses testi | Hazır | **KABUL** |
 | [x] | O03 | `output_pin case_light` | Güvenli yardımcı çıkış | Hazır | **KABUL** |
-| [x] | O04 | `neopixel mmu_leds` | Adreslenebilir LED testi | Hazır | **ÖNCEKİ KABUL / HH METİN BAYRAKLARI YENİDEN TEST BEKLİYOR** |
+| [x] | O04 | `neopixel mmu_leds` | Adreslenebilir LED testi | Hazır | **KABUL (kırmızı → yeşil → mavi → beyaz)** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
@@ -109,10 +109,10 @@
 | ID / hedef | Kullanıcı gözlemi / güvenli sonuç | Yürütücü sonucu | `restore_verified` |
 |---|---|---|---|
 | F01 / `fan` | Fan çalıştı ve önceki raporlanan durumuna geri döndü. | `PASSED_USER` | `true` |
-| F02 / `fan` | **Eski sürüm:** 0,8 sn/kademe kullanıcı onaylı. **Yeni sürüm:** 2 sn × 3 kademe çalıştı ama onay ekranı çıkmadan INCONCLUSIVE verdi; geri yükleme kanıtı yok. Sınırlandırılmış HTTP timeout düzeltmesi yeniden test edilecek. | `PASSED_USER` (eski), `INCONCLUSIVE` (son deneme) | `true` (eski), bilinmiyor (yeni) |
+| F02 / `fan` | Yeni 2 sn/kademe sürümü kullanıcı tarafından kabul edildi; önceki kabul ve sonuçsuz deneme JSON geçmişinde korundu. | `OBSERVED_USER` (LCD sonucu ayrıca bildirilmedi) | `false` (ayrıca doğrulanmadı) |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sesi duyuldu; Klipper PWM geri okuması yok. | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Kasa ışığı değişti; önceki raporlanan durumu doğrulandı. | `PASSED_USER` | `true` |
-| O04 / `neopixel mmu_leds` | Önceki dört renk kabulü korundu. HH metin-bayrak ön kontrolü düzeldikten sonraki fiziksel testte **kırmızı → yeşil → beyaz görüldü, mavi görünmedi**. `G4` tek başına HH reactor zamanlayıcısını ayırmadı; `G4 + M400` düzeltmesi yeniden test edilecek. | `OBSERVED_USER` (tarihî), son LCD sonucu bildirilmedi | `false` (tarihî), yeni sürüm doğrulanmadı |
+| O04 / `neopixel mmu_leds` | Senkron kırmızı → yeşil → mavi → beyaz testi kullanıcı tarafından kabul edildi; önceki denemeler JSON geçmişinde korundu. | `OBSERVED_USER` (LCD sonucu ayrıca bildirilmedi) | `false` (ayrıca doğrulanmadı) |
 
 ## Sıradaki uygulama
 

@@ -44,31 +44,46 @@
       "reference": "confirmed",
       "status": "accepted",
       "adapter": "implemented",
-      "note": "Original three-stage 800 ms F02 procedure observed and user approved on 2026-10-16. Revised 2,000 ms/stage behavior awaits separate physical acceptance; RPM never measured.",
+      "note": "Revised 2,000 ms/stage F02 operator accepted 2026-10-16. Historical acceptance and inconclusive attempt preserved. Current electronic restore readback not reported; RPM not measured.",
       "acceptance": {
         "date": "2026-10-16",
         "source": "user_explicit_physical_observation",
-        "controller_result": "PASSED_USER",
-        "restore_verified": true,
-        "observation": "All three fan-speed steps were observed and LCD reported PASSED_USER; 800 ms per step was judged too brief to distinguish comfortably.",
-        "tested_step_duration_ms": 800,
-        "tested_program_duration_ms": 2400,
-        "tested_signed_head": "b3ecd1be0da8f30b79471c71608aa43ca474817c",
-        "note": "Acceptance applies only to the original 800 ms-per-step version. Longer 2,000 ms-per-step revision requires user retest."
-      },
-      "retest_required": true,
-      "latest_attempt": {
-        "date": "2026-10-16",
-        "source": "user_reported_physical_attempt",
-        "tested_signed_head": "0bb69d31fda6737c5f21806aeb085d14654086c7",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator explicitly accepted revised F02 fan speed stages at 2,000 ms per stage. Latest controller readback and restore verification not separately reported.",
         "tested_step_duration_ms": 2000,
-        "controller_result": "INCONCLUSIVE",
-        "controller_reason": "not_supplied_by_user",
-        "operator_confirmation_requested": false,
-        "restore_verified": null,
-        "observation": "The three commanded fan-speed stages physically ran, but LCD showed INCONCLUSIVE without requesting the operator Yes/No observation. No successful electronic restore readback or operator acceptance can be inferred.",
-        "suspected_cause": "MoonrakerClient default 5-second HTTP timeout is shorter than the six-second G4 dwell sequence; diagnosis from source code, not yet confirmed by Pi logs."
-      }
+        "tested_program_duration_ms": 6000,
+        "controller_result_reported": false,
+        "restore_evidence": "not_reported"
+      },
+      "retest_required": false,
+      "previous_acceptances": [
+        {
+          "date": "2026-10-16",
+          "source": "user_explicit_physical_observation",
+          "controller_result": "PASSED_USER",
+          "restore_verified": true,
+          "observation": "All three fan-speed steps were observed and LCD reported PASSED_USER; 800 ms per step was judged too brief to distinguish comfortably.",
+          "tested_step_duration_ms": 800,
+          "tested_program_duration_ms": 2400,
+          "tested_signed_head": "b3ecd1be0da8f30b79471c71608aa43ca474817c",
+          "note": "Acceptance applies only to the original 800 ms-per-step version. Longer 2,000 ms-per-step revision requires user retest."
+        }
+      ],
+      "previous_attempts": [
+        {
+          "date": "2026-10-16",
+          "source": "user_reported_physical_attempt",
+          "tested_signed_head": "0bb69d31fda6737c5f21806aeb085d14654086c7",
+          "tested_step_duration_ms": 2000,
+          "controller_result": "INCONCLUSIVE",
+          "controller_reason": "not_supplied_by_user",
+          "operator_confirmation_requested": false,
+          "restore_verified": null,
+          "observation": "The three commanded fan-speed stages physically ran, but LCD showed INCONCLUSIVE without requesting the operator Yes/No observation. No successful electronic restore readback or operator acceptance can be inferred.",
+          "suspected_cause": "MoonrakerClient default 5-second HTTP timeout is shorter than the six-second G4 dwell sequence; diagnosis from source code, not yet confirmed by Pi logs."
+        }
+      ]
     },
     {
       "feature_id": "F04",
@@ -816,25 +831,17 @@
       "reference": "confirmed",
       "status": "accepted",
       "adapter": "implemented",
-      "note": "Historical four-color O04 approval preserved. Latest physical attempt skipped blue; revised synchronized HH frames require a new four-color operator acceptance.",
+      "note": "Synchronized O04 red-green-blue-white sequence operator accepted 2026-10-16. Historical blocked and missing blue attempts preserved. Current electronic restore readback not reported.",
       "acceptance": {
         "date": "2026-10-16",
         "source": "user_explicit_physical_observation",
         "controller_result": "OBSERVED_USER",
         "restore_verified": false,
-        "observation": "Four Happy Hare LEDs showed red, blue, green, white; original LED policy resumed"
+        "observation": "Operator confirmed revised O04 Happy Hare LED test displayed red, green, blue and white in sequence. Latest controller readback and restore verification not separately reported.",
+        "controller_result_reported": false,
+        "restore_evidence": "not_reported"
       },
-      "retest_required": true,
-      "latest_attempt": {
-        "date": "2026-10-16",
-        "source": "user_explicit_physical_color_observation",
-        "controller_result": "not_reported",
-        "operator_confirmation_requested": true,
-        "restore_verified": null,
-        "observation": "The Happy Hare-managed O04 test ran after boolean-string support, but user observed red -> green -> white only; blue stage was not visible. Four-color physical acceptance is NOT established.",
-        "tested_signed_head": "0e1de54a48bee9dd75e1ce0c985703415ef53a3c",
-        "resolution": "G4 alone is not a guaranteed host/reactor wall-time barrier. Add G4 P650 + M400 after each timed MMU_SET_LED frame; keep O04 pending physical retest."
-      },
+      "retest_required": false,
       "previous_attempts": [
         {
           "date": "2026-10-16",
@@ -846,6 +853,25 @@
           "observation": "O04 was discovered but preflight rejected Happy Hare live status enabled='True' and animation='True' (literal strings). No physical actuation during blocked attempt.",
           "tested_signed_head": "70159750abc5886e0535bbac43925348085b861e",
           "resolution": "Strict boolean/string normalization in shared O04 preflight and controller readback requires signed-head CI and physical retest."
+        },
+        {
+          "date": "2026-10-16",
+          "source": "user_explicit_physical_color_observation",
+          "controller_result": "not_reported",
+          "operator_confirmation_requested": true,
+          "restore_verified": null,
+          "observation": "The Happy Hare-managed O04 test ran after boolean-string support, but user observed red -> green -> white only; blue stage was not visible. Four-color physical acceptance is NOT established.",
+          "tested_signed_head": "0e1de54a48bee9dd75e1ce0c985703415ef53a3c",
+          "resolution": "G4 alone is not a guaranteed host/reactor wall-time barrier. Add G4 P650 + M400 after each timed MMU_SET_LED frame; keep O04 pending physical retest."
+        }
+      ],
+      "previous_acceptances": [
+        {
+          "date": "2026-10-16",
+          "source": "user_explicit_physical_observation",
+          "controller_result": "OBSERVED_USER",
+          "restore_verified": false,
+          "observation": "Four Happy Hare LEDs showed red, blue, green, white; original LED policy resumed"
         }
       ]
     },

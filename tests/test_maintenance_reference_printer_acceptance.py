@@ -103,40 +103,31 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertFalse(by_target[key]['acceptance']['restore_verified'])
         self.assertEqual(by_target[('F04', 'fan_generic (not installed)')]
                          ['status'], 'not_applicable')
-        # F02 was accepted by the operator on the old 800 ms/stage
-        # revision, but the new 2000 ms/stage program is not accepted yet.
         from maintenance_pulse import _FAN_STEP_MS
-        old_f02 = by_target[('F02', 'fan')]
-        self.assertEqual(old_f02['status'], 'accepted')
-        self.assertEqual(old_f02['adapter'], 'implemented')
-        self.assertTrue(old_f02['retest_required'])
-        self.assertEqual(old_f02['acceptance']['tested_step_duration_ms'], 800)
-        self.assertEqual(old_f02['acceptance']['tested_program_duration_ms'], 2400)
-        self.assertEqual(old_f02['acceptance']['controller_result'], 'PASSED_USER')
-        self.assertTrue(old_f02['acceptance']['restore_verified'])
+        f02 = by_target[('F02', 'fan')]
+        self.assertEqual(f02['status'], 'accepted')
+        self.assertFalse(f02['retest_required'])
         self.assertEqual(_FAN_STEP_MS, 2000)
-        self.assertNotEqual(old_f02['acceptance']['tested_step_duration_ms'], _FAN_STEP_MS)
-        attempt = old_f02['latest_attempt']
-        self.assertEqual(attempt['controller_result'], 'INCONCLUSIVE')
-        self.assertIsNone(attempt['restore_verified'])
-        self.assertFalse(attempt['operator_confirmation_requested'])
-        self.assertEqual(attempt['tested_step_duration_ms'], 2000)
-        self.assertNotEqual(attempt['tested_signed_head'],
-                            old_f02['acceptance']['tested_signed_head'])
-        self.assertIn('YENİDEN TEST', TR.read_text(encoding='utf-8'))
-        self.assertIn('RETEST REQUIRED', EN.read_text(encoding='utf-8'))
+        self.assertEqual(f02['acceptance']['tested_step_duration_ms'], _FAN_STEP_MS)
+        self.assertEqual(f02['acceptance']['tested_program_duration_ms'], 6000)
+        self.assertEqual(f02['acceptance']['controller_result'], 'OBSERVED_USER')
+        self.assertFalse(f02['acceptance']['restore_verified'])
+        self.assertFalse(f02['acceptance']['controller_result_reported'])
+        self.assertEqual(f02['previous_acceptances'][0]['tested_step_duration_ms'], 800)
+        self.assertTrue(f02['previous_acceptances'][0]['restore_verified'])
+        self.assertEqual(f02['previous_attempts'][0]['controller_result'], 'INCONCLUSIVE')
+        self.assertIsNone(f02['previous_attempts'][0]['restore_verified'])
         o04 = by_target[('O04', 'neopixel mmu_leds')]
-        self.assertEqual(o04['status'], 'accepted')  # Prior PASS is historical.
-        self.assertTrue(o04['retest_required'])
+        self.assertEqual(o04['status'], 'accepted')
+        self.assertFalse(o04['retest_required'])
+        self.assertFalse(o04['acceptance']['restore_verified'])
+        self.assertFalse(o04['acceptance']['controller_result_reported'])
+        for color in ('red', 'green', 'blue', 'white'):
+            self.assertIn(color, o04['acceptance']['observation'])
         self.assertEqual(o04['previous_attempts'][0]['controller_result'], 'BLOCKED')
-        self.assertEqual(o04['previous_attempts'][0]['controller_reason'],
-                         'mmu_led_not_enabled_or_readable')
-        self.assertEqual(o04['latest_attempt']['controller_result'], 'not_reported')
-        self.assertTrue(o04['latest_attempt']['operator_confirmation_requested'])
-        self.assertIn('blue stage was not visible', o04['latest_attempt']['observation'])
-        self.assertIsNone(o04['latest_attempt']['restore_verified'])
-        self.assertNotEqual(o04['latest_attempt']['tested_signed_head'],
-                            o04['acceptance'].get('tested_signed_head'))
+        self.assertEqual(o04['previous_attempts'][1]['controller_result'], 'not_reported')
+        self.assertIn('blue stage was not visible',
+                      o04['previous_attempts'][1]['observation'])
 
 
 

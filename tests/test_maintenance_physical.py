@@ -142,6 +142,12 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertFalse(self.runner.pending)
 
     def test_unanswered_initial_consent_stays_open_and_refreshes_on_click(self):
+        # Both evidence freshness and controller deadlines use one virtual
+        # clock; advancing a fake UI clock must not leave queue GETs on wall time.
+        runtime_clock = patch('maintenance_runtime.monotonic',
+                              side_effect=lambda: self.clock[0])
+        runtime_clock.start()
+        self.addCleanup(runtime_clock.stop)
         self.prepare()
         # Neither the gate's three-second proof freshness nor elapsed time
         # should silently end the menu's human-decision phase.

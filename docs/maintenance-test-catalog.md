@@ -1,8 +1,8 @@
 # Maintenance test catalog (development)
 
-[Türkçe](maintenance-test-catalog_TR.md) · [Discovery](maintenance-discovery.md)
+[Türkçe](maintenance-test-catalog_TR.md) · [Discovery](maintenance-discovery.md) · **[Reference printer physical acceptance tracker](maintenance-reference-printer-acceptance.md)**
 
-**Status:** Definitions only. No tests are runnable, no physical actuation is implemented, and the Maintenance LCD menu remains the existing Back-only placeholder.
+**Current implementation note:** This file explains the static catalog layer. Physical guided adapters F01, F04, O03, O04 and S18 have since been implemented separately, and operator-accepted instances are recorded in the linked reference-printer tracker. The catalog entry itself does not grant an execution permission or a hardware PASS.
 
 `maintenance_catalog.py` is a small immutable table of all 121 established feature IDs, with a description, global/device/mixed scope, potential discovery methods, evidence requirement identifier and safety-profile category. Every `adapter_id` is `None` until a verified adapter is implemented and registered in a later stage. The seven deliberately hidden feature IDs remain hidden. Unknown and noncanonical IDs fail closed.
 

@@ -1,6 +1,8 @@
 # Maintenance Aşama 8 — Gerçek Raspberry Pi fiziksel kabulü
 
-[English](maintenance-stage8-acceptance.md) · [Çıkış izin profilleri](maintenance-profiles_TR.md) · [LCD kullanım akışı](maintenance-ui_TR.md)
+[English](maintenance-stage8-acceptance.md) · [Çıkış izin profilleri](maintenance-profiles_TR.md) · [LCD kullanım akışı](maintenance-ui_TR.md) · **[Güncel referans yazıcı kullanıcı kabul çizelgesi](maintenance-reference-printer-acceptance_TR.md)**
+
+> **Güncel kabul durumu:** Bu dosyanın aşağıdaki ilk aşama örnekleri tarihî kanıttır. Sonraki sohbetlerde hangi cihazın fiziksel olarak KABUL edildiğini yukarıdaki güncel çizelgeden ve JSON'dan kontrol et.
 
 ## Kapsam ve ön şartlar
 

@@ -1,6 +1,8 @@
 # Maintenance Stage 8 — Real Raspberry Pi physical acceptance
 
-[Türkçe](maintenance-stage8-acceptance_TR.md) · [Optional output profiles](maintenance-profiles.md) · [LCD user flow](maintenance-ui.md)
+[Türkçe](maintenance-stage8-acceptance_TR.md) · [Optional output profiles](maintenance-profiles.md) · [LCD user flow](maintenance-ui.md) · **[Live operator-accepted reference-printer checklist](maintenance-reference-printer-acceptance.md)**
+
+> **Current acceptance status:** The initial-stage examples below are historical evidence. For the latest operator-confirmed device-level physical PASS/OBSERVED records, use the linked tracker and its JSON ledger.
 
 ## Scope and prerequisites
 

@@ -1,8 +1,8 @@
 # Maintenance test kataloğu (geliştirme)
 
-[English](maintenance-test-catalog.md) · [Keşif](maintenance-discovery_TR.md)
+[English](maintenance-test-catalog.md) · [Keşif](maintenance-discovery_TR.md) · **[Referans yazıcı fiziksel kabul çizelgesi](maintenance-reference-printer-acceptance_TR.md)**
 
-**Durum:** Yalnız tanımlar var. Çalıştırılabilir test veya fiziksel aktüasyon henüz uygulanmadı; LCD Maintenance ekranı mevcut tek satırlı Back placeholder olarak duruyor.
+**Güncel uygulama notu:** Bu dosya statik katalog katmanını açıklar. Daha sonra F01, F04, O03, O04 ve S18 için ayrı fiziksel adaptörler uygulanmıştır. Kullanıcının gerçekten onayladığı cihaz bazlı testler bağlantılı referans yazıcı çizelgesinde izlenir. Katalog satırı tek başına yürütme izni veya fiziksel PASS değildir.
 
 `maintenance_catalog.py`, kararlaştırılmış 121 özellik ID'sinin tümü için açıklama, global/cihaz/karma kapsam, olası keşif yöntemleri, gerekli kanıt tanımlayıcısı ve güvenlik profili sınıfını taşıyan küçük ve değişmez tablodur. Doğrulanmış adaptör daha sonraki aşamada uygulanıp kaydedilene kadar her `adapter_id` değeri `None` kalır. Bilerek gizlenen yedi ID gizli kalır. Bilinmeyen veya standart dışı ID'ler güvenli biçimde reddedilir.
 

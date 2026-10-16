@@ -19,8 +19,8 @@ def state():
         objects=('output_pin case_light', 'pwm_cycle_time tick',
                  'pwm_cycle_time heater'),
         settings={'output_pin case_light': {'pwm': True, 'scale': 1},
-                  'pwm_cycle_time tick': {'value': 0, 'shutdown_value': 0, 'scale': 1},
-                  'pwm_cycle_time heater': {'value': 0, 'shutdown_value': 0, 'scale': 1}},
+                  'pwm_cycle_time tick': {'pin': 'PB13', 'value': 0, 'shutdown_value': 0, 'scale': 1},
+                  'pwm_cycle_time heater': {'pin': 'PA8', 'value': 0, 'shutdown_value': 0, 'scale': 1}},
         status={})
 
 
@@ -68,7 +68,28 @@ class ProfileTests(unittest.TestCase):
             self.assertIn(('S18', None),
                           {(r.feature_id, r.device) for r in guided_plan(snap)})
             p.objects = ('pwm_cycle_time heater',)
+            self.assertIn('petrel.buzzer', approved_integrations(p, allow))
+            p.settings.pop('pwm_cycle_time tick')
             self.assertEqual(approved_integrations(p, allow), ())
+
+    def test_config_only_pwm_cycle_time_may_be_discovered_but_requires_explicit_pin_and_off_config(self):
+        p = state()
+        p.objects = ('output_pin case_light',)  # No queryable buzzer status.
+        allow = (False, 'tick', '', '')
+        services = approved_integrations(p, allow)
+        self.assertIn('maintenance.buzzer_output:tick', services)
+        snap = discover(p, services)
+        self.assertIn(('S18', None), {(r.feature_id, r.device)
+                                     for r in guided_plan(snap)})
+        for key, bad in (('pin', ''), ('value', .1), ('shutdown_value', 1),
+                         ('scale', 0)):
+            with self.subTest(key=key):
+                original = p.settings['pwm_cycle_time tick'][key]
+                p.settings['pwm_cycle_time tick'][key] = bad
+                self.assertNotIn('petrel.buzzer', approved_integrations(p, allow))
+                p.settings['pwm_cycle_time tick'][key] = original
+        self.assertNotIn('petrel.buzzer',
+                         approved_integrations(p, (False, '', '', '')))
 
     def test_unlisted_pwm_pin_cannot_be_used_as_buzzer(self):
         p = state()

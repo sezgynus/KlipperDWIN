@@ -30,3 +30,7 @@ Geçici systemd override'ını kaldır, `sudo systemctl daemon-reload` ve `sudo 
 ## F01 saha bulgusu ve sonraki doğrulama
 
 2026-10-16 tarihli Remote Display kabulünde F01 parça soğutma fanı kamerada kısa süre çalışırken yürütücü `INCONCLUSIVE / restore_not_verified` döndürdü. Sonradan bağımsız `/printer/objects/query?fan&webhooks` sorgusu `fan.speed=0.0`, `fan.rpm=null`, `webhooks.state=ready` gösterdi. İlk fiziksel deneme **PASS değildir**; anlık geri yükleme doğrulaması başarısız oldu, sonraki okuma da geçmişteki geri yükleme zamanlamasını kanıtlamaz. Yeni doğrulama penceresi/tekrar okuma yamasının CI sahte testleri vardır; feature worktree güncellendikten sonra **yeni** gerçek Pi kabul testi gereklidir. Tekrar fiziksel testten önce yazıcının boşta ve fanın durmuş olduğunu doğrula.
+
+## S18: saha bulgusu ve bekleyen geri okuma kabulü
+
+Pi'de `configfile.settings['pwm_cycle_time buzzer']` için pin PB13, value=0, shutdown_value=0, scale=1 doğrulandı; ancak `printer.objects.list` nesneyi içermiyor ve `printer.objects.query` durum sunmuyor. Güncellenen S18 izinli akışı yalnız yapılandırmadan keşif ve **insanın ses gözlemi** üzerine kuruludur; `OBSERVED_USER` sonucu doğrulanmış geri yükleme anlamına gelmez. Bu Klipper nesnesinde S18'in telemetriyle geri yükleme kabulü **mümkün değildir**. `buzzer_output='buzzer'` izni, fiziksel buzzer'ın doğru ve yazıcı boşta iken güvenli uyarılabilir olduğundan emin olunduktan sonra kullanılmalıdır. CI sahte testini gerçek donanım kabulü sayma.

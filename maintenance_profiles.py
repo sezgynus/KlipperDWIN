@@ -2,7 +2,7 @@
 
 One tiny configuration is read on Klipper READY, never from the UI hot path.
 No output is ever approved by its name alone: the operator's allowlist,
-the actual Klipper object list and safe effective config must all agree.
+the actual queryable objects (where applicable) and safe effective config must agree.
 """
 from collections.abc import Mapping
 import json
@@ -71,12 +71,20 @@ def approved_integrations(state, profiles):
     if isinstance(buzzer, str) and _SAFE.fullmatch(buzzer):
         name = 'pwm_cycle_time ' + buzzer
         cfg = settings.get(name, {})
-        if name in names and isinstance(cfg, Mapping):
-            scale = cfg.get('scale', 1)
-            start = cfg.get('value', 0)
-            stop = cfg.get('shutdown_value', 0)
-            if (type(scale) in (float, int) and math.isfinite(scale)
-                    and 0 < scale <= 2 and start == 0 and stop == 0):
+        # Klipper's pwm_cycle_time is a config-only pin and does not
+        # implement get_status(): it is absent from printer.objects.list.
+        # Admit ONLY an exact opt-in with an explicit safe default-off config;
+        # this is NOT proof of its unknown live output value.
+        if isinstance(cfg, Mapping):
+            scale = cfg.get('scale')
+            start = cfg.get('value')
+            stop = cfg.get('shutdown_value')
+            pin = cfg.get('pin')
+            if (isinstance(pin, str) and bool(pin.strip())
+                    and type(scale) in (float, int) and math.isfinite(scale)
+                    and 0 < scale <= 2
+                    and type(start) in (float, int) and start == 0
+                    and type(stop) in (float, int) and stop == 0):
                 services.extend(('petrel.buzzer',
                                  'maintenance.buzzer_output:' + buzzer))
     if generic and _SAFE.fullmatch(generic):

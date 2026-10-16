@@ -88,11 +88,12 @@ class PhysicalPulseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compile_pulse(row, snap, status, settings)
 
-    def test_buzzer_requires_exact_off_status_and_profile(self):
+    def test_config_only_buzzer_has_bounded_off_pulse_off_script_and_never_fake_readback(self):
         snap, settings, status = environment(
             (), ('petrel.buzzer', 'maintenance.buzzer_output:tick'))
-        settings['pwm_cycle_time tick'] = {'scale': 1, 'shutdown_value': 0}
-        status['pwm_cycle_time tick'] = {'value': 0}
+        settings['pwm_cycle_time tick'] = {'pin': 'PB13', 'scale': 1,
+                                           'value': 0, 'shutdown_value': 0}
+        # The genuine Klipper object is config-only: no status exists.
         row = next(r for r in guided_plan(snap) if r.feature_id == 'S18')
         p = compile_pulse(row, snap, status, settings, buzzer_output='tick')
         denied = MaintenanceSnapshot(snap.epoch, snap.devices, snap.global_modes,
@@ -100,9 +101,18 @@ class PhysicalPulseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compile_pulse(row, denied, status, settings, buzzer_output='tick')
         self.assertIn('CYCLE_TIME=0.00062500', p.stimulus)
-        self.assertEqual(p.duration_ms, 150)
-        self.assertTrue(restored(p, status))
-        status['pwm_cycle_time tick']['value'] = .2
+        self.assertEqual(p.duration_ms, 200)
+        self.assertEqual(p.read_path, '')
+        self.assertEqual(p.script, 'SET_PIN PIN=tick VALUE=0\nG4 P50\n'
+                         'SET_PIN PIN=tick VALUE=0.2500 CYCLE_TIME=0.00062500\n'
+                         'G4 P150\nSET_PIN PIN=tick VALUE=0')
+        self.assertFalse(restored(p, status))
+        self.assertFalse(restored(p, {'pwm_cycle_time tick': {'value': 0}}))
+        status['pwm_cycle_time tick'] = {'value': .2}
+        with self.assertRaises(ValueError):
+            compile_pulse(row, snap, status, settings, buzzer_output='tick')
+        status.clear()
+        settings['pwm_cycle_time tick']['value'] = .2
         with self.assertRaises(ValueError):
             compile_pulse(row, snap, status, settings, buzzer_output='tick')
 

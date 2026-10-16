@@ -10,6 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from maintenance_discovery import MaintenanceSnapshot, DeviceCapabilities, USER, _add
 from maintenance_physical import MaintenancePulseController
+from maintenance_profiles import approved_integrations
+from maintenance_discovery import discover
+from printer_state import PrinterState
 
 
 class Worker:
@@ -272,6 +275,62 @@ class PhysicalControllerTests(unittest.TestCase):
             result = self.runner.poll()
         self.assertEqual(result.status, 'INCONCLUSIVE')
         self.assertEqual(result.reason, 'restore_readback_unavailable')
+        self.assertEqual(len(self.commands), 1)
+
+    def configure_config_only_buzzer(self):
+        raw = self.printer.subscription.snapshot.return_value
+        raw['settings'] = {'pwm_cycle_time buzzer': {
+            'pin': 'PB13', 'value': 0.0, 'shutdown_value': 0.0,
+            'scale': 1.0, 'cycle_time': 0.001}}
+        raw['objects'] = ('webhooks',)  # Excluded from objects/list by Klipper.
+        self.printer.state = PrinterState.from_snapshot(raw)
+        services = approved_integrations(self.printer.state,
+                                         (False, 'buzzer', '', ''))
+        self.printer.maintenance.snapshot = discover(self.printer.state, services)
+        self.assertIn('S18', self.printer.maintenance.snapshot.available_features())
+        self.assertTrue(any(row.feature_id == 'S18' for row in self.runner.available()))
+
+    def test_s18_uses_profile_not_lcd_settings_and_has_no_readback_claim(self):
+        self.configure_config_only_buzzer()
+        self.assertEqual(self.runner.start('S18'), (True, 'preflight_queued'))
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertFalse(any(path.startswith('/printer/objects/query?')
+                             for path in self.client.paths))
+        self.assertEqual(self.runner.confirm(), (True, 'bounded_pulse_queued'))
+        self.assertEqual(len(self.commands), 1)
+        self.assertIn('SET_PIN PIN=buzzer VALUE=0', self.commands[0][1]['script'])
+        self.assertTrue(self.commands[0][2]())
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'verifying')
+        self.advance(.8)
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertFalse(any(path.startswith('/printer/objects/query?')
+                             for path in self.client.paths))
+        result = self.runner.observe(True)
+        self.assertEqual(result.status, 'OBSERVED_USER')
+        self.assertFalse(result.restore_verified)
+        self.assertIn('no_readback', result.reason)
+
+    def test_s18_cannot_start_with_wrong_profile_or_claim_automatic_pass(self):
+        self.configure_config_only_buzzer()
+        self.assertEqual(self.runner.start('S18', buzzer_output='heater'),
+                         (False, 'buzzer_profile_missing_or_mismatch'))
+        self.assertEqual(self.commands, [])
+        self.assertEqual(self.runner.start('S18'), (True, 'preflight_queued'))
+        self.worker.next()
+        self.runner.poll()
+        self.runner.confirm()
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.advance(.8)
+        self.runner.poll()
+        result = self.runner.observe(False)
+        self.assertEqual(result.status, 'FAILED_USER')
+        self.assertFalse(result.restore_verified)
         self.assertEqual(len(self.commands), 1)
 
     def test_petrel_backend_creates_opt_in_physical_controller(self):

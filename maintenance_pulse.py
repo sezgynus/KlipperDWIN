@@ -73,7 +73,7 @@ def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None):
         target = 'pwm_cycle_time ' + name
         cfg = settings.get(target)
         current = status.get(target)
-    if not isinstance(current, Mapping) or not isinstance(cfg, Mapping):
+    if not isinstance(cfg, Mapping) or (feature != 'S18' and not isinstance(current, Mapping)):
         raise ValueError('target_state_or_config_unknown')
 
     if feature in ('F01', 'F04'):
@@ -128,28 +128,41 @@ def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None):
         object_name = target
         observation = 'Did the single LED briefly become green?'
     elif feature == 'S18':
-        # A buzzer's PWM output must be known OFF before we stimulate it.
-        if current.get('value') != 0 or cfg.get('shutdown_value', 0) != 0:
-            raise ValueError('buzzer_off_state_unverified')
-        scale = cfg.get('scale', 1)
+        # pwm_cycle_time has NO get_status() and no live readback. The only
+        # allowed baseline is an explicit OFF config, not invented telemetry.
+        # Abort if a runtime value happens to be supplied and reports ON.
+        if (cfg.get('value') != 0 or cfg.get('shutdown_value') != 0
+                or not isinstance(cfg.get('pin'), str) or not cfg['pin'].strip()):
+            raise ValueError('buzzer_default_off_config_required')
+        if isinstance(current, Mapping) and 'value' in current and current['value'] != 0:
+            raise ValueError('buzzer_reports_active')
+        scale = cfg.get('scale')
         if type(scale) not in (int, float) or not math.isfinite(scale) or not 0 < scale <= 2:
             raise ValueError('invalid_buzzer_scale')
         name = _name(buzzer_output)
         start = 'SET_PIN PIN=%s VALUE=%.4f CYCLE_TIME=%.8f' % (
             name, scale * .25, _TONE)
         restore = 'SET_PIN PIN=%s VALUE=0' % name
-        evidence = (0.0,)
+        evidence = (0.0,)  # Configured OFF, NOT observed live output state.
         object_name = target
-        observation = 'Did the configured buzzer emit a short tone?'
+        observation = 'Did the buzzer sound briefly and then stop?'
     else:
         raise ValueError('unsupported_feature')
 
     duration = _PULSE_MS[feature]
-    script = '%s\nG4 P%d\n%s' % (start, duration, restore)
+    if feature == 'S18':
+        # Start with a deterministic OFF command; finish in the same bounded
+        # script. This still cannot prove a restoration without a sensor.
+        script = '%s\nG4 P50\n%s\nG4 P%d\n%s' % (
+            restore, start, duration, restore)
+        duration += 50
+    else:
+        script = '%s\nG4 P%d\n%s' % (start, duration, restore)
     if '\r' in script or len(script) > 300:
         raise ValueError('unsafe_program')
     from urllib.parse import quote
-    endpoint = '/printer/objects/query?' + quote(object_name, safe='')
+    endpoint = ('' if feature == 'S18'
+                else '/printer/objects/query?' + quote(object_name, safe=''))
     return PulseProgram(feature, row.device, endpoint, object_name, evidence,
                         start, restore, script, duration, observation)
 
@@ -164,7 +177,7 @@ def restored(program, status):
     if program.feature_id in ('F01', 'F04'):
         value = state.get('speed')
         return _unit(value) and abs(value - program.original[0]) <= .015
-    if program.feature_id in ('O03', 'S18'):
+    if program.feature_id == 'O03':
         value = state.get('value')
         return _unit(value) and abs(value - program.original[0]) <= .015
     if program.feature_id == 'O04':

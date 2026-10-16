@@ -52,6 +52,19 @@ class MaintenanceUIFlows(unittest.TestCase):
         self.event(d, d.ENCODER_DIFF_ENTER)
         d.pd.confirm_maintenance_physical.assert_called_once_with()
 
+    def test_s18_ui_uses_backend_profile_instead_of_panel_buzzer(self):
+        d = self.setup_view()
+        row = SimpleNamespace(feature_id='S18', device=None)
+        d.pd.maintenance_guided_plan = Mock(return_value=(row,))
+        d.pd.start_maintenance_physical = Mock(return_value=(True, 'queued'))
+        d._buzzer_settings = Mock(side_effect=AssertionError('Must not use DWIN buzzer'))
+        self.event(d, d.ENCODER_DIFF_CW)
+        self.event(d, d.ENCODER_DIFF_ENTER)
+        self.event(d, d.ENCODER_DIFF_CW)
+        self.event(d, d.ENCODER_DIFF_ENTER)
+        d.pd.start_maintenance_physical.assert_called_once_with('S18', None)
+        d._buzzer_settings.assert_not_called()
+
     def test_confirm_default_is_cancel_and_result_not_auto_pass(self):
         d = self.setup_view()
         d._maintenance_page = 'pulse'

@@ -146,6 +146,14 @@ class MaintenancePulseController:
                     if r.feature_id == feature_id and r.device == device), None)
         if row is None:
             return False, 'test_not_discovered_or_allowed'
+        if row.feature_id == 'S18':
+            # The panel's own buzzer settings are unrelated to the user's
+            # explicitly authorized Klipper pwm_cycle_time buzzer.
+            names = tuple(key.split(':', 1)[1] for key in self._snapshot().service_key
+                          if key.startswith('maintenance.buzzer_output:'))
+            if len(names) != 1 or (buzzer_output is not None and buzzer_output != names[0]):
+                return False, 'buzzer_profile_missing_or_mismatch'
+            buzzer_output = names[0]
         try:
             target = _object_name(row, buzzer_output)
         except ValueError:
@@ -163,9 +171,14 @@ class MaintenancePulseController:
             if (not self._current() or
                     not self._safety_check(snap, evidence)):
                 return None
-            state = _read_target(self._client, target)
-            if state is None:
-                return None
+            if row.feature_id == 'S18':
+                # Config-only pwm_cycle_time does not have a status endpoint.
+                # Never fabricate an OFF readback for this output.
+                state = {}
+            else:
+                state = _read_target(self._client, target)
+                if state is None:
+                    return None
             program = compile_pulse(row, snap, state,
                                     self._printer.state.settings,
                                     buzzer_output=buzzer_output)
@@ -249,6 +262,19 @@ class MaintenancePulseController:
                 if self._future is not None:
                     self._future.cancel()
                 return self._finish('INCONCLUSIVE', 'state_changed_during_restore_check')
+            if self._program.feature_id == 'S18':
+                # A full-script HTTP acknowledgement and elapsed pulse time
+                # are not equivalent to output readback. User observation is
+                # the ONLY evidence for buzzer sound and stopping.
+                if now >= self._deadline:
+                    return self._finish('INCONCLUSIVE', 'buzzer_completion_unconfirmed')
+                if now < self._verify_next_at:
+                    return None
+                if self._cancelled:
+                    return self._finish('ABORTED', 'buzzer_cancelled_restore_unverified')
+                self._phase = 'await_observation'
+                self._deadline = now + 30
+                return None
             if now >= self._deadline:
                 if self._future is not None:
                     self._future.cancel()
@@ -335,6 +361,14 @@ class MaintenancePulseController:
         """Human observation is separate from a command or reported PWM."""
         if self._phase != 'await_observation' or type(seen) is not bool:
             return None
+        if self._program.feature_id == 'S18':
+            # Unlike F01/O03, no Klipper status exists for pwm_cycle_time:
+            # human observation is recorded, but telemetry restore is NEVER
+            # claimed. A 'yes' must mean the sound occurred AND stopped.
+            return self._finish(
+                'OBSERVED_USER' if seen else 'FAILED_USER',
+                'audible_pulse_and_stop_reported_no_readback' if seen
+                else 'buzzer_not_observed_or_not_stopped', False)
         return self._finish('PASSED_USER' if seen else 'FAILED_USER',
                             'explicit_user_observation', True)
 

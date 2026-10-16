@@ -126,12 +126,8 @@ class MaintenanceViewMixin:
                 return
             row = rows[selected - 1]
             if page == 'tests':
-                kwargs = {}
-                if row.feature_id == 'S18':
-                    settings = self._buzzer_settings()
-                    kwargs['buzzer_output'] = settings.output or None
                 accepted, why = self.pd.start_maintenance_physical(
-                    row.feature_id, row.device, **kwargs)
+                    row.feature_id, row.device)
             else:
                 accepted, why = self.pd.start_maintenance_read(row.feature_id)
             if not accepted:

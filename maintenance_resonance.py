@@ -3,6 +3,7 @@
 Klipper owns acquisition/FFT. Petrel reads only its unique result CSVs, on the
 shared read worker, and never substitutes commanded motion for sensor data.
 """
+from dataclasses import replace
 import csv
 import hashlib
 import json
@@ -163,8 +164,16 @@ class MaintenanceResonanceController(FirmwareWorkflow):
         return (('Finish measured result','finish'),)
 
     def available(self):
-        return tuple(r for r in super().available()
-                     if r.feature_id not in ('R01','R02','R03','R04') or r.device is not None)
+        rows = []
+        snapshot = self._printer.maintenance.snapshot
+        devices = getattr(snapshot,'devices',())
+        for row in super().available():
+            if row.feature_id in ('R05','R06'):
+                rows.extend(replace(row,device=d.name,axes=d.axes)
+                            for d in devices if d.family=='accelerometer' and d.axes)
+            elif row.device is not None:
+                rows.append(row)
+        return tuple(rows)
 
     def start(self,*args,**kwargs):
         self._profile,self._spectra = read_profile(),[]
@@ -175,7 +184,7 @@ class MaintenanceResonanceController(FirmwareWorkflow):
         if result[0] and self._row.axes:
             axes = [a for i,a in enumerate('xyz') if self._row.axes & (1<<i)]
             self._axis = axes[0]
-            if len(axes)>1 and self.feature_id in ('R02','R04'):
+            if len(axes)>1 and self.feature_id in ('R02','R04','R05'):
                 self._future.cancel()
                 self._axis_choice = True
                 self._phase = 'workflow'

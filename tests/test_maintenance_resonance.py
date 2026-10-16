@@ -116,6 +116,16 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertIsNone(self.owner.poll())
         self.assertEqual(self.owner.phase,'workflow')
 
+    def test_global_trend_resolves_each_discovered_sensor_and_axis(self):
+        snap = self.p.maintenance.snapshot
+        devices = (snap.devices[0],
+                   DeviceCapabilities('adxl345 y','accelerometer',snap.devices[0].modes,2))
+        self.p.maintenance.snapshot = MaintenanceSnapshot(12,devices,
+            global_modes=_add(0,'R05',METHODS['R05']),config_marker=id(self.p.state.settings))
+        rows = [r for r in self.owner.available() if r.feature_id=='R05']
+        self.assertEqual([(r.device,r.axes) for r in rows],[('adxl345',1),('adxl345 y',2)])
+        self.assertFalse(self.owner.start('R05')[0])
+
     def test_unsupported_z_is_never_offered(self):
         self.assertTrue(all(not r.axes & 4 for r in self.owner.available()
                             if r.feature_id in ('R02','R03','R04')))

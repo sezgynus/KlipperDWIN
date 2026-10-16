@@ -45,6 +45,14 @@ class SystemFieldTests(unittest.TestCase):
                 path_for('S13',None,state)
         self.assertEqual(read_fields('S13',{'result':{'eventtime':1.,'status':{'motion_report':{'live_position':[1,2,3]}}}}),())
 
+    def test_absent_warning_source_is_not_fabricated_zero(self):
+        from maintenance_executor import _read_fields
+        self.assertEqual(_read_fields('S08',{'result':{'status':{'webhooks':{'state':'ready'}}}}),
+                         (('webhooks_state','ready'),))
+        fields = dict(_read_fields('S08',{'result':{'status':{
+            'webhooks':{'state':'ready'},'configfile':{'warnings':['one','two']}}}}))
+        self.assertEqual(fields['configuration_warnings'],2)
+
     def test_visual_lcd_method_is_registered_without_removing_information(self):
         from maintenance_discovery import INFORMATION
         self.assertTrue(definition_for('S16').methods & USER)

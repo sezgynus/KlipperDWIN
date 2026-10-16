@@ -123,8 +123,10 @@ def _read_fields(feature, reply, device=None):
         status = result.get('status')
         webhooks = status.get('webhooks') if isinstance(status, Mapping) else None
         state = webhooks.get('state') if isinstance(webhooks, Mapping) else None
-        warnings = status.get('configfile',{}).get('warnings',()) if isinstance(status,Mapping) else ()
-        return (('webhooks_state', state),('configuration_warnings',len(warnings) if isinstance(warnings,(list,tuple)) else 0)) if state in ('ready', 'startup', 'error', 'shutdown') else ()
+        config = status.get('configfile') if isinstance(status,Mapping) else None
+        warnings = config.get('warnings') if isinstance(config,Mapping) else None
+        extra = (('configuration_warnings',len(warnings)),) if isinstance(warnings,(list,tuple)) else ()
+        return (('webhooks_state', state),)+extra if state in ('ready', 'startup', 'error', 'shutdown') else ()
     if feature == 'S10':
         totals = result.get('job_totals')
         fields = []

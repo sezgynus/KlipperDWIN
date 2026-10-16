@@ -656,6 +656,82 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(outcome.status, 'BLOCKED')
         self.assertEqual(self.commands, [])
 
+    def test_hh_string_boolean_status_is_validated_and_restored(self):
+        # Real Happy Hare can serialize Klipper flags as literal strings.
+        # Exercise the complete guarded flow with two controller readbacks:
+        # a string-form snapshot followed by an equivalent real bool one.
+        for animated in ('True', 'False'):
+            with self.subTest(animated=animated):
+                self.configure_led_chain(managed=True)
+                control = self.client.status['mmu_leds unit0']
+                control['enabled'] = 'True'
+                control['animation'] = animated
+                self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+                self.worker.next()
+                self.assertIsNone(self.runner.poll())
+                self.assertEqual(self.runner.phase, 'await_confirmation')
+                self.assertEqual(self.commands, [])
+                self.assertTrue(self.runner.confirm()[0])
+                future, payload, guard = self.commands[-1]
+                self.assertTrue(guard())
+                self.assertIn('MMU_SET_LED UNIT=0 EXIT_EFFECT=', payload['script'])
+                self.assertNotIn('SET_LED LED=', payload['script'])
+                future.set_result({'result': 'ok'})
+                self.runner.poll()
+                self.advance(3.1)
+                self.poll_verify()
+                self.assertEqual(self.runner.phase, 'verifying')
+                control['enabled'] = True
+                control['animation'] = animated == 'True'
+                self.advance(.35)
+                self.poll_verify()
+                self.assertEqual(self.runner.phase, 'await_observation')
+                result = self.runner.observe(True)
+                self.assertEqual(result.status, 'OBSERVED_USER')
+                self.assertFalse(result.restore_verified)
+                self.commands.clear()  # Isolate the next physical program.
+
+    def test_hh_invalid_string_or_numeric_status_blocks_preflight(self):
+        # Values that happen to be truthy are NOT evidence of enabled LEDs.
+        for enabled, animated in (
+                ('False', 'True'), ('true', 'True'), ('1', 'True'),
+                (1, True), (True, 'false'), (True, 'TRUE'),
+                (True, 'False '), (True, 'on'), (True, 1),
+                (True, None)):
+            with self.subTest(enabled=enabled, animated=animated):
+                self.configure_led_chain(managed=True)
+                control = self.client.status['mmu_leds unit0']
+                control['enabled'] = enabled
+                control['animation'] = animated
+                self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+                self.worker.next()
+                result = self.runner.poll()
+                self.assertEqual(result.status, 'BLOCKED')
+                self.assertEqual(result.reason, 'preflight_failed')
+                self.assertEqual(self.commands, [])
+
+    def test_hh_string_status_mismatch_cannot_claim_restore(self):
+        self.configure_led_chain(managed=True)
+        control = self.client.status['mmu_leds unit0']
+        control['enabled'] = 'True'
+        control['animation'] = 'True'
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertTrue(self.runner.confirm()[0])
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        control['animation'] = 'False'
+        self.advance(3.1)
+        for _ in range(3):
+            self.poll_verify()
+            self.advance(.35)
+        self.advance(6)
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'INCONCLUSIVE')
+        self.assertFalse(result.restore_verified)
+        self.assertIsNone(self.runner.observe(True))
+
     def test_managed_mmu_chain_inactive_or_busy_rejected_without_dispatch(self):
         for status_change in (
                 {'mmu_leds unit0': {

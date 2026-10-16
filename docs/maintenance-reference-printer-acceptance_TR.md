@@ -8,7 +8,7 @@
 
 **Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **5 adet** fiziksel test KABUL sayılır. **F02'nin 0,8 saniyelik önceki sürümü kabul edildi; yeni 2 saniyelik kademelerin yeniden test edilmesi gerekir.** Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 5 KABUL (F02 eski sürümü), 56 BEKLİYOR, 8 KOŞULLU, 1 N/A. **F02: yeni sürüm için yeniden test bekliyor.**
+**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 5 KABUL (F02 eski sürümü), 56 BEKLİYOR, 8 KOŞULLU, 1 N/A. **F02 yeni sürüm ve O04 string-durum düzeltmesi için yeniden test kaydı var.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -22,7 +22,7 @@
 | [x] | F02 | `fan` | Parça soğutma fanı hız kademeleri | Hazır | **KABUL (0,8 sn) / YENİDEN TEST BEKLİYOR (2 sn)** |
 | [x] | S18 | `pwm_cycle_time Buzzer` | Buzzer ses testi | Hazır | **KABUL** |
 | [x] | O03 | `output_pin case_light` | Güvenli yardımcı çıkış | Hazır | **KABUL** |
-| [x] | O04 | `neopixel mmu_leds` | Adreslenebilir LED testi | Hazır | **KABUL** |
+| [x] | O04 | `neopixel mmu_leds` | Adreslenebilir LED testi | Hazır | **ÖNCEKİ KABUL / HH METİN BAYRAKLARI YENİDEN TEST BEKLİYOR** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
@@ -112,8 +112,8 @@
 | F02 / `fan` | **Eski sürüm:** 0,8 sn/kademe kullanıcı onaylı. **Yeni sürüm:** 2 sn × 3 kademe çalıştı ama onay ekranı çıkmadan INCONCLUSIVE verdi; geri yükleme kanıtı yok. Sınırlandırılmış HTTP timeout düzeltmesi yeniden test edilecek. | `PASSED_USER` (eski), `INCONCLUSIVE` (son deneme) | `true` (eski), bilinmiyor (yeni) |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sesi duyuldu; Klipper PWM geri okuması yok. | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Kasa ışığı değişti; önceki raporlanan durumu doğrulandı. | `PASSED_USER` | `true` |
-| O04 / `neopixel mmu_leds` | 4 MMU LED'i kırmızı → mavi → yeşil → beyaz gösterdi; Happy Hare normal görünümü geri geldi. | `OBSERVED_USER` | `false` |
+| O04 / `neopixel mmu_leds` | Önceki dört renk testi kabul edilmişti. Sonraki denemede Happy Hare `enabled='True'`, `animation='True'` metinleri nedeniyle O04 preflight BLOCKED oldu; yeni katı metin/boolean uyumluluk düzeltmesi fiziksel yeniden test bekliyor. Engellenen denemede LED komutu gönderilmedi. | `OBSERVED_USER` (önceki), `BLOCKED` (son) | `false` (önceki), bilinmiyor (engellenen) |
 
 ## Sıradaki uygulama
 
-**Önce F02 `fan` 2 sn/kademe güncel sürümünün yeniden fiziksel kabulünü yap; sonra F12 `fan` testine geç.** Her kademede gerçek kullanıcı gözlemi şarttır; PWM komutu RPM ölçümü değildir. Isıtıcı, mekanik hareket, probe ve MMU için kendi özel güvenlik/geri yükleme adaptörleri kurulmadan komut gönderilmez. Uygun olmayan veya sırf koşullu donanıma ait satırlar *otomatik güvenli test* değildir.
+**Önce O04 Happy Hare metin-bayrak uyumluluğunu gerçek yazıcıda yeniden test et; F02 `fan` güncel sonuç kaydını da doğruladıktan sonra F12'ye geç.** Her kademede gerçek kullanıcı gözlemi şarttır; PWM komutu RPM ölçümü değildir. Isıtıcı, mekanik hareket, probe ve MMU için kendi özel güvenlik/geri yükleme adaptörleri kurulmadan komut gönderilmez. Uygun olmayan veya sırf koşullu donanıma ait satırlar *otomatik güvenli test* değildir.

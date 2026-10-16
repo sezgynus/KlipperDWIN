@@ -8,7 +8,7 @@
 
 **Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Five** hardware checks have user approval including the **previous F02 800 ms/stage revision**. The new 2,000 ms/stage F02 program **must be retested** on actual hardware before the revised version is accepted. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **70 rows / 48 IDs** — 5 ACCEPTED (including historical F02), 56 PENDING, 8 CONDITIONAL, 1 N/A. **F02 revised sequence awaiting physical retest.**
+**Per-device tracking:** **70 rows / 48 IDs** — 5 ACCEPTED (including historical F02), 56 PENDING, 8 CONDITIONAL, 1 N/A. **F02 revised sequence awaiting physical retest; O04 string-status fix awaits retest.**
 
 **Mandatory after each user-approved test:** set only that target's JSON `status` to `accepted`; record date, operator observation, controller outcome and `restore_verified` in `acceptance`; check only the corresponding target in both EN/TR tables in the same signed commit. Add relevant regressions; verify the full CI suite on the **bot-signed HEAD**. Never mark an item done because of a config line, HTTP success, G-code OK, simulated CI or an informational read. Never merge `master` without explicit request.
 
@@ -22,7 +22,7 @@
 | [x] | F02 | `fan` | Part fan speed steps | Available | **ACCEPTED (800 ms) / RETEST REQUIRED (2,000 ms)** |
 | [x] | S18 | `pwm_cycle_time Buzzer` | Audible output observation | Available | **ACCEPTED** |
 | [x] | O03 | `output_pin case_light` | Safe auxiliary output | Available | **ACCEPTED** |
-| [x] | O04 | `neopixel mmu_leds` | LED output observation | Available | **ACCEPTED** |
+| [x] | O04 | `neopixel mmu_leds` | LED output observation | Available | **ACCEPTED (prior) / RETEST REQUIRED (HH string flags)** |
 
 ## Reference-confirmed hardware — adapter/acceptance pending
 
@@ -112,8 +112,8 @@
 | F02 / `fan` | **Previous version:** 800 ms/stage was operator-approved. **Longer version:** all three 2,000-ms stages actuated but returned INCONCLUSIVE without user confirmation; no restore proof. A bounded F02 HTTP timeout fix now awaits retest. | `PASSED_USER` (old), `INCONCLUSIVE` (new attempt) | `true` (old), unknown (new) |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sound heard; no live readback from Klipper pwm_cycle_time | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Case light changed and returned to original reported output | `PASSED_USER` | `true` |
-| O04 / `neopixel mmu_leds` | Four Happy Hare LEDs showed red, blue, green, white; original LED policy resumed | `OBSERVED_USER` | `false` |
+| O04 / `neopixel mmu_leds` | Previously approved four-color Happy Hare test. Later O04 blocked at preflight: HH returned string flags `enabled='True'`, `animation='True'`; strict parsing fix requires a new real-printer retest. No actuation during the blocked attempt. | `OBSERVED_USER` (prior), `BLOCKED` (latest) | `false` (prior); unknown (blocked) |
 
 ## Next implementation
 
-**First physically retest revised F02 `fan` at 2,000 ms per step; then proceed to F12 `fan`.** Every stage requires genuine operator observation; PWM command is not measured RPM. Implement separate motion, heater, probe and MMU safety/restore contracts before driving those devices. Merely conditional devices are **not automatically safe or runnable**.
+**Retest O04 Happy Hare LED string-flag compatibility on the real printer, and confirm the revised F02 `fan` result before F12.** Every stage requires genuine operator observation; PWM command is not measured RPM. Implement separate motion, heater, probe and MMU safety/restore contracts before driving those devices. Merely conditional devices are **not automatically safe or runnable**.

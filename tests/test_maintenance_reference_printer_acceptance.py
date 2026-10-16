@@ -125,6 +125,15 @@ class ReferenceAcceptanceTests(unittest.TestCase):
                             old_f02['acceptance']['tested_signed_head'])
         self.assertIn('YENİDEN TEST', TR.read_text(encoding='utf-8'))
         self.assertIn('RETEST REQUIRED', EN.read_text(encoding='utf-8'))
+        o04 = by_target[('O04', 'neopixel mmu_leds')]
+        self.assertEqual(o04['status'], 'accepted')  # Prior PASS is historical.
+        self.assertTrue(o04['retest_required'])
+        self.assertEqual(o04['latest_attempt']['controller_result'], 'BLOCKED')
+        self.assertEqual(o04['latest_attempt']['controller_reason'],
+                         'mmu_led_not_enabled_or_readable')
+        self.assertFalse(o04['latest_attempt']['operator_confirmation_requested'])
+        self.assertIsNone(o04['latest_attempt']['restore_verified'])
+
 
 
 if __name__ == '__main__':

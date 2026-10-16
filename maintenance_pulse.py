@@ -304,6 +304,23 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
 
 
 
+def _hh_bool(value):
+    """Strictly decode Happy Hare flags; never infer truthiness.
+
+    Happy Hare can expose get_status() flags as the literal strings
+    'True'/'False' instead of JSON booleans. Accept only those exact
+    representations; numbers, case variants and other strings are unknown.
+    """
+    if type(value) is bool:
+        return value
+    if type(value) is str:
+        if value == 'True':
+            return True
+        if value == 'False':
+            return False
+    return None
+
+
 def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, machine_status=None):
     """Use Happy Hare's own timed API for all discovered physical segments.
 
@@ -353,15 +370,18 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, mach
     controls_expected, affected = [], set()
     for owner, unit_index in zip(owners, unit_indices):
         current = controls.get(owner.section)
-        if (not isinstance(current, Mapping) or current.get('enabled') is not True
-                or type(current.get('animation')) is not bool):
+        if not isinstance(current, Mapping):
+            raise ValueError('mmu_led_not_enabled_or_readable')
+        enabled = _hh_bool(current.get('enabled'))
+        animation = _hh_bool(current.get('animation'))
+        if enabled is not True or animation is None:
             raise ValueError('mmu_led_not_enabled_or_readable')
         for segment, indexes in owner.segments:
             if (type(current.get(segment)) is not int or
                     current[segment] != len(indexes)):
                 raise ValueError('mmu_led_segment_status_mismatch')
             affected.update(indexes)
-        controls_expected.append((owner.section, True, current['animation']))
+        controls_expected.append((owner.section, True, animation))
     if not affected:
         raise ValueError('mmu_led_no_mapped_pixels')
     # HH blocks/defers a second *timed* effect on the same unit while
@@ -404,8 +424,8 @@ def restored(program, status):
         # Controller policy is observable; return of animated RGB is not.
         return (program.feature_id == 'O04' and bool(program.hh_controls)
                 and all(isinstance(status.get(section), Mapping)
-                        and status[section].get('enabled') is enabled
-                        and status[section].get('animation') is animation
+                        and _hh_bool(status[section].get('enabled')) is enabled
+                        and _hh_bool(status[section].get('animation')) is animation
                         for section, enabled, animation in program.original))
     state = status.get(program.object_name)
     if not isinstance(state, Mapping):

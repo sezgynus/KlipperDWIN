@@ -57,3 +57,7 @@ The LCD confirmation uses `Run speed steps` for F02 and `Run color sequence` for
 
 
 **Long F02 HTTP timing:** The 6-second `G4` program can outlast MoonrakerClient's normal 5-second HTTP deadline, yielding `INCONCLUSIVE` even when the fan executed the steps. Only F02 supplies a bounded 10-second POST timeout (the transport rejects overrides above 15 seconds), allowing its script acknowledgement and subsequent **two** restored-fan status samples. All other transport requests retain their original timeout; an ambiguous failure still blocks, without replay or automatic PASS. The first 2-second/stage Pi attempt was inconclusive before operator confirmation; it is not an acceptance of the revised program.
+
+### Happy Hare O04 live flag compatibility
+
+The `[mmu_leds <unit>]` Klipper status can expose `enabled` and `animation` as the **exact strings** `'True'` / `'False'`, not JSON booleans. Petrel strictly normalizes either these exact strings or native boolean values at O04 preflight **and** during the two post-script readbacks. It still requires `enabled=True`; `animation` may be valid `True` or `False` but must match the captured original on readback. Numbers, missing values, malformed strings, or a disabled controller fail closed. This change does not authorize raw LED commands, guess unit indexes, bypass Happy Hare or claim physical color restoration. The prior physical PASS remains historical; this new compatibility fix requires a fresh operator-led O04 test.

@@ -823,6 +823,18 @@
         "controller_result": "OBSERVED_USER",
         "restore_verified": false,
         "observation": "Four Happy Hare LEDs showed red, blue, green, white; original LED policy resumed"
+      },
+      "retest_required": true,
+      "latest_attempt": {
+        "date": "2026-10-16",
+        "source": "operator_live_result_plus_pi_journal",
+        "controller_result": "BLOCKED",
+        "controller_reason": "mmu_led_not_enabled_or_readable",
+        "operator_confirmation_requested": false,
+        "restore_verified": null,
+        "observation": "O04 was discovered but preflight rejected Happy Hare live status enabled='True' and animation='True' (literal strings). No physical actuation during blocked attempt.",
+        "tested_signed_head": "70159750abc5886e0535bbac43925348085b861e",
+        "resolution": "Strict boolean/string normalization in shared O04 preflight and controller readback requires signed-head CI and physical retest."
       }
     },
     {

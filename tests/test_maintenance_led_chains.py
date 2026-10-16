@@ -91,7 +91,7 @@ class LedChainTests(unittest.TestCase):
         self.assertEqual(p.restore.count('WHITE='), 2)
         self.assertIn('WHITE=0.3000', p.restore)
         self.assertEqual(p.stimulus.count('WHITE='), 8)
-        for line in p.stimulus.splitlines()[6:8]:
+        for line in p.stimulus.splitlines()[2:4]:
             self.assertIn('BLUE=1.0000', line)
         for line in p.stimulus.splitlines()[-2:]:
             self.assertIn('RED=0.0000', line)

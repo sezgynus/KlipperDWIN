@@ -722,7 +722,7 @@ class PhysicalControllerTests(unittest.TestCase):
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
         self.client.status['mmu_leds unit0']['enabled'] = False
-        self.advance(1.9)
+        self.advance(3.1)
         for _ in range(3):
             self.poll_verify()
             self.advance(.35)

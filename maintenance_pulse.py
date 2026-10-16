@@ -23,8 +23,9 @@ _LED_FRAMES = (
     ('green', (0., 1., 0., 0.)),
     ('white', (1., 1., 1., 0.)),
 )
+_F12_STEP_MS = 1800  # five ascending, operator-observed command levels
 _FAN_STEP_MS = 2000  # user-observable F02 speed changes, 3 bounded stages
-_PULSE_MS = {'F01': 950, 'F04': 950, 'F02': 3 * _FAN_STEP_MS, 'O03': 850,
+_PULSE_MS = {'F01': 950, 'F04': 950, 'F02': 3 * _FAN_STEP_MS, 'F12': 5 * _F12_STEP_MS, 'O03': 850,
              'O04': 4 * _LED_STEP_MS, 'S18': 150}
 
 
@@ -42,6 +43,7 @@ class PulseProgram:
     observation: str
     managed_hh: bool = False
     hh_controls: tuple = ()
+    pwm_levels: tuple = ()
 
 
 def _unit(value):
@@ -152,11 +154,29 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
     if not isinstance(cfg, Mapping) or (feature != 'S18' and not isinstance(current, Mapping)):
         raise ValueError('target_state_or_config_unknown')
 
-    if feature in ('F01', 'F02', 'F04'):
+    if feature in ('F01', 'F02', 'F04', 'F12'):
         original = current.get('speed')
         if not _unit(original):
             raise ValueError('fan_speed_unavailable')
-        if feature == 'F02':
+        levels_for_user = ()
+        if feature == 'F12':
+            lo, hi = cfg.get('off_below', 0), cfg.get('max_power', 1)
+            lower = cfg.get('min_power', 0)
+            if (not all(_unit(v) for v in (lo, hi, lower))
+                    or hi <= lo or hi - lo < .35):
+                raise ValueError('fan_pwm_range_unavailable')
+            # Five bounded commanded M106 duty steps, not measured RPM or
+            # guaranteed electrical PWM after Klipper fan scaling.
+            values = tuple(round((lo + (hi - lo) * fraction) * 255)
+                           for fraction in (.10, .20, .30, .40, .50))
+            if len(set(values)) != 5 or any(v < 1 or v > 255 for v in values):
+                raise ValueError('fan_pwm_resolution_insufficient')
+            levels_for_user = values
+            start = '\n'.join('M106 S%d' % v for v in values)
+            restore = 'M106 S%d' % round(original * 255)
+            observation = ('Lowest stable fan rotation? Choose first stable '
+                           'level among the five observed stages (not RPM).')
+        elif feature == 'F02':
             # Do not infer measured RPM from PWM. Validate a meaningful
             # control range using the *effective* fan configuration.
             lo, hi = cfg.get('off_below', 0), cfg.get('max_power', 1)
@@ -284,6 +304,9 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
         script = '%s\nG4 P50\n%s\nG4 P%d\n%s' % (
             restore, start, duration, restore)
         duration += 50
+    elif feature == 'F12':
+        script = '\n'.join('%s\nG4 P%d' % (line, _F12_STEP_MS)
+                           for line in start.splitlines()) + '\n' + restore
     elif feature == 'F02':
         script = '\n'.join('%s\nG4 P%d' % (line, _FAN_STEP_MS)
                            for line in start.splitlines()) + '\n' + restore
@@ -299,7 +322,8 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
     endpoint = ('' if feature == 'S18'
                 else '/printer/objects/query?' + quote(object_name, safe=''))
     return PulseProgram(feature, row.device, endpoint, object_name, evidence,
-                        start, restore, script, duration, observation)
+                        start, restore, script, duration, observation,
+                        pwm_levels=levels_for_user if feature == 'F12' else ())
 
 
 
@@ -435,7 +459,7 @@ def restored(program, status):
     state = status.get(program.object_name)
     if not isinstance(state, Mapping):
         return False
-    if program.feature_id in ('F01', 'F02', 'F04'):
+    if program.feature_id in ('F01', 'F02', 'F04', 'F12'):
         value = state.get('speed')
         return _unit(value) and abs(value - program.original[0]) <= .015
     if program.feature_id == 'O03':

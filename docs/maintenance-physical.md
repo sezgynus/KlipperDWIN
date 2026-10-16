@@ -10,6 +10,10 @@ IMPORTANT: a Moonraker timeout/connection interruption can leave a command's exe
 
 The LCD interface and accepted real-Pi hardware stimuli require separate validation; CI fakes cannot prove any physical actuator works.
 
+## F12 — operator-observed minimum usable fan command
+
+F12 reuses the proven part-fan preflight/consent/guard and two-read restoration gate. An opt-in test sends exactly five ascending M106 S levels at 1.8 seconds each, within the validated effective `off_below`/`max_power` range, then restores the initial fan speed in the same bounded script. The LCD asks which **first** of the five levels showed stable rotation, or “None stable”. No automatic PASS, tachometer RPM or precise electrical PWM threshold is inferred; the result identifies the selected *commanded* M106 level only. Verify fan clearance and safe idle state before triggering. If a step is missed, cancel/decline and repeat only after confirming the fan returned to its original state. Timeout, stale status or failed restoration cannot earn a PASS.
+
 ## Delayed Moonraker restore telemetry (Stage 8 F01 acceptance)
 
 Real Raspberry Pi acceptance exposed an F01 short fan pulse followed by `INCONCLUSIVE / restore_not_verified`; a later read-only Moonraker query reported `fan.speed=0.0`. The original single GET could race the G-code/telemetry update, but that observation alone cannot establish precisely where the delay occurred. The controller now waits at least the configured pulse duration plus a margin from G-code dispatch, and at least 250 ms after HTTP completion. It then schedules **two consecutive matching status GETs** at least 300 ms apart, with a **six-second bounded verification window**. All reads use the existing bounded worker on the UI tick, without sleep, new worker threads or repeated G-code dispatch.

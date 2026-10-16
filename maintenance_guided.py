@@ -23,6 +23,7 @@ from maintenance_safety import MaintenanceSafetyCoordinator
 _KINDS = {
     'F01': 'part_fan_observation',
     'F02': 'part_fan_speed_steps_observation',
+    'F12': 'part_fan_minimum_usable_pwm_observation',
     'F04': 'generic_fan_observation',
     'O03': 'case_light_observation',
     'O04': 'led_observation',
@@ -47,7 +48,7 @@ def _trusted_target(row, snapshot):
             or row.category != 'guided'
             or row.adapter_id != 'maintenance.guided.' + row.feature_id):
         return False
-    if row.feature_id in ('F01', 'F02'):
+    if row.feature_id in ('F01', 'F02', 'F12'):
         return row.device == 'fan'
     if row.feature_id == 'F04':
         return (isinstance(row.device, str)

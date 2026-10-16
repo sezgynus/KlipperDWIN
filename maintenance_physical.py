@@ -167,6 +167,11 @@ class MaintenancePulseController:
         return self._row.feature_id if self._row is not None else None
 
     @property
+    def pwm_levels(self):
+        return (self._program.pwm_levels if self._program is not None
+                and self._phase == 'await_observation' else ())
+
+    @property
     def observation_prompt(self):
         return (self._program.observation if self._program is not None
                 and self._phase == 'await_observation' else None)
@@ -450,7 +455,7 @@ class MaintenancePulseController:
         # Bound the override to these two compiled Maintenance protocols:
         # other commands retain their normal timeout, and failures never
         # replay ambiguous physical writes.
-        extended = (program.feature_id == 'F02'
+        extended = (program.feature_id in ('F02', 'F12')
                     or (program.feature_id == 'O04' and program.managed_hh))
         http_timeout = min(15.0, program.duration_ms / 1000 + 4.0) if extended else None
         options = {'json': {'script': program.script},
@@ -473,7 +478,20 @@ class MaintenancePulseController:
 
     def observe(self, seen):
         """Human observation is separate from a command or reported PWM."""
-        if self._phase != 'await_observation' or type(seen) is not bool:
+        if self._phase != 'await_observation':
+            return None
+        if self._program.feature_id == 'F12':
+            # Selection is an observed first stable commanded M106 step,
+            # not a measured RPM or calibrated electrical PWM threshold.
+            if type(seen) is not int or not 0 <= seen <= len(self._program.pwm_levels):
+                return None
+            if seen == 0:
+                return self._finish('FAILED_USER', 'no_stable_rotation_observed', True)
+            level = self._program.pwm_levels[seen - 1]
+            return self._finish('PASSED_USER',
+                                'first_stable_commanded_M106_S%d_of_%d' %
+                                (level, len(self._program.pwm_levels)), True)
+        if type(seen) is not bool:
             return None
         if self._program.managed_hh:
             # HH controls its own timed effect and returns to its policy.

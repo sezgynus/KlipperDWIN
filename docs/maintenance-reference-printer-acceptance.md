@@ -28,7 +28,7 @@
 
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
-| [ ] | F12 | `fan` | Minimum usable fan PWM | Not built | **PENDING** |
+| [ ] | F12 | `fan` | Minimum usable fan PWM | Available; physical acceptance pending | **PENDING** |
 | [ ] | H01 | `extruder` | Heater warmup | Not built | **PENDING** |
 | [ ] | H01 | `heater_bed` | Heater warmup | Not built | **PENDING** |
 | [ ] | H02 | `extruder` | Extruder PID calibration | Not built | **PENDING** |

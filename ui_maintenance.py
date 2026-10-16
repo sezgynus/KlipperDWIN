@@ -53,10 +53,16 @@ class MaintenanceViewMixin:
                 # avoid calling multi-step tests a short pulse.
                 feature_id = getattr(self.pd.maintenance_pulse, 'feature_id', None)
                 action = {'F02': 'Run speed steps',
+                          'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
                               feature_id, 'Run short pulse')
                 return 'Confirm test', (('Cancel', self.ICON_Back, None, None),
                                         (action, self.ICON_FanSpeed, None, None))
+            if phase == 'await_observation' and getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12':
+                levels = self.pd.maintenance_pulse.pwm_levels
+                return 'First stable PWM?', ((('None stable', self.ICON_Back, None, None),)
+                    + tuple(('%d: %d/255' % (i + 1, val), self.ICON_FanSpeed, None, None)
+                            for i, val in enumerate(levels)))
             if phase == 'await_observation':
                 question = getattr(self.pd.maintenance_pulse,
                                    'observation_prompt', None) or 'Did it work?'
@@ -160,7 +166,9 @@ class MaintenanceViewMixin:
                         status='ABORTED', reason='user_cancelled')
                     self._maintenance_show('result')
             elif phase == 'await_observation':
-                outcome = self.pd.observe_maintenance_physical(selected == 1)
+                seen = (selected if getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12'
+                        else selected == 1)
+                outcome = self.pd.observe_maintenance_physical(seen)
                 if outcome is not None:
                     self._maintenance_result = outcome
                     self._maintenance_show('result')

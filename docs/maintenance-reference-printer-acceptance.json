@@ -103,8 +103,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "No tachometer; PWM usable threshold must be observed.",
+      "adapter": "implemented",
+      "note": "Five user-observed increasing M106 command levels; pending explicit real-printer operator acceptance. No RPM or actual electrical PWM measurement.",
       "acceptance": null
     },
     {

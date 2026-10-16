@@ -10,6 +10,10 @@
 
 LCD arayüzü ve gerçek Pi aktüatör kabulü ayrı doğrulanmalıdır; CI taklitleri fiziksel donanımın çalıştığını kanıtlamaz.
 
+## F12 — kullanıcı gözlemli minimum kullanılabilir fan komutu
+
+F12, mevcut parça soğutma fanının ön kontrol, ikinci kullanıcı onayı, güvenlik ve iki ayrı geri yükleme okumasını kullanır. Test, doğrulanmış `off_below`/`max_power` aralığında yükselen beş M106 S kademesini 1,8'er saniye uygular ve aynı sınırlı G-code programının sonunda başlangıç hızına döner. LCD'de kararlı dönmenin görüldüğü **ilk** kademe veya “None stable” seçilir. Sonuç yalnızca komutlanan M106 düzeyini gösterir; RPM ölçümü ya da gerçek elektriksel PWM eşiği değildir. Başlatmadan önce fanın serbest olduğundan ve yazıcının güvenli/boşta olduğundan emin olun. Eksik gözlemde başarısız seçin ve fanın eski haline döndüğünü doğrulamadan yeniden denemeyin. Zaman aşımı veya geri yükleme doğrulama hatası PASS üretmez.
+
 ## Gecikmeli Moonraker geri yükleme telemetrisi (Aşama 8 F01 kabulü)
 
 Gerçek Raspberry Pi kabulünde F01 fan kısa süre çalışmasına rağmen `INCONCLUSIVE / restore_not_verified` görüldü; sonradan yapılan salt-okunur Moonraker sorgusunda `fan.speed=0.0` okundu. Önceki tek GET, G-code yürütmesi/telemetri güncellemesiyle yarışabilir; ancak bu gözlem gecikmenin tam nerede oluştuğunu tek başına kanıtlamaz. Yeni akış, G-code gönderiminden itibaren en az pulse süresi ve ek payı, HTTP tamamlanmasından itibaren de en az 250 ms bekler. Ardından **en az 300 ms aralıkla üst üste iki eşleşen durum GET'i** ister; doğrulama penceresi **altı saniyeyle sınırlıdır**. Bütün okumalar mevcut bounded worker ve UI tick ile yapılır; sleep, yeni worker thread'i veya tekrar G-code gönderimi yoktur.

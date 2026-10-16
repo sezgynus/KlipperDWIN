@@ -28,7 +28,7 @@
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | F12 | `fan` | Fanın dönebildiği en düşük PWM | Geliştirilecek | **BEKLİYOR** |
+| [ ] | F12 | `fan` | Fanın dönebildiği en düşük PWM | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Geliştirilecek | **BEKLİYOR** |
 | [ ] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Geliştirilecek | **BEKLİYOR** |
 | [ ] | H02 | `extruder` | Hotend PID kalibrasyonu | Geliştirilecek | **BEKLİYOR** |

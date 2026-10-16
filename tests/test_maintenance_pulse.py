@@ -14,7 +14,7 @@ def environment(features=('F01',), services=()):
     settings = {}
     status = {}
     for feature in features:
-        if feature in ('F01', 'F02'):
+        if feature in ('F01', 'F02', 'F12'):
             name = 'fan'; family = 'fan'
             settings[name] = {'pin': 'PA3'}
             status[name] = {'speed': .35}
@@ -72,6 +72,22 @@ class PhysicalPulseTests(unittest.TestCase):
         self.assertIn('low/mid/high', p.observation)
         self.assertTrue(restored(p, status))
         self.assertFalse(restored(p, {'fan': {'speed': .9}}))
+
+    def test_f12_bounded_threshold_sweep_and_restoration(self):
+        snap, settings, status = environment(('F12',))
+        settings['fan'].update({'off_below': .05, 'max_power': .95, 'min_power': .0})
+        p = compile_pulse(guided_plan(snap)[0], snap, status, settings)
+        self.assertEqual(p.feature_id, 'F12')
+        self.assertEqual(len(p.pwm_levels), 5)
+        self.assertEqual(tuple(sorted(set(p.pwm_levels))), p.pwm_levels)
+        self.assertEqual(p.duration_ms, 9000)
+        self.assertEqual(p.script.count('G4 P1800'), 5)
+        self.assertTrue(p.script.endswith('M106 S89'))
+        self.assertTrue(restored(p, status))
+        self.assertFalse(restored(p, {'fan': {'speed': .80}}))
+        settings['fan']['max_power'] = .18
+        with self.assertRaisesRegex(ValueError, 'fan_pwm_range_unavailable'):
+            compile_pulse(guided_plan(snap)[0], snap, status, settings)
 
     def test_f02_blocks_unusable_limits_and_invalid_baseline(self):
         snap, settings, status = environment(('F02',))

@@ -14,7 +14,7 @@ from time import monotonic
 from urllib.parse import quote
 
 from maintenance_guided import guided_plan, GuidedConsentGate
-from maintenance_pulse import compile_pulse, compile_mmu_led_pulse, restored, f12_round_program
+from maintenance_pulse import compile_pulse, compile_mmu_led_pulse, restored, f12_round_program, f12_stage_program
 from maintenance_f12 import F12Bracket
 from maintenance_hh_leds import mmu_led_owners
 from maintenance_runtime import read_queue_evidence, live_safety_context
@@ -130,7 +130,8 @@ class MaintenancePulseController:
                  '_row', '_program', '_evidence', '_future', '_phase',
                  '_deadline', '_token', '_buzzer', '_cancelled', '_closed',
                  '_blocked', '_command_started', '_verify_next_at',
-                 '_verify_matches', '_verify_problem', '_f12_bracket', '_f12_round_started')
+                 '_verify_matches', '_verify_problem', '_f12_bracket', '_f12_round_started', '_f12_levels',
+                 '_f12_index', '_f12_session')
 
     def __init__(self, printer, worker, client):
         self._printer = printer
@@ -155,6 +156,9 @@ class MaintenancePulseController:
         self._verify_problem = None
         self._f12_bracket = None
         self._f12_round_started = 0.0
+        self._f12_levels = ()
+        self._f12_index = 0
+        self._f12_session = None
 
     @property
     def phase(self):
@@ -171,16 +175,14 @@ class MaintenancePulseController:
 
     @property
     def f12_status(self):
-        if self._f12_bracket is None or self._program is None:
+        if self._f12_bracket is None or not self._f12_levels:
             return None
-        elapsed = max(0.0, monotonic() - self._f12_round_started)
-        # Approximate UI phase only: G-code is serialized in Klipper. The
-        # current commanded index is not claimed as electronic readback.
-        index = (min(len(self._program.pwm_levels)-1, int(elapsed / 3.5))
-                 if self._phase == 'running' else len(self._program.pwm_levels)-1)
+        # Exact commanded stage, updated on guarded stage dispatch, never
+        # inferred from elapsed time or mistaken for measured rotor speed.
+        index = self._f12_index
         return (self._f12_bracket.stage + 1, index + 1,
-                self._program.pwm_levels[index],
-                self._f12_bracket.low, self._f12_bracket.high)
+                self._f12_levels[index], self._f12_bracket.low,
+                self._f12_bracket.high)
 
     @property
     def pwm_levels(self):
@@ -211,6 +213,9 @@ class MaintenancePulseController:
     def _release(self):
         self._f12_bracket = None
         self._f12_round_started = 0.0
+        self._f12_levels = ()
+        self._f12_index = 0
+        self._f12_session = None
         self._gate.cancel()
         self._safety.clear()
         self._row = self._program = self._evidence = self._future = None
@@ -333,6 +338,9 @@ class MaintenancePulseController:
                 if self._f12_bracket is None:
                     self._f12_bracket = F12Bracket(0, 127)
                 program = f12_round_program(program, self._f12_bracket)
+                self._f12_levels = program.pwm_levels
+                self._f12_index = 0
+                program = f12_stage_program(program, 0)
             self._evidence, self._program = evidence, program
             snapshot = self._snapshot()
             token, reason = self._gate.arm(
@@ -347,6 +355,45 @@ class MaintenancePulseController:
         if self._phase == 'await_confirmation':
             if now >= self._deadline or not self._current() or not self._safety_check(self._snapshot(), self._evidence):
                 return self._finish('ABORTED', 'confirmation_expired_or_unsafe')
+            return None
+        if self._phase == 'f12_next_preflight':
+            if not self._current() or now >= self._deadline:
+                if self._future is not None:
+                    self._future.cancel()
+                return self._finish('INCONCLUSIVE', 'f12_next_stage_preflight_timeout_or_changed', True)
+            if self._future is None or not self._future.done():
+                return None
+            try:
+                evidence, state = self._future.result()
+            except Exception:
+                return self._finish('INCONCLUSIVE', 'f12_next_stage_preflight_failed', True)
+            if (evidence is None or not isinstance(state, Mapping)
+                    or not isinstance(state.get('fan'), Mapping)
+                    or state['fan'].get('speed') != 0
+                    or not self._safety_check(self._snapshot(), evidence)):
+                return self._finish('INCONCLUSIVE', 'f12_next_stage_not_safe_or_fan_not_off', True)
+            self._evidence = evidence
+            next_index = self._f12_index + 1
+            if next_index >= len(self._f12_levels):
+                return self._finish('INCONCLUSIVE', 'f12_step_out_of_bounds', True)
+            program = f12_stage_program(self._program, next_index)
+            session = self._f12_session
+            def guard():
+                return (self._current() and self._safety.guard(
+                    session, self._snapshot(), self._context()).allowed)
+            if not guard():
+                return self._finish('INCONCLUSIVE', 'f12_next_stage_guard_failed', True)
+            try:
+                self._future = self._printer.postREST(
+                    '/printer/gcode/script', json={'script': program.script},
+                    report_error=False, dispatch_guard=guard, request_timeout=9.0)
+            except Exception:
+                return self._finish('INCONCLUSIVE', 'f12_stage_dispatch_failed', True)
+            self._program = program
+            self._f12_index = next_index
+            self._command_started = now
+            self._phase = 'running'
+            self._deadline = now + 13
             return None
         if self._phase == 'running':
             if now >= self._deadline and not self._future.done():
@@ -430,6 +477,22 @@ class MaintenancePulseController:
                 if self._verify_matches >= _VERIFY_MATCHES_REQUIRED:
                     if self._cancelled:
                         return self._finish('ABORTED', 'user_cancelled_after_restore', True)
+                    if (self._program.feature_id == 'F12' and
+                            self._f12_index + 1 < len(self._f12_levels)):
+                        self._phase = 'f12_next_preflight'
+                        self._deadline = now + 12
+                        self._verify_matches = 0
+                        try:
+                            self._future = self._worker.submit(
+                                lambda: (read_queue_evidence(
+                                    self._client, self._row.epoch,
+                                    self._row.config_marker),
+                                    _read_target(self._client, 'fan')),
+                                queue_timeout=6.0)
+                        except Exception:
+                            return self._finish(
+                                'INCONCLUSIVE', 'f12_preflight_worker_unavailable', True)
+                        return None
                     self._phase = 'await_observation'
                     self._deadline = now + 30
                     return None
@@ -487,7 +550,10 @@ class MaintenancePulseController:
                         if extended else None)
         options = {'json': {'script': program.script},
                    'report_error': False, 'dispatch_guard': guard}
-        if extended:
+        if program.feature_id == 'F12':
+            options['request_timeout'] = 9.0
+            self._f12_session = session
+        elif extended:
             options['request_timeout'] = http_timeout
         try:
             self._command_started = monotonic()
@@ -499,10 +565,10 @@ class MaintenancePulseController:
             self._release()
             return False, 'command_queue_rejected'
         self._phase = 'running'
-        # Time for bounded script, HTTP response, and a limited serialized
-        # queue wait. Timeout still fail-closes as ambiguous without replay.
+        # Each F12 command now contains only one 2-second bounded stage.
         self._deadline = monotonic() + (
-            min(33.0, http_timeout + 4.0) if extended else 9.0)
+            13.0 if program.feature_id == 'F12' else
+            min(18.0, http_timeout + 4.0) if extended else 9.0)
         return True, 'bounded_pulse_queued'
 
     def observe(self, seen):

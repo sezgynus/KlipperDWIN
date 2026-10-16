@@ -322,6 +322,20 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
                         pwm_levels=levels_for_user if feature == 'F12' else ())
 
 
+def f12_stage_program(program, index):
+    """One bounded F12 stage with zero-command restore in the same G-code."""
+    if (not isinstance(program, PulseProgram) or program.feature_id != 'F12'
+            or program.original != (0.0,)
+            or type(index) is not int
+            or not 0 <= index < len(program.pwm_levels)):
+        raise ValueError('invalid_f12_stage')
+    value = program.pwm_levels[index]
+    script = ('M106 S0\nG4 P1500\nM400\nM106 S%d\nG4 P%d\nM400\n'
+              'M106 S0\nM400') % (value, _F12_STEP_MS)
+    return replace(program, stimulus='M106 S%d' % value, script=script,
+                   duration_ms=1500 + _F12_STEP_MS)
+
+
 def f12_round_program(program, bracket):
     """Replace the initial F12 sweep with its next five-level search bracket."""
     from maintenance_f12 import F12Bracket

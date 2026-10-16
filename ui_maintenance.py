@@ -71,17 +71,18 @@ class MaintenanceViewMixin:
                                    'observation_prompt', None) or 'Did it work?'
                 return question[:27], (('Not observed', self.ICON_Back, None, None),
                                        ('Yes, observed', self.ICON_Info, None, None))
-            if phase in ('preflight', 'running', 'verifying'):
+            if phase in ('preflight', 'running', 'verifying', 'f12_next_preflight'):
                 if phase == 'running' and getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12':
                     info = self.pd.maintenance_pulse.f12_status
                     if info:
                         round_no, step, pwm, low, high = info
                         return ('F12 Round %d Step %d' % (round_no, step)), (
                             ('Cancel test', self.ICON_Back, None, None),
-                            ('Est PWM %d/255' % pwm, self.ICON_FanSpeed, None, None),
+                            ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
                             ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
                 text = {'preflight': 'Safety checks...', 'running': 'Testing...',
-                        'verifying': 'Checking restore...'}[phase]
+                        'verifying': 'Checking restore...',
+                        'f12_next_preflight': 'Next stage safety...'}[phase]
                 return 'Self Test', (('Cancel test', self.ICON_Back, None, None),
                                      (text, self.ICON_Info, None, None))
             return 'Self Test', (('Back', self.ICON_Back, None, None),)

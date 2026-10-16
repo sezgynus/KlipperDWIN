@@ -12,7 +12,7 @@ LCD arayüzü ve gerçek Pi aktüatör kabulü ayrı doğrulanmalıdır; CI takl
 
 ## F12 adaptif beş kademeli arama
 
-F12 ilk turda %0–50 aralığını 2 saniyelik beş artan M106 kademe komutuyla tarar. Her kademe öncesinde OFF ve 1,5 saniyelik bekleme bulunur, bitiminde tekrar OFF uygulanır. LCD turu ve öngörülen adımı gösterir; zamanlar fan takometre ölçümü değildir. Geri yükleme doğrulanınca kullanıcı ilk kalkış görülen kademeyi veya None seçer. Aralık son başarısız ve ilk başarılı adım arasına daralır; None ilk üst aralığa geçer. Sonraki iterasyondan önce kullanıcı fanın fiziksel durduğunu onaylar ve yeni önkontrol/çalıştırma onayı gerekir. Başlangıç fanı kapalı olmalıdır. Fiziksel durma otomatik beklemeden kesin olarak çıkarılamaz; fan kademe arasında durmadıysa kabul verilmemelidir.
+F12 ilk turda %0–50 aralığını 2 saniyelik beş artan M106 kademe komutuyla tarar. Her kademe öncesinde OFF ve 1,5 saniyelik bekleme bulunur, bitiminde tekrar OFF uygulanır. LCD gerçekten gönderilen kademe komutunu gösterir; geçen süreye göre tahmin yapmaz. Beş kademenin her biri ayrı bir sınırlı REST programıyla çalışır. Her kademenin sonunda iki ayrı kapalı durum okuması doğrulanır, sonraki kademeden önce taze kuyruk ve güvenlik kontrolü yapılır. Bu gösterim takometre verisi değildir. Geri yükleme doğrulanınca kullanıcı ilk kalkış görülen kademeyi veya None seçer. Aralık son başarısız ve ilk başarılı adım arasına daralır; None ilk üst aralığa geçer. Sonraki iterasyondan önce kullanıcı fanın fiziksel durduğunu onaylar ve yeni önkontrol/çalıştırma onayı gerekir. Başlangıç fanı kapalı olmalıdır. Fiziksel durma otomatik beklemeden kesin olarak çıkarılamaz; fan kademe arasında durmadıysa kabul verilmemelidir.
 
 ## F12 — kullanıcı gözlemli minimum kullanılabilir fan komutu
 

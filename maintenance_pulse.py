@@ -217,7 +217,8 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
             for i, value in enumerate(original, 1))
         evidence = original
         object_name = target
-        observation = ('Did all RGB LEDs show red, blue, green, white '
+        observation = ('All LEDs R/B/G/W then back? '
+                       'Did all RGB LEDs show red, blue, green, white '
                        'at full brightness, then return to normal?')
     elif feature == 'S18':
         # pwm_cycle_time has NO get_status() and no live readback. The only
@@ -364,7 +365,8 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, mach
         tuple(controls_expected), script,
         'Happy Hare per-frame timed return to current default policy',
         script, 4 * _LED_STEP_MS + 150 * (len(owners) - 1),
-        ('Did all mapped MMU LEDs show red, blue, green, white at '
+        ('All LEDs R/B/G/W then back? '
+         'Did all mapped MMU LEDs show red, blue, green, white at '
          'full brightness, then return to normal?'),
         managed_hh=True, hh_controls=tuple(item[0] for item in controls_expected))
 

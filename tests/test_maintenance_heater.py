@@ -214,3 +214,39 @@ class ThermalControllerTests(unittest.TestCase):
         self.c.poll()
         self.assertEqual(self.c.phase, 'stopping')
         self.assertIn('thermal_target_drift', self.c._stop_reason)
+
+    def test_shutdown_reason_logged_before_rpc_even_without_result_screen(self):
+        self.armed()
+        self.c.confirm()
+        original = self.p.subscription.request
+        with self.assertLogs('maintenance_heater', level='ERROR') as logs:
+            def checked_request(method, params=None, guard=None):
+                self.assertTrue(logs.output)
+                self.assertIn('feature=H01 heater=extruder', logs.output[0])
+                self.assertIn('reason=diagnostic_probe', logs.output[0])
+                return original(method, params, guard)
+            self.p.subscription.request = checked_request
+            self.c._shutdown('diagnostic_probe')
+            self.c._shutdown('must_not_repeat')
+        self.assertEqual(len(logs.output), 1)
+        self.assertEqual([r[0] for r in self.requests].count('printer.emergency_stop'), 1)
+
+    def test_rejected_sample_values_are_available_in_shutdown_log(self):
+        self.armed()
+        self.c.confirm()
+        self.clock = 2.
+        self.data['status']['extruder']['target'] = 200.
+        self.c.poll()
+        self.worker.drain()
+        with self.assertLogs('maintenance_heater', level='ERROR') as logs:
+            self.c.poll()
+        self.assertIn('thermal_target_drift', logs.output[0])
+        self.assertIn('target=200.0', logs.output[0])
+        self.assertIn('temperature=25.0', logs.output[0])
+
+    def test_logging_failure_cannot_suppress_emergency_stop(self):
+        self.armed()
+        self.c.confirm()
+        with patch('maintenance_heater._LOG.error', side_effect=RuntimeError('logger')):
+            self.c._shutdown('diagnostic_probe')
+        self.assertEqual(self.requests[-1][0], 'printer.emergency_stop')

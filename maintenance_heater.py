@@ -4,6 +4,7 @@ A finite Klipper script contains OFF. Cancel or uncertain active safety uses
 Klipper emergency_stop (shutdown), never queued ordinary G-code behind a dwell.
 No autonomous retries, threads, config writes or acceptance updates.
 """
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import monotonic
@@ -16,6 +17,9 @@ from maintenance_planner import AdapterRegistration, build_plan, visible_plan
 from maintenance_runtime import read_queue_evidence, live_safety_context
 from maintenance_safety import precheck
 from maintenance_thermal import ACTIVE, PID, ThermalSeries, contract, sample, pid_evidence, heater_name
+
+
+_LOG = logging.getLogger(__name__)
 
 
 def thermal_adapters():
@@ -51,6 +55,7 @@ class MaintenanceHeaterController:
         self._deadline = self._next = self._started = 0.
         self._queue = None
         self._series = ThermalSeries()
+        self._last_read_point = None
         self._off_matches = 0
         self._closed = self._blocked = False
         self._pid_proof = ()
@@ -155,6 +160,8 @@ class MaintenanceHeaterController:
     def _finish(self, status, reason, restored=False):
         result = ThermalResult(self.feature_id, self._row.device, status, reason,
                                restored, self._metrics)
+        _LOG.info('Thermal result feature=%s heater=%s status=%s reason=%s restored=%s',
+                  self.feature_id, self._row.device, status, reason, restored)
         self._phase = None
         self._future = None
         self._command = None
@@ -165,6 +172,28 @@ class MaintenanceHeaterController:
         # Never repeat a possibly accepted stimulus. Shutdown is a distinct
         # safety action, guarded against reaching a new printer epoch.
         if self._phase != 'stopping':
+            # Log BEFORE the RPC: Klipper shutdown UI can replace Result before
+            # the operator sees it. Only bounded diagnostic scalars, no payloads.
+            now = monotonic()
+            point = self._last_read_point
+            previous = self._series.samples[-1] if self._series.samples else None
+            try:
+                _LOG.error(
+                    'Thermal shutdown feature=%s heater=%s reason=%s phase=%s '
+                    'elapsed_s=%.3f queue_age_s=%s samples=%d '
+                    'sample_eventtime=%s temperature=%s target=%s power=%s '
+                    'previous_eventtime=%s command_done=%s',
+                    self.feature_id, self._row.device, reason, self._phase,
+                    max(0., now-self._started),
+                    now-self._queue.observed_at if self._queue is not None else None,
+                    len(self._series.samples),
+                    getattr(point, 'eventtime', None),
+                    getattr(point, 'temperature', None),
+                    getattr(point, 'target', None), getattr(point, 'power', None),
+                    getattr(previous, 'eventtime', None),
+                    self._command.done() if self._command is not None else None)
+            except Exception:
+                pass  # A diagnostic failure must never prevent emergency stop.
             self._blocked = True
             self._stop_reason = reason
             self._phase = 'stopping'
@@ -222,6 +251,8 @@ class MaintenanceHeaterController:
         self._deadline = self._started+c.duration+12
         self._next = self._started+1
         self._future = None
+        _LOG.info('Thermal script queued feature=%s heater=%s target=%s duration_s=%s',
+                  self.feature_id, row.device, c.target, c.duration)
         return True, 'bounded_thermal_script_queued'
 
     def poll(self):
@@ -304,6 +335,7 @@ class MaintenanceHeaterController:
             return None
         try:
             evidence, point, _, proof = self._future.result()
+            self._last_read_point = point
             if not self._current() or not precheck(
                     self._printer.maintenance.snapshot,
                     live_safety_context(self._printer, evidence, queue_max_age=5.)).allowed:

@@ -49,8 +49,14 @@ class MaintenanceViewMixin:
         if page == 'pulse':
             phase = self.pd.maintenance_pulse.phase
             if phase == 'await_confirmation':
+                # The physical controller owns the active feature identity;
+                # avoid calling multi-step tests a short pulse.
+                feature_id = getattr(self.pd.maintenance_pulse, 'feature_id', None)
+                action = {'F02': 'Run speed steps',
+                          'O04': 'Run color sequence'}.get(
+                              feature_id, 'Run short pulse')
                 return 'Confirm test', (('Cancel', self.ICON_Back, None, None),
-                                        ('Run short pulse', self.ICON_FanSpeed, None, None))
+                                        (action, self.ICON_FanSpeed, None, None))
             if phase == 'await_observation':
                 question = getattr(self.pd.maintenance_pulse,
                                    'observation_prompt', None) or 'Did it work?'

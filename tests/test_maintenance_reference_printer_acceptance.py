@@ -103,6 +103,21 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertFalse(by_target[key]['acceptance']['restore_verified'])
         self.assertEqual(by_target[('F04', 'fan_generic (not installed)')]
                          ['status'], 'not_applicable')
+        # F02 was accepted by the operator on the old 800 ms/stage
+        # revision, but the new 2000 ms/stage program is not accepted yet.
+        from maintenance_pulse import _FAN_STEP_MS
+        old_f02 = by_target[('F02', 'fan')]
+        self.assertEqual(old_f02['status'], 'accepted')
+        self.assertEqual(old_f02['adapter'], 'implemented')
+        self.assertTrue(old_f02['retest_required'])
+        self.assertEqual(old_f02['acceptance']['tested_step_duration_ms'], 800)
+        self.assertEqual(old_f02['acceptance']['tested_program_duration_ms'], 2400)
+        self.assertEqual(old_f02['acceptance']['controller_result'], 'PASSED_USER')
+        self.assertTrue(old_f02['acceptance']['restore_verified'])
+        self.assertEqual(_FAN_STEP_MS, 2000)
+        self.assertNotEqual(old_f02['acceptance']['tested_step_duration_ms'], _FAN_STEP_MS)
+        self.assertIn('YENİDEN TEST', TR.read_text(encoding='utf-8'))
+        self.assertIn('RETEST REQUIRED', EN.read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

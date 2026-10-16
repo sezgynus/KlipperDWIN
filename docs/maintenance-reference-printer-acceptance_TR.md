@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Yalnız açıkça doğrulanmış **4 adet** fiziksel test KABUL sayılır. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **5 adet** fiziksel test KABUL sayılır. **F02'nin 0,8 saniyelik önceki sürümü kabul edildi; yeni 2 saniyelik kademelerin yeniden test edilmesi gerekir.** Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 4 KABUL, 57 BEKLİYOR, 8 KOŞULLU, 1 N/A.
+**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 5 KABUL (F02 eski sürümü), 56 BEKLİYOR, 8 KOŞULLU, 1 N/A. **F02: yeni sürüm için yeniden test bekliyor.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -19,6 +19,7 @@
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
 | [x] | F01 | `fan` | Parça soğutma fanının dönmesi | Hazır | **KABUL** |
+| [x] | F02 | `fan` | Parça soğutma fanı hız kademeleri | Hazır | **KABUL (0,8 sn) / YENİDEN TEST BEKLİYOR (2 sn)** |
 | [x] | S18 | `pwm_cycle_time Buzzer` | Buzzer ses testi | Hazır | **KABUL** |
 | [x] | O03 | `output_pin case_light` | Güvenli yardımcı çıkış | Hazır | **KABUL** |
 | [x] | O04 | `neopixel mmu_leds` | Adreslenebilir LED testi | Hazır | **KABUL** |
@@ -27,7 +28,6 @@
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | F02 | `fan` | Parça soğutma fanı hız kademeleri | Geliştirilecek | **BEKLİYOR** |
 | [ ] | F12 | `fan` | Fanın dönebildiği en düşük PWM | Geliştirilecek | **BEKLİYOR** |
 | [ ] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Geliştirilecek | **BEKLİYOR** |
 | [ ] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Geliştirilecek | **BEKLİYOR** |
@@ -109,10 +109,11 @@
 | ID / hedef | Kullanıcı gözlemi / güvenli sonuç | Yürütücü sonucu | `restore_verified` |
 |---|---|---|---|
 | F01 / `fan` | Fan çalıştı ve önceki raporlanan durumuna geri döndü. | `PASSED_USER` | `true` |
+| F02 / `fan` | 0,8 sn × 3 kademeli testte kullanıcı hız değişimlerini gördü; LCD PASS verdi, süre kısa bulundu. Yeni 2 sn × 3 sürümü henüz kabul edilmedi. | `PASSED_USER` (eski sürüm) | `true` |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sesi duyuldu; Klipper PWM geri okuması yok. | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Kasa ışığı değişti; önceki raporlanan durumu doğrulandı. | `PASSED_USER` | `true` |
 | O04 / `neopixel mmu_leds` | 4 MMU LED'i kırmızı → mavi → yeşil → beyaz gösterdi; Happy Hare normal görünümü geri geldi. | `OBSERVED_USER` | `false` |
 
 ## Sıradaki uygulama
 
-**F02 `fan`** hız kademesi testiyle başla; ardından F12 `fan`. Her kademede gerçek kullanıcı gözlemi şarttır; PWM komutu RPM ölçümü değildir. Isıtıcı, mekanik hareket, probe ve MMU için kendi özel güvenlik/geri yükleme adaptörleri kurulmadan komut gönderilmez. Uygun olmayan veya sırf koşullu donanıma ait satırlar *otomatik güvenli test* değildir.
+**Önce F02 `fan` 2 sn/kademe güncel sürümünün yeniden fiziksel kabulünü yap; sonra F12 `fan` testine geç.** Her kademede gerçek kullanıcı gözlemi şarttır; PWM komutu RPM ölçümü değildir. Isıtıcı, mekanik hareket, probe ve MMU için kendi özel güvenlik/geri yükleme adaptörleri kurulmadan komut gönderilmez. Uygun olmayan veya sırf koşullu donanıma ait satırlar *otomatik güvenli test* değildir.

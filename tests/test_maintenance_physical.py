@@ -357,11 +357,16 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(self.runner.phase, 'await_confirmation')
         self.assertTrue(self.runner.confirm()[0])
         future, payload, guard = self.commands[0]
-        self.assertIn('G4 P800', payload['script'])
+        self.assertIn('G4 P2000', payload['script'])
         self.assertTrue(guard())
+        self.assertGreaterEqual(self.runner._deadline - self.clock[0], 11.0)
         future.set_result({'result': 'ok'})
         self.assertIsNone(self.runner.poll())
-        self.advance(2.9)
+        self.advance(5.9)
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'verifying')
+        self.assertEqual(self.worker.jobs, [])  # No early restore read.
+        self.advance(.6)
         self.poll_verify()
         self.assertEqual(self.runner.phase, 'verifying')
         self.advance(.35)

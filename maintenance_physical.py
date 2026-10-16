@@ -162,6 +162,11 @@ class MaintenancePulseController:
         return self._phase is not None
 
     @property
+    def feature_id(self):
+        """Public active-test identity for context-appropriate LCD labels."""
+        return self._row.feature_id if self._row is not None else None
+
+    @property
     def observation_prompt(self):
         return (self._program.observation if self._program is not None
                 and self._phase == 'await_observation' else None)
@@ -333,11 +338,15 @@ class MaintenancePulseController:
             # executed the queued dwell AND restore. Wait at least the whole
             # stimulus period plus margin from dispatch before reading.
             self._phase = 'verifying'
-            self._deadline = now + _VERIFY_WINDOW_S
             self._verify_next_at = max(
                 now + _VERIFY_MIN_AFTER_ACK_S,
                 self._command_started + self._program.duration_ms / 1000
                 + _VERIFY_MIN_AFTER_DISPATCH_S)
+            # The readback window starts after the entire script is
+            # expected to have ended, not at an early HTTP acknowledgement.
+            # Otherwise a long F02 sequence would exhaust the window
+            # before its first legal restoration read.
+            self._deadline = self._verify_next_at + _VERIFY_WINDOW_S
             self._verify_matches = 0
             self._verify_problem = None
             self._future = None
@@ -445,7 +454,10 @@ class MaintenancePulseController:
             self._release()
             return False, 'command_queue_rejected'
         self._phase = 'running'
-        self._deadline = monotonic() + 9
+        # A longer bounded multi-stage fan program needs a proportional
+        # dispatch/transport margin without weakening the timeout cap.
+        self._deadline = monotonic() + min(
+            12.0, max(9.0, program.duration_ms / 1000 + 5.0))
         return True, 'bounded_pulse_queued'
 
     def observe(self, seen):

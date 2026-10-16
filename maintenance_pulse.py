@@ -23,7 +23,8 @@ _LED_FRAMES = (
     ('green', (0., 1., 0., 0.)),
     ('white', (1., 1., 1., 0.)),
 )
-_PULSE_MS = {'F01': 950, 'F04': 950, 'F02': 2400, 'O03': 850,
+_FAN_STEP_MS = 2000  # user-observable F02 speed changes, 3 bounded stages
+_PULSE_MS = {'F01': 950, 'F04': 950, 'F02': 3 * _FAN_STEP_MS, 'O03': 850,
              'O04': 4 * _LED_STEP_MS, 'S18': 150}
 
 
@@ -284,7 +285,8 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
             restore, start, duration, restore)
         duration += 50
     elif feature == 'F02':
-        script = '\n'.join('%s\nG4 P800' % line for line in start.splitlines()) + '\n' + restore
+        script = '\n'.join('%s\nG4 P%d' % (line, _FAN_STEP_MS)
+                           for line in start.splitlines()) + '\n' + restore
     elif feature == 'O04':
         script = '\n'.join(
             part for frame in frames for part in (frame, 'G4 P%d' % _LED_STEP_MS))

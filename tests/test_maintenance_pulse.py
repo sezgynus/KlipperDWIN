@@ -64,10 +64,10 @@ class PhysicalPulseTests(unittest.TestCase):
         row = guided_plan(snap)[0]
         p = compile_pulse(row, snap, status, settings)
         self.assertEqual(p.feature_id, 'F02')
-        self.assertEqual(p.duration_ms, 2400)
+        self.assertEqual(p.duration_ms, 6000)
         self.assertEqual(p.stimulus.splitlines(),
                          ['M106 S99', 'M106 S164', 'M106 S230'])
-        self.assertEqual(p.script.count('G4 P800'), 3)
+        self.assertEqual(p.script.count('G4 P2000'), 3)
         self.assertTrue(p.script.endswith('M106 S89'))
         self.assertIn('low/mid/high', p.observation)
         self.assertTrue(restored(p, status))

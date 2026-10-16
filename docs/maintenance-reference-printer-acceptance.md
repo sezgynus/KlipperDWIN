@@ -6,9 +6,9 @@
 
 **Evidence boundary:** the independent 121-ID hardware reference from 15 Oct 2026, the 16 Oct 2026 discovery log and explicit user observations. The log confirms **54 discovered features**, but no serialized list of their exact IDs was preserved. Here, `confirmed` means confirmed by the independent capability reference, **not** an exact complete dump of the 54 currently observed IDs. `conditional` entries are not currently authorized, discoverable test commands.
 
-**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. Only **four** hardware checks are ACCEPTED. One accepted device/axis never propagates PASS to another target with the same feature ID.
+**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Five** hardware checks have user approval including the **previous F02 800 ms/stage revision**. The new 2,000 ms/stage F02 program **must be retested** on actual hardware before the revised version is accepted. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **70 rows / 48 IDs** — 4 ACCEPTED, 57 PENDING, 8 CONDITIONAL, 1 N/A.
+**Per-device tracking:** **70 rows / 48 IDs** — 5 ACCEPTED (including historical F02), 56 PENDING, 8 CONDITIONAL, 1 N/A. **F02 revised sequence awaiting physical retest.**
 
 **Mandatory after each user-approved test:** set only that target's JSON `status` to `accepted`; record date, operator observation, controller outcome and `restore_verified` in `acceptance`; check only the corresponding target in both EN/TR tables in the same signed commit. Add relevant regressions; verify the full CI suite on the **bot-signed HEAD**. Never mark an item done because of a config line, HTTP success, G-code OK, simulated CI or an informational read. Never merge `master` without explicit request.
 
@@ -19,6 +19,7 @@
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
 | [x] | F01 | `fan` | Part fan rotation | Available | **ACCEPTED** |
+| [x] | F02 | `fan` | Part fan speed steps | Available | **ACCEPTED (800 ms) / RETEST REQUIRED (2,000 ms)** |
 | [x] | S18 | `pwm_cycle_time Buzzer` | Audible output observation | Available | **ACCEPTED** |
 | [x] | O03 | `output_pin case_light` | Safe auxiliary output | Available | **ACCEPTED** |
 | [x] | O04 | `neopixel mmu_leds` | LED output observation | Available | **ACCEPTED** |
@@ -27,7 +28,6 @@
 
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
-| [ ] | F02 | `fan` | Part fan speed steps | Not built | **PENDING** |
 | [ ] | F12 | `fan` | Minimum usable fan PWM | Not built | **PENDING** |
 | [ ] | H01 | `extruder` | Heater warmup | Not built | **PENDING** |
 | [ ] | H01 | `heater_bed` | Heater warmup | Not built | **PENDING** |
@@ -109,10 +109,11 @@
 | ID / target | Human observation and outcome | Controller result | `restore_verified` |
 |---|---|---|---|
 | F01 / `fan` | Fan visibly rotated and recovered its original reported state | `PASSED_USER` | `true` |
+| F02 / `fan` | User observed three fan-speed steps and LCD PASS on prior 800 ms/stage version; duration felt too short. Revised 2,000 ms/stage version requires a separate acceptance test. | `PASSED_USER` (prior revision) | `true` |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sound heard; no live readback from Klipper pwm_cycle_time | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Case light changed and returned to original reported output | `PASSED_USER` | `true` |
 | O04 / `neopixel mmu_leds` | Four Happy Hare LEDs showed red, blue, green, white; original LED policy resumed | `OBSERVED_USER` | `false` |
 
 ## Next implementation
 
-Start with **F02 `fan`** multi-step speed observation, then F12 `fan`. Every stage requires genuine operator observation; PWM command is not measured RPM. Implement separate motion, heater, probe and MMU safety/restore contracts before driving those devices. Merely conditional devices are **not automatically safe or runnable**.
+**First physically retest revised F02 `fan` at 2,000 ms per step; then proceed to F12 `fan`.** Every stage requires genuine operator observation; PWM command is not measured RPM. Implement separate motion, heater, probe and MMU safety/restore contracts before driving those devices. Merely conditional devices are **not automatically safe or runnable**.

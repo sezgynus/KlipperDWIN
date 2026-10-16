@@ -52,6 +52,25 @@ class MaintenanceUIFlows(unittest.TestCase):
         self.event(d, d.ENCODER_DIFF_ENTER)
         d.pd.confirm_maintenance_physical.assert_called_once_with()
 
+    def test_confirmation_label_describes_active_test_not_everything_as_pulse(self):
+        d = self.setup_view()
+        d._maintenance_page = 'pulse'
+        d.pd.maintenance_pulse.phase = 'await_confirmation'
+        for feature, expected in (
+                ('F01', 'Run short pulse'),
+                ('F02', 'Run speed steps'),
+                ('O04', 'Run color sequence'),
+                ('S18', 'Run short pulse')):
+            with self.subTest(feature=feature):
+                d.pd.maintenance_pulse.feature_id = feature
+                title, entries = d._maintenance_rows()
+                self.assertEqual(title, 'Confirm test')
+                self.assertEqual(entries[0][0], 'Cancel')
+                self.assertEqual(entries[1][0], expected)
+                self.assertLessEqual(len(entries[1][0]), 26)
+        # The label must not trigger a second confirmation on its own.
+        d.pd.client.get.assert_not_called()
+
     def test_s18_ui_uses_backend_profile_instead_of_panel_buzzer(self):
         d = self.setup_view()
         row = SimpleNamespace(feature_id='S18', device='pwm_cycle_time alert')

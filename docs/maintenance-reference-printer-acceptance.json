@@ -42,10 +42,21 @@
       "title": "Part fan speed steps",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
-      "adapter": "not_implemented",
-      "note": "No tachometer; PWM steps require visible/audible USER observation, not inferred RPM.",
-      "acceptance": null
+      "status": "accepted",
+      "adapter": "implemented",
+      "note": "Original three-stage 800 ms F02 procedure observed and user approved on 2026-10-16. Revised 2,000 ms/stage behavior awaits separate physical acceptance; RPM never measured.",
+      "acceptance": {
+        "date": "2026-10-16",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "All three fan-speed steps were observed and LCD reported PASSED_USER; 800 ms per step was judged too brief to distinguish comfortably.",
+        "tested_step_duration_ms": 800,
+        "tested_program_duration_ms": 2400,
+        "tested_signed_head": "b3ecd1be0da8f30b79471c71608aa43ca474817c",
+        "note": "Acceptance applies only to the original 800 ms-per-step version. Longer 2,000 ms-per-step revision requires user retest."
+      },
+      "retest_required": true
     },
     {
       "feature_id": "F04",

@@ -449,6 +449,7 @@ class PhysicalControllerTests(unittest.TestCase):
         if managed:
             raw['settings']['mmu_leds unit0'] = {
                 'exit_leds': 'neopixel:diagnostic (1-4)'}
+            raw['settings']['mmu_machine'] = {'units': ['unit0']}
         raw['objects'] = (('neopixel diagnostic', 'mmu_leds unit0', 'mmu')
                           if managed else ('neopixel diagnostic',))
         self.printer.state = PrinterState.from_snapshot(raw)
@@ -522,7 +523,7 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(len(self.commands), 1)
         script = self.commands[0][1]['script']
         self.assertTrue(script.startswith(
-            'MMU_SET_LED UNIT=unit0 EXIT_EFFECT=('))
+            'MMU_SET_LED UNIT=0 EXIT_EFFECT=('))
         self.assertTrue(script.endswith(') DURATION=1 FADETIME=0'))
         rgb = tuple(float(v) for v in
                     script.split('EXIT_EFFECT=(', 1)[1].split(')', 1)[0].split(','))
@@ -545,6 +546,20 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertFalse(result.restore_verified)
         self.assertEqual(self.client.status['mmu_leds unit0'],
                          {'enabled': True, 'animation': True, 'exit': 4})
+
+    def test_mmu_unresolved_numeric_unit_fails_before_any_command(self):
+        self.configure_led_chain(managed=True)
+        raw = self.printer.subscription.snapshot.return_value
+        raw['settings']['mmu_machine'] = {'units': ['different_unit']}
+        self.printer.state = PrinterState.from_snapshot(raw)
+        roles = approved_integrations(self.printer.state, (
+            ('led', 'neopixel diagnostic'),))
+        self.printer.maintenance.snapshot = discover(self.printer.state, roles)
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        outcome = self.runner.poll()
+        self.assertEqual(outcome.status, 'BLOCKED')
+        self.assertEqual(self.commands, [])
 
     def test_managed_mmu_chain_inactive_or_busy_rejected_without_dispatch(self):
         for status_change in (
@@ -604,7 +619,8 @@ class PhysicalControllerTests(unittest.TestCase):
             'neopixel diagnostic': {'pin': 'PA7', 'chain_count': 4,
                                      'color_order': 'GRB'},
             'mmu_leds first': {'exit_leds': 'neopixel:diagnostic (1-2)'},
-            'mmu_leds second': {'entry_leds': 'neopixel:diagnostic (3-4)'}}
+            'mmu_leds second': {'entry_leds': 'neopixel:diagnostic (3-4)'},
+            'mmu_machine': {'units': ['second', 'first']}}
         raw['objects'] = ('neopixel diagnostic', 'mmu_leds first',
                           'mmu_leds second', 'mmu')
         self.printer.state = PrinterState.from_snapshot(raw)
@@ -622,8 +638,8 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertTrue(self.runner.confirm()[0])
         script = self.commands[0][1]['script']
         self.assertEqual(len(script.splitlines()), 2)
-        self.assertIn('UNIT=first EXIT_EFFECT=', script)
-        self.assertIn('UNIT=second ENTRY_EFFECT=', script)
+        self.assertIn('UNIT=1 EXIT_EFFECT=', script)
+        self.assertIn('UNIT=0 ENTRY_EFFECT=', script)
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
         self.advance(2.1)

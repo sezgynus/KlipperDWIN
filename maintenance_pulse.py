@@ -9,7 +9,7 @@ import math
 import re
 
 from maintenance_guided import _trusted_target
-from maintenance_hh_leds import mmu_led_owners
+from maintenance_hh_leds import mmu_led_owners, mmu_unit_indices
 
 _NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,47}\Z')
 _TONE = 0.000625  # 1600 Hz; one 150-ms chirp
@@ -276,6 +276,9 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu):
         raise ValueError('mmu_led_owner_missing')
     if len(owners) > 8:
         raise ValueError('too_many_mmu_led_units')
+    # HH numeric UNIT indexes follow the authoritative ordered
+    # [mmu_machine] units list. A config section suffix is NOT an index.
+    unit_indices = mmu_unit_indices(settings, owners)
     cfg = settings.get(row.device)
     state = physical.get(row.device)
     colors = state.get('color_data') if isinstance(state, Mapping) else None
@@ -299,7 +302,7 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu):
     # HH owns entire configured segments, which may be subsets of a physical
     # chain; never command any other segment or unnamed physical LED.
     controls_expected, scripts, affected = [], [], set()
-    for owner in owners:
+    for owner, unit_index in zip(owners, unit_indices):
         current = controls.get(owner.section)
         if (not isinstance(current, Mapping) or current.get('enabled') is not True
                 or type(current.get('animation')) is not bool):
@@ -314,8 +317,8 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu):
             rgb = _hh_color([colors[index - 1] for index in indexes])
             args.append('%s_EFFECT=(%.3f,%.3f,%.3f)' % (
                 segment.upper(), rgb[0], rgb[1], rgb[2]))
-        scripts.append('MMU_SET_LED UNIT=%s %s DURATION=1 FADETIME=0' % (
-            owner.unit, ' '.join(args)))
+        scripts.append('MMU_SET_LED UNIT=%d %s DURATION=1 FADETIME=0' % (
+            unit_index, ' '.join(args)))
         controls_expected.append((owner.section, True, current['animation']))
     if not affected:
         raise ValueError('mmu_led_no_mapped_pixels')

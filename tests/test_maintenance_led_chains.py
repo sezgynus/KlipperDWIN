@@ -26,6 +26,10 @@ def fixture(colors=None, *, order='GRB', extra_settings=None):
     settings = {TARGET: {'pin': 'PA7', 'chain_count': len(colors),
                          'color_order': order}}
     settings.update(extra_settings or {})
+    names = tuple(section.split(' ', 1)[1] for section in settings
+                  if isinstance(section, str) and section.startswith('mmu_leds '))
+    if names:
+        settings['mmu_machine'] = {'units': names}
     state = SimpleNamespace(
         ready=True, epoch=42, objects=(TARGET,),
         settings=settings, status={TARGET: {'color_data': colors}})
@@ -136,7 +140,7 @@ class LedChainTests(unittest.TestCase):
                     row, snap, physical, settings, status, {'action': 'Idle'})
                 self.assertTrue(pulse.managed_hh)
                 self.assertTrue(pulse.script.startswith(
-                    'MMU_SET_LED UNIT=unit5 %s_EFFECT=(' % segment.upper()))
+                    'MMU_SET_LED UNIT=0 %s_EFFECT=(' % segment.upper()))
                 self.assertTrue(pulse.script.endswith(
                     ') DURATION=1 FADETIME=0'))
                 values = pulse.script.split('_EFFECT=(', 1)[1].split(')', 1)[0]
@@ -176,14 +180,55 @@ class LedChainTests(unittest.TestCase):
         pulse = compile_mmu_led_pulse(
             row, snap, physical, settings, live, {'action': 'Idle'})
         self.assertEqual(len(pulse.script.splitlines()), 2)
-        self.assertIn('UNIT=north EXIT_EFFECT=', pulse.script)
+        self.assertIn('UNIT=0 EXIT_EFFECT=', pulse.script)
         self.assertIn(' STATUS_EFFECT=', pulse.script)
-        self.assertIn('UNIT=south LOGO_EFFECT=', pulse.script)
+        self.assertIn('UNIT=1 LOGO_EFFECT=', pulse.script)
         self.assertNotIn('ENTRY_EFFECT=', pulse.script)
         self.assertEqual(pulse.hh_controls, ('mmu_leds north', 'mmu_leds south'))
         self.assertTrue(restored(pulse, live))
         live['mmu_leds south']['animation'] = True
         self.assertFalse(restored(pulse, live))
+
+    def test_numeric_unit_index_comes_from_machine_order_not_unit_name(self):
+        owner = {
+            'mmu_leds north': {'exit_leds': 'neopixel:diagnostic (1-2)'},
+            'mmu_leds south': {'entry_leds': 'neopixel:diagnostic (3-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        # Reverse the authoritative order despite segment iteration order.
+        settings['mmu_machine'] = {'units': ['south', 'north']}
+        status = {
+            'mmu_leds north': {'enabled': True, 'animation': True, 'exit': 2},
+            'mmu_leds south': {'enabled': True, 'animation': False, 'entry': 2}}
+        p = compile_mmu_led_pulse(
+            row, snap, physical, settings, status, {'action': 'Idle'})
+        self.assertIn('MMU_SET_LED UNIT=1 EXIT_EFFECT=', p.script)
+        self.assertIn('MMU_SET_LED UNIT=0 ENTRY_EFFECT=', p.script)
+        self.assertNotIn('UNIT=north', p.script)
+        self.assertNotIn('UNIT=south', p.script)
+
+    def test_unit_index_missing_malformed_or_ambiguous_fail_closed(self):
+        owner = {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        status = {'mmu_leds unit0': {
+            'enabled': True, 'animation': True, 'exit': 4}}
+        for machine in (None, {}, {'units': []},
+                        {'units': ['other']},
+                        {'units': ['unit0', 'unit0']},
+                        {'units': ['unit0;M112']},
+                        {'units': 1}):
+            with self.subTest(machine=machine):
+                if machine is None:
+                    settings.pop('mmu_machine', None)
+                else:
+                    settings['mmu_machine'] = machine
+                with self.assertRaises(ValueError):
+                    compile_mmu_led_pulse(
+                        row, snap, physical, settings, status, {'action': 'Idle'})
+        # Valid strings from older Klipper config status representations.
+        settings['mmu_machine'] = {'units': 'other,unit0'}
+        pulse = compile_mmu_led_pulse(
+            row, snap, physical, settings, status, {'action': 'Idle'})
+        self.assertIn('UNIT=1 EXIT_EFFECT=', pulse.script)
 
     def test_hh_sparse_ordered_and_reversed_index_mapping(self):
         owner = {'mmu_leds unit1': {

@@ -108,7 +108,42 @@ def mmu_led_owners(settings, target):
             if not _NAME.fullmatch(unit):
                 raise ValueError('mmu_led_unsafe_unit_name')
             owners.append(MmuLedOwner(section, unit, tuple(owned_segments)))
-    return tuple(owners) if owners else None
+    if owners:
+        # A loaded HH LED object without a proven unit index is not a safe
+        # guided output candidate, regardless of its config section name.
+        mmu_unit_indices(settings, owners)
+        return tuple(owners)
+    return None
+
+
+def mmu_unit_indices(settings, owners):
+    """Map Happy Hare unit names to numeric UNIT indexes from effective config.
+
+    [mmu_machine] units is the authoritative ordered list used by Happy
+    Hare when constructing MmuUnit(unit_index). Do not infer an index from
+    unit0 spelling: installations may use any valid unit name/order and
+    older Happy Hare versions parse UNIT as an integer only.
+    """
+    machine = settings.get('mmu_machine') if isinstance(settings, Mapping) else None
+    if not isinstance(machine, Mapping):
+        raise ValueError('mmu_machine_unit_order_missing')
+    declared = machine.get('units')
+    if isinstance(declared, str):
+        names = tuple(part.strip() for part in declared.split(','))
+    elif isinstance(declared, (tuple, list)):
+        names = tuple(declared)
+    else:
+        raise ValueError('mmu_machine_units_unavailable')
+    if not 1 <= len(names) <= 64 or any(
+            not isinstance(name, str) or not _NAME.fullmatch(name)
+            for name in names):
+        raise ValueError('mmu_machine_units_invalid')
+    if len(names) != len(set(names)):
+        raise ValueError('mmu_machine_duplicate_units')
+    indices = {name: index for index, name in enumerate(names)}
+    if any(owner.unit not in indices for owner in owners):
+        raise ValueError('mmu_led_unit_not_in_machine')
+    return tuple(indices[owner.unit] for owner in owners)
 
 
 def auto_happy_hare_led_services(state):

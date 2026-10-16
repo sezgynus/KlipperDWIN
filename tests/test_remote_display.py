@@ -1,14 +1,14 @@
-"""Remote emulator viewer: localhost-only, no GPIO and no printer writes."""
+"""Remote emulator viewer: Tailscale-only by default, no GPIO or printer writes."""
 from io import BytesIO
 import json
 import time
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from PIL import Image
-from dwin_emulator.remote import RemoteDisplayServer, DEFAULT_PORT
+from dwin_emulator.remote import RemoteDisplayServer, DEFAULT_PORT, DEFAULT_HOST, resolve_bind_host
 from run import parse_args
 
 
@@ -25,7 +25,7 @@ class RemoteDisplayTests(unittest.TestCase):
     def setUp(self):
         self.emulator = FakeEmulator()
         self.enqueue = Mock(return_value=True)
-        self.server = RemoteDisplayServer(self.emulator, self.enqueue, port=0)
+        self.server = RemoteDisplayServer(self.emulator, self.enqueue, port=0, host="127.0.0.1")
         self.base = "http://127.0.0.1:%d" % self.server.port
 
     def tearDown(self):
@@ -109,11 +109,49 @@ class RemoteDisplayTests(unittest.TestCase):
         args = parse_args([])
         self.assertFalse(args.remote)
         self.assertEqual(args.remote_port, DEFAULT_PORT)
+        self.assertEqual(args.remote_host, DEFAULT_HOST)
         args = parse_args(["--remote", "--remote-port", "9999"])
         self.assertTrue(args.remote)
+        self.assertEqual(args.remote_host, "tailscale")
         self.assertEqual(args.remote_port, 9999)
+        args = parse_args(["--remote-host", "127.0.0.1"])
+        self.assertEqual(args.remote_host, "127.0.0.1")
         with self.assertRaises(SystemExit):
             parse_args(["--remote-port", "65536"])
+        with self.assertRaises(SystemExit):
+            parse_args(["--remote-host", "0.0.0.0"])
+
+
+class TailscaleBindingTests(unittest.TestCase):
+    def test_direct_tailscale_ip_is_detected_and_validated(self):
+        result = Mock(stdout="100.115.12.34\n")
+        with patch("dwin_emulator.remote.subprocess.run", return_value=result) as cmd:
+            self.assertEqual(resolve_bind_host("tailscale"), "100.115.12.34")
+        cmd.assert_called_once_with(
+            ["tailscale", "ip", "-4"], capture_output=True, text=True,
+            check=True, timeout=3)
+
+    def test_remote_binding_is_restricted_to_tailscale_or_explicit_local(self):
+        self.assertEqual(resolve_bind_host("127.0.0.1"), "127.0.0.1")
+        for host in ("0.0.0.0", "::", "192.168.1.42", "localhost", "100.99.10.2"):
+            with self.subTest(host=host), self.assertRaises(ValueError):
+                resolve_bind_host(host)
+
+    def test_tailscale_unavailable_fails_closed_without_wildcard_fallback(self):
+        from subprocess import CalledProcessError, TimeoutExpired
+        for error in (FileNotFoundError("tailscale missing"),
+                      TimeoutExpired("tailscale", 3),
+                      CalledProcessError(1, ["tailscale", "ip", "-4"])):
+            with self.subTest(error=type(error).__name__), patch(
+                    "dwin_emulator.remote.subprocess.run", side_effect=error):
+                with self.assertRaisesRegex(RuntimeError, "Tailscale IPv4 unavailable"):
+                    RemoteDisplayServer(FakeEmulator(), Mock(), port=0)
+        for wrong in ("192.168.1.4", "127.0.0.1", "100.129.2.1", "not-an-ip", ""):
+            with self.subTest(wrong=wrong), patch(
+                    "dwin_emulator.remote.subprocess.run",
+                    return_value=Mock(stdout=wrong)):
+                with self.assertRaises(RuntimeError):
+                    resolve_bind_host("tailscale")
 
 
 class RemoteUIRoutingTests(unittest.TestCase):

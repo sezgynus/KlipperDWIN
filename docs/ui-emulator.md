@@ -4,7 +4,7 @@
 
 ## What it is for
 
-The optional emulator captures the screens drawn by the running Petrel service. Use it to review layouts, refresh documentation and report visual bugs as original-size images. It follows the real LCD UI; it is not a standalone printer simulator or live browser viewer. Navigate with the physical encoder, then request a capture over SSH.
+The optional emulator captures the screens drawn by the running Petrel service. Use it to review layouts, refresh documentation and report visual bugs as original-size images. It follows the real LCD UI; it is not a standalone printer simulator. A separate opt-in live browser viewer is described below. Navigate with the physical encoder, then request a capture over SSH.
 
 ## Enable or disable
 
@@ -118,21 +118,32 @@ All states use the real UI/driver with example data and no physical printer conn
 
 ## Optional live Remote Display (port 8088)
 
-The running DWIN emulator can also supply a **live browser mirror**. The browser scroll wheel sends the normal encoder rotations; **middle-mouse click** sends a short encoder press. The real LCD/encoder remain usable. No extra serial port, Moonraker connection or screenshot files are created.
+The running DWIN emulator provides an opt-in **live browser mirror**. The scroll wheel produces normal encoder rotation, and **middle-mouse click** sends a short encoder press. The physical LCD/encoder continue working. The remote viewer does not create screenshots on disk.
 
-Enable the opt-in feature in `~/.config/Petrel/Petrel.env`:
+Enable the feature in `~/.config/Petrel/Petrel.env`:
 
 ```ini
 PETREL_REMOTE=1
+PETREL_REMOTE_HOST=tailscale
 PETREL_REMOTE_PORT=8088
 ```
 
-Restart **Petrel.service** only when the printer is safely idle. `PETREL_REMOTE=1` enables the existing emulator automatically; setting `PETREL_EMULATOR=1` separately is not required. The server listens **only on 127.0.0.1:8088** and is deliberately not exposed on `0.0.0.0` (it can control a printer). To access it securely from another computer, forward the port over SSH:
+`PETREL_REMOTE_HOST=tailscale` is the **default**; the extra line may be omitted. On Petrel startup, the program runs `tailscale ip -4` to obtain this device's assigned Tailscale IPv4 address, verifies it belongs to the `100.64.0.0/10` range, and binds **only to that address**, **not** localhost, the LAN address, or all network interfaces. If Tailscale is unavailable, Remote Display stays offline but the physical LCD continues working. An SSH tunnel and Tailscale Serve are **not required**.
+
+When the printer is safely idle, restart Petrel after installing a release with this feature:
 
 ```bash
-ssh -N -L 8088:127.0.0.1:8088 sezgynpi@<pi-host>
+sudo systemctl restart Petrel.service
 ```
 
-Then open **http://127.0.0.1:8088** in that computer's browser. On the Pi itself, the same URL works directly. Do not expose port 8088 to the public Internet or proxy it without authentication and transport protection. The viewer requests a native 272×480 JPEG frame every ~250 ms only while visible; any encoder input is sent via Petrel's existing UI event queue and discarded if the screen/session is unavailable. Holding the middle button does **not** emulate the power long-press, by design. No physical fan, buzzer or LED observation can be inferred from a framebuffer.
+Get the Pi's assigned Tailscale IP:
 
-Disable with `PETREL_REMOTE=0` and restart Petrel. If another service occupies the port, use `PETREL_REMOTE_PORT` and adjust the SSH tunnel accordingly. `PETREL_EMULATOR` and the existing private Unix screenshot service continue to work independently.
+```bash
+tailscale ip -4
+```
+
+On a computer or phone signed in to the same authorized tailnet, open `http://<PI_TAILSCALE_IP>:8088`, using the address from the command. Tailscale transports this HTTP traffic over its encrypted private network, and tailnet access rules govern which devices can connect. The remote endpoint has **no additional application-level password** and can control the printer: limit access with Tailscale ACL/grants, never open port 8088 on the router, and never publish it through Tailscale Funnel. The application checks the exact Tailscale IP in the HTTP Host and Origin headers to resist cross-origin requests. If an IP changes, restart Petrel to rebind.
+
+For explicitly **localhost-only** access, set `PETREL_REMOTE_HOST=127.0.0.1` and restart. Wildcard/LAN binding (including `0.0.0.0`) is deliberately unsupported. `PETREL_REMOTE_PORT` changes the port if needed. The browser requests native 272×480 JPEG frames about every 250 ms while visible. Mouse input passes through Petrel's normal epoch-guarded UI queue and is rejected when unavailable; middle-button hold does **not** emulate a power long-press. Viewing a fan, buzzer, or light setting does not prove physical operation.
+
+Set `PETREL_REMOTE=0` and restart Petrel to disable. `PETREL_REMOTE=1` automatically enables the existing emulator; `PETREL_EMULATOR=1` is not additionally needed. The private Unix screenshot service continues to work independently.

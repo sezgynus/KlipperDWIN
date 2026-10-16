@@ -27,10 +27,13 @@ def build_parser():
     parser.add_argument('--screenshot-directory', default=os.environ.get('PETREL_SCREENSHOT_DIRECTORY'))
     parser.add_argument('--remote', action=argparse.BooleanOptionalAction,
                         default=os.environ.get('PETREL_REMOTE', '0').lower() in ('1', 'true', 'yes', 'on'),
-                        help='Enable loopback-only web mirror and virtual encoder (default: off)')
+                        help='Enable the Tailscale web mirror and virtual encoder (default: off)')
+    parser.add_argument('--remote-host', choices=('tailscale', '127.0.0.1'),
+                        default=os.environ.get('PETREL_REMOTE_HOST', 'tailscale'),
+                        help='Bind to the Pi Tailscale IPv4 (default), or localhost explicitly')
     parser.add_argument('--remote-port', type=int,
                         default=os.environ.get('PETREL_REMOTE_PORT', '8088'),
-                        help='Local remote-display port (default: 8088)')
+                        help='Remote-display HTTP port (default: 8088)')
     return parser
 
 
@@ -70,7 +73,8 @@ def main():
              settings_path=args.settings_file, power_device=args.power_device,
              power_on_hold_ms=args.power_on_hold_ms, emulator=args.emulator,
              emulator_socket=args.emulator_socket, screenshot_directory=args.screenshot_directory,
-             emulator_font=args.emulator_font, remote=args.remote, remote_port=args.remote_port)
+             emulator_font=args.emulator_font, remote=args.remote, remote_port=args.remote_port,
+             remote_host=args.remote_host)
     signal.signal(signal.SIGTERM, lambda *_: display.lcdExit())
     try:
         display.wait()

@@ -4,7 +4,7 @@
 
 ## Ne işe yarar
 
-İsteğe bağlı emülatör, çalışan Petrel servisinin çizdiği ekranları yakalar. Yerleşimleri incelemek, dokümantasyonu yenilemek ve görsel hataları özgün boyutlu görsellerle bildirmek için kullanın. Gerçek LCD arayüzünü takip eder; bağımsız yazıcı simülatörü veya canlı tarayıcı görüntüleyicisi değildir. Fiziksel encoderle gezinin, ardından SSH üzerinden görüntü isteyin.
+İsteğe bağlı emülatör, çalışan Petrel servisinin çizdiği ekranları yakalar. Yerleşimleri incelemek, dokümantasyonu yenilemek ve görsel hataları özgün boyutlu görsellerle bildirmek için kullanın. Gerçek LCD arayüzünü takip eder; bağımsız yazıcı simülatörü değildir. İsteğe bağlı canlı tarayıcı görüntüleme aşağıda anlatılmıştır. Fiziksel encoderle gezinin, ardından SSH üzerinden görüntü isteyin.
 
 ## Açma veya kapatma
 
@@ -118,21 +118,32 @@ Bütün durumlar gerçek UI/driver ile örnek verilerden üretilir; fiziksel yaz
 
 ## İsteğe bağlı canlı Remote Display (8088 portu)
 
-Çalışan DWIN emülatörü artık tarayıcıda **canlı görüntü** sunabilir. Mouse tekerleği normal enkoder dönüşlerini, **orta tuşa tıklama** kısa enkoder basışını üretir. Gerçek LCD/enkoder kullanılmaya devam eder. Ek UART, Moonraker bağlantısı veya ekran görüntüsü dosyası üretilmez.
+Çalışan DWIN emülatörü, isteğe bağlı **canlı tarayıcı görüntüsü** sunar. Mouse tekerleği normal enkoder dönüşünü, **orta tuşa tıklama** kısa enkoder basışını üretir. Gerçek LCD ve enkoder çalışmaya devam eder. Uzaktan görüntüleme diske screenshot dosyası yazmaz.
 
-Özelliği `~/.config/Petrel/Petrel.env` dosyasında aç:
+`~/.config/Petrel/Petrel.env` dosyasında etkinleştir:
 
 ```ini
 PETREL_REMOTE=1
+PETREL_REMOTE_HOST=tailscale
 PETREL_REMOTE_PORT=8088
 ```
 
-Yazıcı güvenli şekilde boşta iken yalnızca **Petrel.service** servisini yeniden başlat. `PETREL_REMOTE=1` mevcut emülatörü otomatik açar; ayrıca `PETREL_EMULATOR=1` yazmak gerekmez. Sunucu **yalnız 127.0.0.1:8088** adresini dinler. Yazıcıyı kontrol edebildiğinden bilerek `0.0.0.0` üzerinde açılmaz. Başka bir bilgisayardan güvenli erişim için SSH tüneli kur:
+`PETREL_REMOTE_HOST=tailscale` zaten **varsayılan** değerdir; dosyaya yazmak zorunlu değildir. Petrel açılırken `tailscale ip -4` komutuyla Pi'nin Tailscale IPv4 adresini alır, `100.64.0.0/10` aralığını doğrular ve yalnızca **bu adreste** dinlemeye başlar; localhost, yerel LAN veya tüm ağ arayüzlerinde dinlemez. Tailscale erişilemiyorsa Remote Display açılmaz, ancak fiziksel LCD çalışmayı sürdürür. **SSH tüneli ve Tailscale Serve gerekmez.**
+
+Özelliği içeren sürümü yükledikten sonra yazıcı güvenli şekilde boşta iken Petrel'i yeniden başlat:
 
 ```bash
-ssh -N -L 8088:127.0.0.1:8088 sezgynpi@<pi-adresi>
+sudo systemctl restart Petrel.service
 ```
 
-Ardından o bilgisayarın tarayıcısında **http://127.0.0.1:8088** adresini aç. Pi üstünde de aynı adres doğrudan kullanılabilir. 8088 portunu açık internete yönlendirme veya kimlik doğrulama/iletişim koruması olmadan ters proxy arkasına koyma. Görüntü açıkken yaklaşık 250 ms'de bir yerel 272×480 JPEG alınır; enkoder girdileri mevcut UI olay kuyruğuna eklenir ve LCD/oturum uygun değilse reddedilir. Orta tuşu basılı tutmak güvenlik gereği güç uzun basışını simüle **etmez**. Görüntüden fan, buzzer veya LED'in fiziksel olarak çalıştığı kanıtlanamaz.
+Pi'nin Tailscale IP'sini öğren:
 
-Kapatmak için `PETREL_REMOTE=0` yapıp Petrel'i yeniden başlat. Port doluysa `PETREL_REMOTE_PORT` değerini değiştirip SSH tünelini de aynı porta uyarla. Mevcut `PETREL_EMULATOR` ve Unix screenshot servisi bağımsız çalışmaya devam eder.
+```bash
+tailscale ip -4
+```
+
+Aynı ve erişim izni olan tailnet'e bağlı bilgisayar/telefondaki tarayıcıdan `http://<PI_TAILSCALE_IP>:8088` adresini aç. Tailscale bu HTTP trafiğini şifreli özel ağı üzerinden taşır; hangi cihazların ulaşabileceği tailnet izinleriyle belirlenir. Bu sunucuda **ayrıca uygulama parolası yoktur** ve yazıcıyı kontrol edebilir: erişimi Tailscale ACL/grant kurallarıyla kısıtla, router üzerinde 8088 yönlendirmesi yapma ve Tailscale Funnel ile internete yayınlama. Uygulama tarayıcılar arası istek riskine karşı Host ve Origin alanlarında tam Tailscale IP kontrolü yapar. Tailscale IP değişirse yeniden bağlanmak için Petrel'i yeniden başlat.
+
+Özellikle **yalnız localhost** istenirse `PETREL_REMOTE_HOST=127.0.0.1` yazıp yeniden başlatılabilir. `0.0.0.0` dahil tüm arayüzlere veya LAN'a bağlanma bilerek desteklenmez. Port gerekirse `PETREL_REMOTE_PORT` ile değiştirilebilir. Tarayıcı açıkken yaklaşık 250 ms'de bir 272×480 JPEG görüntüsü alınır. Mouse olayları Petrel'in normal oturum kontrollü UI kuyruğundan geçer; bağlantı/oturum uygun değilse reddedilir. Orta tuşu basılı tutmak güç uzun basışını simüle **etmez**. Fan, buzzer veya ışık ayarının görüntülenmesi fiziksel olarak çalıştığını kanıtlamaz.
+
+Kapatmak için `PETREL_REMOTE=0` yazıp Petrel'i yeniden başlat. `PETREL_REMOTE=1` mevcut emülatörü otomatik açar; ayrıca `PETREL_EMULATOR=1` gerekmez. Özel Unix screenshot servisi bağımsız çalışmaya devam eder.

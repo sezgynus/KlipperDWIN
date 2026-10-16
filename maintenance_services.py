@@ -45,6 +45,10 @@ def parse_evidence(responses):
             keys.add('update_manager')
         if 'gcode_store' in components:
             keys.add('gcode_store')
+    spool = _result(responses.get('/server/spoolman/spool_id'))
+    if 'spool_id' in spool and (spool['spool_id'] is None or
+            type(spool['spool_id']) is int and spool['spool_id']>0):
+        keys.add('spoolman')
     # heaters.available_monitors is Klipper's authoritative list of driver
     # temperature monitors. A driver can be disabled and return null at READY
     # while still supporting temperature readout when enabled.
@@ -78,7 +82,7 @@ def parse_evidence(responses):
 
 # Short read-only requests. G-code help/console and full histories are NEVER
 # fetched during discovery; those may allocate substantial response bodies.
-_ENDPOINTS = ('/server/info', '/machine/proc_stats',
+_ENDPOINTS = ('/server/info', '/machine/proc_stats', '/server/spoolman/spool_id',
               '/server/history/totals',
               '/printer/objects/query?heaters=available_monitors',
               '/server/files/roots')

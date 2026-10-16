@@ -30,6 +30,7 @@ from maintenance_switches import MaintenanceSwitchController
 from maintenance_motion_controller import MaintenanceMotionController
 from maintenance_probe import MaintenanceProbeController
 from maintenance_resonance import MaintenanceResonanceController
+from maintenance_filament import MaintenanceFilamentController
 from maintenance_physical import MaintenancePulseController
 from maintenance_heater import MaintenanceHeaterController, MaintenancePhysicalRouter, thermal_plan
 from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
@@ -291,7 +292,8 @@ class PrinterData:
             motion=MaintenanceMotionController(self, self._maintenance_worker, self.client),
             switches=MaintenanceSwitchController(self, self._maintenance_worker, self.client),
             probe=MaintenanceProbeController(self, self._maintenance_worker, self.client),
-            resonance=MaintenanceResonanceController(self, self._maintenance_worker, self.client))
+            resonance=MaintenanceResonanceController(self, self._maintenance_worker, self.client),
+            filament=MaintenanceFilamentController(self, self._maintenance_worker, self.client))
 
     def _read(self, key, work, stamp=None):
         if stamp is None:

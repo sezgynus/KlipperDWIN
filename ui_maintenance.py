@@ -67,7 +67,7 @@ class MaintenanceViewMixin:
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
                               feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
-                if feature_id and feature_id.startswith(('P','R')):
+                if feature_id and feature_id.startswith(('P','R','E')):
                     return 'Confirm '+feature_id, (
                         ('Cancel', self.ICON_Back, None, None),
                         ('Start firmware workflow', self.ICON_Info, None, None),
@@ -100,8 +100,8 @@ class MaintenanceViewMixin:
                     ('Enter measured distance', self.ICON_Info, None, None),
                     ('Use ruler / caliper', self.ICON_Info, None, None))
             if phase == 'measurement_edit':
-                return 'Actual measured mm', (
-                    ('%.2f mm' % self.pd.maintenance_pulse.measurement_value, self.ICON_Info, None, None),
+                return 'Actual measured '+getattr(self.pd.maintenance_pulse,'measurement_unit','mm'), (
+                    ('%.2f %s' % (self.pd.maintenance_pulse.measurement_value,getattr(self.pd.maintenance_pulse,'measurement_unit','mm')), self.ICON_Info, None, None),
                     ('Turn: change actual value', self.ICON_Info, None, None),
                     ('ENTER: confirm / return', self.ICON_Info, None, None))
             if phase in ('await_press', 'await_release'):
@@ -135,7 +135,7 @@ class MaintenanceViewMixin:
                             ('Cancel test', self.ICON_Back, None, None),
                             ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
                             ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
-                if (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith(('P','R')):
+                if (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith(('P','R','E')):
                     return 'Firmware workflow', (
                         ('Stop / cancel workflow', self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None)

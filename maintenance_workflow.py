@@ -110,7 +110,7 @@ class FirmwareWorkflow:
     def _safe(self, queue):
         if not self._current():
             return False
-        context = live_safety_context(self._printer, queue)
+        context = self.context(queue)
         if self._owned_manual and context.state is not None:
             # Only this workflow's observed manual session may continue.
             # All print, queue, MMU and other-owner checks still apply.
@@ -274,8 +274,7 @@ class FirmwareWorkflow:
                 return (self.phase in ('preflight','running') and self._safe(self._queue)
                         and self.dispatch_valid(values))
             try:
-                self._command = self._printer.subscription.request('printer.gcode.script',
-                    {'script':script}, guard=guard, request_timeout=900.)
+                self._command = self.dispatch(script,guard)
             except Exception:
                 return self._shutdown('workflow_dispatch_ambiguous') if self.moving else self._finish('INCONCLUSIVE','workflow_dispatch_failed')
             self._sent = True
@@ -296,7 +295,7 @@ class FirmwareWorkflow:
                 if self._safety_future is None and now >= self._next_safety:
                     row = self._row
                     self._safety_future = self._worker.submit(
-                        lambda:read_queue_evidence(self._client,row.epoch,row.config_marker),
+                        self.runtime_evidence,
                         queue_timeout=2)
                 if not self._safe(self._queue):
                     return self._shutdown('workflow_runtime_safety_unknown') if self.moving else self._finish('INCONCLUSIVE','workflow_runtime_safety_unknown')
@@ -324,6 +323,17 @@ class FirmwareWorkflow:
                 return self.completed(values, self._lines)
             except Exception:
                 return self._shutdown('workflow_evidence_unverified') if self.moving else self._finish('INCONCLUSIVE', 'workflow_evidence_unverified')
+
+    def context(self, queue):
+        return live_safety_context(self._printer,queue)
+
+    def runtime_evidence(self):
+        row = self._row
+        return read_queue_evidence(self._client,row.epoch,row.config_marker)
+
+    def dispatch(self, script, guard):
+        return self._printer.subscription.request('printer.gcode.script',
+                    {'script':script},guard=guard,request_timeout=900.)
 
     def dispatch_valid(self, prepared):
         try:

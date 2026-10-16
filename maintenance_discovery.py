@@ -363,7 +363,7 @@ def discover(state, services=()):
             family = 'actuator'
             if ('maintenance.safe_servo:' + name) in services and name.startswith('servo '):
                 bits = _add(bits, 'O02', USER)
-            elif ('maintenance.safe_pin:' + name) in services and name.startswith('output_pin '):
+            elif ('maintenance.visual:' + name) in services and name.startswith('output_pin '):
                 bits = _add(bits, 'O03', USER)
             elif ('maintenance.safe_stepper:' + name) in services and name.startswith('manual_stepper '):
                 bits = _add(bits, 'M15', USER | EXTERNAL)

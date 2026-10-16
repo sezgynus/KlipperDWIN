@@ -217,7 +217,7 @@ class ExtendedTests(unittest.TestCase):
             self.assertEqual(a.method(f, name), NONE)
         b = discover(State(s.objects),
                      ('maintenance.safe_servo:servo cutter',
-                      'maintenance.safe_pin:output_pin laser',
+                      'maintenance.visual:output_pin laser',
                       'maintenance.safe_stepper:manual_stepper load',
                       'maintenance.safe_button:gcode_button emergency'))
         self.assertEqual(b.method('O02', 'servo cutter'), USER)

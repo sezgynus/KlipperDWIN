@@ -85,7 +85,7 @@ class PhysicalPulseTests(unittest.TestCase):
         status['output_pin enclosure']['value'] = None
         with self.assertRaises(ValueError):
             compile_pulse(row, snap, status, settings, pin_command_name='Enclosure')
-        for bad in (None, 'other', 'Enclosure\\nM112'):
+        for bad in (None, 'other', 'Enclosure\nM112'):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 compile_pulse(row, snap, {'output_pin enclosure': {'value': .2}},
                               settings, pin_command_name=bad)
@@ -113,9 +113,9 @@ class PhysicalPulseTests(unittest.TestCase):
         self.assertIn('PIN=Alert', p.stimulus)
         self.assertEqual(p.duration_ms, 200)
         self.assertEqual(p.read_path, '')
-        self.assertEqual(p.script, 'SET_PIN PIN=Alert VALUE=0\\nG4 P50\\n'
-                         'SET_PIN PIN=Alert VALUE=0.2500 CYCLE_TIME=0.00062500\\n'
-                         'G4 P150\\nSET_PIN PIN=Alert VALUE=0')
+        self.assertEqual(p.script, 'SET_PIN PIN=Alert VALUE=0\nG4 P50\n'
+                         'SET_PIN PIN=Alert VALUE=0.2500 CYCLE_TIME=0.00062500\n'
+                         'G4 P150\nSET_PIN PIN=Alert VALUE=0')
         self.assertFalse(restored(p, status))
         self.assertFalse(restored(p, {'pwm_cycle_time alert': {'value': 0}}))
         status['pwm_cycle_time alert'] = {'value': .2}
@@ -126,7 +126,7 @@ class PhysicalPulseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compile_pulse(row, snap, status, settings, pin_command_name='Alert')
         settings['pwm_cycle_time alert']['value'] = 0
-        for invalid in (None, 'Other', 'Alert\\nM112'):
+        for invalid in (None, 'Other', 'Alert\nM112'):
             with self.subTest(name=invalid), self.assertRaises(ValueError):
                 compile_pulse(row, snap, status, settings, pin_command_name=invalid)
 

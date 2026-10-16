@@ -118,32 +118,21 @@ Bütün durumlar gerçek UI/driver ile örnek verilerden üretilir; fiziksel yaz
 
 ## İsteğe bağlı canlı Remote Display (8088 portu)
 
-Çalışan DWIN emülatörü, isteğe bağlı **canlı tarayıcı görüntüsü** sunar. Mouse tekerleği normal enkoder dönüşünü, **orta tuşa tıklama** kısa enkoder basışını üretir. Gerçek LCD ve enkoder çalışmaya devam eder. Uzaktan görüntüleme diske screenshot dosyası yazmaz.
+Petrel, LCD framebuffer'ını küçük bir HTTP sunucusuyla canlı sunabilir ve sanal enkoder girişlerini kabul eder: mouse tekerleği enkoderi döndürür, orta tuş ENTER üretir. Gerçek LCD ve enkoder de çalışmaya devam eder.
 
 `~/.config/Petrel/Petrel.env` dosyasında etkinleştir:
 
 ```ini
 PETREL_REMOTE=1
-PETREL_REMOTE_HOST=tailscale
 PETREL_REMOTE_PORT=8088
 ```
 
-`PETREL_REMOTE_HOST=tailscale` zaten **varsayılan** değerdir; dosyaya yazmak zorunlu değildir. Petrel açılırken `tailscale ip -4` komutuyla Pi'nin Tailscale IPv4 adresini alır, `100.64.0.0/10` aralığını doğrular ve yalnızca **bu adreste** dinlemeye başlar; localhost, yerel LAN veya tüm ağ arayüzlerinde dinlemez. Tailscale erişilemiyorsa Remote Display açılmaz, ancak fiziksel LCD çalışmayı sürdürür. **SSH tüneli ve Tailscale Serve gerekmez.**
+Varsayılan dinleme adresi artık **`0.0.0.0:8088`**, yani bütün IPv4 ağ arayüzleridir. `PETREL_REMOTE_HOST=0.0.0.0` satırı isteğe bağlıdır (zaten varsayılan). Feature sürümü çalışırken yerel ağdan **`http://<PI_LAN_IP>:8088`** veya Tailscale üzerinden **`http://<PI_TAILSCALE_IP>:8088`** adresini açabilirsin. SSH tüneli veya Tailscale Serve gerekmez. Tailscale IP'si `tailscale ip -4` ile öğrenilebilir.
 
-Özelliği içeren sürümü yükledikten sonra yazıcı güvenli şekilde boşta iken Petrel'i yeniden başlat:
+Açık internetten erişim için ayrıca **dışarıdan erişilebilir bir IP/adres ve modemde TCP 8088 port yönlendirmesi veya dışarıya açık başka bir ağ geçidi** gerekir; sadece `0.0.0.0` dinlemek NAT veya güvenlik duvarını aşmaz.
 
-```bash
-sudo systemctl restart Petrel.service
-```
+**Güvenlik:** Bu küçük sunucuda şu anda **parola, giriş ekranı veya HTTPS yoktur**. TCP 8088 portuna ulaşabilen herkes LCD'yi görebilir ve enkoder üzerinden yazıcıyı kontrol edebilir. Bu riski açıkça kabul etmeden portu genel internete yönlendirme. Tarayıcı kaynak kontrolleri kimlik doğrulama değildir.
 
-Pi'nin Tailscale IP'sini öğren:
+Sunucu isteğe bağlıdır; `PETREL_REMOTE` kapatılıp Petrel yeniden başlatıldığında dinleme durur. Daha dar erişim tercih edilirse `PETREL_REMOTE_HOST=tailscale` (sadece mevcut Tailscale IPv4) veya `PETREL_REMOTE_HOST=127.0.0.1` (yalnız Pi) kullanılabilir. Ayarları değiştirdikten sonra yazıcı boşta iken Petrel'i yeniden başlat. `PETREL_REMOTE=1` emülatörü otomatik açar.
 
-```bash
-tailscale ip -4
-```
-
-Aynı ve erişim izni olan tailnet'e bağlı bilgisayar/telefondaki tarayıcıdan `http://<PI_TAILSCALE_IP>:8088` adresini aç. Tailscale bu HTTP trafiğini şifreli özel ağı üzerinden taşır; hangi cihazların ulaşabileceği tailnet izinleriyle belirlenir. Bu sunucuda **ayrıca uygulama parolası yoktur** ve yazıcıyı kontrol edebilir: erişimi Tailscale ACL/grant kurallarıyla kısıtla, router üzerinde 8088 yönlendirmesi yapma ve Tailscale Funnel ile internete yayınlama. Uygulama tarayıcılar arası istek riskine karşı Host ve Origin alanlarında tam Tailscale IP kontrolü yapar. Tailscale IP değişirse yeniden bağlanmak için Petrel'i yeniden başlat.
-
-Özellikle **yalnız localhost** istenirse `PETREL_REMOTE_HOST=127.0.0.1` yazıp yeniden başlatılabilir. `0.0.0.0` dahil tüm arayüzlere veya LAN'a bağlanma bilerek desteklenmez. Port gerekirse `PETREL_REMOTE_PORT` ile değiştirilebilir. Tarayıcı açıkken yaklaşık 250 ms'de bir 272×480 JPEG görüntüsü alınır. Mouse olayları Petrel'in normal oturum kontrollü UI kuyruğundan geçer; bağlantı/oturum uygun değilse reddedilir. Orta tuşu basılı tutmak güç uzun basışını simüle **etmez**. Fan, buzzer veya ışık ayarının görüntülenmesi fiziksel olarak çalıştığını kanıtlamaz.
-
-Kapatmak için `PETREL_REMOTE=0` yazıp Petrel'i yeniden başlat. `PETREL_REMOTE=1` mevcut emülatörü otomatik açar; ayrıca `PETREL_EMULATOR=1` gerekmez. Özel Unix screenshot servisi bağımsız çalışmaya devam eder.
+Görüntü kareleri istek üzerine yaklaşık 4 FPS hızında, 272×480 boyutunda üretilir; sanal enkoder girişleri fiziksel girdilerle aynı oturum kontrollü UI olay kuyruğundan geçer. Uzaktan orta tuşu basılı tutmak güç uzun basışını bilerek tetiklemez. Ekran tek başına fan, LED veya buzzer'ın fiziksel çalıştığını doğrulamaz.

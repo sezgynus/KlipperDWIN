@@ -322,7 +322,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                  moonraker_url='http://127.0.0.1:7125', request_timeout=5.0, settings_path=None,
                  power_device='Printer', power_on_hold_ms=2000,
                  emulator=False, emulator_socket=None, screenshot_directory=None, emulator_font=None,
-                 remote=False, remote_port=8088, remote_host='tailscale'):
+                 remote=False, remote_port=8088, remote_host='0.0.0.0'):
         self._closed = False
         self._uart_epoch = 0
         self._uart_online = False
@@ -401,7 +401,7 @@ class PetrelDisplay(PrintFocusMixin, PowerShortcutMixin, BuzzerViewMixin, MMUVie
                     port=self._remote_options[1], host=self._remote_options[2])
             except (OSError, RuntimeError, ValueError):
                 # The normal physical LCD must remain functional even if
-                # Tailscale is offline or port 8088 is already occupied.
+                # The chosen interface is unavailable or port 8088 is occupied.
                 logging.exception('Remote Display unavailable; continuing with physical LCD')
 
     def _uart_failed(self):

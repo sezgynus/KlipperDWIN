@@ -1,4 +1,4 @@
-"""Remote emulator viewer: Tailscale-only by default, no GPIO or printer writes."""
+"""Remote emulator viewer: all IPv4 interfaces by default, no GPIO or printer writes."""
 from io import BytesIO
 import json
 import time
@@ -112,14 +112,51 @@ class RemoteDisplayTests(unittest.TestCase):
         self.assertEqual(args.remote_host, DEFAULT_HOST)
         args = parse_args(["--remote", "--remote-port", "9999"])
         self.assertTrue(args.remote)
-        self.assertEqual(args.remote_host, "tailscale")
+        self.assertEqual(args.remote_host, "0.0.0.0")
         self.assertEqual(args.remote_port, 9999)
         args = parse_args(["--remote-host", "127.0.0.1"])
         self.assertEqual(args.remote_host, "127.0.0.1")
         with self.assertRaises(SystemExit):
             parse_args(["--remote-port", "65536"])
         with self.assertRaises(SystemExit):
-            parse_args(["--remote-host", "0.0.0.0"])
+            parse_args(["--remote-host", "192.168.1.42"])
+
+
+class AllInterfaceBindingTests(unittest.TestCase):
+    def test_all_ipv4_interfaces_accept_client_ip_and_hostname(self):
+        emulator = FakeEmulator()
+        enqueue = Mock(return_value=True)
+        server = RemoteDisplayServer(emulator, enqueue, port=0, host="0.0.0.0")
+        try:
+            self.assertEqual(server.host, "0.0.0.0")
+            url = "http://127.0.0.1:%d" % server.port
+            for name in ("192.168.1.43", "100.115.12.34", "openeye3dpi", "printer.example"):
+                with self.subTest(name=name):
+                    address = "%s:%d" % (name, server.port)
+                    request = Request(url + "/", headers={"Host": address})
+                    with urlopen(request, timeout=3) as result:
+                        self.assertEqual(result.status, 200)
+                        self.assertIn(b"Petrel Remote Display", result.read())
+            address = "192.168.1.43:%d" % server.port
+            post = Request(url + "/input", method="POST",
+                data=b'{"kind":"press"}',
+                headers={"Host":address, "Origin":"http://"+address,
+                         "Content-Type":"application/json", "X-Petrel-Remote":"1"})
+            with urlopen(post, timeout=3) as result:
+                self.assertEqual(result.status, 202)
+            enqueue.assert_called_once_with("press", 1)
+            for host in ("printer.example", "evil.example:%d" % (server.port + 1),
+                         "a/b:%d" % server.port, "a@b:%d" % server.port):
+                with self.subTest(host=host), self.assertRaises(HTTPError) as error:
+                    urlopen(Request(url + "/", headers={"Host":host}), timeout=3)
+                self.assertEqual(error.exception.code, 403)
+            with self.assertRaises(HTTPError) as error:
+                urlopen(Request(url + "/input", method="POST", data=b'{"kind":"press"}',
+                    headers={"Host":address, "Origin":"http://other.example:%d" % server.port,
+                             "Content-Type":"application/json", "X-Petrel-Remote":"1"}), timeout=3)
+            self.assertEqual(error.exception.code, 403)
+        finally:
+            server.close()
 
 
 class TailscaleBindingTests(unittest.TestCase):
@@ -133,7 +170,8 @@ class TailscaleBindingTests(unittest.TestCase):
 
     def test_remote_binding_is_restricted_to_tailscale_or_explicit_local(self):
         self.assertEqual(resolve_bind_host("127.0.0.1"), "127.0.0.1")
-        for host in ("0.0.0.0", "::", "192.168.1.42", "localhost", "100.99.10.2"):
+        self.assertEqual(resolve_bind_host("0.0.0.0"), "0.0.0.0")
+        for host in ("::", "192.168.1.42", "localhost", "100.99.10.2"):
             with self.subTest(host=host), self.assertRaises(ValueError):
                 resolve_bind_host(host)
 
@@ -145,7 +183,7 @@ class TailscaleBindingTests(unittest.TestCase):
             with self.subTest(error=type(error).__name__), patch(
                     "dwin_emulator.remote.subprocess.run", side_effect=error):
                 with self.assertRaisesRegex(RuntimeError, "Tailscale IPv4 unavailable"):
-                    RemoteDisplayServer(FakeEmulator(), Mock(), port=0)
+                    RemoteDisplayServer(FakeEmulator(), Mock(), port=0, host="tailscale")
         for wrong in ("192.168.1.4", "127.0.0.1", "100.129.2.1", "not-an-ip", ""):
             with self.subTest(wrong=wrong), patch(
                     "dwin_emulator.remote.subprocess.run",

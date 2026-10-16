@@ -27,10 +27,10 @@ def build_parser():
     parser.add_argument('--screenshot-directory', default=os.environ.get('PETREL_SCREENSHOT_DIRECTORY'))
     parser.add_argument('--remote', action=argparse.BooleanOptionalAction,
                         default=os.environ.get('PETREL_REMOTE', '0').lower() in ('1', 'true', 'yes', 'on'),
-                        help='Enable the Tailscale web mirror and virtual encoder (default: off)')
-    parser.add_argument('--remote-host', choices=('tailscale', '127.0.0.1'),
-                        default=os.environ.get('PETREL_REMOTE_HOST', 'tailscale'),
-                        help='Bind to the Pi Tailscale IPv4 (default), or localhost explicitly')
+                        help='Enable the network LCD mirror and virtual encoder (default: off)')
+    parser.add_argument('--remote-host', choices=('0.0.0.0', 'tailscale', '127.0.0.1'),
+                        default=os.environ.get('PETREL_REMOTE_HOST', '0.0.0.0'),
+                        help='Listen on all IPv4 interfaces (default), Tailscale only, or localhost')
     parser.add_argument('--remote-port', type=int,
                         default=os.environ.get('PETREL_REMOTE_PORT', '8088'),
                         help='Remote-display HTTP port (default: 8088)')

@@ -1183,11 +1183,15 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
 
     def _enqueue_input(self, kind, value, accelerated_value=0, rate=0.0):
         feedback = getattr(self, '_action_feedback', None)
+        recovering = getattr(self, 'checkkey', None) == self.RecoveryScreen
         if (self.pd is None or self._closed or not getattr(self, '_uart_online', True)
-                or (feedback is not None and not (feedback.phase == 'error' and kind == 'press'))):
+                or (not recovering and feedback is not None
+                    and not (feedback.phase == 'error' and kind == 'press'))):
             return False
         snapshot = self.pd.subscription.snapshot()
-        if snapshot['state'] != 'ready' and getattr(self, 'checkkey', None) != self.MMUMenu:
+        if (snapshot['state'] != 'ready'
+                and getattr(self, 'checkkey', None) != self.MMUMenu
+                and not (recovering and kind in ('rotate', 'press'))):
             return False
         accepted = self._loop.post(InputEvent(
             kind, value, snapshot['epoch'], getattr(self, '_uart_epoch', 0),

@@ -102,3 +102,76 @@ class RecoveryUITests(unittest.TestCase):
         view._relay_status = 'off'
         self.assertFalse(view._poll_recovery_ui())
         self.assertNotEqual(view.checkkey, view.RecoveryScreen)
+
+    def offline_producer_view(self):
+        from threading import Lock
+        view = self.view()
+        view._poll_recovery_ui()
+        view._input_lock = Lock()
+        view._producer_value = 0
+        view._last_encoder_time = None
+        view._loop = SimpleNamespace(post=Mock(return_value=True))
+        view.pd.subscription.snapshot.return_value = {'state': 'disconnected', 'epoch': 100}
+        return view
+
+    def test_physical_encoder_producer_reaches_offline_recovery_handler(self):
+        view = self.offline_producer_view()
+        view.encoder_has_data(-2)
+        event = view._loop.post.call_args.args[0]
+        self.assertEqual(event.kind, 'rotate')
+        self.assertEqual(event.value, -2)
+        view._process_input(event)
+        self.assertEqual(view._recovery_selection, 2)
+        view.pd.recovery.request.assert_not_called()
+
+    def test_remote_rotation_and_click_are_enqueued_while_klipper_offline(self):
+        view = self.offline_producer_view()
+        self.assertTrue(view._remote_input('rotate', -2))
+        view._process_input(view._loop.post.call_args.args[0])
+        self.assertTrue(view._remote_input('press', 1))
+        view._process_input(view._loop.post.call_args.args[0])
+        self.assertEqual(view._recovery_confirm, 'firmware')
+        self.assertEqual(view._recovery_selection, 0)
+        view.pd.recovery.request.assert_not_called()
+
+    def test_physical_short_release_opens_confirmation_and_can_confirm(self):
+        import time
+        view = self.offline_producer_view()
+        view._recovery_selection = 2
+        view._button_started_at = time.monotonic() - .1
+        view._button_can_power_off = False
+        view._button_origin = (100, view._uart_epoch)
+        view._button_released()
+        event = view._loop.post.call_args.args[0]
+        self.assertEqual(event.kind, 'button_release')
+        view._process_input(event)
+        self.assertEqual(view._recovery_confirm, 'firmware')
+        view.pd.recovery.request.assert_not_called()
+        view._recovery_selection = 1
+        view._button_started_at = time.monotonic() - .1
+        view._button_released()
+        view._process_input(view._loop.post.call_args.args[0])
+        view.pd.recovery.request.assert_called_once_with('firmware')
+
+    def test_long_release_and_stale_uart_never_select_restart(self):
+        view = self.offline_producer_view()
+        view._recovery_confirm = 'firmware'
+        view._recovery_selection = 1
+        view._process_input(InputEvent('button_release', 500, 100, view._uart_epoch))
+        view._process_input(InputEvent('button_release', 100, 100, view._uart_epoch-1))
+        view.pd.recovery.request.assert_not_called()
+        self.assertEqual(view._recovery_confirm, 'firmware')
+
+    def test_normal_offline_menus_still_reject_producer_input(self):
+        view = self.offline_producer_view()
+        view.checkkey = view.TemperatureID
+        self.assertFalse(view._remote_input('rotate', -1))
+        self.assertFalse(view._remote_input('press', 1))
+        view._loop.post.assert_not_called()
+
+    def test_stale_action_feedback_does_not_trap_recovery_navigation(self):
+        view = self.offline_producer_view()
+        view._action_feedback = SimpleNamespace(phase='running')
+        self.assertTrue(view._remote_input('rotate', -1))
+        view._process_input(view._loop.post.call_args.args[0])
+        self.assertEqual(view._recovery_selection, 1)

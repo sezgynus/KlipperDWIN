@@ -88,14 +88,21 @@ class RecoveryViewMixin:
 
     def _recovery_input(self, event):
         # Called after UART/session checks, before normal Klipper READY gates.
-        if event.kind not in ('rotate', 'press'):
+        kind = event.kind
+        if kind == 'button_release':
+            # Physical buttons produce release events; remote clicks produce
+            # press events. A long/aborted hold must never confirm a restart.
+            if event.value >= self.SHORT_PRESS_MS:
+                return
+            kind = 'press'
+        if kind not in ('rotate', 'press'):
             return
         if self._display_activity():
             return
         recovery = self.pd.recovery
         _, entries = self._recovery_entries()
         selected = getattr(self, '_recovery_selection', 0)
-        if event.kind == 'rotate':
+        if kind == 'rotate':
             delta = -event.value  # Same wheel/encoder direction as normal menus.
             self._recovery_selection = max(0, min(len(entries)-1, selected+delta))
         else:

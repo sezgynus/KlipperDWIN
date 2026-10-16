@@ -42,7 +42,7 @@ class MaintenanceViewMixin:
                 entries.append((item.feature_id + ' ' + {
                     'S01': 'Host', 'S02': 'CPU temp', 'S03': 'Throttling',
                     'S05': 'Network', 'S08': 'Klipper', 'S10': 'History'
-                }.get(item.feature_id, 'Info'), self.ICON_Info, None, None))
+                }.get(item.feature_id, getattr(item, 'device', None) or 'Info'), self.ICON_Info, None, None))
             if not options:
                 entries.append(('No information', self.ICON_Info, None, None))
             return 'Diagnostics', tuple(entries)
@@ -164,7 +164,9 @@ class MaintenanceViewMixin:
                 accepted, why = self.pd.start_maintenance_physical(
                     row.feature_id, row.device)
             else:
-                accepted, why = self.pd.start_maintenance_read(row.feature_id)
+                accepted, why = (self.pd.start_maintenance_read(row.feature_id, device=row.device)
+                                 if getattr(row, 'device', None) is not None else
+                                 self.pd.start_maintenance_read(row.feature_id))
             if not accepted:
                 self._maintenance_result = SimpleNamespace(
                     status='BLOCKED', reason=why)

@@ -43,7 +43,7 @@ class MaintenanceReadController:
             return ()
         return visible_plan(build_plan(snap, read_only_adapters()))
 
-    def start(self, feature_id, timeout=8.0):
+    def start(self, feature_id, timeout=8.0, device=None):
         """Queue preflight; call poll() later for completion and result."""
         if self._closed or self.pending:
             return False, 'read_busy_or_closed'
@@ -56,7 +56,7 @@ class MaintenanceReadController:
         snap = self._printer.maintenance.snapshot
         if not isinstance(snap, MaintenanceSnapshot):
             return False, 'no_discovery_snapshot'
-        row = next((r for r in self.available() if r.feature_id == feature_id), None)
+        row = next((r for r in self.available() if r.feature_id == feature_id and r.device == device), None)
         if row is None:
             return False, 'information_adapter_unavailable'
         if (not self._printer.state.ready

@@ -27,13 +27,19 @@ _ENDPOINTS = {
 }
 
 
+_THERMAL_FIELDS = {
+    'H11': ('power',), 'H14': ('temperature',),
+    'H16': ('humidity', 'pressure', 'gas'),
+}
+
+
 def read_only_adapters():
     """Trusted, fixed registrations: INFORMATION items, never hardware PASS."""
     return tuple(AdapterRegistration(
         feature, INFORMATION, 'maintenance.read.' + feature,
         definition_for(feature).evidence_contract,
         definition_for(feature).safety_profile)
-        for feature in _ENDPOINTS)
+        for feature in (*_ENDPOINTS, *_THERMAL_FIELDS))
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,13 +57,23 @@ def _number(value):
     return (type(value) in (float, int) and math.isfinite(value))
 
 
-def _read_fields(feature, reply):
+def _read_fields(feature, reply, device=None):
     """Extract only a few known scalar fields; never retain API reply maps."""
     if not isinstance(reply, Mapping):
         return ()
     result = reply.get('result')
     if not isinstance(result, Mapping):
         return ()
+    if feature in _THERMAL_FIELDS:
+        status = result.get('status')
+        values = status.get(device) if isinstance(status, Mapping) else None
+        stamp = result.get('eventtime')
+        if not isinstance(values, Mapping) or not _number(stamp) or stamp < 0:
+            return ()
+        fields = tuple((key, values[key]) for key in _THERMAL_FIELDS[feature]
+                       if _number(values.get(key)) and
+                       (key != 'power' or 0 <= values[key] <= 1))
+        return (('klipper_eventtime_s', stamp),) + fields if fields else ()
     if feature in ('S01', 'S02', 'S03', 'S05'):
         source = result
         if feature == 'S01':
@@ -148,7 +164,11 @@ class MaintenanceReadExecutor:
             return False, 'executor_busy_or_closed'
         if not isinstance(row, PlannedTest):
             return False, 'invalid_plan'
-        if (row.feature_id not in _ENDPOINTS or row.device is not None
+        if (row.feature_id not in (*_ENDPOINTS, *_THERMAL_FIELDS)
+                or (row.feature_id in _ENDPOINTS and row.device is not None)
+                or (row.feature_id in _THERMAL_FIELDS and
+                    row not in __import__('maintenance_planner').build_plan(
+                        self._snapshot(), read_only_adapters()))
                 or row.method != INFORMATION or row.category != 'informational'
                 or row.adapter_id != 'maintenance.read.' + row.feature_id):
             return False, 'unsupported_adapter'
@@ -165,7 +185,10 @@ class MaintenanceReadExecutor:
             return False, 'context_unavailable'
         if not decision.allowed:
             return False, decision.reason
-        path = _ENDPOINTS[row.feature_id]
+        from urllib.parse import quote
+        path = (_ENDPOINTS[row.feature_id] if row.feature_id in _ENDPOINTS
+                else '/printer/objects/query?' + quote(row.device, safe='') +
+                '=' + ','.join(_THERMAL_FIELDS[row.feature_id]))
 
         def work():
             # Recheck immediately before GET; a queued job must not run stale.
@@ -173,7 +196,7 @@ class MaintenanceReadExecutor:
                 current, fresh = self._context_and_snapshot()
                 if not self._safety.guard(session, current, fresh).allowed:
                     return ()
-                return _read_fields(row.feature_id, self._client.get(path))
+                return _read_fields(row.feature_id, self._client.get(path), row.device)
             except Exception:
                 # Never log/persist response payloads, tokens or transport details.
                 raise
@@ -195,7 +218,7 @@ class MaintenanceReadExecutor:
         self._future = None
         self._deadline = 0.0
         return ReadResult(row.feature_id, row.device, status,
-                          _ENDPOINTS[row.feature_id], observed_at,
+                          (_ENDPOINTS.get(row.feature_id) or '/printer/objects/query'), observed_at,
                           tuple(evidence), reason)
 
     def poll(self):

@@ -499,8 +499,8 @@ class PrinterData:
     def cancel_maintenance_physical(self):
         return self.maintenance_pulse.cancel()
 
-    def start_maintenance_read(self, feature_id, timeout=8.0):
-        return self.maintenance_reader.start(feature_id, timeout=timeout)
+    def start_maintenance_read(self, feature_id, timeout=8.0, device=None):
+        return self.maintenance_reader.start(feature_id, timeout=timeout, device=device)
 
     def poll_maintenance_read(self):
         return self.maintenance_reader.poll()

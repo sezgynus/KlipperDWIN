@@ -213,17 +213,19 @@ class LedChainTests(unittest.TestCase):
                     row, snap, physical, settings, status, {'action': 'Idle'})
                 self.assertTrue(pulse.managed_hh)
                 self.assertEqual(pulse.duration_ms, 2600)
-                self.assertEqual(len(pulse.script.splitlines()), 8)
+                self.assertEqual(len(pulse.script.splitlines()), 12)
                 colors = [(1., 0., 0.), (0., 0., 1.),
                           (0., 1., 0.), (1., 1., 1.)]
                 for phase, rgb in enumerate(colors):
-                    command, dwell = pulse.script.splitlines()[phase * 2:phase * 2 + 2]
+                    command, dwell, barrier = pulse.script.splitlines()[phase * 3:phase * 3 + 3]
                     self.assertEqual(
                         command,
                         'MMU_SET_LED UNIT=0 %s_EFFECT=(%.3f,%.3f,%.3f) '
                         'DURATION=0.40 FADETIME=0' % (
                             segment.upper(), *rgb))
                     self.assertEqual(dwell, 'G4 P650')
+                    self.assertEqual(barrier, 'M400')
+                self.assertEqual(pulse.script.count('M400'), 4)
                 self.assertIn('red, blue, green, white', pulse.observation)
                 self.assertTrue(pulse.observation.startswith('All LEDs R/B/G/W then back?'))
                 self.assertNotIn('SET_LED LED=', pulse.script)
@@ -256,7 +258,8 @@ class LedChainTests(unittest.TestCase):
         }
         pulse = compile_mmu_led_pulse(
             row, snap, physical, settings, live, {'action': 'Idle'})
-        self.assertEqual(len(pulse.script.splitlines()), 12)
+        self.assertEqual(len(pulse.script.splitlines()), 16)
+        self.assertEqual(pulse.script.count('M400'), 4)
         self.assertIn('UNIT=0 EXIT_EFFECT=', pulse.script)
         self.assertIn(' STATUS_EFFECT=', pulse.script)
         self.assertIn('UNIT=1 LOGO_EFFECT=', pulse.script)

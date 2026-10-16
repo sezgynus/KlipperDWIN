@@ -18,6 +18,13 @@ from maintenance_runtime import read_queue_evidence, live_safety_context
 from maintenance_safety import MaintenanceSafetyCoordinator
 
 _OUTPUT = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,47}\Z')
+# Allow the bounded pulse to complete and Moonraker status to catch up.
+# No sleeps or extra threads: the existing UI tick schedules read-only GETs.
+_VERIFY_MIN_AFTER_ACK_S = 0.25
+_VERIFY_MIN_AFTER_DISPATCH_S = 0.35
+_VERIFY_RETRY_INTERVAL_S = 0.30
+_VERIFY_WINDOW_S = 6.0
+_VERIFY_MATCHES_REQUIRED = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +60,8 @@ class MaintenancePulseController:
     __slots__ = ('_printer', '_client', '_worker', '_gate', '_safety',
                  '_row', '_program', '_evidence', '_future', '_phase',
                  '_deadline', '_token', '_buzzer', '_cancelled', '_closed',
-                 '_blocked')
+                 '_blocked', '_command_started', '_verify_next_at',
+                 '_verify_matches', '_verify_problem')
 
     def __init__(self, printer, worker, client):
         self._printer = printer
@@ -72,6 +80,10 @@ class MaintenancePulseController:
         self._cancelled = False
         self._closed = False
         self._blocked = False
+        self._command_started = 0.0
+        self._verify_next_at = 0.0
+        self._verify_matches = 0
+        self._verify_problem = None
 
     @property
     def phase(self):
@@ -110,6 +122,10 @@ class MaintenancePulseController:
         self._deadline = 0.0
         self._token = self._buzzer = None
         self._cancelled = False
+        self._command_started = 0.0
+        self._verify_next_at = 0.0
+        self._verify_matches = 0
+        self._verify_problem = None
 
     def _finish(self, status, reason, verified=False):
         row = self._row
@@ -215,33 +231,67 @@ class MaintenancePulseController:
             except Exception:
                 self._blocked = True
                 return self._finish('INCONCLUSIVE', 'script_failed_or_restore_unknown')
+            # Completion of the HTTP request is not proof that Klipper has
+            # executed the queued dwell AND restore. Wait at least the whole
+            # stimulus period plus margin from dispatch before reading.
             self._phase = 'verifying'
-            self._deadline = now + 6
-            name = self._program.object_name
-            try:
-                self._future = self._worker.submit(
-                    lambda: _read_target(self._client, name), queue_timeout=5)
-            except Exception:
-                return self._finish('INCONCLUSIVE', 'verification_unavailable')
+            self._deadline = now + _VERIFY_WINDOW_S
+            self._verify_next_at = max(
+                now + _VERIFY_MIN_AFTER_ACK_S,
+                self._command_started + self._program.duration_ms / 1000
+                + _VERIFY_MIN_AFTER_DISPATCH_S)
+            self._verify_matches = 0
+            self._verify_problem = None
+            self._future = None
             return None
         if self._phase == 'verifying':
+            if not self._current():
+                if self._future is not None:
+                    self._future.cancel()
+                return self._finish('INCONCLUSIVE', 'state_changed_during_restore_check')
             if now >= self._deadline:
-                self._future.cancel()
-                return self._finish('INCONCLUSIVE', 'restore_readback_timeout')
+                if self._future is not None:
+                    self._future.cancel()
+                    return self._finish('INCONCLUSIVE', 'restore_readback_timeout')
+                if self._verify_matches:
+                    return self._finish('INCONCLUSIVE', 'restore_not_stable')
+                return self._finish(
+                    'INCONCLUSIVE', self._verify_problem or 'restore_readback_timeout')
+            if self._future is None:
+                if now < self._verify_next_at:
+                    return None
+                try:
+                    self._future = self._worker.submit(
+                        lambda: _read_target(self._client, self._program.object_name),
+                        queue_timeout=min(2.0, self._deadline - now))
+                except Exception:
+                    return self._finish('INCONCLUSIVE', 'verification_unavailable')
+                return None
             if not self._future.done():
                 return None
             try:
                 values = self._future.result()
             except Exception:
-                return self._finish('INCONCLUSIVE', 'restore_readback_failed')
-            if (not self._current() or
-                    not restored(self._program, values)):
-                return self._finish('INCONCLUSIVE', 'restore_not_verified')
-            if self._cancelled:
-                return self._finish('ABORTED', 'user_cancelled_after_restore', True)
-            self._phase = 'await_observation'
-            self._deadline = now + 30
+                values = None  # Transient GET error; retry within the same window.
             self._future = None
+            if not self._current():
+                return self._finish('INCONCLUSIVE', 'state_changed_during_restore_check')
+            if restored(self._program, values):
+                self._verify_matches += 1
+                if self._verify_matches >= _VERIFY_MATCHES_REQUIRED:
+                    if self._cancelled:
+                        return self._finish('ABORTED', 'user_cancelled_after_restore', True)
+                    self._phase = 'await_observation'
+                    self._deadline = now + 30
+                    return None
+            else:
+                # Do not treat a single stale intermediate PWM as a failure;
+                # conversely, one baseline-shaped sample is not a PASS.
+                self._verify_matches = 0
+                self._verify_problem = (
+                    'restore_value_mismatch' if values is not None
+                    else 'restore_readback_unavailable')
+            self._verify_next_at = now + _VERIFY_RETRY_INTERVAL_S
             return None
         if self._phase == 'await_observation' and now >= self._deadline:
             return self._finish('INCONCLUSIVE', 'observation_timeout', True)
@@ -270,6 +320,7 @@ class MaintenancePulseController:
                     self._safety.guard(session, self._snapshot(), self._context()).allowed)
 
         try:
+            self._command_started = monotonic()
             self._future = self._printer.postREST(
                 '/printer/gcode/script', json={'script': program.script},
                 report_error=False, dispatch_guard=guard)

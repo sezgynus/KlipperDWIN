@@ -26,3 +26,7 @@ Check **Diagnostics** independently. S01/S02/S03/S05/S08/S10 return only whiteli
 ## Rollback and acceptance record
 
 Remove the temporary systemd override, run `sudo systemctl daemon-reload` and `sudo systemctl restart Petrel.service`, and verify active service `ExecStart=/home/sezgynpi/petrel-env/bin/python /home/sezgynpi/Petrel/run.py`, `WorkingDirectory=/home/sezgynpi/Petrel`, with master clean. If power/connection problems or unresolved hardware state are observed, stop physical testing and inspect on the Pi. Record feature signed SHA, safe output profiles used, evidence for each device, restored value, result and operator response. Stage-8 real-hardware acceptance stays **PENDING** until this is actually performed.
+
+## F01 field finding and follow-up verification
+
+During live Remote Display acceptance on 2026-10-16, the F01 part-cooling fan visibly pulsed through the camera, but the controller returned `INCONCLUSIVE / restore_not_verified`. A later independent `/printer/objects/query?fan&webhooks` check showed `fan.speed=0.0`, `fan.rpm=null`, and `webhooks.state=ready`. The initial physical attempt **is not a PASS**, as the immediate restore validation failed; the later read is not proof of the earlier restore timing. The verification-window/retry patch has CI fake coverage and needs a **new** real-Pi acceptance after updating the feature worktree. Confirm the printer is idle and the fan stopped before repeating any physical test.

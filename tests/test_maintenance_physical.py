@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from concurrent.futures import Future
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+from time import monotonic
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from maintenance_discovery import MaintenanceSnapshot, DeviceCapabilities, USER, _add
@@ -82,6 +83,28 @@ class PhysicalControllerTests(unittest.TestCase):
     def setUp(self):
         self.printer, self.client, self.worker, self.commands = setup()
         self.runner = MaintenancePulseController(self.printer, self.worker, self.client)
+        self.clock = [monotonic()]
+        self.clock_patch = patch('maintenance_physical.monotonic',
+                                 side_effect=lambda: self.clock[0])
+        self.clock_patch.start()
+        self.addCleanup(self.clock_patch.stop)
+
+    def advance(self, seconds):
+        self.clock[0] += seconds
+
+    def poll_verify(self):
+        # A single verification read must never imply restored physical output.
+        self.assertIsNone(self.runner.poll())
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+
+    def verify_ready(self):
+        self.advance(1.4)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'verifying')
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'await_observation')
 
     def prepare(self):
         self.assertEqual(self.runner.start('F01', 'fan'), (True, 'preflight_queued'))
@@ -101,9 +124,8 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertTrue(guard())
         future.set_result({'result': 'ok'})
         self.assertIsNone(self.runner.poll())
-        self.worker.next()
-        self.assertIsNone(self.runner.poll())
-        self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertEqual(self.worker.jobs, [])  # Never GET immediately on POST ack.
+        self.verify_ready()
         self.assertIn('fan rotate', self.runner.observation_prompt)
         result = self.runner.observe(True)
         self.assertEqual(result.status, 'PASSED_USER')
@@ -141,9 +163,17 @@ class PhysicalControllerTests(unittest.TestCase):
         self.runner.confirm()
         self.commands[0][0].set_result({'result': 'ok'})
         self.client.status['fan']['speed'] = .75
-        self.runner.poll(); self.worker.next()
-        self.assertEqual(self.runner.poll().status, 'INCONCLUSIVE')
+        self.runner.poll()
+        self.advance(1.4)
+        for _ in range(3):
+            self.poll_verify()
+            self.advance(.35)
+        self.advance(6)
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'INCONCLUSIVE')
+        self.assertEqual(result.reason, 'restore_value_mismatch')
         self.assertIsNone(self.runner.observe(True))
+        self.assertEqual(len(self.commands), 1)
 
     def test_running_cancel_waits_for_full_script_then_aborts(self):
         self.prepare()
@@ -151,8 +181,98 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertIsNone(self.runner.cancel())
         self.assertTrue(self.runner.pending)
         self.commands[0][0].set_result({'result': 'ok'})
-        self.runner.poll(); self.worker.next()
-        self.assertEqual(self.runner.poll().status, 'ABORTED')
+        self.runner.poll()
+        self.advance(1.4)
+        self.poll_verify()
+        self.advance(.35)
+        self.assertIsNone(self.runner.poll())
+        self.worker.next()
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'ABORTED')
+        self.assertEqual(result.reason, 'user_cancelled_after_restore')
+        self.assertTrue(result.restore_verified)
+
+    def test_delayed_restore_recovers_without_second_gcode_dispatch(self):
+        self.prepare()
+        self.assertTrue(self.runner.confirm()[0])
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.client.status['fan']['speed'] = .75
+        self.advance(1.4)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'verifying')
+        # Moonraker now reports the completed restore; require TWO stable reads.
+        self.client.status['fan']['speed'] = .35
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'verifying')
+        self.assertIsNone(self.runner.observe(True))
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertEqual(self.runner.observe(True).status, 'PASSED_USER')
+        self.assertEqual(len(self.commands), 1)
+
+    def test_early_baseline_while_script_queued_never_autopasses(self):
+        self.client.status['fan']['speed'] = 0
+        self.prepare()
+        self.assertTrue(self.runner.confirm()[0])
+        self.commands[0][0].set_result({'result': 'queued'})
+        self.runner.poll()
+        # HTTP returned instantly; no read until the full pulse time has passed.
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.worker.jobs, [])
+        self.advance(.40)
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.worker.jobs, [])
+        # A single baseline sample might predate the actuator dispatch.
+        self.advance(1.0)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'verifying')
+        self.client.status['fan']['speed'] = .75
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'verifying')
+        # Even another baseline match requires two consecutive post-delay reads.
+        self.client.status['fan']['speed'] = 0
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'verifying')
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertEqual(len(self.commands), 1)
+
+    def test_session_change_during_verify_is_distinct_from_value_mismatch(self):
+        self.prepare()
+        self.runner.confirm()
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.printer.subscription.snapshot.return_value['state'] = 'disconnected'
+        self.printer.state = type(self.printer.state).from_snapshot({
+            **self.printer.subscription.snapshot.return_value,
+            'settings': {'fan': {'pin': 'PA3'}}})
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'INCONCLUSIVE')
+        self.assertEqual(result.reason, 'state_changed_during_restore_check')
+        self.assertEqual(self.worker.jobs, [])
+        self.assertEqual(len(self.commands), 1)
+
+    def test_unavailable_get_retries_but_never_produces_false_pass(self):
+        self.prepare()
+        self.runner.confirm()
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.advance(1.4)
+        with patch.object(self.client, 'get', side_effect=OSError('temporary GET outage')):
+            for _ in range(3):
+                self.poll_verify()
+                self.advance(.35)
+            self.advance(6)
+            result = self.runner.poll()
+        self.assertEqual(result.status, 'INCONCLUSIVE')
+        self.assertEqual(result.reason, 'restore_readback_unavailable')
+        self.assertEqual(len(self.commands), 1)
 
     def test_petrel_backend_creates_opt_in_physical_controller(self):
         from test_regressions import backend

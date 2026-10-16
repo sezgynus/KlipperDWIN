@@ -26,3 +26,7 @@ Mevcut `/tmp/petrel-maintenance-acceptance` detached worktree'sini kullan; günc
 ## Master'a dönüş ve kabul kaydı
 
 Geçici systemd override'ını kaldır, `sudo systemctl daemon-reload` ve `sudo systemctl restart Petrel.service` çalıştır; aktif servisin `ExecStart=/home/sezgynpi/petrel-env/bin/python /home/sezgynpi/Petrel/run.py`, `WorkingDirectory=/home/sezgynpi/Petrel` ve master'ın temiz olduğunu doğrula. Güç/bağlantı problemi veya çözümlenmemiş donanım durumu varsa fiziksel testleri durdurup Pi'yi denetle. Feature imzalı SHA, kullanılan izin profilleri, her cihazın gözlemi, geri yüklenen değer, sonuç ve operatör yanıtını kaydet. Testler gerçek Pi'de yapılıncaya kadar Aşama 8 fiziksel kabulü **BEKLEMEDE** kalır.
+
+## F01 saha bulgusu ve sonraki doğrulama
+
+2026-10-16 tarihli Remote Display kabulünde F01 parça soğutma fanı kamerada kısa süre çalışırken yürütücü `INCONCLUSIVE / restore_not_verified` döndürdü. Sonradan bağımsız `/printer/objects/query?fan&webhooks` sorgusu `fan.speed=0.0`, `fan.rpm=null`, `webhooks.state=ready` gösterdi. İlk fiziksel deneme **PASS değildir**; anlık geri yükleme doğrulaması başarısız oldu, sonraki okuma da geçmişteki geri yükleme zamanlamasını kanıtlamaz. Yeni doğrulama penceresi/tekrar okuma yamasının CI sahte testleri vardır; feature worktree güncellendikten sonra **yeni** gerçek Pi kabul testi gereklidir. Tekrar fiziksel testten önce yazıcının boşta ve fanın durmuş olduğunu doğrula.

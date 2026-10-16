@@ -22,3 +22,21 @@ short/overtemperature faults. Valid empty nonzero-only status means no reported
 critical/warning flags, not proven motor health. Final operator acknowledgment
 is OBSERVED_USER, never automatic hardware PASS. Other chips need their own
 fault schema. No existing F/H acceptance changes.
+
+## Pure motion contract (not yet a production adapter)
+Cartesian/CoreXY coordinated motion is bounded by actual XYZ homing, configured
+limits, cold/OFF heaters, enabled primary motors and explicit clear-path consent.
+M04 uses Klipper's 10-cycle 1 mm STEPPER_BUZZ only for primary Cartesian motors;
+independent multi-Z and coupled-motor buzzing are not admitted. M05 compiles a
+1 mm roundtrip at <=5 mm/s XY / <=1 mm/s Z. M06 compiles one 10 mm outbound
+move; a separately consented return requires the same measured-stop coordinate.
+No homing is silently added to a move. XYZ limits have 2 mm margins and XY
+motion requires >=5 mm Z clearance. Loaded mesh/unknown transforms, carriage
+configurations and overridden protocol commands block rather than get disabled.
+Unique SAVE/RESTORE_GCODE_STATE with MOVE=0 preserves modal settings; M400
+confirms move completion. No FORCE_MOVE, SET_KINEMATIC_POSITION or tuning writes.
+M03 is explicit configured XYZ homing; homing_override/macro G28 is rejected.
+M12 compiles only for configured physical endstop phase with real last_home
+history and no pending config, producing pending trigger_phase without save.
+Software readback is not physical position proof. These are pure contracts;
+controller/UI registrations are delivered separately after CI.

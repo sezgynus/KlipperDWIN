@@ -23,3 +23,21 @@ sıcaklık diye uydurulmaz. Geçerli boş, sıfır olmayan alanlar mapping'i rap
 kritik/uyarı bayrağı yok demektir; motor sağlığı kanıtı değildir. Son operatör
 onayı OBSERVED_USER'dır, otomatik donanım PASS'i yoktur. Diğer çipler kendi
 hata şeması gerektirir. Mevcut F/H kabul kayıtları değişmez.
+
+## Salt hareket sözleşmesi (henüz üretim adaptörü değil)
+Cartesian/CoreXY koordinat hareketi gerçek XYZ homing, yapılandırılmış sınırlar,
+soğuk/OFF ısıtıcılar, açık ana motorlar ve açık boş-yol onayıyla sınırlıdır.
+M04 yalnız ana Cartesian motorlarda Klipper'ın 10 çevrimlik 1 mm STEPPER_BUZZ
+komutunu kullanır; bağımsız çoklu Z ve bağlı motor buzzing kabul edilmez.
+M05 en çok 5 mm/sn XY / 1 mm/sn Z ile 1 mm gidip dönme derler. M06 tek
+10 mm ileri hareket derler; ayrı onaylı dönüş aynı ölçüm durağı konumunu ister.
+Hareket öncesine gizlice homing eklenmez. XYZ sınırlarında 2 mm pay; XY için
+en az 5 mm Z açıklığı gerekir. Yüklü mesh/bilinmeyen dönüşüm, carriage ve
+override edilmiş protokol komutları kapatılmak yerine testi engeller.
+Benzersiz SAVE/RESTORE_GCODE_STATE MOVE=0 modal ayarları korur; M400 hareket
+bitimini bekler. FORCE_MOVE, SET_KINEMATIC_POSITION ve ayar yazımı yoktur.
+M03 açıkça seçilen yapılandırılmış XYZ homing'dir; homing_override/macro G28
+reddedilir. M12 yalnız yapılandırılmış fiziksel endstop phase, gerçek last_home
+geçmişi ve bekleyen config yokken derlenir; kaydetmeden trigger_phase bekletir.
+Yazılım geri okuması fiziksel konum kanıtı değildir. Bunlar salt sözleşmelerdir;
+controller/UI kayıtları CI sonrasında ayrı değişiklikle gelir.

@@ -10,8 +10,8 @@ import re
 
 _TYPES = ('neopixel', 'dotstar', 'led', 'pca9632')
 _SEGMENTS = ('exit', 'entry', 'status', 'logo')
-_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,47}\Z')
-_SPEC = re.compile(r'^(neopixel|dotstar|led|pca9632):([A-Za-z][A-Za-z0-9_]{0,47})\s+\(([0-9,\s-]+)\)$')
+_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_-]{0,47}\Z')
+_SPEC = re.compile(r'^(neopixel|dotstar|led|pca9632):([A-Za-z][A-Za-z0-9_-]{0,47})\s+\(([0-9,\s-]+)\)$')
 _MAX = 32
 
 
@@ -161,25 +161,63 @@ def _live_units(status):
         if not isinstance(unit, Mapping):
             raise ValueError('mmu_machine_live_unit_invalid')
         names.append(unit.get('name'))
-    return _checked_units(tuple(names))
+    # Older HH releases may expose the human-readable unit label in "name"
+    # rather than the internal config identifier. Treat names as untrusted
+    # display strings until their identity is positively corroborated.
+    if any(not isinstance(name, str) or not name.strip() or
+           len(name) > 96 or not name.isprintable() or ';' in name
+           for name in names):
+        raise ValueError('mmu_machine_live_names_invalid')
+    return tuple(names)
 
 
 def mmu_unit_indices(settings, owners, machine_status=None):
-    """Resolve numeric indexes from positive HH configuration or live state.
+    """Resolve numeric UNIT indexes using positive, version-tolerant evidence.
 
-    Effective Klipper configfile.settings may not expose units, even when
-    Happy Hare has fully initialized. The live mmu_machine status publishes
-    num_units and unit_0/1/... with their names. Either is authoritative,
-    but when both are available they must agree. Unknown mapping fails closed.
+    Happy Hare versions differ in whether mmu_machine.unit_N.name is the
+    canonical unit ID or a human-readable label. Never treat display names
+    as canonical IDs, and never derive an index from a section's suffix.
+
+    When only one loaded MMU unit and one LED controller exist, index 0 is
+    unambiguous even if neither canonical name is exposed. For multi-unit
+    machines, require a validated ordered configuration list or a full set
+    of live names that exactly matches the section names.
     """
-    if not isinstance(settings, Mapping):
+    if not isinstance(settings, Mapping) or not isinstance(owners, (tuple, list)):
         raise ValueError('mmu_machine_configuration_missing')
+    if not owners:
+        raise ValueError('mmu_led_owner_missing')
     configured = _configured_units(settings)
     live = _live_units(machine_status)
-    if configured is not None and live is not None and configured != live:
-        raise ValueError('mmu_machine_unit_order_conflict')
-    names = live if live is not None else configured
-    if names is None:
+    if configured is not None and live is not None:
+        if len(configured) != len(live):
+            raise ValueError('mmu_machine_unit_count_conflict')
+        # A display name can differ from the canonical section name.
+        # HH versions exposing readable display labels may disagree with
+        # canonical configured identifiers; labels containing spaces cannot
+        # be used as unit IDs. When live reports canonical-looking IDs,
+        # require an exact ordered match with the actual configuration.
+        if all(_NAME.fullmatch(name) for name in live) and live != configured:
+            raise ValueError('mmu_machine_unit_order_conflict')
+    if configured is not None:
+        names = configured
+    elif live is not None and len(live) == 1:
+        # One physical MMU controller: index 0 exists by definition. Insist
+        # that one unique LED owner exists and no other MMU LED sections
+        # can point to an unaccounted-for logical controller.
+        all_led_sections = [
+            section for section in settings
+            if isinstance(section, str) and section.startswith('mmu_leds ')
+        ]
+        if (len(owners) != 1 or len(all_led_sections) != 1 or
+                owners[0].section != all_led_sections[0]):
+            raise ValueError('mmu_single_unit_led_ownership_ambiguous')
+        return (0,)
+    elif live is not None:
+        # Human-readable labels containing spaces (or duplicated labels)
+        # cannot identify physical units in a multi-unit machine.
+        names = _checked_units(live)
+    else:
         raise ValueError('mmu_machine_unit_order_unavailable')
     index = {name: i for i, name in enumerate(names)}
     if any(owner.unit not in index for owner in owners):

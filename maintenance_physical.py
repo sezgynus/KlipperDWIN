@@ -19,6 +19,7 @@ from maintenance_runtime import read_queue_evidence, live_safety_context
 from maintenance_safety import MaintenanceSafetyCoordinator
 
 _OUTPUT = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,47}\Z')
+_MMU_UNIT = re.compile(r'[A-Za-z][A-Za-z0-9_-]{0,47}\Z')
 # Allow the bounded pulse to complete and Moonraker status to catch up.
 # No sleeps or extra threads: the existing UI tick schedules read-only GETs.
 _VERIFY_MIN_AFTER_ACK_S = 0.25
@@ -65,7 +66,7 @@ def _read_targets(client, names):
             or any(not isinstance(name, str) or len(name) > 96
                    or not (name in ('mmu', 'mmu_machine') or
                            (name.startswith('mmu_leds ') and
-                            _OUTPUT.fullmatch(name.split(' ', 1)[1])))
+                            _MMU_UNIT.fullmatch(name.split(' ', 1)[1])))
                    for name in names)):
         raise ValueError('mmu_led_query_targets_invalid')
     reply = client.get('/printer/objects/query?' +

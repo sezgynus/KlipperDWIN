@@ -555,7 +555,8 @@ class PhysicalControllerTests(unittest.TestCase):
         raw = self.printer.subscription.snapshot.return_value
         raw['settings']['mmu_machine'] = {}  # effective Klipper settings omit units
         raw['status']['mmu_machine'] = {
-            'num_units': 1, 'unit_0': {'name': 'unit0'}}
+            'num_units': 1, 'unit_0': {'name': 'OpenEYE MMU'}}
+        self.client.status['mmu_machine']['unit_0']['name'] = 'OpenEYE MMU'
         self.printer.state = PrinterState.from_snapshot(raw)
         roles = approved_integrations(self.printer.state, ())
         self.assertIn('maintenance.safe_led:neopixel diagnostic', roles)

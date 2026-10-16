@@ -329,7 +329,7 @@ class LedChainTests(unittest.TestCase):
             'exit_leds': 'neopixel:diagnostic (1-4)'}}
         row, snap, physical, settings = fixture(extra_settings=owner)
         settings['mmu_machine'] = {}  # actual effective config can omit units
-        machine = {'num_units': 1, 'unit_0': {'name': 'unit0'}}
+        machine = {'num_units': 1, 'unit_0': {'name': 'OpenEYE MMU'}}
         state = SimpleNamespace(
             ready=True, epoch=42,
             objects=(TARGET, 'mmu_leds unit0', 'mmu_machine', 'mmu'),
@@ -387,7 +387,7 @@ class LedChainTests(unittest.TestCase):
             {'num_units': True, 'unit_0': {'name': 'unit0'}},
             {'num_units': 2, 'unit_0': {'name': 'unit0'}},
             {'num_units': 1, 'unit_1': {'name': 'unit0'}},
-            {'num_units': 1, 'unit_0': {'name': 'wrong'}},
+            {'num_units': 1, 'unit_0': {'name': ''}},
             {'num_units': 1, 'unit_0': {'name': 'unit0'},
              'unit_1': {'name': 'extra'}},
             {'num_units': 2, 'unit_0': {'name': 'unit0'},
@@ -411,6 +411,94 @@ class LedChainTests(unittest.TestCase):
             compile_mmu_led_pulse(
                 row, snap, physical, settings, controls, {'action': 'Idle'},
                 machine)
+
+    def test_single_unit_display_name_no_suffix_assumption(self):
+        for unit_name, display_name in (
+                ('alpha', 'OpenEYE MMU'),
+                ('feeder-42', 'Custom Multi Material Feeder')):
+            with self.subTest(unit_name=unit_name):
+                owner = {'mmu_leds ' + unit_name: {
+                    'logo_leds': 'neopixel:diagnostic (1-4)'}}
+                row, snap, physical, settings = fixture(extra_settings=owner)
+                settings['mmu_machine'] = {}  # no config order
+                machine = {'num_units': 1, 'unit_0': {
+                    'name': display_name}}
+                state = SimpleNamespace(
+                    ready=True, epoch=42,
+                    objects=(TARGET, 'mmu_machine', 'mmu_leds ' + unit_name),
+                    settings=settings, status={'mmu_machine': machine})
+                self.assertIn('maintenance.safe_led:' + TARGET,
+                              approved_integrations(state, ()))
+                program = compile_mmu_led_pulse(
+                    row, snap, physical, settings,
+                    {'mmu_leds ' + unit_name: {
+                        'enabled': True, 'animation': False, 'logo': 4}},
+                    {'action': 'Idle'}, machine)
+                self.assertIn('UNIT=0 LOGO_EFFECT=', program.script)
+                self.assertNotIn(display_name, program.script)
+                self.assertNotIn('UNIT=' + unit_name, program.script)
+
+    def test_single_unit_fallback_requires_exclusive_controller(self):
+        owner = {
+            'mmu_leds primary': {'exit_leds': 'neopixel:diagnostic (1-4)'},
+            'mmu_leds ghost': {'entry_leds': 'neopixel:other (1)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        settings['mmu_machine'] = {}
+        machine = {'num_units': 1, 'unit_0': {'name': 'Display Name'}}
+        state = SimpleNamespace(
+            ready=True, epoch=42,
+            objects=(TARGET, 'mmu_machine', 'mmu_leds primary',
+                     'mmu_leds ghost'),
+            settings=settings, status={'mmu_machine': machine})
+        self.assertEqual(approved_integrations(state, ()), ())
+        with self.assertRaisesRegex(ValueError, 'ownership_ambiguous'):
+            compile_mmu_led_pulse(
+                row, snap, physical, settings,
+                {'mmu_leds primary': {
+                    'enabled': True, 'animation': True, 'exit': 4}},
+                {'action': 'Idle'}, machine)
+
+    def test_multimachine_display_names_never_guess_numeric_indices(self):
+        owner = {
+            'mmu_leds north': {'exit_leds': 'neopixel:diagnostic (1-2)'},
+            'mmu_leds south': {'entry_leds': 'neopixel:diagnostic (3-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        settings['mmu_machine'] = {}
+        machine = {'num_units': 2,
+                   'unit_0': {'name': 'North MMU'},
+                   'unit_1': {'name': 'South MMU'}}
+        state = SimpleNamespace(
+            ready=True, epoch=42,
+            objects=(TARGET, 'mmu_machine', 'mmu_leds north',
+                     'mmu_leds south'),
+            settings=settings, status={'mmu_machine': machine})
+        self.assertEqual(approved_integrations(state, ()), ())
+        with self.assertRaises(ValueError):
+            compile_mmu_led_pulse(
+                row, snap, physical, settings,
+                {'mmu_leds north': {
+                    'enabled': True, 'animation': True, 'exit': 2},
+                 'mmu_leds south': {
+                    'enabled': True, 'animation': True, 'entry': 2}},
+                {'action': 'Idle'}, machine)
+
+    def test_machine_config_order_and_live_display_names_coexist(self):
+        owner = {
+            'mmu_leds first': {'exit_leds': 'neopixel:diagnostic (1-2)'},
+            'mmu_leds second': {'status_leds': 'neopixel:diagnostic (3-4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        settings['mmu_machine'] = {'units': ['second', 'first']}
+        machine = {'num_units': 2,
+                   'unit_0': {'name': 'Another Feeder'},
+                   'unit_1': {'name': 'OpenEYE MMU'}}
+        status = {
+            'mmu_leds first': {'enabled': True, 'animation': True, 'exit': 2},
+            'mmu_leds second': {'enabled': True, 'animation': True, 'status': 2}}
+        program = compile_mmu_led_pulse(
+            row, snap, physical, settings, status, {'action': 'Idle'},
+            machine)
+        self.assertIn('UNIT=1 EXIT_EFFECT=', program.script)
+        self.assertIn('UNIT=0 STATUS_EFFECT=', program.script)
 
     def test_missing_explicit_profile_not_even_guided(self):
         row, snap, status, settings = fixture()

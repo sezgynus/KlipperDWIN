@@ -136,6 +136,18 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertEqual(item['status'],'pending')
             self.assertIsNone(item['acceptance'])
 
+    def test_remaining_group_implementation_never_grants_physical_acceptance(self):
+        implemented = {'P01','P03','P04','R01','R02','R03','R04','E01','E02','E03','E07','E11',
+                       'E12','S15','S16','S17','O02','O06'}
+        for entry in ledger()['entries']:
+            if entry['feature_id'] in implemented:
+                self.assertEqual(entry['adapter'],'implemented')
+                self.assertNotEqual(entry['status'],'accepted')
+                self.assertIsNone(entry['acceptance'])
+            if entry['feature_id'] in {'P05','P07','P08','P11'}:
+                self.assertEqual(entry['adapter'],'not_implemented')
+                self.assertIn('Leveling',entry['note'])
+
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}
         confirmed = [('F01', 'fan'), ('S18', 'pwm_cycle_time Buzzer'),

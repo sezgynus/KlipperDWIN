@@ -67,23 +67,23 @@
 | [ ] | M10 | `tmc2208 extruder` | TMC driver fault diagnostics | Available; physical acceptance pending | **PENDING** |
 | [ ] | M12 | `endstop_phase X` | Endstop phase calibration | Available; physical acceptance pending | **PENDING** |
 | [ ] | M12 | `endstop_phase Y` | Endstop phase calibration | Available; physical acceptance pending | **PENDING** |
-| [ ] | P01 | `probe` | Probe trigger response | Not built | **PENDING** |
-| [ ] | P03 | `probe` | Probe repeatability | Not built | **PENDING** |
-| [ ] | P04 | `probe` | Single probe measurement | Not built | **PENDING** |
-| [ ] | P05 | `probe Z-offset` | Probe Z-offset wizard | Not built | **PENDING** |
-| [ ] | P07 | `bed_mesh (probe)` | Automatic bed mesh | Not built | **PENDING** |
-| [ ] | P08 | `bed_mesh (manual)` | Manual bed mesh | Not built | **PENDING** |
-| [ ] | P11 | `screws_tilt_adjust` | Screws tilt adjustment | Not built | **PENDING** |
-| [ ] | R01 | `adxl345` | Accelerometer reading | Not built | **PENDING** |
-| [ ] | R02 | `resonance_tester X` | Axis resonance measurement | Not built | **PENDING** |
-| [ ] | R02 | `resonance_tester Y` | Axis resonance measurement | Not built | **PENDING** |
-| [ ] | R03 | `adxl345` | Accelerometer noise floor | Not built | **PENDING** |
-| [ ] | R04 | `input_shaper X/Y` | Input shaper calibration | Not built | **PENDING** |
-| [ ] | E01 | `extruder filament path` | Coarse filament extrusion | Not built | **PENDING** |
-| [ ] | E02 | `extruder measured length` | Measured extrusion distance | Not built | **PENDING** |
-| [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament presence sensor | Not built | **PENDING** |
-| [ ] | E07 | `extruder + MMU filament path` | Filament path motion | Not built | **PENDING** |
-| [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensor diagnostics | Not built | **PENDING** |
+| [ ] | P01 | `probe` | Probe trigger response | Ready; physical acceptance pending | **PENDING** |
+| [ ] | P03 | `probe` | Probe repeatability | Ready; physical acceptance pending | **PENDING** |
+| [ ] | P04 | `probe` | Single probe measurement | Ready; physical acceptance pending | **PENDING** |
+| [ ] | P05 | `probe Z-offset` | Probe Z-offset wizard | Existing Leveling; excluded here | **PENDING** |
+| [ ] | P07 | `bed_mesh (probe)` | Automatic bed mesh | Existing Leveling; excluded here | **PENDING** |
+| [ ] | P08 | `bed_mesh (manual)` | Manual bed mesh | Existing Leveling; excluded here | **PENDING** |
+| [ ] | P11 | `screws_tilt_adjust` | Screws tilt adjustment | Existing Leveling; excluded here | **PENDING** |
+| [ ] | R01 | `adxl345` | Accelerometer reading | Ready; physical acceptance pending | **PENDING** |
+| [ ] | R02 | `resonance_tester X` | Axis resonance measurement | Ready; physical acceptance pending | **PENDING** |
+| [ ] | R02 | `resonance_tester Y` | Axis resonance measurement | Ready; physical acceptance pending | **PENDING** |
+| [ ] | R03 | `adxl345` | Accelerometer noise floor | Ready; physical acceptance pending | **PENDING** |
+| [ ] | R04 | `input_shaper X/Y` | Input shaper calibration | Ready; physical acceptance pending | **PENDING** |
+| [ ] | E01 | `extruder filament path` | Coarse filament extrusion | Ready; physical acceptance pending | **PENDING** |
+| [ ] | E02 | `extruder measured length` | Measured extrusion distance | Ready; physical acceptance pending | **PENDING** |
+| [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament presence sensor | Ready; physical acceptance pending | **PENDING** |
+| [ ] | E07 | `extruder + MMU filament path` | Filament path motion | Ready; physical acceptance pending | **PENDING** |
+| [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensor diagnostics | Ready; physical acceptance pending | **PENDING** |
 
 ## Requires additional evidence or a safe integration
 
@@ -91,12 +91,12 @@
 |---|---|---|---|---|---|
 | [ ] | F13 | `guarded fan/heater comparison` | Fan thermal A/B comparison | Not built | **CONDITIONAL** |
 | [ ] | H15 | `co-located calibrated sensor pair` | Paired temperature-sensor deviation | Not built | **CONDITIONAL** |
-| [ ] | E12 | `Happy Hare gear and selector` | MMU mechanical diagnostics | Not built | **CONDITIONAL** |
-| [ ] | S15 | `Petrel encoder` | Petrel encoder diagnostics | Not built | **CONDITIONAL** |
-| [ ] | S16 | `DWIN LCD` | Petrel LCD diagnostics | Not built | **CONDITIONAL** |
-| [ ] | S17 | `DWIN backlight` | Backlight observation | Not built | **CONDITIONAL** |
-| [ ] | O02 | `approved servo and deploy/stow path` | Safe servo movement | Not built | **CONDITIONAL** |
-| [ ] | O06 | `user-defined physical servicing` | Guided servicing | Not built | **CONDITIONAL** |
+| [ ] | E12 | `Happy Hare gear and selector` | MMU mechanical diagnostics | Ready; physical acceptance pending | **CONDITIONAL** |
+| [ ] | S15 | `Petrel encoder` | Petrel encoder diagnostics | Ready; physical acceptance pending | **CONDITIONAL** |
+| [ ] | S16 | `DWIN LCD` | Petrel LCD diagnostics | Ready; physical acceptance pending | **CONDITIONAL** |
+| [ ] | S17 | `DWIN backlight` | Backlight observation | Ready; physical acceptance pending | **CONDITIONAL** |
+| [ ] | O02 | `approved servo and deploy/stow path` | Safe servo movement | Ready; physical acceptance pending | **CONDITIONAL** |
+| [ ] | O06 | `user-defined physical servicing` | Guided servicing | Ready; physical acceptance pending | **CONDITIONAL** |
 
 ## Absent hardware
 
@@ -122,3 +122,5 @@
 **H implementation status:** All 16 reference physical H targets have adapters; none has physical acceptance yet. See the [thermal guide](maintenance-thermal.md) for final batch order and H01–H18 scope.
 
 **M implementation status:** Adapters exist for 22 confirmed M targets; no physical acceptance yet. M07 is INFORMATION only, not a motor-health PASS. H acceptance states are unchanged by this development. [Motion guide](maintenance-motion.md).
+
+**P/R/E/S/O implementation record (17 October 2026):** Group adapters and regressions were added; no new physical acceptance was granted. Probe Calibration, Bed Mesh and Screws Tilt remain in existing Leveling. Conditional profile/source requirements remain. Guides: [P](maintenance-probe.md), [R](maintenance-resonance.md), [E](maintenance-filament.md), [S](maintenance-system.md), [O](maintenance-auxiliary.md). Overall integration is outside this work.

@@ -32,6 +32,7 @@ from maintenance_probe import MaintenanceProbeController
 from maintenance_resonance import MaintenanceResonanceController
 from maintenance_filament import MaintenanceFilamentController
 from maintenance_panel import MaintenancePanelController
+from maintenance_auxiliary import MaintenanceAuxiliaryController
 from maintenance_records import MaintenanceBook
 from maintenance_system import travel_profile
 from maintenance_physical import MaintenancePulseController
@@ -300,7 +301,8 @@ class PrinterData:
             probe=MaintenanceProbeController(self, self._maintenance_worker, self.client),
             resonance=MaintenanceResonanceController(self, self._maintenance_worker, self.client),
             filament=MaintenanceFilamentController(self, self._maintenance_worker, self.client),
-            panel=self.maintenance_panel)
+            panel=self.maintenance_panel,
+            auxiliary=MaintenanceAuxiliaryController(self,self._maintenance_worker,self.client))
 
     def _read(self, key, work, stamp=None):
         if stamp is None:

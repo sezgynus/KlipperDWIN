@@ -8,6 +8,7 @@ from maintenance_hh_leds import auto_happy_hare_led_services
 from maintenance_thermal_profiles import profile_services
 from maintenance_resonance import resonance_services
 from maintenance_filament import filament_services
+from maintenance_auxiliary import auxiliary_services
 import json
 import math
 from pathlib import Path
@@ -116,4 +117,5 @@ def approved_integrations(state, profiles):
     services.extend(profile_services(state))
     services.extend(resonance_services(state))
     services.extend(filament_services(state))
+    services.extend(auxiliary_services(state))
     return tuple(dict.fromkeys(services))

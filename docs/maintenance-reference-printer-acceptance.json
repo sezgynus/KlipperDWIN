@@ -563,8 +563,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Servo-deployed physical [probe], not a BLTouch.",
+      "adapter": "implemented",
+      "note": "Servo-deployed physical [probe], not a BLTouch. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -574,8 +574,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -585,8 +585,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -597,7 +597,7 @@
       "reference": "confirmed",
       "status": "pending",
       "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Existing Leveling function; excluded from Maintenance scope by operator instruction.",
       "acceptance": null
     },
     {
@@ -608,7 +608,7 @@
       "reference": "confirmed",
       "status": "pending",
       "adapter": "not_implemented",
-      "note": "Existing 8x8 bed mesh; existing Petrel mesh UI should be reused.",
+      "note": "Existing 8x8 bed mesh; existing Petrel mesh UI should be reused. Existing Leveling function; excluded from Maintenance scope by operator instruction.",
       "acceptance": null
     },
     {
@@ -619,7 +619,7 @@
       "reference": "confirmed",
       "status": "pending",
       "adapter": "not_implemented",
-      "note": "Manual mesh is not automatic probe accuracy.",
+      "note": "Manual mesh is not automatic probe accuracy. Existing Leveling function; excluded from Maintenance scope by operator instruction.",
       "acceptance": null
     },
     {
@@ -630,7 +630,7 @@
       "reference": "confirmed",
       "status": "pending",
       "adapter": "not_implemented",
-      "note": "Four corner screw-tilt configuration; reuse existing UI.",
+      "note": "Four corner screw-tilt configuration; reuse existing UI. Existing Leveling function; excluded from Maintenance scope by operator instruction.",
       "acceptance": null
     },
     {
@@ -640,8 +640,8 @@
       "method": "AI",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "ADXL345 exists; live readings must still be proved.",
+      "adapter": "implemented",
+      "note": "ADXL345 exists; live readings must still be proved. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -651,8 +651,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "ADXL345 assigned to X and Y only, not Z.",
+      "adapter": "implemented",
+      "note": "ADXL345 assigned to X and Y only, not Z. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -662,8 +662,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "ADXL345 assigned to X and Y only, not Z.",
+      "adapter": "implemented",
+      "note": "ADXL345 assigned to X and Y only, not Z. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -673,8 +673,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -684,8 +684,8 @@
       "method": "K",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -695,8 +695,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -706,8 +706,8 @@
       "method": "E",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -717,8 +717,8 @@
       "method": "AU",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "MMU gate switch sensor dynamically visible through Klipper.",
+      "adapter": "implemented",
+      "note": "MMU gate switch sensor dynamically visible through Klipper. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -728,8 +728,8 @@
       "method": "U",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -739,8 +739,8 @@
       "method": "AU",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Happy Hare 4-gate sensor transitions require a safe MMU state.",
+      "adapter": "implemented",
+      "note": "Happy Hare 4-gate sensor transitions require a safe MMU state. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -750,8 +750,8 @@
       "method": "AU",
       "reference": "conditional",
       "status": "conditional",
-      "adapter": "not_implemented",
-      "note": "Moving selector/gear requires dedicated MMU safety contract; not currently auto-runnable.",
+      "adapter": "implemented",
+      "note": "Moving selector/gear requires dedicated MMU safety contract; not currently auto-runnable. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -761,8 +761,8 @@
       "method": "AU",
       "reference": "conditional",
       "status": "conditional",
-      "adapter": "not_implemented",
-      "note": "Physical encoder installed but no verified maintenance instrumentation yet.",
+      "adapter": "implemented",
+      "note": "Physical encoder installed but no verified maintenance instrumentation yet. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -772,8 +772,8 @@
       "method": "AU",
       "reference": "conditional",
       "status": "conditional",
-      "adapter": "not_implemented",
-      "note": "DWIN LCD exists but checksum/visual diagnostics contract not implemented.",
+      "adapter": "implemented",
+      "note": "DWIN LCD exists but checksum/visual diagnostics contract not implemented. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -783,8 +783,8 @@
       "method": "U",
       "reference": "conditional",
       "status": "conditional",
-      "adapter": "not_implemented",
-      "note": "Brightness control exists but Maintenance self-test integration not implemented.",
+      "adapter": "implemented",
+      "note": "Brightness control exists but Maintenance self-test integration not implemented. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -811,8 +811,8 @@
       "method": "U",
       "reference": "conditional",
       "status": "conditional",
-      "adapter": "not_implemented",
-      "note": "Do not sweep arbitrary servo angles; only verified safe path.",
+      "adapter": "implemented",
+      "note": "Do not sweep arbitrary servo angles; only verified safe path. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     },
     {
@@ -891,8 +891,8 @@
       "method": "U",
       "reference": "conditional",
       "status": "conditional",
-      "adapter": "not_implemented",
-      "note": "Service procedure must be explicitly defined; not a generic automatic physical PASS.",
+      "adapter": "implemented",
+      "note": "Service procedure must be explicitly defined; not a generic automatic physical PASS. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
       "acceptance": null
     }
   ]

@@ -67,23 +67,23 @@
 | [ ] | M10 | `tmc2208 extruder` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M12 | `endstop_phase X` | Endstop phase kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M12 | `endstop_phase Y` | Endstop phase kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | P01 | `probe` | Prob tetikleme | Geliştirilecek | **BEKLİYOR** |
-| [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Geliştirilecek | **BEKLİYOR** |
-| [ ] | P04 | `probe` | Tek prob ölçümü | Geliştirilecek | **BEKLİYOR** |
-| [ ] | P05 | `probe Z-offset` | Prob Z-offset sihirbazı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | P07 | `bed_mesh (probe)` | Otomatik tabla mesh | Geliştirilecek | **BEKLİYOR** |
-| [ ] | P08 | `bed_mesh (manual)` | Manuel tabla mesh | Geliştirilecek | **BEKLİYOR** |
-| [ ] | P11 | `screws_tilt_adjust` | Vida tilt ayarı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | R01 | `adxl345` | İvmeölçer verisi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | R02 | `resonance_tester X` | Eksen rezonansı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | R02 | `resonance_tester Y` | Eksen rezonansı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | R03 | `adxl345` | İvmeölçer gürültü tabanı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | R04 | `input_shaper X/Y` | Input shaper kalibrasyonu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | E01 | `extruder filament path` | Kaba filament ekstrüzyonu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | E02 | `extruder measured length` | Ölçülmüş ekstrüzyon mesafesi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament var/yok sensörü | Geliştirilecek | **BEKLİYOR** |
-| [ ] | E07 | `extruder + MMU filament path` | Filament yolu hareketi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensör testi | Geliştirilecek | **BEKLİYOR** |
+| [ ] | P01 | `probe` | Prob tetikleme | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | P04 | `probe` | Tek prob ölçümü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | P05 | `probe Z-offset` | Prob Z-offset sihirbazı | Leveling’de; Maintenance dışında | **BEKLİYOR** |
+| [ ] | P07 | `bed_mesh (probe)` | Otomatik tabla mesh | Leveling’de; Maintenance dışında | **BEKLİYOR** |
+| [ ] | P08 | `bed_mesh (manual)` | Manuel tabla mesh | Leveling’de; Maintenance dışında | **BEKLİYOR** |
+| [ ] | P11 | `screws_tilt_adjust` | Vida tilt ayarı | Leveling’de; Maintenance dışında | **BEKLİYOR** |
+| [ ] | R01 | `adxl345` | İvmeölçer verisi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | R02 | `resonance_tester X` | Eksen rezonansı | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | R02 | `resonance_tester Y` | Eksen rezonansı | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | R03 | `adxl345` | İvmeölçer gürültü tabanı | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | R04 | `input_shaper X/Y` | Input shaper kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | E01 | `extruder filament path` | Kaba filament ekstrüzyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | E02 | `extruder measured length` | Ölçülmüş ekstrüzyon mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament var/yok sensörü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | E07 | `extruder + MMU filament path` | Filament yolu hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensör testi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 
 ## Ek kanıt veya güvenli entegrasyon gerektirenler
 
@@ -91,12 +91,12 @@
 |---|---|---|---|---|---|
 | [ ] | F13 | `guarded fan/heater comparison` | Fan termal A/B karşılaştırması | Geliştirilecek | **KOŞULLU** |
 | [ ] | H15 | `co-located calibrated sensor pair` | Eşlenmiş sıcaklık sensörü sapması | Geliştirilecek | **KOŞULLU** |
-| [ ] | E12 | `Happy Hare gear and selector` | MMU mekanik tanılama | Geliştirilecek | **KOŞULLU** |
-| [ ] | S15 | `Petrel encoder` | Petrel enkoder tanılama | Geliştirilecek | **KOŞULLU** |
-| [ ] | S16 | `DWIN LCD` | LCD tanılama | Geliştirilecek | **KOŞULLU** |
-| [ ] | S17 | `DWIN backlight` | LCD arka ışık testi | Geliştirilecek | **KOŞULLU** |
-| [ ] | O02 | `approved servo and deploy/stow path` | Güvenli servo hareketi | Geliştirilecek | **KOŞULLU** |
-| [ ] | O06 | `user-defined physical servicing` | Kılavuzlu bakım | Geliştirilecek | **KOŞULLU** |
+| [ ] | E12 | `Happy Hare gear and selector` | MMU mekanik tanılama | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
+| [ ] | S15 | `Petrel encoder` | Petrel enkoder tanılama | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
+| [ ] | S16 | `DWIN LCD` | LCD tanılama | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
+| [ ] | S17 | `DWIN backlight` | LCD arka ışık testi | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
+| [ ] | O02 | `approved servo and deploy/stow path` | Güvenli servo hareketi | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
+| [ ] | O06 | `user-defined physical servicing` | Kılavuzlu bakım | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
 
 ## Donanımı bulunmayanlar
 
@@ -122,3 +122,5 @@
 **H uygulama durumu:** Referans yazıcının 16 fiziksel H hedefinin adaptörleri hazır; hiçbirinin fiziksel kabulü henüz yapılmadı. Toplu test sırası ve H01–H18 kapsamı için [termal rehber](maintenance-thermal_TR.md).
 
 **M uygulama durumu:** 22 doğrulanmış M hedefinde adaptör mevcut; fiziksel kabul henüz yok. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
+
+**P/R/E/S/O geliştirme kaydı (17 Ekim 2026):** Grup adaptörleri ve regresyonları eklendi; hiçbir yeni fiziksel kabul verilmedi. Probe Calibration, Bed Mesh ve Screws Tilt mevcut Leveling’de kalır. Koşullu profil/kaynak gereksinimleri sürer. Rehberler: [P](maintenance-probe_TR.md), [R](maintenance-resonance_TR.md), [E](maintenance-filament_TR.md), [S](maintenance-system_TR.md), [O](maintenance-auxiliary_TR.md). Genel bütünleştirme bu çalışmaya dahil değildir.

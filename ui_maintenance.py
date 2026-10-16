@@ -71,7 +71,7 @@ class MaintenanceViewMixin:
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
                               feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
-                if feature_id and (feature_id.startswith(('P','R','E')) or feature_id in ('S15','S16','S17')):
+                if feature_id and (feature_id.startswith(('P','R','E','O')) or feature_id in ('S15','S16','S17')):
                     return 'Confirm '+feature_id, (
                         ('Cancel', self.ICON_Back, None, None),
                         ('Start firmware workflow', self.ICON_Info, None, None),
@@ -140,7 +140,7 @@ class MaintenanceViewMixin:
                             ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
                             ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
                 if (getattr(self.pd.maintenance_pulse,'feature_id',None) in ('S15','S16','S17') or
-                        (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith(('P','R','E'))):
+                        (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith(('P','R','E','O'))):
                     return 'Firmware workflow', (
                         ('Stop / cancel workflow', self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None)

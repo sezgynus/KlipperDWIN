@@ -222,7 +222,12 @@ class MaintenanceViewMixin:
                 self._maintenance_result = result
                 self._maintenance_show('result')
                 return
-            if before != pulse.phase:
+            f12_live = (pulse.phase == 'running' and
+                        getattr(pulse, 'feature_id', None) == 'F12')
+            f12_step = (pulse.f12_status[1] if f12_live and pulse.f12_status else None)
+            if before != pulse.phase or (f12_live and
+                    getattr(self, '_maintenance_f12_step_seen', None) != f12_step):
+                self._maintenance_f12_step_seen = f12_step
                 self._maintenance_selection = 0
                 self.Draw_Maintenance_Menu()
                 self.lcd.update()

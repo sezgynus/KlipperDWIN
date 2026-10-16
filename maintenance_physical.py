@@ -480,7 +480,10 @@ class MaintenancePulseController:
         # replay ambiguous physical writes.
         extended = (program.feature_id in ('F02', 'F12')
                     or (program.feature_id == 'O04' and program.managed_hh))
-        http_timeout = min(15.0, program.duration_ms / 1000 + 4.0) if extended else None
+        http_timeout = (min(27.0, program.duration_ms / 1000 + 6.0)
+                        if program.feature_id == 'F12' else
+                        min(15.0, program.duration_ms / 1000 + 4.0)
+                        if extended else None)
         options = {'json': {'script': program.script},
                    'report_error': False, 'dispatch_guard': guard}
         if extended:
@@ -498,7 +501,7 @@ class MaintenancePulseController:
         # Time for bounded script, HTTP response, and a limited serialized
         # queue wait. Timeout still fail-closes as ambiguous without replay.
         self._deadline = monotonic() + (
-            min(18.0, http_timeout + 4.0) if extended else 9.0)
+            min(33.0, http_timeout + 4.0) if extended else 9.0)
         return True, 'bounded_pulse_queued'
 
     def observe(self, seen):

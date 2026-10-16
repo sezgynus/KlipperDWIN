@@ -73,21 +73,28 @@ class PhysicalPulseTests(unittest.TestCase):
         self.assertTrue(restored(p, status))
         self.assertFalse(restored(p, {'fan': {'speed': .9}}))
 
-    def test_f12_bounded_threshold_sweep_and_restoration(self):
+    def test_f12_adaptive_five_stage_restoration_and_safety(self):
         snap, settings, status = environment(('F12',))
         settings['fan'].update({'off_below': .05, 'max_power': .95, 'min_power': .0})
+        status['fan']['speed'] = 0.0
         p = compile_pulse(guided_plan(snap)[0], snap, status, settings)
         self.assertEqual(p.feature_id, 'F12')
-        self.assertEqual(len(p.pwm_levels), 5)
-        self.assertEqual(tuple(sorted(set(p.pwm_levels))), p.pwm_levels)
-        self.assertEqual(p.duration_ms, 9000)
-        self.assertEqual(p.script.count('G4 P1800'), 5)
-        self.assertTrue(p.script.endswith('M106 S89'))
+        self.assertEqual(p.pwm_levels, (25, 50, 76, 101, 127))
+        self.assertEqual(p.duration_ms, 17500)
+        self.assertEqual(p.script.count('G4 P2000'), 5)
+        self.assertEqual(p.script.count('M106 S0'), 10)
+        self.assertTrue(p.script.endswith('M106 S0\\nM400'))
         self.assertTrue(restored(p, status))
-        self.assertFalse(restored(p, {'fan': {'speed': .80}}))
-        settings['fan']['max_power'] = .18
-        with self.assertRaisesRegex(ValueError, 'fan_pwm_range_unavailable'):
+        from maintenance_f12 import F12Bracket
+        from maintenance_pulse import f12_round_program
+        next_program = f12_round_program(p, F12Bracket(76, 101))
+        self.assertEqual(next_program.pwm_levels, (81, 86, 91, 96, 101))
+        self.assertEqual(next_program.script.count('G4 P2000'), 5)
+        self.assertTrue(next_program.script.endswith('M106 S0\\nM400'))
+        status['fan']['speed'] = .35
+        with self.assertRaisesRegex(ValueError, 'f12_requires_fan_initially_off'):
             compile_pulse(guided_plan(snap)[0], snap, status, settings)
+        status['fan']['speed'] = 0.0
 
     def test_f02_blocks_unusable_limits_and_invalid_baseline(self):
         snap, settings, status = environment(('F02',))

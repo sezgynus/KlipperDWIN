@@ -58,9 +58,12 @@ class MaintenanceViewMixin:
                               feature_id, 'Run short pulse')
                 return 'Confirm test', (('Cancel', self.ICON_Back, None, None),
                                         (action, self.ICON_FanSpeed, None, None))
+            if phase == 'f12_await_stop':
+                return 'Fan fully stopped?', (('Cancel', self.ICON_Back, None, None),
+                                              ('Yes, stopped', self.ICON_Info, None, None))
             if phase == 'await_observation' and getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12':
                 levels = self.pd.maintenance_pulse.pwm_levels
-                return 'First stable PWM?', ((('None stable', self.ICON_Back, None, None),)
+                return 'First fan startup?', ((('None stable', self.ICON_Back, None, None),)
                     + tuple(('%d: %d/255' % (i + 1, val), self.ICON_FanSpeed, None, None)
                             for i, val in enumerate(levels)))
             if phase == 'await_observation':
@@ -69,6 +72,14 @@ class MaintenanceViewMixin:
                 return question[:27], (('Not observed', self.ICON_Back, None, None),
                                        ('Yes, observed', self.ICON_Info, None, None))
             if phase in ('preflight', 'running', 'verifying'):
+                if phase == 'running' and getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12':
+                    info = self.pd.maintenance_pulse.f12_status
+                    if info:
+                        round_no, step, pwm, low, high = info
+                        return ('F12 Round %d Step %d' % (round_no, step)), (
+                            ('Cancel test', self.ICON_Back, None, None),
+                            ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
+                            ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
                 text = {'preflight': 'Safety checks...', 'running': 'Testing...',
                         'verifying': 'Checking restore...'}[phase]
                 return 'Self Test', (('Cancel test', self.ICON_Back, None, None),
@@ -172,6 +183,19 @@ class MaintenanceViewMixin:
                 if outcome is not None:
                     self._maintenance_result = outcome
                     self._maintenance_show('result')
+            elif phase == 'f12_await_stop':
+                if selected == 0:
+                    outcome = self.pd.cancel_maintenance_physical()
+                    self._maintenance_result = outcome
+                    self._maintenance_show('result')
+                else:
+                    outcome, reason = self.pd.confirm_maintenance_f12_stopped()
+                    if outcome is True:
+                        self._maintenance_show('pulse')
+                    else:
+                        self._maintenance_result = outcome if outcome is not None else SimpleNamespace(
+                            status='BLOCKED', reason=reason)
+                        self._maintenance_show('result')
             elif selected == 0:
                 # During a sent pulse cancel means 'abort after restoration'.
                 outcome = self.pd.cancel_maintenance_physical()

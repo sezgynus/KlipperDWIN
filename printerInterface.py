@@ -493,6 +493,9 @@ class PrinterData:
     def observe_maintenance_physical(self, seen):
         return self.maintenance_pulse.observe(seen)
 
+    def confirm_maintenance_f12_stopped(self):
+        return self.maintenance_pulse.f12_confirm_stopped()
+
     def cancel_maintenance_physical(self):
         return self.maintenance_pulse.cancel()
 

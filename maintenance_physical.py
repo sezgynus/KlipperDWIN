@@ -14,7 +14,8 @@ from time import monotonic
 from urllib.parse import quote
 
 from maintenance_guided import guided_plan, GuidedConsentGate
-from maintenance_pulse import compile_pulse, compile_mmu_led_pulse, restored
+from maintenance_pulse import compile_pulse, compile_mmu_led_pulse, restored, f12_round_program
+from maintenance_f12 import F12Bracket
 from maintenance_hh_leds import mmu_led_owners
 from maintenance_runtime import read_queue_evidence, live_safety_context
 from maintenance_safety import MaintenanceSafetyCoordinator
@@ -129,7 +130,7 @@ class MaintenancePulseController:
                  '_row', '_program', '_evidence', '_future', '_phase',
                  '_deadline', '_token', '_buzzer', '_cancelled', '_closed',
                  '_blocked', '_command_started', '_verify_next_at',
-                 '_verify_matches', '_verify_problem')
+                 '_verify_matches', '_verify_problem', '_f12_bracket', '_f12_round_started')
 
     def __init__(self, printer, worker, client):
         self._printer = printer
@@ -152,6 +153,8 @@ class MaintenancePulseController:
         self._verify_next_at = 0.0
         self._verify_matches = 0
         self._verify_problem = None
+        self._f12_bracket = None
+        self._f12_round_started = 0.0
 
     @property
     def phase(self):
@@ -165,6 +168,18 @@ class MaintenancePulseController:
     def feature_id(self):
         """Public active-test identity for context-appropriate LCD labels."""
         return self._row.feature_id if self._row is not None else None
+
+    @property
+    def f12_status(self):
+        if self._f12_bracket is None or self._program is None:
+            return None
+        elapsed = max(0.0, monotonic() - self._f12_round_started)
+        # Approximate UI phase only: G-code is serialized in Klipper. The
+        # current commanded index is not claimed as electronic readback.
+        index = min(4, int(elapsed / 3.5)) if self._phase == 'running' else 4
+        return (self._f12_bracket.stage + 1, index + 1,
+                self._program.pwm_levels[index],
+                self._f12_bracket.low, self._f12_bracket.high)
 
     @property
     def pwm_levels(self):
@@ -193,6 +208,8 @@ class MaintenancePulseController:
                 and id(self._printer.state.settings) == row.config_marker)
 
     def _release(self):
+        self._f12_bracket = None
+        self._f12_round_started = 0.0
         self._gate.cancel()
         self._safety.clear()
         self._row = self._program = self._evidence = self._future = None
@@ -311,6 +328,10 @@ class MaintenancePulseController:
             if found is None:
                 return self._finish('BLOCKED', 'preflight_not_verified')
             evidence, program = found
+            if self._row.feature_id == 'F12':
+                if self._f12_bracket is None:
+                    self._f12_bracket = F12Bracket(0, 127)
+                program = f12_round_program(program, self._f12_bracket)
             self._evidence, self._program = evidence, program
             snapshot = self._snapshot()
             token, reason = self._gate.arm(
@@ -420,6 +441,8 @@ class MaintenancePulseController:
                     else 'restore_readback_unavailable')
             self._verify_next_at = now + _VERIFY_RETRY_INTERVAL_S
             return None
+        if self._phase == 'f12_await_stop' and now >= self._deadline:
+            return self._finish('INCONCLUSIVE', 'fan_stop_not_confirmed', True)
         if self._phase == 'await_observation' and now >= self._deadline:
             # S18 has no Klipper readback: an expired user-observation window
             # must never imply that the output was restored.
@@ -464,6 +487,8 @@ class MaintenancePulseController:
             options['request_timeout'] = http_timeout
         try:
             self._command_started = monotonic()
+            if program.feature_id == 'F12':
+                self._f12_round_started = self._command_started
             self._future = self._printer.postREST(
                 '/printer/gcode/script', **options)
         except Exception:
@@ -481,16 +506,15 @@ class MaintenancePulseController:
         if self._phase != 'await_observation':
             return None
         if self._program.feature_id == 'F12':
-            # Selection is an observed first stable commanded M106 step,
-            # not a measured RPM or calibrated electrical PWM threshold.
-            if type(seen) is not int or not 0 <= seen <= len(self._program.pwm_levels):
+            if type(seen) is not int or not 0 <= seen <= 5:
                 return None
-            if seen == 0:
-                return self._finish('FAILED_USER', 'no_stable_rotation_observed', True)
-            level = self._program.pwm_levels[seen - 1]
-            return self._finish('PASSED_USER',
-                                'first_stable_commanded_M106_S%d_of_%d' %
-                                (level, len(self._program.pwm_levels)), True)
+            try:
+                self._f12_bracket = self._f12_bracket.next(seen)
+            except ValueError:
+                return self._finish('INCONCLUSIVE', 'f12_contradictory_or_invalid_observation', True)
+            self._phase = 'f12_await_stop'
+            self._deadline = monotonic() + 30
+            return None
         if type(seen) is not bool:
             return None
         if self._program.managed_hh:
@@ -513,6 +537,25 @@ class MaintenancePulseController:
                 else 'buzzer_not_observed_or_not_stopped', False)
         return self._finish('PASSED_USER' if seen else 'FAILED_USER',
                             'explicit_user_observation', True)
+
+    def f12_confirm_stopped(self):
+        """Operator confirms physical zero RPM; Klipper speed=0 was already read back."""
+        if self._phase != 'f12_await_stop' or self._f12_bracket is None:
+            return None, 'not_waiting_for_stop'
+        bracket = self._f12_bracket
+        if bracket.high == bracket.low == 255:
+            return self._finish('FAILED_USER', 'fan_never_started_at_full_pwm', True), 'finished'
+        if bracket.resolved:
+            return self._finish('PASSED_USER',
+                                'f12_observed_M106_threshold_S%d_to_S%d' %
+                                (bracket.low, bracket.high), True), 'finished'
+        # Fresh preflight + fresh explicit user consent before another round.
+        # Release the previous consent/transport state but retain search data.
+        self._release()
+        allowed, reason = self.start('F12', 'fan')
+        if allowed:
+            self._f12_bracket = bracket
+        return allowed, reason
 
     def cancel(self):
         if not self.pending:

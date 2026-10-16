@@ -10,6 +10,10 @@
 
 LCD arayüzü ve gerçek Pi aktüatör kabulü ayrı doğrulanmalıdır; CI taklitleri fiziksel donanımın çalıştığını kanıtlamaz.
 
+## F12 adaptif beş kademeli arama
+
+F12 ilk turda %0–50 aralığını 2 saniyelik beş artan M106 kademe komutuyla tarar. Her kademe öncesinde OFF ve 1,5 saniyelik bekleme bulunur, bitiminde tekrar OFF uygulanır. LCD turu ve öngörülen adımı gösterir; zamanlar fan takometre ölçümü değildir. Geri yükleme doğrulanınca kullanıcı ilk kalkış görülen kademeyi veya None seçer. Aralık son başarısız ve ilk başarılı adım arasına daralır; None ilk üst aralığa geçer. Sonraki iterasyondan önce kullanıcı fanın fiziksel durduğunu onaylar ve yeni önkontrol/çalıştırma onayı gerekir. Başlangıç fanı kapalı olmalıdır. Fiziksel durma otomatik beklemeden kesin olarak çıkarılamaz; fan kademe arasında durmadıysa kabul verilmemelidir.
+
 ## F12 — kullanıcı gözlemli minimum kullanılabilir fan komutu
 
 F12, mevcut parça soğutma fanının ön kontrol, ikinci kullanıcı onayı, güvenlik ve iki ayrı geri yükleme okumasını kullanır. Test, doğrulanmış `off_below`/`max_power` aralığında yükselen beş M106 S kademesini 1,8'er saniye uygular ve aynı sınırlı G-code programının sonunda başlangıç hızına döner. LCD'de kararlı dönmenin görüldüğü **ilk** kademe veya “None stable” seçilir. Sonuç yalnızca komutlanan M106 düzeyini gösterir; RPM ölçümü ya da gerçek elektriksel PWM eşiği değildir. Başlatmadan önce fanın serbest olduğundan ve yazıcının güvenli/boşta olduğundan emin olun. Eksik gözlemde başarısız seçin ve fanın eski haline döndüğünü doğrulamadan yeniden denemeyin. Zaman aşımı veya geri yükleme doğrulama hatası PASS üretmez.

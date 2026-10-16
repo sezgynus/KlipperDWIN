@@ -3,7 +3,7 @@
 This is a pure compiler, NEVER a command dispatcher. Unknown, dynamic, or
 unverifiable hardware is rejected. Commanded PWM is not measured RPM.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from collections.abc import Mapping
 import math
 import re
@@ -23,9 +23,9 @@ _LED_FRAMES = (
     ('green', (0., 1., 0., 0.)),
     ('white', (1., 1., 1., 0.)),
 )
-_F12_STEP_MS = 1800  # five ascending, operator-observed command levels
+_F12_STEP_MS = 2000  # five ascending, operator-observed command levels
 _FAN_STEP_MS = 2000  # user-observable F02 speed changes, 3 bounded stages
-_PULSE_MS = {'F01': 950, 'F04': 950, 'F02': 3 * _FAN_STEP_MS, 'F12': 5 * _F12_STEP_MS, 'O03': 850,
+_PULSE_MS = {'F01': 950, 'F04': 950, 'F02': 3 * _FAN_STEP_MS, 'F12': 5 * (_F12_STEP_MS + 1500), 'O03': 850,
              'O04': 4 * _LED_STEP_MS, 'S18': 150}
 
 
@@ -160,22 +160,18 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
             raise ValueError('fan_speed_unavailable')
         levels_for_user = ()
         if feature == 'F12':
+            if original != 0:
+                raise ValueError('f12_requires_fan_initially_off')
             lo, hi = cfg.get('off_below', 0), cfg.get('max_power', 1)
             lower = cfg.get('min_power', 0)
-            if (not all(_unit(v) for v in (lo, hi, lower))
-                    or hi <= lo or hi - lo < .35):
+            if not all(_unit(v) for v in (lo, hi, lower)):
                 raise ValueError('fan_pwm_range_unavailable')
-            # Five bounded commanded M106 duty steps, not measured RPM or
-            # guaranteed electrical PWM after Klipper fan scaling.
-            values = tuple(round((lo + (hi - lo) * fraction) * 255)
-                           for fraction in (.10, .20, .30, .40, .50))
-            if len(set(values)) != 5 or any(v < 1 or v > 255 for v in values):
-                raise ValueError('fan_pwm_resolution_insufficient')
+            from maintenance_f12 import F12Bracket
+            values = F12Bracket(0, 127).levels()
             levels_for_user = values
             start = '\n'.join('M106 S%d' % v for v in values)
-            restore = 'M106 S%d' % round(original * 255)
-            observation = ('Lowest stable fan rotation? Choose first stable '
-                           'level among the five observed stages (not RPM).')
+            restore = 'M106 S0'
+            observation = 'First stage with fan startup? 0 means none.'
         elif feature == 'F02':
             # Do not infer measured RPM from PWM. Validate a meaningful
             # control range using the *effective* fan configuration.
@@ -305,8 +301,8 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
             restore, start, duration, restore)
         duration += 50
     elif feature == 'F12':
-        script = '\n'.join('%s\nG4 P%d' % (line, _F12_STEP_MS)
-                           for line in start.splitlines()) + '\n' + restore
+        script = '\n'.join('M106 S0\nG4 P1500\nM400\n%s\nG4 P%d\nM400\nM106 S0\nM400' % (line, _F12_STEP_MS)
+                           for line in start.splitlines())
     elif feature == 'F02':
         script = '\n'.join('%s\nG4 P%d' % (line, _FAN_STEP_MS)
                            for line in start.splitlines()) + '\n' + restore
@@ -316,7 +312,7 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
         script += '\n' + restore
     else:
         script = '%s\nG4 P%d\n%s' % (start, duration, restore)
-    if '\r' in script or len(script) > (_MAX_LED_SCRIPT if feature == 'O04' else 300):
+    if '\r' in script or len(script) > (_MAX_LED_SCRIPT if feature == 'O04' else 700):
         raise ValueError('unsafe_program')
     from urllib.parse import quote
     endpoint = ('' if feature == 'S18'
@@ -324,6 +320,24 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
     return PulseProgram(feature, row.device, endpoint, object_name, evidence,
                         start, restore, script, duration, observation,
                         pwm_levels=levels_for_user if feature == 'F12' else ())
+
+
+def f12_round_program(program, bracket):
+    """Replace the initial F12 sweep with its next five-level search bracket."""
+    from maintenance_f12 import F12Bracket
+    if (not isinstance(program, PulseProgram) or program.feature_id != 'F12'
+            or program.original != (0.0,) or not isinstance(bracket, F12Bracket)):
+        raise ValueError('invalid_f12_round')
+    values = bracket.levels()
+    if len(values) != 5 or len(set(values)) != 5:
+        raise ValueError('f12_resolution_reached')
+    script = '\n'.join(
+        'M106 S0\nG4 P1500\nM400\nM106 S%d\nG4 P%d\nM400\nM106 S0\nM400'
+        % (v, _F12_STEP_MS) for v in values)
+    return replace(program, stimulus='\n'.join('M106 S%d' % v for v in values),
+                   script=script, pwm_levels=values,
+                   duration_ms=5 * (_F12_STEP_MS + 1500))
+
 
 
 

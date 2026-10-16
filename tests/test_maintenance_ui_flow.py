@@ -59,6 +59,7 @@ class MaintenanceUIFlows(unittest.TestCase):
         for feature, expected in (
                 ('F01', 'Run short pulse'),
                 ('F02', 'Run speed steps'),
+                ('O03', 'Run short pulse'),
                 ('O04', 'Run color sequence'),
                 ('S18', 'Run short pulse')):
             with self.subTest(feature=feature):
@@ -69,6 +70,19 @@ class MaintenanceUIFlows(unittest.TestCase):
                 self.assertEqual(entries[1][0], expected)
                 self.assertLessEqual(len(entries[1][0]), 26)
         # The label must not trigger a second confirmation on its own.
+        d.pd.client.get.assert_not_called()
+
+    def test_new_auxiliary_controllers_use_their_own_live_confirmation(self):
+        d = self.setup_view()
+        d._maintenance_page = 'pulse'
+        d.pd.maintenance_pulse.phase = 'await_confirmation'
+        d.pd.maintenance_pulse.live_text = ('Declared safe operation',)
+        for feature in ('O01','O02','O06'):
+            d.pd.maintenance_pulse.feature_id = feature
+            title,entries = d._maintenance_rows()
+            self.assertEqual(title,'Confirm '+feature)
+            self.assertEqual(entries[1][0],'Start firmware workflow')
+            self.assertIn('Declared safe operation',[row[0] for row in entries])
         d.pd.client.get.assert_not_called()
 
     def test_s18_ui_uses_backend_profile_instead_of_panel_buzzer(self):

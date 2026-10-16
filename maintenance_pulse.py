@@ -14,9 +14,17 @@ from maintenance_hh_leds import mmu_led_owners, mmu_unit_indices
 _NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,47}\Z')
 _TONE = 0.000625  # 1600 Hz; one 150-ms chirp
 _MAX_LED_CHAIN = 32  # bounded status, script length and restoration footprint
-_MAX_LED_SCRIPT = 7200
+_MAX_LED_SCRIPT = 26000  # 4 bounded color frames, maximum 32 LEDs
+_LED_STEP_MS = 650
+_HH_EFFECT_S = 0.4  # HH timed return fires before the next 650 ms frame
+_LED_FRAMES = (
+    ('red', (1., 0., 0., 0.)),
+    ('blue', (0., 0., 1., 0.)),
+    ('green', (0., 1., 0., 0.)),
+    ('white', (1., 1., 1., 0.)),
+)
 _PULSE_MS = {'F01': 950, 'F04': 950, 'O03': 850,
-             'O04': 750, 'S18': 150}
+             'O04': 4 * _LED_STEP_MS, 'S18': 150}
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,13 +86,11 @@ def _led_managed(settings, target):
     return False
 
 
-def _led_stimulus(original):
-    # Choose a low-current visible color different from the captured state.
-    options = ((0., .35, 0., 0.), (0., 0., .35, 0.), (.35, 0., 0., 0.))
-    for option in options:
-        if any(abs(a - b) >= .1 for a, b in zip(original, option)):
-            return option
-    return options[-1]
+def _led_frame(name, *, has_white):
+    """RGB channels at full scale, use dedicated W for RGBW white."""
+    if name == 'white' and has_white:
+        return (0., 0., 0., 1.)
+    return dict(_LED_FRAMES)[name]
 
 
 def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
@@ -165,7 +171,14 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
         count = cfg.get('chain_count', 1)
         if type(count) is not int or count != len(colors):
             raise ValueError('led_chain_count_mismatch')
-        has_white = bool(cfg.get('white_pin')) if kind == 'led' else False
+        if kind == 'led':
+            if any(not isinstance(cfg.get(pin), str) or not cfg[pin].strip()
+                   for pin in ('red_pin', 'green_pin', 'blue_pin')):
+                # A monochromatic [led] must not be offered an RGB test.
+                raise ValueError('led_rgb_channels_not_configured')
+            has_white = bool(cfg.get('white_pin'))
+        else:
+            has_white = False
         if kind != 'led':
             order = cfg.get('color_order', 'RGB')
             if not isinstance(order, str):
@@ -189,17 +202,23 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
                 raise ValueError('led_white_not_supported')
             originals.append(rgba)
         original = tuple(originals)
-        stimuli = tuple(_led_stimulus(color) for color in original)
-        # Batch changes; only the last indexed command transmits a frame.
-        start = '\n'.join(_command(name, value, index=i,
-                                  transmit=i == len(stimuli), white=has_white)
-                          for i, value in enumerate(stimuli, 1))
-        restore = '\n'.join(_command(name, value, index=i,
-                                    transmit=i == len(original), white=has_white)
-                            for i, value in enumerate(original, 1))
+        frames = []
+        for color_name, _ in _LED_FRAMES:
+            rgbw = _led_frame(color_name, has_white=has_white)
+            # Each complete indexed frame is transmitted once. Every pixel
+            # receives the same color at maximum per-channel brightness.
+            frames.append('\n'.join(
+                _command(name, rgbw, index=i, transmit=i == len(original),
+                         white=has_white)
+                for i in range(1, len(original) + 1)))
+        start = '\n'.join(frames)
+        restore = '\n'.join(_command(
+            name, value, index=i, transmit=i == len(original), white=has_white)
+            for i, value in enumerate(original, 1))
         evidence = original
         object_name = target
-        observation = 'Did every LED in the selected chain briefly change?'
+        observation = ('Did all RGB LEDs show red, blue, green, white '
+                       'at full brightness, then return to normal?')
     elif feature == 'S18':
         # pwm_cycle_time has NO get_status() and no live readback. The only
         # allowed baseline is an explicit OFF config, not invented telemetry.
@@ -232,6 +251,10 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
         script = '%s\nG4 P50\n%s\nG4 P%d\n%s' % (
             restore, start, duration, restore)
         duration += 50
+    elif feature == 'O04':
+        script = '\n'.join(
+            part for frame in frames for part in (frame, 'G4 P%d' % _LED_STEP_MS))
+        script += '\n' + restore
     else:
         script = '%s\nG4 P%d\n%s' % (start, duration, restore)
     if '\r' in script or len(script) > (_MAX_LED_SCRIPT if feature == 'O04' else 300):
@@ -243,18 +266,6 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
                         start, restore, script, duration, observation)
 
 
-
-
-def _hh_color(pixels):
-    """Choose a dim test color distinguishable from every mapped LED value."""
-    choices = ((0., .35, 0., 0.), (0., 0., .35, 0.),
-               (.35, 0., 0., 0.), (.22, .16, .33, 0.),
-               (.32, .28, .05, 0.))
-    for color in choices:
-        if all(any(abs(a - b) >= .08 for a, b in zip(color, old))
-               for old in pixels):
-            return color
-    raise ValueError('mmu_led_test_color_not_distinguishable')
 
 
 def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, machine_status=None):
@@ -299,30 +310,50 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, mach
                 and isinstance(effect, Mapping) and isinstance(effect.get('leds'), str)
                 and direct.search(effect['leds'])):
             raise ValueError('independent_led_effect_owner')
-    # HH owns entire configured segments, which may be subsets of a physical
-    # chain; never command any other segment or unnamed physical LED.
-    controls_expected, scripts, affected = [], [], set()
+    # HH controls the effective virtual LED segments, not the physical
+    # neopixel directly. Validate all segment readbacks before compiling.
+    # Require RGB-capable hardware; a monochrome object cannot do R/B/G/W.
+    if kind == 'led' and any(not isinstance(cfg.get(pin), str) or
+                              not cfg[pin].strip()
+                              for pin in ('red_pin', 'green_pin', 'blue_pin')):
+        raise ValueError('led_rgb_channels_not_configured')
+    if kind != 'led':
+        order = cfg.get('color_order', 'RGB')
+        if (not isinstance(order, str) or
+                any(set(x.strip().upper()) not in (set('RGB'), set('RGBW'))
+                    or len(x.strip()) not in (3, 4)
+                    for x in order.split(','))):
+            raise ValueError('led_color_order_unsupported')
+    controls_expected, affected = [], set()
     for owner, unit_index in zip(owners, unit_indices):
         current = controls.get(owner.section)
         if (not isinstance(current, Mapping) or current.get('enabled') is not True
                 or type(current.get('animation')) is not bool):
             raise ValueError('mmu_led_not_enabled_or_readable')
-        args = []
         for segment, indexes in owner.segments:
-            # The virtual segment count must agree with config mapping.
-            if (type(current.get(segment)) is not int
-                    or current[segment] != len(indexes)):
+            if (type(current.get(segment)) is not int or
+                    current[segment] != len(indexes)):
                 raise ValueError('mmu_led_segment_status_mismatch')
             affected.update(indexes)
-            rgb = _hh_color([colors[index - 1] for index in indexes])
-            args.append('%s_EFFECT=(%.3f,%.3f,%.3f)' % (
-                segment.upper(), rgb[0], rgb[1], rgb[2]))
-        scripts.append('MMU_SET_LED UNIT=%d %s DURATION=1 FADETIME=0' % (
-            unit_index, ' '.join(args)))
         controls_expected.append((owner.section, True, current['animation']))
     if not affected:
         raise ValueError('mmu_led_no_mapped_pixels')
-    script = '\n'.join(scripts)
+    # HH blocks/defers a second *timed* effect on the same unit while
+    # pending_update is set. Each frame therefore expires autonomously in
+    # 400ms; the next frame begins only after a 650ms G4 dwell. Never
+    # disable HH or send raw SET_LED into HH's physical chain.
+    instructions = []
+    for color_name, rgba in _LED_FRAMES:
+        for owner, unit_index in zip(owners, unit_indices):
+            args = ' '.join(
+                '%s_EFFECT=(%.3f,%.3f,%.3f)' % (
+                    segment.upper(), rgba[0], rgba[1], rgba[2])
+                for segment, _ in owner.segments)
+            instructions.append(
+                'MMU_SET_LED UNIT=%d %s DURATION=%.2f FADETIME=0' % (
+                    unit_index, args, _HH_EFFECT_S))
+        instructions.append('G4 P%d' % _LED_STEP_MS)
+    script = '\n'.join(instructions)
     if '\r' in script or len(script) > _MAX_LED_SCRIPT:
         raise ValueError('unsafe_mmu_led_program')
     from urllib.parse import quote
@@ -331,9 +362,10 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, mach
     return PulseProgram(
         'O04', row.device, read_path, owners[0].section,
         tuple(controls_expected), script,
-        'Happy Hare 1s timed return to current default policy',
-        script, 1500 + 150 * (len(owners) - 1),
-        'Did the mapped MMU LEDs briefly change and return to normal?',
+        'Happy Hare per-frame timed return to current default policy',
+        script, 4 * _LED_STEP_MS + 150 * (len(owners) - 1),
+        ('Did all mapped MMU LEDs show red, blue, green, white at '
+         'full brightness, then return to normal?'),
         managed_hh=True, hh_controls=tuple(item[0] for item in controls_expected))
 
 

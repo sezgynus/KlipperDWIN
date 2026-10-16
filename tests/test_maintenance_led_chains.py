@@ -40,26 +40,34 @@ def fixture(colors=None, *, order='GRB', extra_settings=None):
 
 
 class LedChainTests(unittest.TestCase):
-    def test_four_leds_indexed_batched_and_full_restore(self):
+    def test_four_leds_full_brightness_red_blue_green_white_and_restore(self):
         row, snap, status, settings = fixture()
         p = compile_pulse(row, snap, status, settings)
-        self.assertEqual(p.duration_ms, 750)
+        self.assertEqual(p.duration_ms, 2600)
         self.assertEqual(len(p.original), 4)
-        self.assertEqual(len(p.stimulus.splitlines()), 4)
+        self.assertEqual(len(p.stimulus.splitlines()), 16)
         self.assertEqual(len(p.restore.splitlines()), 4)
-        self.assertIn('G4 P750', p.script)
+        self.assertEqual(p.script.count('G4 P650'), 4)
         self.assertNotIn('WHITE=', p.script)
-        for i, line in enumerate(p.stimulus.splitlines(), 1):
-            self.assertIn('INDEX=%d' % i, line)
-            self.assertIn('TRANSMIT=%d' % (i == 4), line)
-            self.assertIn('SYNC=0', line)
+        frames = p.stimulus.splitlines()
+        expected = [(1., 0., 0.), (0., 0., 1.),
+                    (0., 1., 0.), (1., 1., 1.)]
+        for phase, rgb in enumerate(expected):
+            for i in range(4):
+                line = frames[phase * 4 + i]
+                self.assertIn('INDEX=%d' % (i + 1), line)
+                self.assertIn('TRANSMIT=%d' % (i == 3), line)
+                self.assertIn('SYNC=0', line)
+                for channel, intensity in zip(('RED', 'GREEN', 'BLUE'), rgb):
+                    self.assertIn('%s=%.4f' % (channel, intensity), line)
         for i, line in enumerate(p.restore.splitlines(), 1):
             self.assertIn('INDEX=%d' % i, line)
             self.assertIn('TRANSMIT=%d' % (i == 4), line)
             self.assertIn('RED=%.4f' % COLORS[i - 1][0], line)
             self.assertIn('GREEN=%.4f' % COLORS[i - 1][1], line)
             self.assertIn('BLUE=%.4f' % COLORS[i - 1][2], line)
-        self.assertEqual(p.script.count('TRANSMIT=1'), 2)
+        self.assertEqual(p.script.count('TRANSMIT=1'), 5)
+        self.assertIn('red, blue, green, white', p.observation)
         self.assertTrue(restored(p, status))
         status[TARGET]['color_data'][3] = (1, 0, 0, 0)
         self.assertFalse(restored(p, status))
@@ -82,6 +90,14 @@ class LedChainTests(unittest.TestCase):
         p = compile_pulse(row, snap, status, settings)
         self.assertEqual(p.restore.count('WHITE='), 2)
         self.assertIn('WHITE=0.3000', p.restore)
+        self.assertEqual(p.stimulus.count('WHITE='), 8)
+        for line in p.stimulus.splitlines()[6:8]:
+            self.assertIn('BLUE=1.0000', line)
+        for line in p.stimulus.splitlines()[-2:]:
+            self.assertIn('RED=0.0000', line)
+            self.assertIn('GREEN=0.0000', line)
+            self.assertIn('BLUE=0.0000', line)
+            self.assertIn('WHITE=1.0000', line)
         self.assertIn('WHITE=0.0000', p.restore)
         self.assertTrue(restored(p, status))
         status[TARGET]['color_data'][0] = (0, 0, 0, .4)
@@ -107,6 +123,31 @@ class LedChainTests(unittest.TestCase):
         status[TARGET]['color_data'][2] = (0, float('nan'), 0, 0)
         with self.assertRaises(ValueError):
             compile_pulse(row, snap, status, settings)
+
+    def test_monochrome_led_output_refuses_rgb_cycle(self):
+        # A one-channel LED cannot emit 4 RGB colors. Fail before sending G-code.
+        row, snap, status, settings = fixture()
+        from dataclasses import replace
+        row = replace(row, device='led mono')
+        cfg = {'led mono': {'white_pin': 'PA7', 'chain_count': 1}}
+        live = {'led mono': {'color_data': [(0., 0., 0., 0.3)]}}
+        from maintenance_discovery import MaintenanceSnapshot, DeviceCapabilities, USER, _add
+        snapshot = MaintenanceSnapshot(
+            snap.epoch,
+            (DeviceCapabilities('led mono', 'led', _add(0, 'O04', USER)),),
+            0, id(cfg), ('maintenance.safe_led:led mono',))
+        row = replace(row, config_marker=snapshot.config_marker)
+        with self.assertRaisesRegex(ValueError, 'led_rgb_channels_not_configured'):
+            compile_pulse(row, snapshot, live, cfg)
+
+    def test_maximum_32_rgbw_pixels_stays_bounded(self):
+        row, snap, status, settings = fixture([(0., 0., 0., 0.)] * 32,
+                                             order='GRBW')
+        pulse = compile_pulse(row, snap, status, settings)
+        self.assertLess(len(pulse.script), 26000)
+        self.assertEqual(pulse.script.count('G4 P650'), 4)
+        self.assertEqual(pulse.script.count('TRANSMIT=1'), 5)
+        self.assertTrue(restored(pulse, status))
 
     def test_mmu_and_animation_ownership_blocks_even_when_mmu_idle(self):
         settings_variants = [
@@ -139,16 +180,19 @@ class LedChainTests(unittest.TestCase):
                 pulse = compile_mmu_led_pulse(
                     row, snap, physical, settings, status, {'action': 'Idle'})
                 self.assertTrue(pulse.managed_hh)
-                self.assertTrue(pulse.script.startswith(
-                    'MMU_SET_LED UNIT=0 %s_EFFECT=(' % segment.upper()))
-                self.assertTrue(pulse.script.endswith(
-                    ') DURATION=1 FADETIME=0'))
-                values = pulse.script.split('_EFFECT=(', 1)[1].split(')', 1)[0]
-                rgb = tuple(float(x) for x in values.split(','))
-                self.assertEqual(len(rgb), 3)
-                for original in COLORS:
-                    self.assertTrue(any(abs(a - b) >= .08
-                                        for a, b in zip(rgb, original)))
+                self.assertEqual(pulse.duration_ms, 2600)
+                self.assertEqual(len(pulse.script.splitlines()), 8)
+                colors = [(1., 0., 0.), (0., 0., 1.),
+                          (0., 1., 0.), (1., 1., 1.)]
+                for phase, rgb in enumerate(colors):
+                    command, dwell = pulse.script.splitlines()[phase * 2:phase * 2 + 2]
+                    self.assertEqual(
+                        command,
+                        'MMU_SET_LED UNIT=0 %s_EFFECT=(%.3f,%.3f,%.3f) '
+                        'DURATION=0.40 FADETIME=0' % (
+                            segment.upper(), *rgb))
+                    self.assertEqual(dwell, 'G4 P650')
+                self.assertIn('red, blue, green, white', pulse.observation)
                 self.assertNotIn('SET_LED LED=', pulse.script)
                 self.assertNotIn('ENABLE=0', pulse.script)
                 self.assertTrue(restored(pulse, status))
@@ -179,7 +223,7 @@ class LedChainTests(unittest.TestCase):
         }
         pulse = compile_mmu_led_pulse(
             row, snap, physical, settings, live, {'action': 'Idle'})
-        self.assertEqual(len(pulse.script.splitlines()), 2)
+        self.assertEqual(len(pulse.script.splitlines()), 12)
         self.assertIn('UNIT=0 EXIT_EFFECT=', pulse.script)
         self.assertIn(' STATUS_EFFECT=', pulse.script)
         self.assertIn('UNIT=1 LOGO_EFFECT=', pulse.script)

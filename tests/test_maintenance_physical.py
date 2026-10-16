@@ -478,11 +478,12 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(len(self.commands), 1)
         script = self.commands[0][1]['script']
         self.assertIn('INDEX=4 TRANSMIT=1 SYNC=0', script)
-        self.assertEqual(script.count('TRANSMIT=1'), 2)
+        self.assertEqual(script.count('TRANSMIT=1'), 5)
+        self.assertEqual(script.count('G4 P650'), 4)
         self.assertTrue(self.commands[0][2]())
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
-        self.advance(1.2)
+        self.advance(3.1)
         self.poll_verify()
         self.advance(.35)
         self.poll_verify()
@@ -504,7 +505,7 @@ class PhysicalControllerTests(unittest.TestCase):
         self.runner.poll()
         # Last LED did not restore, although the other three did.
         self.client.status['neopixel diagnostic']['color_data'][3] = (1., 0., 0., 0.)
-        self.advance(1.2)
+        self.advance(3.1)
         for _ in range(3):
             self.poll_verify()
             self.advance(.35)
@@ -525,21 +526,24 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertTrue(self.runner.confirm()[0])
         self.assertEqual(len(self.commands), 1)
         script = self.commands[0][1]['script']
-        self.assertTrue(script.startswith(
-            'MMU_SET_LED UNIT=0 EXIT_EFFECT=('))
-        self.assertTrue(script.endswith(') DURATION=1 FADETIME=0'))
-        rgb = tuple(float(v) for v in
-                    script.split('EXIT_EFFECT=(', 1)[1].split(')', 1)[0].split(','))
-        self.assertEqual(len(rgb), 3)
-        for original in self.client.status['neopixel diagnostic']['color_data']:
-            self.assertTrue(any(abs(a - b) >= .08
-                                for a, b in zip(rgb, original)))
+        self.assertEqual(len(script.splitlines()), 8)
+        expected = [(1., 0., 0.), (0., 0., 1.),
+                    (0., 1., 0.), (1., 1., 1.)]
+        for phase, rgb in enumerate(expected):
+            command, dwell = script.splitlines()[phase * 2:phase * 2 + 2]
+            self.assertEqual(
+                command,
+                'MMU_SET_LED UNIT=0 EXIT_EFFECT=(%.3f,%.3f,%.3f) '
+                'DURATION=0.40 FADETIME=0' % rgb)
+            self.assertEqual(dwell, 'G4 P650')
         self.assertNotIn('SET_LED LED=', script)
         self.assertNotIn('MMU_LED QUIET', script)
+        self.assertNotIn('SET_LED LED=', script)
+        self.assertEqual(script.count('DURATION=0.40'), 4)
         self.assertTrue(self.commands[0][2]())
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
-        self.advance(1.9)
+        self.advance(3.1)
         self.poll_verify()
         self.advance(.35)
         self.poll_verify()
@@ -573,7 +577,7 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertNotIn('UNIT=unit0', command)
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
-        self.advance(1.9)
+        self.advance(3.1)
         self.poll_verify()
         self.advance(.35)
         self.poll_verify()
@@ -655,10 +659,10 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertIn('STATUS_EFFECT=', script)
         self.assertIn('LOGO_EFFECT=', script)
         self.assertNotIn('EXIT_EFFECT=', script)
-        self.assertEqual(len(script.splitlines()), 1)
+        self.assertEqual(len(script.splitlines()), 8)
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
-        self.advance(1.9)
+        self.advance(3.1)
         self.poll_verify()
         self.advance(.35)
         self.poll_verify()
@@ -693,12 +697,12 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertIsNone(self.runner.poll())
         self.assertTrue(self.runner.confirm()[0])
         script = self.commands[0][1]['script']
-        self.assertEqual(len(script.splitlines()), 2)
+        self.assertEqual(len(script.splitlines()), 12)
         self.assertIn('UNIT=1 EXIT_EFFECT=', script)
         self.assertIn('UNIT=0 ENTRY_EFFECT=', script)
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
-        self.advance(2.1)
+        self.advance(3.1)
         self.poll_verify()
         self.assertEqual(self.runner.phase, 'verifying')
         self.client.status['mmu_leds second']['enabled'] = False

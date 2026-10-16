@@ -13,8 +13,8 @@ from time import monotonic
 from urllib.parse import quote
 
 from maintenance_guided import guided_plan, GuidedConsentGate
-from maintenance_pulse import (compile_pulse, compile_mmu_led_pulse,
-                               mmu_led_owner, restored)
+from maintenance_pulse import compile_pulse, compile_mmu_led_pulse, restored
+from maintenance_hh_leds import mmu_led_owners
 from maintenance_runtime import read_queue_evidence, live_safety_context
 from maintenance_safety import MaintenanceSafetyCoordinator
 
@@ -52,6 +52,24 @@ def _read_target(client, name):
     if not isinstance(name, str) or not name or len(name) > 96:
         return None
     reply = client.get('/printer/objects/query?' + quote(name, safe=''))
+    result = reply.get('result') if isinstance(reply, Mapping) else None
+    status = result.get('status') if isinstance(result, Mapping) else None
+    return status if isinstance(status, Mapping) else None
+
+
+
+def _read_targets(client, names):
+    """Read bounded, specifically identified objects in one Moonraker call."""
+    if (not isinstance(names, (tuple, list)) or not 1 <= len(names) <= 9
+            or len(names) != len(set(names))
+            or any(not isinstance(name, str) or len(name) > 96
+                   or not (name == 'mmu' or
+                           (name.startswith('mmu_leds ') and
+                            _OUTPUT.fullmatch(name.split(' ', 1)[1])))
+                   for name in names)):
+        raise ValueError('mmu_led_query_targets_invalid')
+    reply = client.get('/printer/objects/query?' +
+                       '&'.join(quote(name, safe='') for name in names))
     result = reply.get('result') if isinstance(reply, Mapping) else None
     status = result.get('status') if isinstance(result, Mapping) else None
     return status if isinstance(status, Mapping) else None
@@ -225,16 +243,15 @@ class MaintenancePulseController:
                 if state is None:
                     return None
             settings = self._printer.state.settings
-            owner = (mmu_led_owner(settings, target)
-                     if row.feature_id == 'O04' else None)
-            if owner is not None:
-                unit_status = _read_target(self._client, owner[0])
-                mmu_status = _read_target(self._client, 'mmu')
-                if unit_status is None or mmu_status is None:
+            owners = (mmu_led_owners(settings, target)
+                      if row.feature_id == 'O04' else None)
+            if owners is not None:
+                live = _read_targets(self._client, (
+                    'mmu', *(owner.section for owner in owners)))
+                if live is None:
                     raise ValueError('mmu_led_live_status_unknown')
                 program = compile_mmu_led_pulse(
-                    row, snap, state, settings,
-                    unit_status.get(owner[0], {}), mmu_status.get('mmu', {}))
+                    row, snap, state, settings, live, live.get('mmu', {}))
             else:
                 program = compile_pulse(
                     row, snap, state, settings,
@@ -345,7 +362,9 @@ class MaintenancePulseController:
                     return None
                 try:
                     self._future = self._worker.submit(
-                        lambda: _read_target(self._client, self._program.object_name),
+                        (lambda: _read_targets(self._client, self._program.hh_controls)
+                         if self._program.managed_hh else
+                         _read_target(self._client, self._program.object_name)),
                         queue_timeout=min(2.0, self._deadline - now))
                 except Exception:
                     return self._finish('INCONCLUSIVE', 'verification_unavailable')

@@ -4,6 +4,7 @@ Nothing here infers a buzzer or light from a pin or object name. On READY
 we validate exact Klipper objects and safe effective settings; no I/O occurs.
 """
 from collections.abc import Mapping
+from maintenance_hh_leds import auto_happy_hare_led_services
 import json
 import math
 from pathlib import Path
@@ -105,4 +106,8 @@ def approved_integrations(state, profiles):
         elif role == 'led':
             if name in names:
                 services.append('maintenance.safe_led:' + name)
-    return tuple(services)
+    # Named Happy Hare objects provide explicit LED semantics: discovery may
+    # register them without a local machine-specific role declaration.
+    # The physical runner still requires fresh evidence and user consent.
+    services.extend(auto_happy_hare_led_services(state))
+    return tuple(dict.fromkeys(services))

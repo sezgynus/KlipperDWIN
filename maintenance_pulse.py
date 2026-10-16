@@ -9,6 +9,7 @@ import math
 import re
 
 from maintenance_guided import _trusted_target
+from maintenance_hh_leds import mmu_led_owners
 
 _NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,47}\Z')
 _TONE = 0.000625  # 1600 Hz; one 150-ms chirp
@@ -31,6 +32,7 @@ class PulseProgram:
     duration_ms: int
     observation: str
     managed_hh: bool = False
+    hh_controls: tuple = ()
 
 
 def _unit(value):
@@ -242,104 +244,107 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
 
 
 
-def mmu_led_owner(settings, target):
-    """Return one Happy Hare owner for a physical chain, never guess ownership.
 
-    The only supported contract is one complete physical chain mapped exactly
-    to one MMU unit's exit segment. Other layouts remain fail-closed.
-    """
-    if not isinstance(settings, Mapping) or not isinstance(target, str):
-        return None
-    kind, sep, name = target.partition(' ')
-    if not sep or kind not in ('neopixel', 'dotstar', 'led', 'pca9632'):
-        return None
-    # Happy Hare uses "neopixel:mmu_leds (1-4)" syntax for its exit segment.
-    reference = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(kind) +
-                           ':' + re.escape(name) + r'(?![A-Za-z0-9_])', re.I)
-    owners = []
-    for section, cfg in settings.items():
-        if not isinstance(section, str) or not section.startswith('mmu_leds '):
-            continue
-        if not isinstance(cfg, Mapping):
-            raise ValueError('mmu_led_config_unknown')
-        if any(isinstance(cfg.get(field), str) and reference.search(cfg[field])
-               for field in ('exit_leds', 'entry_leds', 'status_leds', 'logo_leds')):
-            owners.append((section, cfg))
-    if not owners:
-        return None
-    if len(owners) != 1:
-        raise ValueError('multiple_mmu_led_owners')
-    section, cfg = owners[0]
-    unit = _name(section.split(' ', 1)[1])
-    matched = re.fullmatch(re.escape(kind) + ':' + re.escape(name) +
-                           r' \((1)-([1-9][0-9]?)\)', str(cfg.get('exit_leds', '')))
-    if (matched is None or
-            any(isinstance(cfg.get(field), str) and reference.search(cfg[field])
-                for field in ('entry_leds', 'status_leds', 'logo_leds'))):
-        raise ValueError('mmu_led_partial_or_shared_chain')
-    return section, unit, int(matched.group(2))
+def _hh_color(pixels):
+    """Choose a dim test color distinguishable from every mapped LED value."""
+    choices = ((0., .35, 0., 0.), (0., 0., .35, 0.),
+               (.35, 0., 0., 0.), (.22, .16, .33, 0.),
+               (.32, .28, .05, 0.))
+    for color in choices:
+        if all(any(abs(a - b) >= .08 for a, b in zip(color, old))
+               for old in pixels):
+            return color
+    raise ValueError('mmu_led_test_color_not_distinguishable')
 
 
-def compile_mmu_led_pulse(row, snapshot, physical, settings, mmu_led, mmu):
-    """Use Happy Hare's *own* expiring effect; do not disable its LED manager.
+def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu):
+    """Use Happy Hare's own timed API for all discovered physical segments.
 
-    MMU_SET_LED ... DURATION=1 goes through HH's LED ownership pipeline and
-    returns to its current *policy* on HH's reactor timer (even if Petrel
-    disconnects). Dynamic effects mean exact original pixel RGB cannot be
-    promised or verified; only an operator observation is accepted.
+    Groups are resolved from effective [mmu_leds ...] mappings without any
+    assumptions about a user's unit names, RGB pins, chain layout or MMU
+    hardware. Unit-scoped timed effects restore HH's current policy, not an
+    exact animated-pixel snapshot. Human observation remains mandatory.
     """
     if not _trusted_target(row, snapshot) or row.feature_id != 'O04':
         raise ValueError('untrusted_mmu_led_target')
     if (row.epoch != snapshot.epoch or row.config_marker != snapshot.config_marker
-            or not isinstance(physical, Mapping)
-            or not isinstance(settings, Mapping)
-            or not isinstance(mmu_led, Mapping) or not isinstance(mmu, Mapping)):
+            or not isinstance(physical, Mapping) or not isinstance(settings, Mapping)
+            or not isinstance(controls, Mapping) or not isinstance(mmu, Mapping)):
         raise ValueError('mmu_led_evidence_unavailable')
-    owner = mmu_led_owner(settings, row.device)
-    if owner is None:
+    owners = mmu_led_owners(settings, row.device)
+    if not owners:
         raise ValueError('mmu_led_owner_missing')
-    section, unit, count = owner
+    if len(owners) > 8:
+        raise ValueError('too_many_mmu_led_units')
     cfg = settings.get(row.device)
-    colors = physical.get(row.device, {}).get('color_data')
-    if (not isinstance(cfg, Mapping) or type(cfg.get('chain_count')) is not int
-            or cfg['chain_count'] != count
-            or not 1 <= count <= _MAX_LED_CHAIN
+    state = physical.get(row.device)
+    colors = state.get('color_data') if isinstance(state, Mapping) else None
+    count = cfg.get('chain_count', 1) if isinstance(cfg, Mapping) else None
+    if (type(count) is not int or not 1 <= count <= _MAX_LED_CHAIN
             or not isinstance(colors, (list, tuple)) or len(colors) != count
             or any(not isinstance(pixel, (list, tuple)) or len(pixel) != 4
                    or not all(_unit(c) for c in pixel) for pixel in colors)):
         raise ValueError('mmu_led_physical_chain_unverified')
-    if (mmu_led.get('enabled') is not True
-            or type(mmu_led.get('animation')) is not bool
-            or str(mmu.get('action', '')).lower() != 'idle'):
-        raise ValueError('mmu_led_not_idle_or_enabled')
-    # Refuse standalone effects on the PHYSICAL chain. HH's own generated
-    # animations normally act on its virtual segment and are HH-managed.
+    if str(mmu.get('action', '')).lower() != 'idle':
+        raise ValueError('mmu_led_not_idle')
     kind, _, name = row.device.partition(' ')
     direct = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(kind) + ':' +
                         re.escape(name) + r'(?![A-Za-z0-9_])', re.I)
-    for section_name, effect in settings.items():
-        if (isinstance(section_name, str)
-                and section_name.startswith(('led_effect ', '_led_effect '))
-                and isinstance(effect, Mapping)
-                and isinstance(effect.get('leds'), str)
+    for section, effect in settings.items():
+        if (isinstance(section, str)
+                and section.startswith(('led_effect ', '_led_effect '))
+                and isinstance(effect, Mapping) and isinstance(effect.get('leds'), str)
                 and direct.search(effect['leds'])):
             raise ValueError('independent_led_effect_owner')
-    script = ('MMU_SET_LED UNIT=%s EXIT_EFFECT=(0,0.35,0) '
-              'DURATION=1 FADETIME=0' % unit)
+    # HH owns entire configured segments, which may be subsets of a physical
+    # chain; never command any other segment or unnamed physical LED.
+    controls_expected, scripts, affected = [], [], set()
+    for owner in owners:
+        current = controls.get(owner.section)
+        if (not isinstance(current, Mapping) or current.get('enabled') is not True
+                or type(current.get('animation')) is not bool):
+            raise ValueError('mmu_led_not_enabled_or_readable')
+        args = []
+        for segment, indexes in owner.segments:
+            # The virtual segment count must agree with config mapping.
+            if (type(current.get(segment)) is not int
+                    or current[segment] != len(indexes)):
+                raise ValueError('mmu_led_segment_status_mismatch')
+            affected.update(indexes)
+            rgb = _hh_color([colors[index - 1] for index in indexes])
+            args.append('%s_EFFECT=(%.3f,%.3f,%.3f)' % (
+                segment.upper(), rgb[0], rgb[1], rgb[2]))
+        scripts.append('MMU_SET_LED UNIT=%s %s DURATION=1 FADETIME=0' % (
+            owner.unit, ' '.join(args)))
+        controls_expected.append((owner.section, True, current['animation']))
+    if not affected:
+        raise ValueError('mmu_led_no_mapped_pixels')
+    script = '\n'.join(scripts)
+    if '\r' in script or len(script) > _MAX_LED_SCRIPT:
+        raise ValueError('unsafe_mmu_led_program')
     from urllib.parse import quote
+    read_path = '/printer/objects/query?' + '&'.join(
+        quote(owner.section, safe='') for owner in owners)
     return PulseProgram(
-        'O04', row.device, '/printer/objects/query?' + quote(section, safe=''),
-        section, (True, mmu_led['animation']),
-        script, 'Happy Hare timed return to default (not a SET_LED command)',
-        script, 1500,
-        'Did all MMU exit LEDs briefly change and return to Happy Hare control?',
-        managed_hh=True)
+        'O04', row.device, read_path, owners[0].section,
+        tuple(controls_expected), script,
+        'Happy Hare 1s timed return to current default policy',
+        script, 1500 + 150 * (len(owners) - 1),
+        'Did the mapped MMU LEDs briefly change and return to normal?',
+        managed_hh=True, hh_controls=tuple(item[0] for item in controls_expected))
 
 
 def restored(program, status):
     """Return True only when *reported state* matches the captured original."""
     if not isinstance(program, PulseProgram) or not isinstance(status, Mapping):
         return False
+    if program.managed_hh:
+        # Controller policy is observable; return of animated RGB is not.
+        return (program.feature_id == 'O04' and bool(program.hh_controls)
+                and all(isinstance(status.get(section), Mapping)
+                        and status[section].get('enabled') is enabled
+                        and status[section].get('animation') is animation
+                        for section, enabled, animation in program.original))
     state = status.get(program.object_name)
     if not isinstance(state, Mapping):
         return False
@@ -349,12 +354,6 @@ def restored(program, status):
     if program.feature_id == 'O03':
         value = state.get('value')
         return _unit(value) and abs(value - program.original[0]) <= .015
-    if program.managed_hh:
-        # This verifies HH's controller policy is still active, NOT an
-        # animated LED's exact RGB baseline or the HH timer's completion.
-        return (program.feature_id == 'O04'
-                and state.get('enabled') is program.original[0]
-                and state.get('animation') is program.original[1])
     if program.feature_id == 'O04':
         colors = state.get('color_data')
         return (isinstance(colors, (list, tuple))

@@ -11,8 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from maintenance_discovery import discover
 from maintenance_guided import guided_plan
 from maintenance_profiles import approved_integrations
-from maintenance_pulse import (compile_pulse, compile_mmu_led_pulse,
-                               mmu_led_owner, restored)
+from maintenance_pulse import compile_pulse, compile_mmu_led_pulse, restored
+from maintenance_hh_leds import mmu_led_owners, auto_happy_hare_led_services
 
 TARGET = 'neopixel diagnostic'
 COLORS = [(0.1, 0.2, 0.3, 0.0),
@@ -121,67 +121,157 @@ class LedChainTests(unittest.TestCase):
             'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic_extra (1-4)'}})
         self.assertTrue(restored(compile_pulse(row, snap, status, settings), status))
 
-    def test_happy_hare_native_transient_is_unit_scoped_and_user_observed(self):
-        owner = {'mmu_leds unit5': {'exit_leds': 'neopixel:diagnostic (1-4)'}}
-        row, snap, physical, settings = fixture(extra_settings=owner)
-        self.assertEqual(mmu_led_owner(settings, TARGET),
-                         ('mmu_leds unit5', 'unit5', 4))
-        pulse = compile_mmu_led_pulse(
-            row, snap, physical, settings,
-            {'enabled': True, 'animation': True}, {'action': 'Idle'})
-        self.assertTrue(pulse.managed_hh)
-        self.assertEqual(
-            pulse.script,
-            'MMU_SET_LED UNIT=unit5 EXIT_EFFECT=(0,0.35,0) '
-            'DURATION=1 FADETIME=0')
-        self.assertNotIn('SET_LED LED=', pulse.script)
-        self.assertNotIn('ENABLE=0', pulse.script)
-        self.assertTrue(restored(pulse, {
-            'mmu_leds unit5': {'enabled': True, 'animation': True}}))
-        self.assertFalse(restored(pulse, {
-            'mmu_leds unit5': {'enabled': False, 'animation': True}}))
-        self.assertFalse(restored(pulse, {
-            'mmu_leds unit5': {'enabled': True, 'animation': False}}))
-        self.assertFalse(restored(pulse, {
-            'neopixel diagnostic': {'color_data': COLORS}}))
+    def test_hh_generates_segment_specific_native_timed_commands(self):
+        for segment in ('exit', 'entry', 'status', 'logo'):
+            with self.subTest(segment=segment):
+                owner = {'mmu_leds unit5': {
+                    segment + '_leds': 'neopixel:diagnostic (1-4)'}}
+                row, snap, physical, settings = fixture(extra_settings=owner)
+                owners = mmu_led_owners(settings, TARGET)
+                self.assertEqual(owners[0].unit, 'unit5')
+                self.assertEqual(owners[0].segments, ((segment, (1, 2, 3, 4)),))
+                status = {'mmu_leds unit5': {
+                    'enabled': True, 'animation': True, segment: 4}}
+                pulse = compile_mmu_led_pulse(
+                    row, snap, physical, settings, status, {'action': 'Idle'})
+                self.assertTrue(pulse.managed_hh)
+                self.assertEqual(
+                    pulse.script,
+                    'MMU_SET_LED UNIT=unit5 %s_EFFECT=(0.000,0.350,0.000) '
+                    'DURATION=1 FADETIME=0' % segment.upper())
+                self.assertNotIn('SET_LED LED=', pulse.script)
+                self.assertNotIn('ENABLE=0', pulse.script)
+                self.assertTrue(restored(pulse, status))
+                changed = {k: dict(v) for k, v in status.items()}
+                changed['mmu_leds unit5']['enabled'] = False
+                self.assertFalse(restored(pulse, changed))
+                changed['mmu_leds unit5'] = {'enabled': True, 'animation': False}
+                self.assertFalse(restored(pulse, changed))
+                self.assertFalse(restored(pulse, {
+                    'neopixel diagnostic': {'color_data': COLORS}}))
 
-    def test_happy_hare_direct_handoff_denies_shared_or_partial_led_chain(self):
+    def test_mixed_segments_indexes_and_multiple_units(self):
+        owner = {
+            'mmu_leds north': {
+                'exit_leds': 'neopixel:diagnostic (1-2)',
+                'status_leds': 'neopixel:diagnostic (3)'},
+            'mmu_leds south': {'logo_leds': 'neopixel:diagnostic (4)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        owners = mmu_led_owners(settings, TARGET)
+        self.assertEqual(len(owners), 2)
+        self.assertEqual(owners[0].segments,
+                         (('exit', (1, 2)), ('status', (3,))))
+        self.assertEqual(owners[1].segments, (('logo', (4,)),))
+        live = {
+            'mmu_leds north': {'enabled': True, 'animation': True,
+                               'exit': 2, 'status': 1},
+            'mmu_leds south': {'enabled': True, 'animation': False, 'logo': 1},
+        }
+        pulse = compile_mmu_led_pulse(
+            row, snap, physical, settings, live, {'action': 'Idle'})
+        self.assertEqual(len(pulse.script.splitlines()), 2)
+        self.assertIn('UNIT=north EXIT_EFFECT=', pulse.script)
+        self.assertIn(' STATUS_EFFECT=', pulse.script)
+        self.assertIn('UNIT=south LOGO_EFFECT=', pulse.script)
+        self.assertNotIn('ENTRY_EFFECT=', pulse.script)
+        self.assertEqual(pulse.hh_controls, ('mmu_leds north', 'mmu_leds south'))
+        self.assertTrue(restored(pulse, live))
+        live['mmu_leds south']['animation'] = True
+        self.assertFalse(restored(pulse, live))
+
+    def test_hh_sparse_ordered_and_reversed_index_mapping(self):
+        owner = {'mmu_leds unit1': {
+            'entry_leds': 'neopixel:diagnostic (4,2-3,1)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        entries = mmu_led_owners(settings, TARGET)
+        self.assertEqual(entries[0].segments, (('entry', (4, 2, 3, 1)),))
+        p = compile_mmu_led_pulse(
+            row, snap, physical, settings,
+            {'mmu_leds unit1': {'enabled': True, 'animation': False, 'entry': 4}},
+            {'action': 'Idle'})
+        self.assertIn('ENTRY_EFFECT=', p.script)
+
+    def test_hh_partial_chain_and_static_segment_allowed(self):
+        owner = {'mmu_leds unit2': {
+            'logo_leds': 'neopixel:diagnostic (2-3)'}}
+        row, snap, physical, settings = fixture(extra_settings=owner)
+        p = compile_mmu_led_pulse(
+            row, snap, physical, settings,
+            {'mmu_leds unit2': {'enabled': True, 'animation': False, 'logo': 2}},
+            {'action': 'Idle'})
+        self.assertIn('LOGO_EFFECT=', p.script)
+        self.assertIn('mapped MMU LEDs', p.observation)
+
+    def test_hh_invalid_overlap_ambiguous_and_cross_chain_fail_closed(self):
         variants = [
-            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (2-4)'}},
-            {'mmu_leds unit0': {'entry_leds': 'neopixel:diagnostic (1-4)'}},
-            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-4)',
-                                'status_leds': 'neopixel:diagnostic (1)'}},
+            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (0-4)'}},
+            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-5)'}},
+            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1,1)'}},
+            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-3)',
+                                'status_leds': 'neopixel:diagnostic (3-4)'}},
             {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-4)'},
-             'mmu_leds unit1': {'exit_leds': 'neopixel:diagnostic (1-4)'}},
+             'mmu_leds unit1': {'entry_leds': 'neopixel:diagnostic (4)'}},
+            {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-4)\n'
+                                            'neopixel:other (1)'}},
             {'mmu_leds malicious;M112': {'exit_leds': 'neopixel:diagnostic (1-4)'}},
         ]
         for managed in variants:
             with self.subTest(managed=managed):
                 row, snap, physical, settings = fixture(extra_settings=managed)
                 with self.assertRaises(ValueError):
+                    mmu_led_owners(settings, TARGET)
+                with self.assertRaises(ValueError):
                     compile_mmu_led_pulse(
-                        row, snap, physical, settings,
-                        {'enabled': True, 'animation': True},
+                        row, snap, physical, settings, {},
                         {'action': 'Idle'})
 
-    def test_happy_hare_failed_live_state_refuses_transient(self):
+    def test_hh_missing_or_busy_status_and_external_effect_fail_closed(self):
         owner = {'mmu_leds unit0': {'exit_leds': 'neopixel:diagnostic (1-4)'}}
         row, snap, physical, settings = fixture(extra_settings=owner)
-        for unit, mmu in [
-            ({'enabled': False, 'animation': True}, {'action': 'Idle'}),
-            ({'enabled': True, 'animation': True}, {'action': 'Loading'}),
-            ({'enabled': True}, {'action': 'Idle'}),
-            ({'enabled': True, 'animation': True}, {}),
+        for controls, mmu in [
+            ({'mmu_leds unit0': {'enabled': False, 'animation': True, 'exit': 4}},
+             {'action': 'Idle'}),
+            ({'mmu_leds unit0': {'enabled': True, 'animation': True, 'exit': 4}},
+             {'action': 'Loading'}),
+            ({'mmu_leds unit0': {'enabled': True, 'exit': 4}},
+             {'action': 'Idle'}),
+            ({'mmu_leds unit0': {'enabled': True, 'animation': True, 'exit': 3}},
+             {'action': 'Idle'}),
+            ({'mmu_leds unit0': {'enabled': True, 'animation': True}},
+             {'action': 'Idle'}),
         ]:
-            with self.subTest(unit=unit, mmu=mmu):
+            with self.subTest(controls=controls, mmu=mmu):
                 with self.assertRaises(ValueError):
-                    compile_mmu_led_pulse(row, snap, physical, settings, unit, mmu)
+                    compile_mmu_led_pulse(
+                        row, snap, physical, settings, controls, mmu)
         settings['led_effect standalone'] = {
             'leds': 'neopixel:diagnostic (1-4)'}
         with self.assertRaisesRegex(ValueError, 'independent_led_effect_owner'):
             compile_mmu_led_pulse(
                 row, snap, physical, settings,
-                {'enabled': True, 'animation': False}, {'action': 'Idle'})
+                {'mmu_leds unit0': {
+                    'enabled': True, 'animation': True, 'exit': 4}},
+                {'action': 'Idle'})
+
+    def test_hh_auto_discovers_configured_objects_without_manual_profiles(self):
+        owner = {'mmu_leds unit7': {
+            'logo_leds': 'neopixel:diagnostic (1-4)'}}
+        _, snap, _, settings = fixture(extra_settings=owner)
+        state = SimpleNamespace(
+            ready=True, epoch=42, objects=(TARGET, 'mmu_leds unit7'),
+            settings=settings, status={})
+        keys = auto_happy_hare_led_services(state)
+        self.assertEqual(keys, ('maintenance.safe_led:' + TARGET,))
+        self.assertEqual(keys, approved_integrations(state, ()))
+        discovery = discover(state, keys)
+        self.assertTrue(any(row.feature_id == 'O04' and row.device == TARGET
+                            for row in guided_plan(discovery)))
+        state.objects = (TARGET,)  # MMU controller absent -> no automatic role
+        self.assertEqual(auto_happy_hare_led_services(state), ())
+        state.objects = (TARGET, 'mmu_leds unit7')
+        state.settings['mmu_leds unit7']['logo_leds'] = (
+            'neopixel:diagnostic (0-4)')
+        self.assertEqual(auto_happy_hare_led_services(state), ())
 
     def test_missing_explicit_profile_not_even_guided(self):
         row, snap, status, settings = fixture()

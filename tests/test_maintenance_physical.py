@@ -449,12 +449,13 @@ class PhysicalControllerTests(unittest.TestCase):
         if managed:
             raw['settings']['mmu_leds unit0'] = {
                 'exit_leds': 'neopixel:diagnostic (1-4)'}
-        raw['objects'] = ('neopixel diagnostic',)
+        raw['objects'] = (('neopixel diagnostic', 'mmu_leds unit0', 'mmu')
+                          if managed else ('neopixel diagnostic',))
         self.printer.state = PrinterState.from_snapshot(raw)
         self.client.status = {'neopixel diagnostic': {'color_data': lights}}
         if managed:
             self.client.status.update({
-                'mmu_leds unit0': {'enabled': True, 'animation': True},
+                'mmu_leds unit0': {'enabled': True, 'animation': True, 'exit': 4},
                 'mmu': {'action': 'Idle'}})
         roles = approved_integrations(
             self.printer.state, (('led', 'neopixel diagnostic'),))
@@ -521,7 +522,7 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(len(self.commands), 1)
         script = self.commands[0][1]['script']
         self.assertEqual(script, (
-            'MMU_SET_LED UNIT=unit0 EXIT_EFFECT=(0,0.35,0) '
+            'MMU_SET_LED UNIT=unit0 EXIT_EFFECT=(0.000,0.350,0.000) '
             'DURATION=1 FADETIME=0'))
         self.assertNotIn('SET_LED LED=', script)
         self.assertNotIn('MMU_LED QUIET', script)
@@ -537,13 +538,15 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(result.status, 'OBSERVED_USER')
         self.assertFalse(result.restore_verified)
         self.assertEqual(self.client.status['mmu_leds unit0'],
-                         {'enabled': True, 'animation': True})
+                         {'enabled': True, 'animation': True, 'exit': 4})
 
     def test_managed_mmu_chain_inactive_or_busy_rejected_without_dispatch(self):
         for status_change in (
-                {'mmu_leds unit0': {'enabled': False, 'animation': True}},
+                {'mmu_leds unit0': {
+                    'enabled': False, 'animation': True, 'exit': 4}},
                 {'mmu': {'action': 'Loading'}},
-                {'mmu_leds unit0': {'enabled': True, 'animation': None}}):
+                {'mmu_leds unit0': {
+                    'enabled': True, 'animation': None, 'exit': 4}}):
             with self.subTest(status_change=status_change):
                 self.configure_led_chain(managed=True)
                 self.client.status.update(status_change)
@@ -553,6 +556,80 @@ class PhysicalControllerTests(unittest.TestCase):
                 self.assertEqual(result.status, 'BLOCKED')
                 self.assertEqual(result.reason, 'preflight_failed')
                 self.assertEqual(self.commands, [])
+
+    def test_hh_entry_status_logo_grouped_into_one_timed_native_request(self):
+        self.configure_led_chain(managed=True)
+        settings = dict(self.printer.state.settings)
+        settings['mmu_leds unit0'] = {
+            'entry_leds': 'neopixel:diagnostic (1,3)',
+            'status_leds': 'neopixel:diagnostic (2)',
+            'logo_leds': 'neopixel:diagnostic (4)'}
+        raw = self.printer.subscription.snapshot.return_value
+        raw['settings'] = settings
+        self.printer.state = PrinterState.from_snapshot(raw)
+        roles = approved_integrations(self.printer.state, ())
+        self.assertIn('maintenance.safe_led:neopixel diagnostic', roles)
+        self.printer.maintenance.snapshot = discover(self.printer.state, roles)
+        self.client.status['mmu_leds unit0'] = {
+            'enabled': True, 'animation': False,
+            'entry': 2, 'status': 1, 'logo': 1}
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertTrue(self.runner.confirm()[0])
+        script = self.commands[0][1]['script']
+        self.assertIn('ENTRY_EFFECT=', script)
+        self.assertIn('STATUS_EFFECT=', script)
+        self.assertIn('LOGO_EFFECT=', script)
+        self.assertNotIn('EXIT_EFFECT=', script)
+        self.assertEqual(len(script.splitlines()), 1)
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.advance(1.9)
+        self.poll_verify()
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.observe(True).status, 'OBSERVED_USER')
+
+    def test_hh_two_units_same_chain_needs_both_controls_stable(self):
+        self.configure_led_chain(managed=True)
+        raw = self.printer.subscription.snapshot.return_value
+        raw['settings'] = {
+            'neopixel diagnostic': {'pin': 'PA7', 'chain_count': 4,
+                                     'color_order': 'GRB'},
+            'mmu_leds first': {'exit_leds': 'neopixel:diagnostic (1-2)'},
+            'mmu_leds second': {'entry_leds': 'neopixel:diagnostic (3-4)'}}
+        raw['objects'] = ('neopixel diagnostic', 'mmu_leds first',
+                          'mmu_leds second', 'mmu')
+        self.printer.state = PrinterState.from_snapshot(raw)
+        roles = approved_integrations(self.printer.state, ())
+        self.printer.maintenance.snapshot = discover(self.printer.state, roles)
+        self.client.status = {
+            'neopixel diagnostic': {'color_data': [
+                (0., 0., 0., 0.) for _ in range(4)]},
+            'mmu_leds first': {'enabled': True, 'animation': True, 'exit': 2},
+            'mmu_leds second': {'enabled': True, 'animation': False, 'entry': 2},
+            'mmu': {'action': 'Idle'}}
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertTrue(self.runner.confirm()[0])
+        script = self.commands[0][1]['script']
+        self.assertEqual(len(script.splitlines()), 2)
+        self.assertIn('UNIT=first EXIT_EFFECT=', script)
+        self.assertIn('UNIT=second ENTRY_EFFECT=', script)
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.advance(2.1)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'verifying')
+        self.client.status['mmu_leds second']['enabled'] = False
+        self.advance(.35)
+        self.poll_verify()
+        self.advance(6)
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'INCONCLUSIVE')
+        self.assertFalse(result.restore_verified)
 
     def test_mmu_effect_status_change_never_reports_success(self):
         self.configure_led_chain(managed=True)

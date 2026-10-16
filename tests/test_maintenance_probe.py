@@ -126,6 +126,15 @@ class ProbeWorkflowTests(unittest.TestCase):
         self.assertEqual(result.status,'PASSED')
         self.assertEqual(dict(result.evidence)['transitions'],'open > TRIGGERED > open')
 
+    def test_worker_pressure_never_reuses_a_completed_command_or_preflight(self):
+        self.arm()
+        with patch.object(self.worker,'submit',side_effect=RuntimeError('full')):
+            self.assertFalse(self.owner.confirm()[0])
+        self.assertEqual(self.owner.phase,'await_confirmation')
+        self.assertIsNone(self.owner._future)
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.commands,[])
+
     def test_plain_rpc_ok_is_never_probe_accuracy_pass(self):
         self.arm('P03')
         self.dispatch()

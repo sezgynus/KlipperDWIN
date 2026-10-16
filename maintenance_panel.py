@@ -62,10 +62,14 @@ class MaintenancePanelController:
 
     def _preflight(self,dispatch):
         self._dispatch = dispatch
-        self._phase,self._deadline = 'preflight',monotonic()+10
         row = self._row
-        self._future = self._worker.submit(
-            lambda:read_queue_evidence(self._client,row.epoch,row.config_marker),queue_timeout=6)
+        try:
+            future = self._worker.submit(
+                lambda:read_queue_evidence(self._client,row.epoch,row.config_marker),queue_timeout=6)
+        except Exception:
+            return False,'panel_worker_rejected'
+        self._future = future
+        self._phase,self._deadline = 'preflight',monotonic()+10
         return True,'panel_preflight_queued'
 
     def start(self,feature_id,device=None,**kwargs):
@@ -135,10 +139,14 @@ class MaintenancePanelController:
             try:
                 self._restore_panel()
             except Exception:
+                self._index = count-1
                 return False,'panel_restore_unconfirmed'
             self._phase = 'await_observation'
             return True,'observe_sequence_restore'
-        return self._preflight(True)
+        result = self._preflight(True)
+        if not result[0]:
+            self._index -= 1
+        return result
 
     def observe(self,seen):
         if self.phase!='await_observation' or type(seen) is not bool:

@@ -281,8 +281,7 @@ class MaintenanceViewMixin:
                         self._maintenance_show('pulse')
                 elif selected <= len(self.pd.maintenance_pulse.workflow_choices):
                     accepted, why = self.pd.maintenance_pulse.choose(selected-1)
-                    if accepted:
-                        self._maintenance_show('pulse')
+                    self._maintenance_show('pulse')
                 return
             if phase == 'await_confirmation':
                 if selected == 1:

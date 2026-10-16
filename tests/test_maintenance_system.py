@@ -145,6 +145,30 @@ class PanelTests(unittest.TestCase):
         result = self.owner.observe(True)
         self.assertEqual(result.status,'PASSED_USER')
 
+    def test_worker_pressure_does_not_skip_a_visible_backlight_stage(self):
+        self.arm('S17')
+        with patch.object(self.worker,'submit',side_effect=RuntimeError('full')):
+            self.assertFalse(self.owner.choose(0)[0])
+        self.assertEqual(self.owner.phase,'workflow')
+        self.assertEqual(self.owner._index,0)
+        self.assertIn('10%',self.owner.workflow_choices[0][0])
+
+    def test_restore_failure_keeps_a_valid_retryable_panel_stage(self):
+        self.arm('S17')
+        for i in range(2):
+            self.owner.choose(0)
+            self.worker.drain()
+            self.owner.poll()
+        api = self.p._maintenance_panel_api
+        def fail_restore(action,*args):
+            if action=='restore':
+                raise IOError('offline')
+            return api(action,*args)
+        self.p._maintenance_panel_api = fail_restore
+        self.assertFalse(self.owner.choose(0)[0])
+        self.assertEqual(self.owner.phase,'workflow')
+        self.assertIn('100%',self.owner.workflow_choices[0][0])
+
     def test_color_sequence_is_observation_only_and_cancel_restores(self):
         self.arm('S16')
         seen = [self.owner.display_color]

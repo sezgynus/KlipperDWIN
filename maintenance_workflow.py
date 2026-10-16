@@ -178,7 +178,12 @@ class FirmwareWorkflow:
     def _schedule(self, action, dispatch):
         self._action, self._dispatch = action, dispatch
         self._phase, self._deadline = 'preflight', monotonic()+12
-        self._future = self._worker.submit(lambda:self._prepare(action), queue_timeout=8)
+        self._future = None
+        try:
+            self._future = self._worker.submit(lambda:self._prepare(action), queue_timeout=8)
+        except Exception:
+            self._phase = 'await_confirmation'
+            return False, 'workflow_worker_rejected'
         return True, 'workflow_preflight_queued'
 
     def start(self, feature_id, device=None, **kwargs):
@@ -193,7 +198,10 @@ class FirmwareWorkflow:
         self._next_safety = 0.
         self._evidence, self._lines, self._values = (), (), {}
         try:
-            return self._schedule('start', False)
+            accepted,reason = self._schedule('start', False)
+            if not accepted:
+                self._phase = None
+            return accepted,reason
         except Exception:
             self._phase = None
             return False, 'workflow_worker_rejected'

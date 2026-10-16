@@ -51,6 +51,10 @@ def contract(device, settings, status, feature):
     live = status.get(device) if isinstance(status, Mapping) else None
     if not isinstance(cfg, Mapping) or not isinstance(live, Mapping):
         raise ValueError('heater_evidence_missing')
+    for section, value in settings.items():
+        if (isinstance(section, str) and section.lower() in
+                ('gcode_macro set_heater_temperature', 'gcode_macro pid_calibrate')):
+            raise ValueError('thermal_command_overridden')
     low, high = cfg.get('min_temp'), cfg.get('max_temp')
     if not all(number(v) for v in (low, high)) or low >= high:
         raise ValueError('heater_limits_unknown')
@@ -62,13 +66,14 @@ def contract(device, settings, status, feature):
     # name. Require an explicit application-specific profile in a later layer.
     if device.startswith('heater_generic '):
         raise ValueError('generic_thermal_profile_required')
-    target = 45. if device == 'heater_bed' else 60.
+    target = ((60. if device == 'heater_bed' else 150.) if feature in PID
+              else 45. if device == 'heater_bed' else 60.)
     ceiling = target + 10
     if not low < target < ceiling < high:
         raise ValueError('thermal_test_outside_config_limits')
     temp, original, power = (live.get(k) for k in ('temperature', 'target', 'power'))
     if (not all(number(v) for v in (temp, original, power))
-            or not low <= temp <= target - 10 or original != 0 or power != 0):
+            or not low <= temp <= min(45., target - 10) or original != 0 or power != 0):
         raise ValueError('cold_idle_heater_required')
     # Every configured heater must positively report an OFF target and power.
     for name, other in settings.items():
@@ -78,7 +83,7 @@ def contract(device, settings, status, feature):
                     or not number(values.get('target')) or values['target'] != 0
                     or not number(values.get('power')) or values['power'] != 0):
                 raise ValueError('another_heater_active_or_unknown')
-    return ThermalContract(device, target, ceiling, 120., low, high)
+    return ThermalContract(device, target, ceiling, 900. if feature in PID else 120., low, high)
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,3 +177,26 @@ class ThermalSeries:
         else:
             raise ValueError('unsupported_thermal_metric')
         return passed, metrics
+
+
+def pid_evidence(config, device):
+    """Only fresh Klipper pending parameters, never console text or HTTP OK."""
+    if not isinstance(config, Mapping) or config.get('save_config_pending') is not True:
+        return ()
+    items = config.get('save_config_pending_items')
+    values = items.get(device) if isinstance(items, Mapping) else None
+    if not isinstance(values, Mapping) or values.get('control') != 'pid':
+        return ()
+    result = []
+    for key in ('pid_kp', 'pid_ki', 'pid_kd'):
+        value = values.get(key)
+        if type(value) not in (int, float, str):
+            return ()
+        try:
+            value = float(value)
+        except (ValueError, TypeError):
+            return ()
+        if not math.isfinite(value) or value <= 0:
+            return ()
+        result.append((key, value))
+    return tuple(result)

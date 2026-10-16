@@ -255,9 +255,10 @@ class MoonrakerSubscription:
             return self._response_serial, tuple(text for serial, text in self._response_history
                                                 if cursor is not None and serial > cursor)
 
-    def request(self, method, params=None, guard=None):
+    def request(self, method, params=None, guard=None, request_timeout=None):
         """Nonblocking RPC; Future resolves on completion, never on dispatch."""
-        return self.notify(method, params, completion=True, guard=guard)
+        return self.notify(method, params, completion=True, guard=guard,
+                           request_timeout=request_timeout)
 
     def request_script_with_cleanup(self, script, cleanup, guard):
         """Completion RPCs for acknowledged SAVE, movement and non-moving recovery."""
@@ -299,8 +300,17 @@ class MoonrakerSubscription:
         preparation.add_done_callback(saved)
         return result
 
-    def notify(self, method, params=None, completion=False, guard=None):
+    def notify(self, method, params=None, completion=False, guard=None,
+               request_timeout=None):
+        if request_timeout is not None:
+            import math
+            if (method != 'printer.gcode.script' or not completion
+                    or type(request_timeout) not in (int, float)
+                    or not math.isfinite(request_timeout)
+                    or not 0 < request_timeout <= 900):
+                raise ValueError('Invalid bounded script completion timeout')
         future = Future()
+        future.request_timeout = request_timeout
         with self._lock:
             if self._stop.is_set() or self._state != 'ready' or self._socket is None:
                 future.set_exception(MoonrakerError('Moonraker subscription is not ready'))
@@ -445,7 +455,7 @@ class MoonrakerSubscription:
                         ttl = (self.CANCEL_REQUEST_TIMEOUT if method == 'printer.print.cancel'
                                else self.LONG_REQUEST_TIMEOUT if method == 'printer.gcode.script'
                                else max(self.REQUEST_TIMEOUT, self.timeout * 4))
-                        self._pending_deadlines[self._id] = time.monotonic() + ttl
+                        self._pending_deadlines[self._id] = time.monotonic() + (getattr(future, 'request_timeout', None) or ttl)
                 connection.send(json.dumps(envelope))
                 if not completion and not future.done():
                     future.set_result(None)

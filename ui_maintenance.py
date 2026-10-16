@@ -55,7 +55,7 @@ class MaintenanceViewMixin:
                 action = {'F02': 'Run speed steps',
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
-                              feature_id, 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
+                              feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
                 if feature_id and feature_id.startswith('H'):
                     live = getattr(self.pd.maintenance_pulse, 'live_text', ())
                     return 'Confirm HEAT test', (
@@ -111,6 +111,9 @@ class MaintenanceViewMixin:
             entries = [back,
                        (status[:25], self.ICON_Info, None, None),
                        (reason.replace('_', ' ')[:25], self.ICON_Info, None, None)]
+            if 'SHUTDOWN_UNCONFIRMED' in reason:
+                entries.extend((('CHECK HEATER POWER NOW', self.ICON_Info, None, None),
+                                ('Use physical power switch', self.ICON_Info, None, None)))
             if reason == 'f12_kick_start_active':
                 entries.extend((
                     ('Set kick_start_time: 0', self.ICON_Info, None, None),

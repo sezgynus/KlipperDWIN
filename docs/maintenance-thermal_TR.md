@@ -43,3 +43,18 @@ taze dispatch kontrolü zorunludur. Sıfırdan farklı eski ısıtıcı hedefi g
 yüklenmez. Bütün H hedeflerinin fiziksel kabulü son toplu kullanıcı testine
 kadar bekler. Genel/uygulamaya özel ve ileri kalibrasyon adaptörleri bu
 aşamada henüz kullanılamaz.
+
+## PID kalibrasyonu
+H02 hotend ve H03 yatak ayrı kalibrasyon kayıtlarıyla Klipper PID_CALIBRATE
+kullanır; hedefler sırasıyla 150 C / 60 C'dir. Başlangıçta ısıtıcıların soğuk/boş
+olması ve bekleyen config değişikliği bulunmaması gerekir. Tamamlanma RPC'si
+en çok 900 sn tutulur; autotune sırasında telemetri, kuyruk ve yaşam döngüsü
+izlenir. Klipper'ın normal hedef salınımı (hedef veya hedef eksi 5 C) kabul
+edilir; ilgisiz hedef değişimi reddedilir. Program sona OFF ekler.
+Başarılı RPC, tam ilgili ısıtıcı için yeni bekleyen pozitif/sonlu Kp/Ki/Kd,
+iki sıfır hedef/sıfır görev oranı örneği ve açık kullanıcı gözlemi birlikte gerekir.
+PID katsayıları Klipper'da bekler; Petrel SAVE_CONFIG çağırmaz.
+Sabit beklemeli testlerden farklı olarak PID süresini Klipper autotune belirler.
+Petrel kapanırsa host izlemesi kaybolur; kalibrasyonu gözetimsiz bırakmayın.
+İptal veya teknik hata acil shutdown ister; otomatik tekrar yoktur.
+H04 genel ısıtıcılar hâlâ uygulamaya özel güvenli profil gerektirir.

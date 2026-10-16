@@ -10,17 +10,17 @@ from time import monotonic
 from urllib.parse import quote
 
 from maintenance_catalog import definition_for
-from maintenance_discovery import AUTOMATIC
+from maintenance_discovery import AUTOMATIC, CALIBRATION
 from maintenance_planner import AdapterRegistration, build_plan, visible_plan
 from maintenance_runtime import read_queue_evidence, live_safety_context
 from maintenance_safety import precheck
-from maintenance_thermal import ACTIVE, ThermalSeries, contract, sample
+from maintenance_thermal import ACTIVE, PID, ThermalSeries, contract, sample, pid_evidence, heater_name
 
 
 def thermal_adapters():
-    return tuple(AdapterRegistration(f, AUTOMATIC, 'maintenance.thermal.'+f,
+    return tuple(AdapterRegistration(f, CALIBRATION if f in PID else AUTOMATIC, 'maintenance.thermal.'+f,
                  definition_for(f).evidence_contract,
-                 definition_for(f).safety_profile) for f in ACTIVE)
+                 definition_for(f).safety_profile) for f in ACTIVE + PID)
 
 
 def thermal_plan(snapshot):
@@ -50,6 +50,7 @@ class MaintenanceHeaterController:
         self._series = ThermalSeries()
         self._off_matches = 0
         self._closed = self._blocked = False
+        self._pid_proof = ()
         self._metric_ok = False
         self._metrics = ()
 
@@ -67,7 +68,7 @@ class MaintenanceHeaterController:
 
     @property
     def observation_prompt(self):
-        return 'Heating and safe OFF seen?'
+        return 'PID completed and OFF seen?' if self.feature_id in PID else 'Heating and safe OFF seen?'
 
     @property
     def live_text(self):
@@ -105,6 +106,8 @@ class MaintenanceHeaterController:
         if not names or len(names) > 16 or row.device not in names:
             raise ValueError('heater_inventory_unbounded_or_missing')
         path = '/printer/objects/query?' + '&'.join(quote(n, safe='')+'=temperature,target,power' for n in names)
+        if row.feature_id in PID:
+            path += '&configfile=save_config_pending,save_config_pending_items'
         reply = self._client.get(path)
         point = sample(reply, row.device)
         status = reply['result']['status']
@@ -115,7 +118,11 @@ class MaintenanceHeaterController:
                     v = status.get(name, {})
                     if v.get('target') != 0 or v.get('power') != 0:
                         raise ValueError('another_heater_active')
-        return evidence, point, c
+        config = status.get('configfile')
+        if initial and row.feature_id in PID and (
+                not isinstance(config, Mapping) or config.get('save_config_pending') is not False):
+            raise ValueError('existing_or_unknown_pending_config')
+        return evidence, point, c, pid_evidence(config, row.device) if row.feature_id in PID else ()
 
     def start(self, feature_id, device=None, **kwargs):
         if self._closed or self._blocked or self.pending:
@@ -126,7 +133,7 @@ class MaintenanceHeaterController:
         self._row, self._phase = row, 'preflight'
         self._series = ThermalSeries()
         self._off_matches = 0
-        self._metrics = ()
+        self._metrics = self._pid_proof = ()
         self._contract = self._command = None
         self._deadline = monotonic()+12
         try:
@@ -174,7 +181,7 @@ class MaintenanceHeaterController:
         c = self._contract
         row = self._row
         def guard():
-            if not self._safe(self._queue):
+            if self._phase not in ('await_confirmation', 'running') or not self._safe(self._queue):
                 return False
             try:
                 # Dispatch-time status must still be cold and every heater OFF.
@@ -184,8 +191,16 @@ class MaintenanceHeaterController:
             except Exception:
                 return False
         try:
-            self._command = self._printer.subscription.request(
-                'printer.gcode.script', {'script': c.script}, guard=guard)
+            script = ('PID_CALIBRATE HEATER=%s TARGET=%.1f\n%s' %
+                      (heater_name(c.device), c.target, c.off)
+                      if row.feature_id in PID else c.script)
+            if row.feature_id in PID:
+                self._command = self._printer.subscription.request(
+                    'printer.gcode.script', {'script': script}, guard=guard,
+                    request_timeout=900.)
+            else:
+                self._command = self._printer.subscription.request(
+                    'printer.gcode.script', {'script': script}, guard=guard)
         except Exception:
             self._shutdown('thermal_dispatch_unknown')
             return True, 'thermal_shutdown_requested'
@@ -221,7 +236,7 @@ class MaintenanceHeaterController:
             if not self._future.done():
                 return None
             try:
-                evidence, point, c = self._future.result()
+                evidence, point, c, _ = self._future.result()
                 if not self._safe(evidence):
                     raise ValueError('thermal_safety_denied')
                 self._series.add(point)
@@ -259,16 +274,22 @@ class MaintenanceHeaterController:
                 return self._shutdown('thermal_read_timeout')
             return None
         try:
-            evidence, point, _ = self._future.result()
+            evidence, point, _, proof = self._future.result()
             if not self._safe(evidence):
                 raise ValueError('thermal_guard_failed')
             self._series.add(point)
+            if self.feature_id in PID:
+                # Keep continuity proof without retaining a 15-minute trace.
+                self._series.samples[:] = self._series.samples[-2:]
+                if proof:
+                    self._pid_proof = proof
             c = self._contract
             if not c.min_temp <= point.temperature < c.ceiling:
                 raise ValueError('thermal_temperature_limit')
             elapsed = now-self._started
-            if self.phase == 'running' and elapsed < c.duration:
-                if point.target != c.target:
+            finished = (self._command.done() if self.feature_id in PID else elapsed >= c.duration)
+            if self.phase == 'running' and not finished:
+                if point.target not in ((c.target, c.target-5) if self.feature_id in PID else (c.target,)):
                     raise ValueError('thermal_target_drift')
             elif point.target != 0 or point.power != 0:
                 self._off_matches = 0
@@ -279,14 +300,17 @@ class MaintenanceHeaterController:
             return self._shutdown('thermal_sample_or_safety_invalid')
         self._future = None
         self._next = now+1
-        if (self.phase == 'running' and now-self._started >= self._contract.duration
+        if (self.phase == 'running' and finished
                 and self._command.done() and self._off_matches >= 2):
             self._phase = 'verifying'
             self._deadline = now+42
             self._cool_started = point.eventtime
         if self.phase == 'verifying' and point.eventtime-self._cool_started >= 32:
             try:
-                self._metric_ok, self._metrics = self._series.evaluate(self.feature_id, self._contract.target)
+                if self.feature_id in PID:
+                    self._metric_ok, self._metrics = bool(self._pid_proof), self._pid_proof
+                else:
+                    self._metric_ok, self._metrics = self._series.evaluate(self.feature_id, self._contract.target)
             except ValueError:
                 return self._finish('INCONCLUSIVE', 'thermal_measurement_incomplete', True)
             self._phase = 'await_observation'

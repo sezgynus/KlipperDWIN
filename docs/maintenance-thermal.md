@@ -43,3 +43,18 @@ dispatch guard are mandatory. No heater target is restored to a nonzero
 value. Physical acceptance remains pending for every H target until the
 operator's final batch test. Generic/application-specific and advanced
 calibration adapters remain unavailable at this stage.
+
+## PID calibration
+H02 hotend and H03 bed use separate calibration registrations and Klipper
+PID_CALIBRATE, at 150 C / 60 C respectively. Admission requires cold idle
+heaters and no existing pending config. The completion RPC has a bounded
+900 s retention; telemetry, queue and lifecycle remain monitored during
+autotune. Normal Klipper target oscillation (target or target minus 5 C) is
+accepted; unrelated target changes are rejected. A script appends OFF.
+Successful RPC, newly pending positive finite Kp/Ki/Kd for the exact heater,
+two zero-target/zero-duty samples and explicit observation are all required.
+PID coefficients remain pending in Klipper; Petrel never invokes SAVE_CONFIG.
+Unlike the fixed dwell tests, PID duration is controlled by Klipper's autotune.
+If Petrel exits, host monitoring is lost; do not leave calibration unattended.
+Cancel or technical failure requests emergency shutdown; no automatic retry.
+H04 generic heaters still require an application-specific safe profile.

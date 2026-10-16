@@ -175,20 +175,26 @@ class MaintenanceResonanceController(FirmwareWorkflow):
                 rows.append(row)
         return tuple(rows)
 
-    def start(self,*args,**kwargs):
+    def start(self,feature_id,device=None,**kwargs):
         self._profile,self._spectra = read_profile(),[]
         self._axis,self._axis_choice = None,False
         self._resolved_device = None
         self._token = 'petrelr_'+uuid.uuid4().hex
-        result = super().start(*args,**kwargs)
-        if result[0] and self._row.axes:
-            axes = [a for i,a in enumerate('xyz') if self._row.axes & (1<<i)]
+        row = next((r for r in self.available()
+                    if r.feature_id==feature_id and r.device==device),None)
+        if row is not None and row.axes:
+            axes = [a for i,a in enumerate('xyz') if row.axes & (1<<i)]
             self._axis = axes[0]
-            if len(axes)>1 and self.feature_id in ('R02','R04','R05'):
-                self._future.cancel()
-                self._axis_choice = True
-                self._phase = 'workflow'
-        return result
+            self._axis_choice = len(axes)>1 and feature_id in ('R02','R04','R05')
+        # Resolve the axis before a worker can run, even for synchronous
+        # test workers. Axis questions never enqueue a discarded read.
+        return super().start(feature_id,device,**kwargs)
+
+    def _schedule(self,action,dispatch):
+        if action=='start' and self._axis_choice and not dispatch:
+            self._action,self._phase,self._future = action,'workflow',None
+            return True,'choose_assigned_measurement_axis'
+        return super()._schedule(action,dispatch)
 
     def fields(self):
         fields = super().fields()
@@ -222,6 +228,8 @@ class MaintenanceResonanceController(FirmwareWorkflow):
                 kin = self._printer.state.settings.get('printer',{}).get('kinematics')
                 if not self._profile.get('belt_test') or kin not in ('corexy','corexz'):
                     raise ValueError('belt_geometry_profile_required')
+            if self.feature_id=='R05' and self._key() not in read_baselines():
+                raise ValueError('compatible_resonance_baseline_missing')
             cfg = self._printer.state.settings.get('resonance_tester',{})
             points = cfg.get('probe_points')
             if isinstance(points,str):

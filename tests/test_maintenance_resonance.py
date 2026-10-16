@@ -126,6 +126,29 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertEqual([(r.device,r.axes) for r in rows],[('adxl345',1),('adxl345 y',2)])
         self.assertFalse(self.owner.start('R05')[0])
 
+    def test_axis_is_bound_before_a_worker_can_execute(self):
+        from concurrent.futures import Future
+        seen = []
+        def immediate(work,**kwargs):
+            future = Future()
+            future.set_result(work())
+            return future
+        with patch.object(self.owner,'_prepare',side_effect=lambda action:seen.append(self.owner._axis)), \
+                patch.object(self.worker,'submit',side_effect=immediate):
+            self.assertTrue(self.owner.start('R02','adxl345')[0])
+        self.assertEqual(seen,['x'])
+
+    def test_missing_compatible_baseline_blocks_before_resonance_motion(self):
+        self.owner._row = SimpleNamespace(feature_id='R05',device='adxl345')
+        self.owner._profile = {'mount_id':'fixed','belt_test':False}
+        self.client.url = 'http://127.0.0.1:7125'
+        with patch('maintenance_workflow.FirmwareWorkflow.validate'), \
+                patch.object(self.owner,'_key',return_value='a'*64), \
+                patch('maintenance_resonance.read_baselines',return_value={}):
+            with self.assertRaisesRegex(ValueError,'compatible_resonance_baseline_missing'):
+                self.owner.validate(self.status,'start')
+        self.assertEqual(self.commands,[])
+
     def test_unsupported_z_is_never_offered(self):
         self.assertTrue(all(not r.axes & 4 for r in self.owner.available()
                             if r.feature_id in ('R02','R03','R04')))

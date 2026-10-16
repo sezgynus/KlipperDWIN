@@ -143,6 +143,7 @@ class MaintenanceHeaterController:
         self._pid_saw_power = self._pid_reached = False
         self._contract = self._command = None
         self._ack_seen = False
+        self._dispatch_rejected = False
         self._deadline = monotonic()+12
         try:
             self._future = self._worker.submit(lambda: self._read(True), queue_timeout=8)
@@ -190,6 +191,7 @@ class MaintenanceHeaterController:
         row = self._row
         def guard():
             if self._phase not in ('await_confirmation', 'running') or not self._safe(self._queue):
+                self._dispatch_rejected = True
                 return False
             try:
                 # Dispatch-time status must still be cold and every heater OFF.
@@ -198,6 +200,7 @@ class MaintenanceHeaterController:
                          profile_for(self._printer.maintenance.snapshot, row.device))
                 return True
             except Exception:
+                self._dispatch_rejected = True
                 return False
         try:
             script = ('PID_CALIBRATE HEATER=%s TARGET=%.1f\n%s' %
@@ -258,10 +261,22 @@ class MaintenanceHeaterController:
             return None
         if not self._current():
             return self._shutdown('thermal_connection_or_epoch_changed')
-        # Local print/operation checks use a fresh subscription every tick.
-        if not precheck(self._printer.maintenance.snapshot,
-                        live_safety_context(self._printer, self._queue)).allowed:
-            return self._shutdown('thermal_operation_conflict')
+        # Consume completed evidence BEFORE judging the previous queue sample.
+        # Otherwise a slow HTTP round trip can trigger shutdown despite a fresh
+        # successful response already waiting on the worker.
+        if self._future is not None and self._future.done():
+            try:
+                self._queue = self._future.result()[0]
+            except Exception:
+                return self._shutdown('thermal_read_failed')
+        # Admission/dispatch retain the strict 3 s limit. During an active
+        # script, allow the same bounded 5 s window as the telemetry watchdog;
+        # print/operation/epoch checks still use the live subscription each tick.
+        decision = precheck(self._printer.maintenance.snapshot,
+                           live_safety_context(self._printer, self._queue,
+                                               queue_max_age=5.))
+        if not decision.allowed:
+            return self._shutdown('thermal_operation_conflict_'+decision.reason)
         if self._command is not None and self._command.done():
             try:
                 self._command.result()
@@ -269,6 +284,8 @@ class MaintenanceHeaterController:
                     self._ack_seen = True
                     self._deadline = min(self._deadline, now+8)
             except Exception:
+                if self._dispatch_rejected:
+                    return self._finish('BLOCKED', 'thermal_dispatch_guard_denied_before_send')
                 return self._shutdown('thermal_script_failed_or_ambiguous')
         if now >= self._deadline:
             return self._shutdown('thermal_deadline_or_off_unverified')
@@ -287,7 +304,9 @@ class MaintenanceHeaterController:
             return None
         try:
             evidence, point, _, proof = self._future.result()
-            if not self._safe(evidence):
+            if not self._current() or not precheck(
+                    self._printer.maintenance.snapshot,
+                    live_safety_context(self._printer, evidence, queue_max_age=5.)).allowed:
                 raise ValueError('thermal_guard_failed')
             self._series.add(point)
             if self.feature_id in PID:
@@ -312,8 +331,9 @@ class MaintenanceHeaterController:
             else:
                 self._off_matches += 1
             self._queue = evidence
-        except Exception:
-            return self._shutdown('thermal_sample_or_safety_invalid')
+        except Exception as exc:
+            reason = str(exc) if isinstance(exc, ValueError) else 'read_or_protocol_error'
+            return self._shutdown('thermal_sample_or_safety_invalid_'+reason)
         self._future = None
         self._next = now+1
         if (self.phase == 'running' and finished

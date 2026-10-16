@@ -81,7 +81,7 @@ def conflicting_petrel_operation(printer):
         return True
 
 
-def live_safety_context(printer, queue_evidence, now=None):
+def live_safety_context(printer, queue_evidence, now=None, *, queue_max_age=_QUEUE_MAX_AGE):
     """Return fresh SafetyContext; unknown evidence denies admission.
 
     Query subscription only on-demand (not from update_variable hot path).
@@ -101,7 +101,7 @@ def live_safety_context(printer, queue_evidence, now=None):
         fresh = (isinstance(queue_evidence, QueueEvidence)
                  and queue_evidence.epoch == state.epoch
                  and queue_evidence.config_marker == id(state.settings)
-                 and 0 <= now - queue_evidence.observed_at <= _QUEUE_MAX_AGE)
+                 and 0 <= now - queue_evidence.observed_at <= queue_max_age)
         if not fresh:
             return SafetyContext(state, operations_checked=True,
                                  conflicting_operation=not no_conflicts)

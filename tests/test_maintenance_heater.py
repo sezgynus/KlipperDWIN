@@ -125,7 +125,7 @@ class ThermalControllerTests(unittest.TestCase):
     def test_stale_queue_unknown_temperature_and_target_drift_shutdown(self):
         self.armed()
         self.c.confirm()
-        self.clock = 4.
+        self.clock = 6.
         self.c.poll()
         self.assertEqual(self.c.phase, 'stopping')
         self.assertEqual(self.requests[-1][0], 'printer.emergency_stop')
@@ -170,3 +170,47 @@ class ThermalControllerTests(unittest.TestCase):
         self.heat.set_result('ok')
         self.c.poll()
         self.assertLessEqual(self.c._deadline, 8.)
+
+    def test_completed_fresh_read_precedes_old_queue_age_check(self):
+        self.armed()
+        self.c.confirm()
+        self.clock = 1.
+        self.c.poll()
+        self.clock = 4.
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.c.phase, 'running')
+        self.assertEqual(len(self.requests), 1)
+
+    def test_active_read_latency_is_bounded_without_stale_admission(self):
+        self.armed()
+        self.c.confirm()
+        self.clock = 1.
+        self.c.poll()
+        self.clock = 4.
+        self.c.poll()
+        self.assertEqual(self.c.phase, 'running')
+        self.clock = 6.
+        self.c.poll()
+        self.assertEqual(self.c.phase, 'stopping')
+
+    def test_dispatch_guard_rejection_does_not_shutdown_unheated_printer(self):
+        self.armed()
+        self.data['status']['extruder']['temperature'] = 55.
+        self.c.confirm()
+        result = self.c.poll()
+        self.assertEqual(result.status, 'BLOCKED')
+        self.assertIn('before_send', result.reason)
+        self.assertEqual([r[0] for r in self.requests], ['printer.gcode.script'])
+        self.assertFalse(self.c._blocked)
+
+    def test_unexpected_target_still_shutdowns_with_specific_reason(self):
+        self.armed()
+        self.c.confirm()
+        self.clock = 2.
+        self.data['status']['extruder']['target'] = 200.
+        self.c.poll()
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.c.phase, 'stopping')
+        self.assertIn('thermal_target_drift', self.c._stop_reason)

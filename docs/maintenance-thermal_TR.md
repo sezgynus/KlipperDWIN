@@ -120,3 +120,28 @@ CI fiziksel kabul değildir. Lokal test veya emülatör çalıştırılmadı.
 PID ayrıca pozitif raporlanan görev oranı ve hedef eksi 5 C bandına ölçülmüş erişme gerektirir. Soğuma sırasında yeniden aktif ısıtıcı shutdown ister. Sonuçta seçilen testin ana metriği LCD'de ilk gösterilir.
 
 Isıtma programı `G4` sonrasında `M400` ile gerçek beklemenin tamamlanmasını bekler; ardından OFF gönderir. G4/M400 veya termal komutların macro ile override edildiği yapılandırmalar güvenilir protokol kabul edilmez.
+
+## 16 Ekim 2026 kullanıcı deneyi ve düzeltme
+Kullanıcı H01/H05/H07/H08/H09/H13 ve H06 hotend denemelerinde
+webhooks shutdown veya Run ekranına geri dönüş bildirdi. H02/H03
+`pid_calibrate interrupted` bildirdi; H03 yaklaşık 10 sn ısıttı.
+H05/H07 yatak BLOCKED idi. H06 yatak çalıştı; paylaşılan sonuç
+PASSED_USER, hedefe erişme 33.57 sn, 122 örnek, 153.8 sn toplam pencere
+gösteriyor. H11 hotend/yatak ve H14 görünen okumalar kullanıcı tarafından
+çalışır olarak bildirildi. Bu bilgi okumalarından fiziksel ısıtıcı kabulü türetilmez.
+Diğer hedefler için başarılı fiziksel kabul yoktur.
+
+Controller'da tamamlanmış yeni kuyruk okumasından önce eski kanıtın yaşının
+denetlenmesi düzeltildi. Dispatch öncesi 3 sn kuralı korunur; devam eden
+testte kuyruk kanıtının sınırı telemetri watchdog'u ile aynı 5 sn'dir.
+Canlı baskı/işlem ve epoch kontrolleri her tick devam eder. Dispatch guard'ı
+komutu gönderilmeden reddederse soğuk test BLOCKED döner; acil shutdown
+göndermez. Gönderilmiş veya gönderimi belirsiz komut hataları hâlâ shutdown
+ister. Örnek/işlem hatasının alt nedeni sonuç kodunda korunur.
+
+Klipper'ın PID hedef davranışı kaynakta yeniden kontrol edildi: hedef ve
+hedef eksi 5 C geçişleri zaten destekleniyordu; bu kural değiştirilmedi.
+Bu düzeltme gerçek cihazda henüz yeniden denenmedi. PID kesilmesinin kesin
+nedeni için yeni sonuç kodu ve aynı zamana ait Klipper/Petrel günlüğü gerekir.
+Sıcak veya başka ısıtıcısı etkin yazıcıda BLOCKED normaldir; yatakta başlangıç
+sıcaklığı en çok 35 C, hotend'de en çok 45 C olmalıdır.

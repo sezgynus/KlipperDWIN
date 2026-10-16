@@ -439,6 +439,82 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(self.runner.poll().status, 'BLOCKED')
         self.assertEqual(self.commands, [])
 
+    def configure_led_chain(self, *, managed=False):
+        from maintenance_discovery import discover
+        raw = self.printer.subscription.snapshot.return_value
+        lights = [(0.0, 0.0, 0.3, 0.0), (0.1, 0.2, 0.0, 0.0),
+                  (0.0, 0.35, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+        raw['settings'] = {'neopixel diagnostic': {
+            'pin': 'PA7', 'chain_count': 4, 'color_order': 'GRB'}}
+        if managed:
+            raw['settings']['mmu_leds unit0'] = {
+                'exit_leds': 'neopixel:diagnostic (1-4)'}
+        raw['objects'] = ('neopixel diagnostic',)
+        self.printer.state = PrinterState.from_snapshot(raw)
+        self.client.status = {'neopixel diagnostic': {'color_data': lights}}
+        roles = approved_integrations(
+            self.printer.state, (('led', 'neopixel diagnostic'),))
+        self.printer.maintenance.snapshot = discover(self.printer.state, roles)
+        return lights
+
+    def test_multi_led_physical_pipeline_requires_two_consents_and_full_restore(self):
+        colors = self.configure_led_chain()
+        self.assertEqual(self.runner.start('O04', 'neopixel diagnostic'),
+                         (True, 'preflight_queued'))
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertEqual(self.commands, [])
+        self.assertTrue(self.runner.confirm()[0])
+        self.assertEqual(len(self.commands), 1)
+        script = self.commands[0][1]['script']
+        self.assertIn('INDEX=4 TRANSMIT=1 SYNC=0', script)
+        self.assertEqual(script.count('TRANSMIT=1'), 2)
+        self.assertTrue(self.commands[0][2]())
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.advance(1.2)
+        self.poll_verify()
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'await_observation')
+        outcome = self.runner.observe(True)
+        self.assertEqual(outcome.status, 'PASSED_USER')
+        self.assertTrue(outcome.restore_verified)
+        self.assertEqual(len(self.commands), 1)
+        self.assertEqual(self.client.status['neopixel diagnostic']['color_data'],
+                         colors)
+
+    def test_multi_led_incomplete_restore_never_reports_pass(self):
+        self.configure_led_chain()
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        self.runner.poll()
+        self.assertTrue(self.runner.confirm()[0])
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        # Last LED did not restore, although the other three did.
+        self.client.status['neopixel diagnostic']['color_data'][3] = (1., 0., 0., 0.)
+        self.advance(1.2)
+        for _ in range(3):
+            self.poll_verify()
+            self.advance(.35)
+        self.advance(6)
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'INCONCLUSIVE')
+        self.assertFalse(result.restore_verified)
+        self.assertIsNone(self.runner.observe(True))
+        self.assertEqual(len(self.commands), 1)
+
+    def test_managed_mmu_chain_denied_before_any_output(self):
+        self.configure_led_chain(managed=True)
+        self.assertTrue(self.runner.start('O04', 'neopixel diagnostic')[0])
+        self.worker.next()
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'BLOCKED')
+        self.assertEqual(result.reason, 'preflight_failed')
+        self.assertEqual(self.commands, [])
+
     def test_petrel_backend_creates_opt_in_physical_controller(self):
         from test_regressions import backend
         from unittest.mock import patch

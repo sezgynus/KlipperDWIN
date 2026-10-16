@@ -12,6 +12,8 @@ from maintenance_guided import _trusted_target
 
 _NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,47}\Z')
 _TONE = 0.000625  # 1600 Hz; one 150-ms chirp
+_MAX_LED_CHAIN = 32  # bounded status, script length and restoration footprint
+_MAX_LED_SCRIPT = 7200
 _PULSE_MS = {'F01': 950, 'F04': 950, 'O03': 850,
              'O04': 750, 'S18': 150}
 
@@ -41,10 +43,45 @@ def _name(value):
     return value
 
 
-def _command(name, value):
-    return 'SET_LED LED=%s RED=%.4f GREEN=%.4f BLUE=%.4f%s SYNC=0' % (
+def _command(name, value, *, index, transmit, white):
+    return ('SET_LED LED=%s RED=%.4f GREEN=%.4f BLUE=%.4f%s '
+            'INDEX=%d TRANSMIT=%d SYNC=0') % (
         name, value[0], value[1], value[2],
-        ' WHITE=%.4f' % value[3] if value[3] else '')
+        (' WHITE=%.4f' % value[3]) if white else '',
+        index, int(transmit))
+
+
+def _led_managed(settings, target):
+    """Refuse known independently managed MMU and led_effect chains.
+
+    MMU action=idle does not establish exclusive ownership of MMU LEDs.
+    """
+    kind, _, name = target.partition(' ')
+    reference = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(kind) + r':' +
+                           re.escape(name) + r'(?![A-Za-z0-9_])', re.I)
+    for section, cfg in settings.items():
+        if not isinstance(section, str) or not isinstance(cfg, Mapping):
+            continue
+        if section.startswith('mmu_leds '):
+            fields = ('exit_leds', 'entry_leds', 'status_leds', 'logo_leds')
+        elif section.startswith(('led_effect ', '_led_effect ', 'mmu_led_effect ')):
+            fields = ('leds',)
+        else:
+            continue
+        for field in fields:
+            value = cfg.get(field)
+            if isinstance(value, str) and reference.search(value):
+                return True
+    return False
+
+
+def _led_stimulus(original):
+    # Choose a low-current visible color different from the captured state.
+    options = ((0., .35, 0., 0.), (0., 0., .35, 0.), (.35, 0., 0., 0.))
+    for option in options:
+        if any(abs(a - b) >= .1 for a, b in zip(original, option)):
+            return option
+    return options[-1]
 
 
 def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
@@ -117,22 +154,49 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
             raise ValueError('led_type_unsupported')
         name = _name(name)
         colors = current.get('color_data')
-        # Multiple LEDs or templates cannot be restored by one safe command.
-        if not isinstance(colors, (tuple, list)) or len(colors) != 1:
-            raise ValueError('led_baseline_unavailable')
-        raw = colors[0]
-        if not isinstance(raw, (tuple, list)) or len(raw) != 4 or not all(_unit(v) for v in raw):
-            raise ValueError('led_baseline_invalid')
-        original = tuple(float(v) for v in raw)
-        has_white = (bool(cfg.get('white_pin')) if kind == 'led'
-                     else 'W' in str(cfg.get('color_order', 'RGB')).upper())
-        if original[3] and not has_white:
-            raise ValueError('led_white_not_supported')
-        start = _command(name, (.0, .4, .0, .0))
-        restore = _command(name, original)
+        if _led_managed(settings, target):
+            raise ValueError('led_managed_by_another_controller')
+        if (not isinstance(colors, (tuple, list))
+                or not 1 <= len(colors) <= _MAX_LED_CHAIN):
+            raise ValueError('led_chain_length_unknown_or_exceeds_limit')
+        count = cfg.get('chain_count', 1)
+        if type(count) is not int or count != len(colors):
+            raise ValueError('led_chain_count_mismatch')
+        has_white = bool(cfg.get('white_pin')) if kind == 'led' else False
+        if kind != 'led':
+            order = cfg.get('color_order', 'RGB')
+            if not isinstance(order, str):
+                raise ValueError('led_color_order_unknown')
+            orders = [s.strip().upper() for s in order.split(',')]
+            if (not orders or len(orders) not in (1, len(colors))
+                    or any(not s or set(s) not in
+                           (set('RGB'), set('RGBW')) or len(s) not in (3, 4)
+                           for s in orders)):
+                raise ValueError('led_color_order_unsupported')
+            if len({('W' in s) for s in orders}) != 1:
+                raise ValueError('mixed_rgb_rgbw_unsupported')
+            has_white = 'W' in orders[0]
+        originals = []
+        for raw in colors:
+            if (not isinstance(raw, (tuple, list)) or len(raw) != 4
+                    or not all(_unit(v) for v in raw)):
+                raise ValueError('led_baseline_invalid')
+            rgba = tuple(float(v) for v in raw)
+            if rgba[3] and not has_white:
+                raise ValueError('led_white_not_supported')
+            originals.append(rgba)
+        original = tuple(originals)
+        stimuli = tuple(_led_stimulus(color) for color in original)
+        # Batch changes; only the last indexed command transmits a frame.
+        start = '\n'.join(_command(name, value, index=i,
+                                  transmit=i == len(stimuli), white=has_white)
+                          for i, value in enumerate(stimuli, 1))
+        restore = '\n'.join(_command(name, value, index=i,
+                                    transmit=i == len(original), white=has_white)
+                            for i, value in enumerate(original, 1))
         evidence = original
         object_name = target
-        observation = 'Did the single LED briefly become green?'
+        observation = 'Did every LED in the selected chain briefly change?'
     elif feature == 'S18':
         # pwm_cycle_time has NO get_status() and no live readback. The only
         # allowed baseline is an explicit OFF config, not invented telemetry.
@@ -167,7 +231,7 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
         duration += 50
     else:
         script = '%s\nG4 P%d\n%s' % (start, duration, restore)
-    if '\r' in script or len(script) > 300:
+    if '\r' in script or len(script) > (_MAX_LED_SCRIPT if feature == 'O04' else 300):
         raise ValueError('unsafe_program')
     from urllib.parse import quote
     endpoint = ('' if feature == 'S18'
@@ -191,9 +255,10 @@ def restored(program, status):
         return _unit(value) and abs(value - program.original[0]) <= .015
     if program.feature_id == 'O04':
         colors = state.get('color_data')
-        return (isinstance(colors, (list, tuple)) and len(colors) == 1
-                and isinstance(colors[0], (list, tuple))
-                and len(colors[0]) == 4
-                and all(_unit(value) and abs(value - old) <= .015
-                        for value, old in zip(colors[0], program.original)))
+        return (isinstance(colors, (list, tuple))
+                and len(colors) == len(program.original)
+                and all(isinstance(rgba, (list, tuple)) and len(rgba) == 4
+                        and all(_unit(value) and abs(value - old) <= .015
+                                for value, old in zip(rgba, baseline))
+                        for rgba, baseline in zip(colors, program.original)))
     return False

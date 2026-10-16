@@ -27,7 +27,7 @@ class MaintenanceViewMixin:
             self._maintenance_test_rows = options
             entries = [back]
             for item in options:
-                label = item.feature_id + ' ' + (item.device or 'buzzer')
+                label = item.feature_id + ' ' + (item.device or 'global')
                 entries.append((label[:26], self.ICON_FanSpeed
                                 if item.feature_id.startswith('F') else
                                 self.ICON_CaseLight, None, None))

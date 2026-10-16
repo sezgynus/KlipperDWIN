@@ -162,6 +162,7 @@ def discover(state, services=()):
     settings, status = state.settings, state.status
     objects = state.objects
     names = set(objects)             # Temporary; never retained.
+    services = frozenset(services)   # Explicit API evidence, never guesses.
     # Stepper sections are authoritative in configfile.settings even if
     # Klipper does not expose them as individual status objects. Consider
     # only supported X/Y/Z names; never promote arbitrary config sections.
@@ -174,10 +175,11 @@ def discover(state, services=()):
         # the authoritative structural evidence for these features.
         names.update(section for section in settings
                      if _stepper_section(section)
+                     or (isinstance(section, str) and section.startswith('pwm_cycle_time ')
+                         and 'maintenance.audible:' + section in services)
                      or section == 'resonance_tester'
                      or (isinstance(section, str)
                          and section.split(' ', 1)[0] in accel_types))
-    services = frozenset(services)   # Explicit API evidence, never guesses.
     results = []
     physical_endstops = False
     accelerometers = {n for n in names if n.split(' ', 1)[0] in accel_types}
@@ -365,6 +367,10 @@ def discover(state, services=()):
                 bits = _add(bits, 'O03', USER)
             elif ('maintenance.safe_stepper:' + name) in services and name.startswith('manual_stepper '):
                 bits = _add(bits, 'M15', USER | EXTERNAL)
+        elif name.startswith('pwm_cycle_time '):
+            if 'maintenance.audible:' + name in services:
+                family = 'actuator'
+                bits = _add(bits, 'S18', USER)
         elif name.startswith('canbus_stats '):
             family = 'can'
             bits = _add(bits, 'S07', AUTOMATIC | INFORMATION)
@@ -481,11 +487,10 @@ def discover(state, services=()):
                              ('petrel.encoder_diagnostics', 'S15'),
                              ('petrel.lcd_diagnostics', 'S16'),
                              ('petrel.backlight', 'S17'),
-                             ('petrel.buzzer', 'S18'),
                              ('update_manager', 'S19'),
                              ('maintenance.report_export', 'S20')):
         if service in services:
-            mode = USER if feature in ('S17', 'S18') else INFORMATION
+            mode = USER if feature == 'S17' else INFORMATION
             global_bits = _add(global_bits, feature, mode)
     if 'maintenance.travel_counter' in services:
         global_bits = _add(global_bits, 'S13', INFORMATION)

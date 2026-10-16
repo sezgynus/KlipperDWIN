@@ -1,4 +1,4 @@
-"""No implicit actuator approvals: on-disk profile is explicit and bounded."""
+"""CI-only regression of role-based Maintenance actuator authorization."""
 import json
 import sys
 import tempfile
@@ -16,122 +16,138 @@ from maintenance_pulse import compile_pulse
 def state():
     return SimpleNamespace(
         ready=True, epoch=2,
-        objects=('output_pin case_light', 'pwm_cycle_time tick',
-                 'pwm_cycle_time heater'),
-        settings={'output_pin case_light': {'pwm': True, 'scale': 1},
-                  'pwm_cycle_time tick': {'pin': 'PB13', 'value': 0, 'shutdown_value': 0, 'scale': 1},
-                  'pwm_cycle_time heater': {'pin': 'PA8', 'value': 0, 'shutdown_value': 0, 'scale': 1}},
+        objects=('output_pin enclosure', 'output_pin tool_lamp',
+                 'fan_generic aux', 'neopixel board'),
+        settings={
+            'output_pin enclosure': {'pin': 'PB1', 'pwm': True, 'scale': 1},
+            'output_pin tool_lamp': {'pin': 'PC2', 'pwm': True, 'scale': 1},
+            'pwm_cycle_time alert': {'pin': 'PB13', 'value': 0,
+                                     'shutdown_value': 0, 'scale': 1},
+            'pwm_cycle_time beep2': {'pin': 'PB14', 'value': 0,
+                                     'shutdown_value': 0, 'scale': 1},
+            'pwm_cycle_time heater': {'pin': 'PA8', 'value': 0,
+                                     'shutdown_value': 0, 'scale': 1},
+            'fan_generic aux': {'pin': 'PA4'},
+            'neopixel board': {'pin': 'PA5'}},
         status={})
 
 
+PROFILES = (('visual', 'output_pin enclosure'),
+            ('visual', 'output_pin tool_lamp'),
+            ('audible', 'pwm_cycle_time alert'),
+            ('audible', 'pwm_cycle_time beep2'))
+
+
 class ProfileTests(unittest.TestCase):
-    def test_missing_invalid_or_oversize_file_grants_nothing(self):
+    def test_invalid_legacy_conflicting_and_oversize_profiles_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'profiles.json'
             self.assertEqual(read_profiles(path), ())
             for value in (
-                    '{', '{}', '{"version":1,"case_light":"yes"}',
-                    '{"version":1,"case_light":true,"extra":1}',
-                    '{"version":1,"buzzer_output":"tick\\nM109"}',
-                    '{"version":2,"case_light":true}',
-                    '{"version":1,"fan_generic_output":"x;M109"}',
-                    '{"version":1,"led_output":"servo mmu"}',
+                    '{', '{}', '{"version":1,"case_light":true}',
+                    '{"version":2,"actuators":"invalid"}',
+                    '{"version":2,"actuators":[{"role":"visual","object":"output_pin x\\nM112"}]}',
+                    '{"version":2,"actuators":[{"role":"visual","object":"pwm_cycle_time x"}]}',
+                    '{"version":2,"actuators":[{"role":"audible","object":"output_pin x"}]}',
+                    '{"version":2,"actuators":[{"role":"visual","object":"output_pin x","extra":1}]}',
+                    '{"version":2,"actuators":[{"role":"visual","object":"output_pin x"},{"role":"visual","object":"output_pin X"}]}',
+                    '{"version":2,"actuators":[{"role":"visual","object":"output_pin x"}],"extra":1}',
                     'x' * (MAX_BYTES + 1)):
-                path.write_text(value, encoding='utf-8')
-                self.assertEqual(read_profiles(path), ())
+                with self.subTest(value=value[:40]):
+                    path.write_text(value, encoding='utf-8')
+                    self.assertEqual(read_profiles(path), ())
 
-    def test_profile_requires_positive_object_and_known_safe_config(self):
-        p = state()
-        self.assertEqual(approved_integrations(p, ()), ())
-        self.assertEqual(approved_integrations(p, (False, '')), ())
-        self.assertEqual(set(approved_integrations(p, (True, 'tick'))),
-                         {'maintenance.safe_pin:output_pin case_light',
-                          'petrel.buzzer', 'maintenance.buzzer_output:tick'})
-        p.settings['output_pin case_light']['pwm'] = False
-        self.assertNotIn('maintenance.safe_pin:output_pin case_light',
-                         approved_integrations(p, (True, 'tick')))
-        p.settings['pwm_cycle_time tick']['shutdown_value'] = 1
-        self.assertNotIn('petrel.buzzer', approved_integrations(p, (True, 'tick')))
-
-    def test_user_profile_json_and_device_matching(self):
+    def test_v2_profile_reads_exact_role_object_pairs(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'profiles.json'
-            path.write_text(json.dumps({
-                'version': 1, 'case_light': True, 'buzzer_output': 'tick'}),
-                encoding='utf-8')
-            allow = read_profiles(path)
-            self.assertEqual(allow, (True, 'tick', '', ''))
-            p = state()
-            snap = discover(p, approved_integrations(p, allow))
-            self.assertIn(('O03', 'output_pin case_light'),
-                          {(r.feature_id, r.device) for r in guided_plan(snap)})
-            self.assertIn(('S18', None),
-                          {(r.feature_id, r.device) for r in guided_plan(snap)})
-            p.objects = ('pwm_cycle_time heater',)
-            self.assertIn('petrel.buzzer', approved_integrations(p, allow))
-            p.settings.pop('pwm_cycle_time tick')
-            self.assertEqual(approved_integrations(p, allow), ())
+            path.write_text(json.dumps({'version': 2, 'actuators': [
+                {'role': 'visual', 'object': 'output_pin enclosure'},
+                {'role': 'audible', 'object': 'pwm_cycle_time ALERT'},
+                {'role': 'fan', 'object': 'fan_generic aux'},
+                {'role': 'led', 'object': 'neopixel board'}]}), encoding='utf-8')
+            self.assertEqual(read_profiles(path), (
+                ('visual', 'output_pin enclosure'),
+                ('audible', 'pwm_cycle_time alert'),
+                ('fan', 'fan_generic aux'),
+                ('led', 'neopixel board')))
 
-    def test_config_only_pwm_cycle_time_may_be_discovered_but_requires_explicit_pin_and_off_config(self):
+    def test_multiple_outputs_discover_independently_without_hardcoded_names(self):
         p = state()
-        p.objects = ('output_pin case_light',)  # No queryable buzzer status.
-        allow = (False, 'tick', '', '')
-        services = approved_integrations(p, allow)
-        self.assertIn('maintenance.buzzer_output:tick', services)
-        snap = discover(p, services)
-        self.assertIn(('S18', None), {(r.feature_id, r.device)
-                                     for r in guided_plan(snap)})
-        for key, bad in (('pin', ''), ('value', .1), ('shutdown_value', 1),
-                         ('scale', 0)):
-            with self.subTest(key=key):
-                original = p.settings['pwm_cycle_time tick'][key]
-                p.settings['pwm_cycle_time tick'][key] = bad
-                self.assertNotIn('petrel.buzzer', approved_integrations(p, allow))
-                p.settings['pwm_cycle_time tick'][key] = original
-        self.assertNotIn('petrel.buzzer',
-                         approved_integrations(p, (False, '', '', '')))
+        keys = approved_integrations(p, PROFILES)
+        self.assertEqual(set(keys), {
+            'maintenance.visual:output_pin enclosure',
+            'maintenance.visual:output_pin tool_lamp',
+            'maintenance.audible:pwm_cycle_time alert',
+            'maintenance.audible:pwm_cycle_time beep2'})
+        self.assertNotIn('maintenance.audible:pwm_cycle_time heater', keys)
+        snap = discover(p, keys)
+        actual = {(r.feature_id, r.device) for r in guided_plan(snap)}
+        self.assertTrue({('O03', 'output_pin enclosure'),
+                         ('O03', 'output_pin tool_lamp'),
+                         ('S18', 'pwm_cycle_time alert'),
+                         ('S18', 'pwm_cycle_time beep2')} <= actual)
+        self.assertNotIn(('S18', None), actual)
+        self.assertNotIn(('S18', 'pwm_cycle_time heater'), actual)
+        self.assertEqual(snap.method('S18', 'pwm_cycle_time alert'), 2)
 
-    def test_unlisted_pwm_pin_cannot_be_used_as_buzzer(self):
+    def test_unsafe_or_missing_config_disables_only_matching_role(self):
         p = state()
-        services = approved_integrations(p, (True, 'tick'))
-        snap = discover(p, services)
+        p.objects = ('output_pin enclosure',)
+        keys = approved_integrations(p, PROFILES)
+        self.assertNotIn('maintenance.visual:output_pin tool_lamp', keys)
+        self.assertIn('maintenance.audible:pwm_cycle_time alert', keys)
+        for field, bad in (('pin', ''), ('value', .1), ('shutdown_value', 1),
+                           ('scale', 0)):
+            with self.subTest(field=field):
+                original = p.settings['pwm_cycle_time alert'][field]
+                p.settings['pwm_cycle_time alert'][field] = bad
+                self.assertNotIn('maintenance.audible:pwm_cycle_time alert',
+                                 approved_integrations(p, PROFILES))
+                self.assertIn('maintenance.audible:pwm_cycle_time beep2',
+                              approved_integrations(p, PROFILES))
+                p.settings['pwm_cycle_time alert'][field] = original
+        p.settings['output_pin enclosure']['pwm'] = False
+        self.assertNotIn('maintenance.visual:output_pin enclosure',
+                         approved_integrations(p, PROFILES))
+
+    def test_other_pin_never_becomes_audible_without_profile(self):
+        p = state()
+        keys = approved_integrations(p, (('audible', 'pwm_cycle_time alert'),))
+        snap = discover(p, keys)
         row = next(r for r in guided_plan(snap) if r.feature_id == 'S18')
-        status = {'pwm_cycle_time heater': {'value': 0}}
+        other = discover(p, approved_integrations(
+            p, (('audible', 'pwm_cycle_time heater'),)))
+        self.assertNotEqual(row.device, next(
+            r for r in guided_plan(other) if r.feature_id == 'S18').device)
         with self.assertRaises(ValueError):
-            compile_pulse(row, snap, status, p.settings,
-                          buzzer_output='heater')
+            compile_pulse(row, other, {}, p.settings, pin_command_name='Heater')
 
-
-    def test_generic_fan_and_led_need_exact_explicit_names(self):
+    def test_fan_and_led_still_require_registered_object(self):
         p = state()
-        p.objects += ('fan_generic aux', 'neopixel board')
-        p.settings.update({
-            'fan_generic aux': {'pin': 'PA4'},
-            'neopixel board': {'pin': 'PA5'}})
-        keys = approved_integrations(
-            p, (False, '', 'aux', 'neopixel board'))
+        roles = (('fan', 'fan_generic aux'), ('led', 'neopixel board'))
+        keys = approved_integrations(p, roles)
         self.assertIn('maintenance.safe_fan:fan_generic aux', keys)
         self.assertIn('maintenance.safe_led:neopixel board', keys)
-        self.assertNotIn('maintenance.safe_fan:fan_generic unknown', keys)
-        p.objects = ('fan_generic aux',)
-        self.assertNotIn('maintenance.safe_led:neopixel board',
-                         approved_integrations(p, (False, '', 'aux', 'neopixel board')))
+        p.objects = ()
+        self.assertEqual(approved_integrations(p, roles), ())
 
-    def test_optional_discovery_manager_uses_profile_once_per_epoch(self):
+    def test_profiles_cached_once_per_ready_epoch(self):
         from maintenance_session import MaintenanceDiscoveryManager
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'profiles.json'
-            path.write_text('{"version":1,"case_light":true}', encoding='utf-8')
+            path.write_text(json.dumps({'version': 2, 'actuators': [
+                {'role': 'visual', 'object': 'output_pin enclosure'}]}),
+                encoding='utf-8')
             p = state()
             manager = MaintenanceDiscoveryManager(profile_path=path)
             first = manager.ready(p)
-            self.assertIn('maintenance.safe_pin:output_pin case_light',
+            self.assertIn('maintenance.visual:output_pin enclosure',
                           first.service_key)
-            path.write_text('{"version":1,"case_light":false}', encoding='utf-8')
+            path.write_text('{"version":2,"actuators":[]}', encoding='utf-8')
             self.assertIs(manager.ready(p), first)
             p.epoch = 3
             newer = manager.ready(p)
-            self.assertNotIn('maintenance.safe_pin:output_pin case_light',
+            self.assertNotIn('maintenance.visual:output_pin enclosure',
                              newer.service_key)
 
 

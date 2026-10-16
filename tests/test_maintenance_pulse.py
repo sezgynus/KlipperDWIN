@@ -23,9 +23,13 @@ def environment(features=('F01',), services=()):
             settings[name] = {'pin': 'PA5'}
             status[name] = {'speed': .18}
         elif feature == 'O03':
-            name = 'output_pin case_light'; family = 'actuator'
-            settings[name] = {'pwm': True, 'scale': 1}
+            name = 'output_pin enclosure'; family = 'actuator'
+            settings[name] = {'pin': 'PB1', 'pwm': True, 'scale': 1}
             status[name] = {'value': .25}
+        elif feature == 'S18':
+            name = 'pwm_cycle_time alert'; family = 'actuator'
+            settings[name] = {'pin': 'PB13', 'scale': 1,
+                              'value': 0, 'shutdown_value': 0}
         else:
             name = 'neopixel case'; family = 'led'
             settings[name] = {'color_order': 'GRB'}
@@ -37,7 +41,7 @@ def environment(features=('F01',), services=()):
             allow.add('maintenance.safe_led:' + item.name)
         if item.name.startswith('fan_generic '):
             allow.add('maintenance.safe_fan:' + item.name)
-    snap = MaintenanceSnapshot(4, tuple(devices), _add(0, 'S18', USER),
+    snap = MaintenanceSnapshot(4, tuple(devices), 0,
                                id(settings), tuple(sorted(allow)))
     return snap, settings, status
 
@@ -63,20 +67,28 @@ class PhysicalPulseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compile_pulse(guided_plan(snap)[0], snap, status, settings)
 
-    def test_case_light_requires_explicit_profile_pwm_and_restore(self):
+    def test_generic_visual_output_requires_role_pwm_and_restores(self):
         snap, settings, status = environment(
-            ('O03',), ('maintenance.safe_pin:output_pin case_light',))
+            ('O03',), ('maintenance.visual:output_pin enclosure',))
         row = guided_plan(snap)[0]
-        p = compile_pulse(row, snap, status, settings)
-        self.assertIn('VALUE=0.2500', p.restore)
+        p = compile_pulse(row, snap, status, settings, pin_command_name='Enclosure')
+        self.assertIn('PIN=Enclosure VALUE=0.7000', p.stimulus)
+        self.assertIn('PIN=Enclosure VALUE=0.2500', p.restore)
         self.assertTrue(restored(p, status))
-        settings['output_pin case_light']['scale'] = 2
+        settings['output_pin enclosure']['scale'] = 2
         with self.assertRaises(ValueError):
-            compile_pulse(row, snap, status, settings)
-        settings['output_pin case_light']['scale'] = 1
-        status['output_pin case_light']['value'] = None
+            compile_pulse(row, snap, status, settings, pin_command_name='Enclosure')
+        settings['output_pin enclosure']['scale'] = 1
+        status['output_pin enclosure']['value'] = .7
+        p = compile_pulse(row, snap, status, settings, pin_command_name='Enclosure')
+        self.assertIn('VALUE=0.2000', p.stimulus)
+        status['output_pin enclosure']['value'] = None
         with self.assertRaises(ValueError):
-            compile_pulse(row, snap, status, settings)
+            compile_pulse(row, snap, status, settings, pin_command_name='Enclosure')
+        for bad in (None, 'other', 'Enclosure\\nM112'):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                compile_pulse(row, snap, {'output_pin enclosure': {'value': .2}},
+                              settings, pin_command_name=bad)
 
     def test_single_led_restore_and_multiled_blocked(self):
         snap, settings, status = environment(('O04',))
@@ -88,44 +100,35 @@ class PhysicalPulseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compile_pulse(row, snap, status, settings)
 
-    def test_config_only_buzzer_has_bounded_off_pulse_off_script_and_never_fake_readback(self):
+    def test_generic_config_only_audible_output_never_fakes_readback(self):
         snap, settings, status = environment(
-            (), ('petrel.buzzer', 'maintenance.buzzer_output:tick'))
-        settings['pwm_cycle_time tick'] = {'pin': 'PB13', 'scale': 1,
-                                           'value': 0, 'shutdown_value': 0}
-        # The genuine Klipper object is config-only: no status exists.
+            ('S18',), ('maintenance.audible:pwm_cycle_time alert',))
         row = next(r for r in guided_plan(snap) if r.feature_id == 'S18')
-        p = compile_pulse(row, snap, status, settings, buzzer_output='tick',
-                          buzzer_command_name='Tick')
+        p = compile_pulse(row, snap, status, settings, pin_command_name='Alert')
         denied = MaintenanceSnapshot(snap.epoch, snap.devices, snap.global_modes,
-                                     snap.config_marker, ('petrel.buzzer',))
+                                     snap.config_marker, ())
         with self.assertRaises(ValueError):
-            compile_pulse(row, denied, status, settings, buzzer_output='tick',
-                          buzzer_command_name='Tick')
+            compile_pulse(row, denied, status, settings, pin_command_name='Alert')
         self.assertIn('CYCLE_TIME=0.00062500', p.stimulus)
-        self.assertIn('PIN=Tick', p.stimulus)
-        self.assertNotIn('PIN=tick', p.script)
+        self.assertIn('PIN=Alert', p.stimulus)
         self.assertEqual(p.duration_ms, 200)
         self.assertEqual(p.read_path, '')
-        self.assertEqual(p.script, 'SET_PIN PIN=Tick VALUE=0\nG4 P50\n'
-                         'SET_PIN PIN=Tick VALUE=0.2500 CYCLE_TIME=0.00062500\n'
-                         'G4 P150\nSET_PIN PIN=Tick VALUE=0')
+        self.assertEqual(p.script, 'SET_PIN PIN=Alert VALUE=0\\nG4 P50\\n'
+                         'SET_PIN PIN=Alert VALUE=0.2500 CYCLE_TIME=0.00062500\\n'
+                         'G4 P150\\nSET_PIN PIN=Alert VALUE=0')
         self.assertFalse(restored(p, status))
-        self.assertFalse(restored(p, {'pwm_cycle_time tick': {'value': 0}}))
-        status['pwm_cycle_time tick'] = {'value': .2}
+        self.assertFalse(restored(p, {'pwm_cycle_time alert': {'value': 0}}))
+        status['pwm_cycle_time alert'] = {'value': .2}
         with self.assertRaises(ValueError):
-            compile_pulse(row, snap, status, settings, buzzer_output='tick',
-                          buzzer_command_name='Tick')
+            compile_pulse(row, snap, status, settings, pin_command_name='Alert')
         status.clear()
-        settings['pwm_cycle_time tick']['value'] = .2
+        settings['pwm_cycle_time alert']['value'] = .2
         with self.assertRaises(ValueError):
-            compile_pulse(row, snap, status, settings, buzzer_output='tick',
-                          buzzer_command_name='Tick')
-        settings['pwm_cycle_time tick']['value'] = 0
-        for invalid in (None, 'Other', 'tick\nM112'):
+            compile_pulse(row, snap, status, settings, pin_command_name='Alert')
+        settings['pwm_cycle_time alert']['value'] = 0
+        for invalid in (None, 'Other', 'Alert\\nM112'):
             with self.subTest(name=invalid), self.assertRaises(ValueError):
-                compile_pulse(row, snap, status, settings,
-                              buzzer_output='tick', buzzer_command_name=invalid)
+                compile_pulse(row, snap, status, settings, pin_command_name=invalid)
 
     def test_unknown_programs_cannot_inject_macros_or_modify_heaters(self):
         snap, settings, status = environment(('F04',))

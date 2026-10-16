@@ -36,12 +36,14 @@ class PhysicalResult:
     restore_verified: bool = False
 
 
-def _object_name(row, buzzer):
-    if row.feature_id == 'S18':
-        if not isinstance(buzzer, str) or not _OUTPUT.fullmatch(buzzer):
-            raise ValueError('invalid_buzzer_output')
-        return 'pwm_cycle_time ' + buzzer
-    return row.device
+def _object_name(row):
+    name = row.device
+    if row.feature_id in ('S18', 'O03'):
+        prefix = 'pwm_cycle_time ' if row.feature_id == 'S18' else 'output_pin '
+        if (not isinstance(name, str) or not name.startswith(prefix)
+                or not _OUTPUT.fullmatch(name[len(prefix):])):
+            raise ValueError('invalid_actuator_target')
+    return name
 
 
 def _read_target(client, name):
@@ -56,7 +58,7 @@ def _read_target(client, name):
 
 
 
-def _resolve_buzzer_gcode_name(client, object_name, settings):
+def _resolve_pin_gcode_name(client, object_name, settings):
     """Resolve the *case-sensitive* SET_PIN mux name from original config.
 
     Klipper's configfile.settings lowercases section names, while its
@@ -64,13 +66,12 @@ def _resolve_buzzer_gcode_name(client, object_name, settings):
     registering the SET_PIN PIN mux value. Never guess capitalization or
     accept a name based only on the HTTP error's suggested options.
     """
-    if (not isinstance(object_name, str)
-            or not object_name.startswith('pwm_cycle_time ')
-            or not isinstance(settings, Mapping)):
-        raise ValueError('invalid_buzzer_target')
-    configured_name = object_name.split(' ', 1)[1]
-    if not _OUTPUT.fullmatch(configured_name):
-        raise ValueError('invalid_buzzer_target')
+    if not isinstance(object_name, str) or not isinstance(settings, Mapping):
+        raise ValueError('invalid_output_target')
+    kind, sep, configured_name = object_name.partition(' ')
+    if (kind not in ('pwm_cycle_time', 'output_pin') or not sep
+            or not _OUTPUT.fullmatch(configured_name)):
+        raise ValueError('invalid_output_target')
     expected_pin = settings.get('pin')
     if not isinstance(expected_pin, str) or not expected_pin.strip():
         raise ValueError('buzzer_config_pin_missing')
@@ -83,7 +84,7 @@ def _resolve_buzzer_gcode_name(client, object_name, settings):
         raise ValueError('buzzer_original_config_unavailable')
     matches = []
     for section, section_config in raw.items():
-        if not isinstance(section, str) or not section.startswith('pwm_cycle_time '):
+        if not isinstance(section, str) or not section.startswith(kind + ' '):
             continue
         actual = section.split(' ', 1)[1]
         if actual.casefold() != configured_name.casefold():
@@ -179,7 +180,7 @@ class MaintenancePulseController:
         self._release()
         return result
 
-    def start(self, feature_id, device=None, *, buzzer_output=None, timeout=12.0):
+    def start(self, feature_id, device=None, *, timeout=12.0):
         """Preflight only; no physical output until a later confirm() action."""
         if self._closed or self.pending or self._blocked:
             return False, 'busy_closed_or_restore_unconfirmed'
@@ -192,19 +193,11 @@ class MaintenancePulseController:
                     if r.feature_id == feature_id and r.device == device), None)
         if row is None:
             return False, 'test_not_discovered_or_allowed'
-        if row.feature_id == 'S18':
-            # The panel's own buzzer settings are unrelated to the user's
-            # explicitly authorized Klipper pwm_cycle_time buzzer.
-            names = tuple(key.split(':', 1)[1] for key in self._snapshot().service_key
-                          if key.startswith('maintenance.buzzer_output:'))
-            if len(names) != 1 or (buzzer_output is not None and buzzer_output != names[0]):
-                return False, 'buzzer_profile_missing_or_mismatch'
-            buzzer_output = names[0]
         try:
-            target = _object_name(row, buzzer_output)
+            target = _object_name(row)
         except ValueError:
             return False, 'invalid_hardware_identifier'
-        self._row, self._buzzer = row, buzzer_output
+        self._row, self._buzzer = row, None
         self._phase = 'preflight'
         self._deadline = monotonic() + timeout
 
@@ -217,22 +210,21 @@ class MaintenancePulseController:
             if (not self._current() or
                     not self._safety_check(snap, evidence)):
                 return None
-            if row.feature_id == 'S18':
-                # Config-only pwm_cycle_time has no status endpoint. Consult
-                # raw config solely for the case-preserved SET_PIN mux name.
-                # It must identify the exact same pin as effective settings.
-                buzzer_command_name = _resolve_buzzer_gcode_name(
+            if row.feature_id in ('S18', 'O03'):
+                # Raw Klipper config is the authority for the case-sensitive
+                # SET_PIN mux spelling. Both pin identities must agree.
+                pin_command_name = _resolve_pin_gcode_name(
                     self._client, target, self._printer.state.settings.get(target, {}))
-                state = {}
+                state = {} if row.feature_id == 'S18' else _read_target(self._client, target)
+                if state is None:
+                    return None
             else:
-                buzzer_command_name = None
+                pin_command_name = None
                 state = _read_target(self._client, target)
                 if state is None:
                     return None
-            program = compile_pulse(row, snap, state,
-                                    self._printer.state.settings,
-                                    buzzer_output=buzzer_output,
-                                    buzzer_command_name=buzzer_command_name)
+            program = compile_pulse(row, snap, state, self._printer.state.settings,
+                                    pin_command_name=pin_command_name)
             return evidence, program
 
         try:

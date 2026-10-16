@@ -17,8 +17,8 @@ from maintenance_safety import MaintenanceSafetyCoordinator
 
 
 # Only these well-defined contracts can become stage-8 guided candidates.
-# S18 requires positively discovered Petrel buzzer support.
-# O03 requires an explicit per-pin safe profile; never infer from output_pin.
+# S18/O03 require declared physical roles on real Klipper objects.
+# Never infer an actuator's function from its name.
 # A PWM fan without tachometer is USER-observed, never automatic RPM PASS.
 _KINDS = {
     'F01': 'part_fan_observation',
@@ -53,13 +53,16 @@ def _trusted_target(row, snapshot):
                 and row.device.startswith('fan_generic ')
                 and 'maintenance.safe_fan:' + row.device in snapshot.service_key)
     if row.feature_id == 'O03':
-        return (row.device == 'output_pin case_light'
-                and 'maintenance.safe_pin:output_pin case_light' in snapshot.service_key)
+        return (isinstance(row.device, str)
+                and row.device.startswith('output_pin ')
+                and 'maintenance.visual:' + row.device in snapshot.service_key)
     if row.feature_id == 'O04':
         return (isinstance(row.device, str)
                 and row.device.startswith(_DEVICE_PREFIXES)
                 and 'maintenance.safe_led:' + row.device in snapshot.service_key)
-    return row.feature_id == 'S18' and row.device is None and 'petrel.buzzer' in snapshot.service_key
+    return (row.feature_id == 'S18' and isinstance(row.device, str)
+            and row.device.startswith('pwm_cycle_time ')
+            and 'maintenance.audible:' + row.device in snapshot.service_key)
 
 
 def guided_plan(snapshot):

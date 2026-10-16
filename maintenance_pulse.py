@@ -47,8 +47,7 @@ def _command(name, value):
         ' WHITE=%.4f' % value[3] if value[3] else '')
 
 
-def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None,
-                  buzzer_command_name=None):
+def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
     """Compile a short, self-restoring script from *fresh* printer status.
 
     The caller must independently verify live safety and target discovery
@@ -66,12 +65,10 @@ def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None,
     cfg = settings.get(target or '', {})
     current = status.get(target or '', {})
     if feature == 'S18':
-        # The buzzer must be explicitly authorized for this EXACT pin,
-        # never merely because some pwm_cycle_time output exists.
-        name = _name(buzzer_output)
-        if 'maintenance.buzzer_output:' + name not in snapshot.service_key:
-            raise ValueError('buzzer_output_not_explicitly_authorized')
-        target = 'pwm_cycle_time ' + name
+        if (not isinstance(target, str) or
+                not target.startswith('pwm_cycle_time ')
+                or 'maintenance.audible:' + target not in snapshot.service_key):
+            raise ValueError('audible_target_not_authorized')
         cfg = settings.get(target)
         current = status.get(target)
     if not isinstance(cfg, Mapping) or (feature != 'S18' and not isinstance(current, Mapping)):
@@ -95,17 +92,25 @@ def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None,
         evidence = (float(original),)
         object_name = target
     elif feature == 'O03':
-        if target != 'output_pin case_light' or cfg.get('pwm') not in (True, 'True', 'true', '1', 1):
-            raise ValueError('case_light_pwm_unverified')
+        if (not isinstance(target, str) or not target.startswith('output_pin ')
+                or 'maintenance.visual:' + target not in snapshot.service_key
+                or cfg.get('pwm') not in (True, 'True', 'true', '1', 1)):
+            raise ValueError('visual_pwm_unverified')
         scale = cfg.get('scale', 1)
         value = current.get('value')
         if not _unit(value) or type(scale) not in (int, float) or scale != 1:
             raise ValueError('case_light_original_unknown')
-        start = 'SET_PIN PIN=case_light VALUE=0.7000'
-        restore = 'SET_PIN PIN=case_light VALUE=%.4f' % value
+        configured = _name(target.split(' ', 1)[1])
+        command_name = _name(pin_command_name)
+        if command_name.casefold() != configured.casefold():
+            raise ValueError('visual_command_name_mismatch')
+        # Never choose a stimulus identical to the captured baseline.
+        stimulus = .7 if value < .5 else .2
+        start = 'SET_PIN PIN=%s VALUE=%.4f' % (command_name, stimulus)
+        restore = 'SET_PIN PIN=%s VALUE=%.4f' % (command_name, value)
         evidence = (float(value),)
         object_name = target
-        observation = 'Did the case light change brightness?'
+        observation = 'Did the selected visual output change and restore?'
     elif feature == 'O04':
         kind, name = target.split(' ', 1)
         if kind not in ('led', 'neopixel', 'dotstar', 'pca9632'):
@@ -140,8 +145,8 @@ def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None,
         scale = cfg.get('scale')
         if type(scale) not in (int, float) or not math.isfinite(scale) or not 0 < scale <= 2:
             raise ValueError('invalid_buzzer_scale')
-        name = _name(buzzer_output)
-        command_name = _name(buzzer_command_name)
+        name = _name(target.split(' ', 1)[1])
+        command_name = _name(pin_command_name)
         if command_name.casefold() != name.casefold():
             raise ValueError('buzzer_gcode_name_mismatch')
         start = 'SET_PIN PIN=%s VALUE=%.4f CYCLE_TIME=%.8f' % (
@@ -149,7 +154,7 @@ def compile_pulse(row, snapshot, status, settings, *, buzzer_output=None,
         restore = 'SET_PIN PIN=%s VALUE=0' % command_name
         evidence = (0.0,)  # Configured OFF, NOT observed live output state.
         object_name = target
-        observation = 'Did the buzzer sound briefly and then stop?'
+        observation = 'Did the selected audible output sound and stop?'
     else:
         raise ValueError('unsupported_feature')
 

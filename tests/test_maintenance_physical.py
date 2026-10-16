@@ -282,21 +282,21 @@ class PhysicalControllerTests(unittest.TestCase):
 
     def configure_config_only_buzzer(self):
         raw = self.printer.subscription.snapshot.return_value
-        raw['settings'] = {'pwm_cycle_time buzzer': {
+        raw['settings'] = {'pwm_cycle_time alarm': {
             'pin': 'PB13', 'value': 0.0, 'shutdown_value': 0.0,
             'scale': 1.0, 'cycle_time': 0.001}}
         raw['objects'] = ('webhooks',)  # Excluded from objects/list by Klipper.
         self.printer.state = PrinterState.from_snapshot(raw)
-        self.client.raw_config = {'pwm_cycle_time Buzzer': {'pin': 'PB13'}}
+        self.client.raw_config = {'pwm_cycle_time Alarm': {'pin': 'PB13'}}
         services = approved_integrations(self.printer.state,
-                                         (False, 'buzzer', '', ''))
+                                         (('audible', 'pwm_cycle_time alarm'),))
         self.printer.maintenance.snapshot = discover(self.printer.state, services)
         self.assertIn('S18', self.printer.maintenance.snapshot.available_features())
         self.assertTrue(any(row.feature_id == 'S18' for row in self.runner.available()))
 
     def test_s18_uses_profile_not_lcd_settings_and_has_no_readback_claim(self):
         self.configure_config_only_buzzer()
-        self.assertEqual(self.runner.start('S18'), (True, 'preflight_queued'))
+        self.assertEqual(self.runner.start('S18', 'pwm_cycle_time alarm'), (True, 'preflight_queued'))
         self.worker.next()
         self.assertIsNone(self.runner.poll())
         self.assertEqual(self.runner.phase, 'await_confirmation')
@@ -305,8 +305,8 @@ class PhysicalControllerTests(unittest.TestCase):
                              for path in self.client.paths))
         self.assertEqual(self.runner.confirm(), (True, 'bounded_pulse_queued'))
         self.assertEqual(len(self.commands), 1)
-        self.assertIn('SET_PIN PIN=Buzzer VALUE=0', self.commands[0][1]['script'])
-        self.assertNotIn('PIN=buzzer', self.commands[0][1]['script'])
+        self.assertIn('SET_PIN PIN=Alarm VALUE=0', self.commands[0][1]['script'])
+        self.assertNotIn('PIN=alarm', self.commands[0][1]['script'])
         self.assertTrue(self.commands[0][2]())
         self.commands[0][0].set_result({'result': 'ok'})
         self.assertIsNone(self.runner.poll())
@@ -324,7 +324,7 @@ class PhysicalControllerTests(unittest.TestCase):
 
     def test_s18_observation_timeout_keeps_restore_unverified(self):
         self.configure_config_only_buzzer()
-        self.assertTrue(self.runner.start('S18')[0])
+        self.assertTrue(self.runner.start('S18', 'pwm_cycle_time alarm')[0])
         self.worker.next()
         self.assertIsNone(self.runner.poll())
         self.assertTrue(self.runner.confirm()[0])
@@ -344,29 +344,29 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(len(self.commands), 1)
 
     def test_s18_missing_or_mismatched_original_name_blocks_without_gcode(self):
-        from maintenance_physical import _resolve_buzzer_gcode_name
+        from maintenance_physical import _resolve_pin_gcode_name
         self.configure_config_only_buzzer()
-        settings = self.printer.state.settings['pwm_cycle_time buzzer']
-        self.assertEqual(_resolve_buzzer_gcode_name(
-            self.client, 'pwm_cycle_time buzzer', settings), 'Buzzer')
+        settings = self.printer.state.settings['pwm_cycle_time alarm']
+        self.assertEqual(_resolve_pin_gcode_name(
+            self.client, 'pwm_cycle_time alarm', settings), 'Alarm')
         bad = (
             {},
-            {'pwm_cycle_time BUZZER': {'pin': 'PA3'}},
-            {'pwm_cycle_time Buzzer': {'pin': 'PB13'},
-             'pwm_cycle_time buzzer': {'pin': 'PB13'}},
-            {'pwm_cycle_time buzzer\nM112': {'pin': 'PB13'}},
+            {'pwm_cycle_time ALARM': {'pin': 'PA3'}},
+            {'pwm_cycle_time Alarm': {'pin': 'PB13'},
+             'pwm_cycle_time alarm': {'pin': 'PB13'}},
+            {'pwm_cycle_time alarm\nM112': {'pin': 'PB13'}},
         )
         for raw in bad:
             with self.subTest(raw=raw):
                 self.client.raw_config = raw
-                self.assertTrue(self.runner.start('S18')[0])
+                self.assertTrue(self.runner.start('S18', 'pwm_cycle_time alarm')[0])
                 self.worker.next()
                 result = self.runner.poll()
                 self.assertEqual(result.status, 'BLOCKED')
                 self.assertEqual(result.reason, 'preflight_failed')
                 self.assertEqual(self.commands, [])
-        self.client.raw_config = {'pwm_cycle_time Buzzer': {'pin': 'PB13'}}
-        self.assertTrue(self.runner.start('S18')[0])
+        self.client.raw_config = {'pwm_cycle_time Alarm': {'pin': 'PB13'}}
+        self.assertTrue(self.runner.start('S18', 'pwm_cycle_time alarm')[0])
         self.worker.next()
         self.assertIsNone(self.runner.poll())
         self.assertEqual(self.runner.phase, 'await_confirmation')
@@ -375,10 +375,10 @@ class PhysicalControllerTests(unittest.TestCase):
 
     def test_s18_cannot_start_with_wrong_profile_or_claim_automatic_pass(self):
         self.configure_config_only_buzzer()
-        self.assertEqual(self.runner.start('S18', buzzer_output='heater'),
-                         (False, 'buzzer_profile_missing_or_mismatch'))
+        self.assertEqual(self.runner.start('S18', 'pwm_cycle_time heater'),
+                         (False, 'test_not_discovered_or_allowed'))
         self.assertEqual(self.commands, [])
-        self.assertEqual(self.runner.start('S18'), (True, 'preflight_queued'))
+        self.assertEqual(self.runner.start('S18', 'pwm_cycle_time alarm'), (True, 'preflight_queued'))
         self.worker.next()
         self.runner.poll()
         self.runner.confirm()
@@ -390,6 +390,54 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(result.status, 'FAILED_USER')
         self.assertFalse(result.restore_verified)
         self.assertEqual(len(self.commands), 1)
+
+    def test_generic_visual_output_uses_raw_pin_name_and_verifies_restore(self):
+        raw = self.printer.subscription.snapshot.return_value
+        raw['settings'] = {'output_pin enclosure': {
+            'pin': 'PC9', 'pwm': True, 'scale': 1}}
+        raw['objects'] = ('output_pin enclosure',)
+        self.printer.state = PrinterState.from_snapshot(raw)
+        self.client.raw_config = {'output_pin Enclosure': {'pin': 'PC9'}}
+        self.client.status = {'output_pin enclosure': {'value': .3}}
+        services = approved_integrations(
+            self.printer.state, (('visual', 'output_pin enclosure'),))
+        self.printer.maintenance.snapshot = discover(self.printer.state, services)
+        self.assertEqual(self.runner.start('O03', 'output_pin enclosure'),
+                         (True, 'preflight_queued'))
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertEqual(self.commands, [])
+        self.assertTrue(self.runner.confirm()[0])
+        self.assertIn('SET_PIN PIN=Enclosure VALUE=0.7000',
+                      self.commands[0][1]['script'])
+        self.assertIn('SET_PIN PIN=Enclosure VALUE=0.3000',
+                      self.commands[0][1]['script'])
+        self.assertTrue(self.commands[0][2]())
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.runner.poll()
+        self.advance(1.2)
+        self.poll_verify()
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertEqual(self.runner.observe(True).status, 'PASSED_USER')
+
+    def test_visual_output_pin_identity_mismatch_blocks_without_gcode(self):
+        raw = self.printer.subscription.snapshot.return_value
+        raw['settings'] = {'output_pin enclosure': {
+            'pin': 'PC9', 'pwm': True, 'scale': 1}}
+        raw['objects'] = ('output_pin enclosure',)
+        self.printer.state = PrinterState.from_snapshot(raw)
+        self.client.raw_config = {'output_pin Enclosure': {'pin': 'PC8'}}
+        self.client.status = {'output_pin enclosure': {'value': .3}}
+        services = approved_integrations(
+            self.printer.state, (('visual', 'output_pin enclosure'),))
+        self.printer.maintenance.snapshot = discover(self.printer.state, services)
+        self.assertTrue(self.runner.start('O03', 'output_pin enclosure')[0])
+        self.worker.next()
+        self.assertEqual(self.runner.poll().status, 'BLOCKED')
+        self.assertEqual(self.commands, [])
 
     def test_petrel_backend_creates_opt_in_physical_controller(self):
         from test_regressions import backend
@@ -419,7 +467,7 @@ class PhysicalControllerTests(unittest.TestCase):
 
     def test_unregistered_and_busy_read_blocked(self):
         self.assertFalse(self.runner.start('F01', 'wrong')[0])
-        self.assertFalse(self.runner.start('S18')[0])
+        self.assertFalse(self.runner.start('S18', 'pwm_cycle_time alarm')[0])
         self.printer.maintenance_reader.pending = True
         self.assertFalse(self.runner.start('F01', 'fan')[0])
         self.assertEqual(self.commands, [])

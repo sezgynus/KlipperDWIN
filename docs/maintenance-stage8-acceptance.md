@@ -19,13 +19,18 @@ Use your existing `/tmp/petrel-maintenance-acceptance` detached worktree; fetch 
 3. Rotate from the default **Cancel** to **Run short pulse**, press to confirm before the three-second expiration. The compiler produces one bounded script that attempts to restore the original output afterward.
 4. Wait for the backend's post-command GET restoration verification. Never claim the hardware is restored merely because the G-code command was queued. If the result is INCONCLUSIVE, inspect the physical output and Klipper state before any new test.
 5. The UI prompts for an explicit operator observation. Choose **Yes, observed** only if the brief physical response was seen/heard *and* the backend verified the original output. The status is `PASSED_USER` (human-observed), not automatic PASS or measured RPM. Otherwise choose **Not observed** (`FAILED_USER`).
-6. Repeat independently for safe, actually installed devices. Confirm original fan speed, LED color and case-light brightness after each test. Validate cancellation, deny while queued/printing, missing profile, and disconnect with fakes/controlled conditions; never force a dangerous mid-actuation disconnect on valuable hardware.
+6. Repeat independently for safe, actually installed devices. Confirm original fan speed, LED color and operator-declared visual-output value after each test. Validate cancellation, deny while queued/printing, missing profile, and disconnect with fakes/controlled conditions; never force a dangerous mid-actuation disconnect on valuable hardware.
 
 Check **Diagnostics** independently. S01/S02/S03/S05/S08/S10 return only whitelisted scalar information. The resulting UI must not display Moonraker tokens or print filenames.
 
 ## Rollback and acceptance record
 
 Remove the temporary systemd override, run `sudo systemctl daemon-reload` and `sudo systemctl restart Petrel.service`, and verify active service `ExecStart=/home/sezgynpi/petrel-env/bin/python /home/sezgynpi/Petrel/run.py`, `WorkingDirectory=/home/sezgynpi/Petrel`, with master clean. If power/connection problems or unresolved hardware state are observed, stop physical testing and inspect on the Pi. Record feature signed SHA, safe output profiles used, evidence for each device, restored value, result and operator response. Stage-8 real-hardware acceptance stays **PENDING** until this is actually performed.
+
+
+## Role-based profiles (feature branch)
+
+The current generic Maintenance branch accepts only version-2 `actuators` role mappings; old `case_light`/`buzzer_output` keys no longer grant permission. S18 is a device-scoped test, so select the **actual** `pwm_cycle_time <name>` row. O03 similarly operates on an explicitly approved `output_pin <name>`, not a fixed case-light name. See [profile migration](maintenance-profiles.md). Previous Pi observations below are historical diagnostic examples, **not embedded target names or pins**.
 
 ## F01 field finding and follow-up verification
 

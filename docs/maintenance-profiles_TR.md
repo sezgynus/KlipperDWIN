@@ -1,29 +1,35 @@
-# Maintenance aktüatör açık izin profilleri
+# Maintenance: genel aktüatör rol profilleri
 
 [English](maintenance-profiles.md)
 
-Aşama 8 öz testi ancak üç bağımsız şart karşılandığında aktüatöre izin verir: **kullanıcının açık kaydı**, **gerçek Klipper keşfi** ve **güvenilir efektif ayarlar ile başlangıç durumu okuması**. Klipper'ın `fan` nesnesi özel part-cooling anlamına sahip olduğundan F01 için ek profile gerek yoktur. Rastgele `output_pin`'in case light veya buzzer olduğu varsayılmaz.
+Maintenance, bir Klipper GPIO'suna ne bağlandığını **isimden tahmin etmez**. Standart `fan` nesnesinin Klipper tarafından tanımlanan işlevi vardır; diğer fiziksel çıkışların rolü açıkça kullanıcı tarafından belirtilir. Cihaz adı, pin, cihaz sayısı ve rol eşleştirmesi Petrel kaynak kodundan değil, çalışan yazıcıdan ve kullanıcı profilinden gelir.
 
-İsteğe bağlı Petrel case-light testi veya takılı buzzer'ı bilinçli olarak açmak için Pi'de Petrel servis kullanıcısıyla şu küçük dosyayı oluştur:
-
-`~/.config/Petrel/maintenance-test-profiles.json`
+Petrel servis kullanıcısıyla `~/.config/Petrel/maintenance-test-profiles.json` dosyasını oluştur. **Sürüm 2** biçimi:
 
 ```json
 {
-  "version": 1,
-  "case_light": true,
-  "buzzer_output": "tick",
-  "fan_generic_output": "",
-  "led_output": ""
+  "version": 2,
+  "actuators": [
+    {"object": "output_pin enclosure", "role": "visual"},
+    {"object": "output_pin tool_lamp", "role": "visual"},
+    {"object": "pwm_cycle_time Alarm", "role": "audible"},
+    {"object": "fan_generic aux", "role": "fan"},
+    {"object": "neopixel board", "role": "led"}
+  ]
 }
 ```
 
-`tick` yerine gerçekten yapılandırılmış `[pwm_cycle_time tick]` bölümündeki çıkış ismini yaz. Testi kapatmak için `case_light` değerini false, `buzzer_output` alanını boş metin yap. **Donanımın birebir eşleşmiyorsa örneği olduğu gibi uygulama.** Profiller yalnız sonraki Klipper READY epoch'unda/servis yeniden başlatmada okunur. Dosya okumak GPIO veya G-code çalıştırmaz.
+Bunlar **örnek isimlerdir**, Petrel varsayılanları değildir. Gerçek Klipper nesne adlarınla değiştir; kullanılmayanları kaldır. Rol, kullanıcının fiziksel işlev beyanıdır; sensörle kanıtlanmış cihaz türü değildir. Profil yalnız bir sonraki Klipper READY döneminde (örneğin yazıcı boşta iken Petrel servisi yeniden başlatılınca) okunur. Maintenance menüsüne girmek G-code veya yeniden keşif başlatmaz.
 
-Case light olarak yalnız PWM açık, scale 1 ayarlı `[output_pin case_light]` doğrulanabilir. Buzzer için yalnız başlangıç/shutdown değeri 0, geçerli scale bulunan ve açıkça kayıtlı `[pwm_cycle_time <output>]` bölümü doğrulanabilir. Komut yürütücüsü yine de canlı OFF durumunu ve geri yüklemeyi kanıtlamalı ve her test için ayrı kullanıcı onayı almalıdır. Hatalı, eksik veya büyük profiller hiçbir yetki sağlamaz. Fiziksel test otomatik başlamaz. CI yalnız simülasyon kanıtı sağlar, donanım PASS değildir.
+| Rol | Gerekli Klipper nesnesi ve şartlar | Test |
+| --- | --- | --- |
+| `visual` | Adlandırılmış `output_pin`; PWM, `scale=1`, fiziksel pin ve canlı başlangıç değeri | O03 görsel değişim ve geri yükleme |
+| `audible` | Adlandırılmış `pwm_cycle_time`; pin, geçerli sonlu scale, açıkça sıfır `value` ve `shutdown_value` | S18 kısa ses, OFF denemesi ve **insanın** sesin çıkıp durduğunu gözlemesi |
+| `fan` | Mevcut `fan_generic` ve canlı başlangıç değeri | F04 kısa fan darbesi |
+| `led` | Mevcut `led` / `neopixel` / `dotstar` / `pca9632`, geri yüklenebilir tek LED | O04 LED testi |
 
-Generic fan ve LED uyarımı da **açık izin** gerektirir. Bilinen manuel fan için `fan_generic_output` alanına `[fan_generic isim]` bölümündeki güvenli ismi, LED için `led_output` alanına tam nesne adını (ör. `neopixel board`) yaz. Çoklu LED pikselleri veya orijinal rengi bilinmeyen cihazlar komut derleyicisinde daima engellenir. Gerekmeyen alanları boş bırak.
+En fazla **16** kayıt ve **2048 bayt** kabul edilir. Bilinmeyen anahtar/rol, tekrar eden cihaz, tehlikeli nesne adı, eksik cihaz, güvensiz ayar ve geçersiz dosya ek yetki oluşturmaz. Eksik ama geçerli tanımlanmış tekil cihazlar devre dışı kalır. Eski **sürüm 1 bilerek güvenli biçimde reddedilir**; testten önce sürüm 2'ye taşı. Eski `case_light: true` yerine `{"object":"output_pin <gerçek_ad>","role":"visual"}`, `buzzer_output: "<ad>"` yerine `{"object":"pwm_cycle_time <gerçek_ad>","role":"audible"}` kullan. Eski `fan_generic_output` ve `led_output` alanları, tam Klipper nesne adlarını içeren `fan` ve `led` kayıtlarına dönüşür.
 
-## Klipper'da yalnız yapılandırmada bulunan PWM buzzer
+S18 artık tek bir global buzzer işareti değil, **cihaz başına** testtir; birden fazla sesli çıkış ayrı listelenir. `pwm_cycle_time` çoğunlukla `printer.objects.list` içinde yoktur; açıkça onaylı efektif ayarlar yapısal kanıt sağlar. `SET_PIN PIN=...` komutundaki büyük/küçük harfe duyarlı özgün isim, salt-okunur ön kontrolde Klipper'ın ham yapılandırmasından çözülür ve pin efektif ayarla karşılaştırılır. O03 de aynı ad doğrulamasını yapar ve komuttan önce canlı başlangıç değeri ister. Ses çıkışında hayalî durum geri okuması kullanılmaz. Duyulan ses `OBSERVED_USER` ve `restore_verified=False` olur; telemetriyle geri yüklemenin kanıtı sayılmaz.
 
-Klipper'daki `[pwm_cycle_time buzzer]` bölümü `configfile.settings` içinde bulunmasına rağmen `printer.objects.list` içinde olmayabilir ve **canlı `value` alanı döndürmeyebilir**. Sadece S18 için Petrel, kullanıcı profilindeki tam adla eşleşen `pwm_cycle_time <ad>` bölümünü; pin dolu, `value` ve `shutdown_value` açıkça sıfır ve scale geçerli olduğunda kabul eder. Bu, çıkışın o anda gerçekten KAPALI olduğunun kanıtı **değildir**; yapılandırma varsayılanı telemetri değildir. Diğer çıkışlar normal keşif ve başlangıç durumu kurallarını korur. Profil değişimi servis yeniden başlatılıp yeni READY keşfi yapıldığında uygulanır.
+**Güvenlik:** Profil, keşif veya menüye giriş sırasında otomatik G-code gönderme izni değildir. Her fiziksel testte yazıcının boşta/kuyruğun güvenli olması, ikinci açık onay ve sınırlı komut gönderimi gerekir. Başlangıç durumu veya ham pin kanıtı eksikse çalışma engellenir. İsimde `light` ya da `buzzer` sözcüğü geçmesi tek başına hiçbir testi başlatmaz. GitHub CI taklit veriler kullanır, fiziksel kabul anlamına gelmez.

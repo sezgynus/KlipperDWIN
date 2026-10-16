@@ -1,29 +1,35 @@
-# Maintenance actuator opt-in profiles
+# Maintenance: generic actuator role profiles
 
 [Türkçe](maintenance-profiles_TR.md)
 
-The Stage 8 self-test only permits an actuator if three independent conditions are satisfied: **explicit operator registration**, **real Klipper discovery**, and **known safe effective configuration and original output readback**. Fan F01 requires no extra profile because Klipper's named `fan` object has dedicated part-cooling semantics. An arbitrary `output_pin` must never be inferred to be a case light or buzzer.
+Maintenance **never** assumes what is wired to a Klipper GPIO or infers a physical role from an output's name. A standard Klipper `fan` already has defined semantics; other physical actuators need an explicit role declaration. All output names, pins, counts and assignments come from the running printer and the operator's **per-printer** profile, not Petrel source code.
 
-To deliberately enable the optional native Petrel case-light test or an installed buzzer, create the following small file on the Pi as the Petrel service user:
-
-`~/.config/Petrel/maintenance-test-profiles.json`
+Create `~/.config/Petrel/maintenance-test-profiles.json` as the Petrel service user. The **version-2 format** is:
 
 ```json
 {
-  "version": 1,
-  "case_light": true,
-  "buzzer_output": "tick",
-  "fan_generic_output": "",
-  "led_output": ""
+  "version": 2,
+  "actuators": [
+    {"object": "output_pin enclosure", "role": "visual"},
+    {"object": "output_pin tool_lamp", "role": "visual"},
+    {"object": "pwm_cycle_time Alarm", "role": "audible"},
+    {"object": "fan_generic aux", "role": "fan"},
+    {"object": "neopixel board", "role": "led"}
+  ]
 }
 ```
 
-Replace `tick` with the exact output name from your configured `[pwm_cycle_time tick]` section. Set `case_light` to false and `buzzer_output` to an empty string to disable the respective profile. **Do not copy this example unchanged unless the hardware really matches.** Profiles are read only on the next Klipper READY epoch/service restart. No G-code or GPIO is executed when reading them.
+Names here are examples, **not Petrel defaults**. Replace them with actual Klipper object names; leave unwanted entries out. A role is an explicit operator declaration, not physical proof. The file is parsed only at the next Klipper READY epoch (for example following an idle-printer Petrel service restart); merely entering the Maintenance menu never triggers discovery or G-code.
 
-Only `[output_pin case_light]` with PWM enabled and scale 1 can be approved as case light. Only a verified `[pwm_cycle_time <output>]` with initial value 0, shutdown value 0, valid scale and an exact opt-in output name can be approved as buzzer. The program still requires live OFF/readback proof and explicit per-test confirmation. Malformed, missing or oversized profiles grant zero permissions. Physical tests are never automatic. CI provides only simulated evidence, not hardware PASS.
+| Role | Required Klipper object and checks | Guided test |
+| --- | --- | --- |
+| `visual` | Named `output_pin` with PWM, `scale=1`, configured physical pin, queryable current value | O03 visual output change and baseline restore |
+| `audible` | Named `pwm_cycle_time`, physical pin, finite valid scale, explicit zero `value` and `shutdown_value` | S18 short tone, OFF attempt, **human-observed** sound and stop |
+| `fan` | Existing `fan_generic` object with separate live baseline | F04 fan pulse |
+| `led` | Existing `led` / `neopixel` / `dotstar` / `pca9632` object with single-pixel restorable status | O04 LED pulse |
 
-Generic fan and LED stimuli are **also explicitly opt-in**. To register a known manual fan, set `fan_generic_output` to its exact safe suffix from `[fan_generic name]`; to register an LED, set `led_output` to its exact object (e.g. `neopixel board`). Multiple LED pixels or unknown original colors are always blocked by the command compiler. Leave these strings empty when unneeded.
+Up to **16** entries and **2048 bytes** are accepted. Unknown keys/roles, duplicates, unsafe output identifiers, absent objects, unsafe settings and invalid file formats grant no extra access. Individual correctly declared but absent targets remain disabled. Legacy **version 1 is deliberately fail-closed**: migrate to version 2 before testing. The old `case_light: true` becomes `{"object":"output_pin <actual_name>","role":"visual"}`; old `buzzer_output: "<name>"` becomes `{"object":"pwm_cycle_time <actual_name>","role":"audible"}`. The former `fan_generic_output` and `led_output` become `fan` and `led` entries with full Klipper object names.
 
-## Klipper config-only PWM buzzer
+S18 is now **per device**, not one global buzzer flag: multiple independently configured audible outputs create distinct rows. `pwm_cycle_time` is normally absent from `printer.objects.list`, so its positively approved effective settings provide structural evidence. The original case-sensitive `SET_PIN PIN=...` spelling is resolved from raw Klipper config in a read-only preflight, and its pin is checked against effective settings. O03 uses the same raw-config name validation and additionally requires a live readback before a pulse. There is no fabricated audible runtime status. An observed sound is `OBSERVED_USER` with `restore_verified=False`, never proof of telemetry-backed restoration.
 
-Klipper's `[pwm_cycle_time buzzer]` is configured in `configfile.settings` but is not necessarily in `printer.objects.list` and may expose **no runtime `value` field**. For S18 only, Petrel now accepts the exact configured `pwm_cycle_time <name>` section when the explicit profile chooses that name, a nonempty pin is configured, and both `value` and `shutdown_value` are explicitly zero with valid scale. It is **not** proof that the hardware is currently OFF: a config default is not telemetry. Other outputs still require their normal discovery and baseline rules. Profile changes take effect on the next READY discovery after service restart.
+**Safety:** No profile permits automatic G-code on discovery/menu entry. Every physical pulse requires idle/queue checks, a second explicit confirmation and bounded command dispatch. Unknown original state or missing raw pin evidence blocks execution. Commands are never dispatched merely because an object name contains `light`, `buzzer` or similar text. GitHub CI uses fakes and cannot count as physical acceptance.

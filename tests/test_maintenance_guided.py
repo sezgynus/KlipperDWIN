@@ -17,13 +17,14 @@ def snapshot_with_devices(services=()):
         DeviceCapabilities('fan', 'fan', _add(0, 'F01', USER)),
         DeviceCapabilities('fan_generic extruder', 'fan', _add(0, 'F04', USER)),
         DeviceCapabilities('fan_generic tach', 'fan', _add(0, 'F04', AUTOMATIC)),
-        DeviceCapabilities('output_pin case_light', 'actuator', _add(0, 'O03', USER)),
+        DeviceCapabilities('output_pin enclosure', 'actuator', _add(0, 'O03', USER)),
         DeviceCapabilities('output_pin heater_enable', 'actuator', _add(0, 'O03', USER)),
         DeviceCapabilities('neopixel frame', 'led', _add(0, 'O04', USER)),
         DeviceCapabilities('servo mmu', 'actuator', _add(0, 'O02', USER)),
+        DeviceCapabilities('pwm_cycle_time alert', 'actuator', _add(0, 'S18', USER)),
     )
     return MaintenanceSnapshot(
-        7, devices, _add(0, 'S18', USER), 111, tuple(services))
+        7, devices, 0, 111, tuple(services))
 
 
 def safety_context(snap):
@@ -71,12 +72,13 @@ class Stage8GuidedTests(unittest.TestCase):
 
     def test_explicit_service_evidence_enables_buzzer_and_case_light(self):
         snap = snapshot_with_devices((
-            'maintenance.safe_pin:output_pin case_light', 'petrel.buzzer',
+            'maintenance.visual:output_pin enclosure',
+            'maintenance.audible:pwm_cycle_time alert',
             'maintenance.safe_fan:fan_generic extruder',
             'maintenance.safe_led:neopixel frame'))
         keys = {(r.feature_id, r.device) for r in guided_plan(snap)}
-        self.assertIn(('O03', 'output_pin case_light'), keys)
-        self.assertIn(('S18', None), keys)
+        self.assertIn(('O03', 'output_pin enclosure'), keys)
+        self.assertIn(('S18', 'pwm_cycle_time alert'), keys)
         self.assertIn(('F04', 'fan_generic extruder'), keys)
         self.assertIn(('O04', 'neopixel frame'), keys)
         self.assertNotIn(('O03', 'output_pin heater_enable'), keys)

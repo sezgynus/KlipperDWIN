@@ -19,13 +19,18 @@ Mevcut `/tmp/petrel-maintenance-acceptance` detached worktree'sini kullan; günc
 3. Varsayılan **Cancel** seçeneğinden **Run short pulse** seçeneğine enkoderle git ve üç saniyelik süre içinde basarak açıkça onayla. Derlenen tek kısa script uyarımdan sonra başlangıç değerine dönüşü amaçlar.
 4. Backend'in komut sonrası GET ile geri dönüşü doğrulamasını bekle. Komutun kuyruğa alınması geri yüklemenin gerçekleştiğini kanıtlamaz. INCONCLUSIVE çıkarsa yeni testten önce fiziksel çıkışı ve Klipper durumunu kontrol et.
 5. UI açık kullanıcı gözlemi ister. Ancak kısa fiziksel tepkiyi gördüysen/duyduysan **ve** backend başlangıç değerini doğruladıysa **Yes, observed** seç. Sonuç `PASSED_USER` (insan gözlemi) olur; otomatik PASS veya ölçülmüş RPM değildir. Aksi hâlde **Not observed** (`FAILED_USER`) seç.
-6. Gerçekten takılı güvenli cihazlar için ayrı ayrı tekrarla. Her testten sonra fan hızı, LED rengi ve case-light parlaklığının başlangıca döndüğünü kontrol et. İptal, kuyruk/baskı engeli, eksik profil ve disconnect davranışını sahte/denetimli koşullarda doğrula; değerli donanımda uyarım sürerken tehlikeli bağlantı kesintisi oluşturma.
+6. Gerçekten takılı güvenli cihazlar için ayrı ayrı tekrarla. Her testten sonra fan hızı, LED rengi ve kullanıcı tarafından `visual` olarak tanımlanmış çıkışların değerlerinin başlangıca döndüğünü kontrol et. İptal, kuyruk/baskı engeli, eksik profil ve disconnect davranışını sahte/denetimli koşullarda doğrula; değerli donanımda uyarım sürerken tehlikeli bağlantı kesintisi oluşturma.
 
 **Diagnostics** menüsünü ayrıca incele. S01/S02/S03/S05/S08/S10 yalnız izinli sayısal/metinsel bilgileri gösterir. Moonraker token'ları veya baskı dosya adları ekranda olmamalıdır.
 
 ## Master'a dönüş ve kabul kaydı
 
 Geçici systemd override'ını kaldır, `sudo systemctl daemon-reload` ve `sudo systemctl restart Petrel.service` çalıştır; aktif servisin `ExecStart=/home/sezgynpi/petrel-env/bin/python /home/sezgynpi/Petrel/run.py`, `WorkingDirectory=/home/sezgynpi/Petrel` ve master'ın temiz olduğunu doğrula. Güç/bağlantı problemi veya çözümlenmemiş donanım durumu varsa fiziksel testleri durdurup Pi'yi denetle. Feature imzalı SHA, kullanılan izin profilleri, her cihazın gözlemi, geri yüklenen değer, sonuç ve operatör yanıtını kaydet. Testler gerçek Pi'de yapılıncaya kadar Aşama 8 fiziksel kabulü **BEKLEMEDE** kalır.
+
+
+## Rol tabanlı profiller (feature dalı)
+
+Güncel genel Maintenance dalında yalnız sürüm-2 `actuators` rol eşleştirmeleri geçerlidir; eski `case_light`/`buzzer_output` alanları izin vermez. S18 cihaz bazlıdır; **gerçek** `pwm_cycle_time <ad>` satırını seç. O03 de sabit case-light adını değil, izinli `output_pin <ad>` nesnesini kullanır. [Profil geçişine](maintenance-profiles_TR.md) bak. Aşağıdaki eski Pi gözlemleri tarihsel tanılama örnekleridir; **kaynak koda gömülü pin veya cihaz adları değildir**.
 
 ## F01 saha bulgusu ve sonraki doğrulama
 

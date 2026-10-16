@@ -153,7 +153,7 @@ S14|Petrel UART diagnostics|global|I|instrumented_uart_counters|read_only
 S15|Petrel encoder diagnostics|global|I|instrumented_encoder_events|read_only
 S16|Petrel LCD diagnostics|global|I|validated_display_asset_or_user_check|guided
 S17|Backlight observation|global|U|user_observed_brightness_change|guided
-S18|Buzzer observation|global|U|user_observed_audible_tone|guided
+S18|Audible output observation|device|U|user_observed_audible_tone|guided
 S19|Software update information|global|I|reported_update_manager_status|read_only
 S20|Diagnostic report export|global|I|versioned_sanitized_report|read_only
 O01|Safe button response|device|AU|allowlisted_button_state_transitions|guided

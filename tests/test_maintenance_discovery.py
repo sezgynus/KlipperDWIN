@@ -119,10 +119,10 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(snap.method('S06'), INFORMATION)
         self.assertEqual(snap.method('S10'), NONE)
         self.assertEqual(snap.method('S03'), NONE)
-        snap = discover(source, services=('history', 'machine.throttled_state', 'petrel.buzzer'))
+        snap = discover(source, services=('history', 'machine.throttled_state'))
         self.assertEqual(snap.method('S10'), INFORMATION)
         self.assertEqual(snap.method('S03'), INFORMATION)
-        self.assertEqual(snap.method('S18'), USER)
+        self.assertEqual(snap.method('S18'), NONE)
 
     def test_load_cell_eddy_and_controller_fan_special_cases(self):
         load = discover(Snapshot(objects=('probe', 'load_cell_probe')))

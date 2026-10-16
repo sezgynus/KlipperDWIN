@@ -1,17 +1,19 @@
+"""CI-only end-to-end encoder routing and dedicated error panel layout."""
 from types import SimpleNamespace
+from threading import Lock
 from unittest.mock import Mock
 import unittest
 
 from klipper_recovery import RecoveryState
 from test_capabilities import display, snapshot
 from ui_events import InputEvent
+from ui_recovery import error_lines
 
 
 class RecoveryUITests(unittest.TestCase):
     def view(self):
         view = display(snapshot())
         view.checkkey = view.MaintenanceMenu
-        view._maintenance_page = 'result'
         view._closed = False
         view._boot_active = False
         view._uart_online = True
@@ -24,89 +26,6 @@ class RecoveryUITests(unittest.TestCase):
                                 ('restart', 'firmware')),
             busy=False, notice='', poll=Mock(), refresh=Mock(), request=Mock())
         view._draw_list_menu = Mock()
-        return view
-
-    def event(self, view, kind, value=0):
-        return InputEvent(kind, value, 999, view._uart_epoch)
-
-    def test_shutdown_replaces_generic_unavailable_with_reason_and_actions(self):
-        view = self.view()
-        self.assertTrue(view._poll_recovery_ui())
-        self.assertEqual(view.checkkey, view.RecoveryScreen)
-        title, rows, _ = view._draw_list_menu.call_args.args
-        self.assertEqual(title, 'Klipper shutdown')
-        self.assertIn('Firmware Restart', [r[0] for r in rows])
-        self.assertTrue(any("MCU 'toolhead'" in r[0] for r in rows))
-        self.assertGreater(len(rows), view.TROWS)
-        view.pd.recovery.request.assert_not_called()
-
-    def test_offline_encoder_bypasses_normal_ready_gate_but_requires_second_confirmation(self):
-        view = self.view()
-        view._poll_recovery_ui()
-        view._ui_lifecycle = Mock(side_effect=AssertionError('normal READY gate'))
-        view._process_input(self.event(view, 'rotate', -2))
-        self.assertEqual(view._recovery_selection, 2)
-        view._process_input(self.event(view, 'press'))
-        self.assertEqual(view._recovery_confirm, 'firmware')
-        self.assertEqual(view._recovery_selection, 0)
-        view.pd.recovery.request.assert_not_called()
-        # Default Cancel, then a deliberate move to Restart and press.
-        view._process_input(self.event(view, 'rotate', -1))
-        view._process_input(self.event(view, 'press'))
-        view.pd.recovery.request.assert_called_once_with('firmware')
-
-    def test_stale_uart_input_and_cancel_never_restart(self):
-        view = self.view()
-        view._poll_recovery_ui()
-        view._recovery_confirm = 'firmware'
-        view._process_input(InputEvent('press', 0, 999, 6))
-        self.assertEqual(view._recovery_confirm, 'firmware')
-        view._process_input(self.event(view, 'press'))
-        self.assertIsNone(view._recovery_confirm)
-        view.pd.recovery.request.assert_not_called()
-
-    def test_error_scroll_and_selection_do_not_reset_on_unchanged_poll(self):
-        view = self.view()
-        view._poll_recovery_ui()
-        view._recovery_input(self.event(view, 'rotate', -10))
-        self.assertEqual(view._recovery_selection, 10)
-        view._draw_list_menu.reset_mock()
-        view._poll_recovery_ui()
-        view._poll_recovery_ui()
-        self.assertEqual(view._recovery_selection, 10)
-        # First poll after input may refresh signature; steady polling is quiet.
-        self.assertLessEqual(view._draw_list_menu.call_count, 1)
-
-    def test_ready_returns_home_without_resuming_interrupted_test(self):
-        view = self.view()
-        view._poll_recovery_ui()
-        view.Goto_MainMenu = Mock()
-        view.pd.connection_error = None
-        self.assertFalse(view._poll_recovery_ui())
-        view.Goto_MainMenu.assert_called_once_with()
-        view.pd.recovery.request.assert_not_called()
-
-    def test_boot_with_shutdown_exits_splash_and_exposes_recovery(self):
-        view = self.view()
-        view._boot_active = True
-        view._boot_animation_running = True
-        view._boot_animation_active_library = 1
-        view._boot_animation_x = 100
-        view._poll_recovery_ui()
-        self.assertFalse(view._boot_active)
-        self.assertFalse(view._boot_animation_running)
-        self.assertEqual(view.checkkey, view.RecoveryScreen)
-
-    def test_power_off_has_priority_over_recovery(self):
-        view = self.view()
-        view._relay_status = 'off'
-        self.assertFalse(view._poll_recovery_ui())
-        self.assertNotEqual(view.checkkey, view.RecoveryScreen)
-
-    def offline_producer_view(self):
-        from threading import Lock
-        view = self.view()
-        view._poll_recovery_ui()
         view._input_lock = Lock()
         view._producer_value = 0
         view._last_encoder_time = None
@@ -114,64 +33,126 @@ class RecoveryUITests(unittest.TestCase):
         view.pd.subscription.snapshot.return_value = {'state': 'disconnected', 'epoch': 100}
         return view
 
-    def test_physical_encoder_producer_reaches_offline_recovery_handler(self):
-        view = self.offline_producer_view()
-        view.encoder_has_data(-2)
-        event = view._loop.post.call_args.args[0]
-        self.assertEqual(event.kind, 'rotate')
-        self.assertEqual(event.value, -2)
-        view._process_input(event)
-        self.assertEqual(view._recovery_selection, 2)
+    def event(self, view, kind, value=0):
+        return InputEvent(kind, value, 100, view._uart_epoch)
+
+    def enter(self, view):
+        self.assertTrue(view._poll_recovery_ui())
+        self.assertEqual(view.checkkey, view.RecoveryScreen)
+
+    def test_error_is_plain_text_and_controls_are_fixed_below_text(self):
+        view = self.view()
+        self.enter(view)
+        view._draw_list_menu.assert_not_called()
+        texts = [c.args for c in view.lcd.draw_text.call_args_list]
+        self.assertTrue(any("MCU 'toolhead'" in c[-1] for c in texts))
+        for label in ('Restart Klipper', 'Firmware Restart', 'Refresh connection'):
+            calls = [c for c in texts if c[-1] == label]
+            self.assertEqual(len(calls), 1)
+            self.assertGreaterEqual(calls[0][-2], view.RECOVERY_BUTTON_TOP)
         view.pd.recovery.request.assert_not_called()
 
-    def test_remote_rotation_and_click_are_enqueued_while_klipper_offline(self):
-        view = self.offline_producer_view()
-        self.assertTrue(view._remote_input('rotate', -2))
+    def test_newlines_are_split_before_panel_conversion_not_question_marks(self):
+        lines = error_lines('Shutdown due to webhooks request\r\nOnce corrected,\nFIRMWARE_RESTART\nPrinter is shutdown')
+        self.assertEqual(lines[-1], 'Printer is shutdown')
+        self.assertIn('FIRMWARE_RESTART', lines)
+        self.assertFalse(any('?' in line or '\n' in line or '\r' in line for line in lines))
+        self.assertTrue(all(len(line) <= 30 for line in lines))
+
+    def test_remote_producer_click_dispatches_selected_restart_once_without_dialog(self):
+        view = self.view()
+        self.enter(view)
+        # Initial selection is Refresh (safe); one step left is Firmware.
+        self.assertTrue(view._remote_input('rotate', 1))
         view._process_input(view._loop.post.call_args.args[0])
+        self.assertEqual(view._recovery_selection, 1)
         self.assertTrue(view._remote_input('press', 1))
         view._process_input(view._loop.post.call_args.args[0])
-        self.assertEqual(view._recovery_confirm, 'firmware')
-        self.assertEqual(view._recovery_selection, 0)
-        view.pd.recovery.request.assert_not_called()
+        view.pd.recovery.request.assert_called_once_with('firmware')
+        self.assertEqual(view.checkkey, view.RecoveryScreen)
 
-    def test_physical_short_release_opens_confirmation_and_can_confirm(self):
+    def test_physical_encoder_and_short_release_reach_restart(self):
         import time
-        view = self.offline_producer_view()
-        view._recovery_selection = 2
-        view._button_started_at = time.monotonic() - .1
+        view = self.view()
+        self.enter(view)
+        view.encoder_has_data(1)
+        view._process_input(view._loop.post.call_args.args[0])
+        self.assertEqual(view._recovery_selection, 1)
+        view._button_started_at = time.monotonic()-.1
         view._button_can_power_off = False
         view._button_origin = (100, view._uart_epoch)
-        view._button_released()
-        event = view._loop.post.call_args.args[0]
-        self.assertEqual(event.kind, 'button_release')
-        view._process_input(event)
-        self.assertEqual(view._recovery_confirm, 'firmware')
-        view.pd.recovery.request.assert_not_called()
-        view._recovery_selection = 1
-        view._button_started_at = time.monotonic() - .1
         view._button_released()
         view._process_input(view._loop.post.call_args.args[0])
         view.pd.recovery.request.assert_called_once_with('firmware')
 
-    def test_long_release_and_stale_uart_never_select_restart(self):
-        view = self.offline_producer_view()
-        view._recovery_confirm = 'firmware'
-        view._recovery_selection = 1
-        view._process_input(InputEvent('button_release', 500, 100, view._uart_epoch))
-        view._process_input(InputEvent('button_release', 100, 100, view._uart_epoch-1))
+    def test_text_scroll_moves_text_but_not_action_positions(self):
+        view = self.view()
+        self.enter(view)
+        view._process_input(self.event(view, 'rotate', 3))
+        self.assertEqual(view._recovery_selection, -1)
+        view.lcd.reset_mock()
+        view._process_input(self.event(view, 'rotate', -5))
+        self.assertEqual(view._recovery_scroll, 5)
+        positions = {c.args[-1]: c.args[-2] for c in view.lcd.draw_text.call_args_list
+                     if c.args[-1] in ('Restart Klipper', 'Firmware Restart', 'Refresh connection')}
+        self.assertEqual(positions, {'Restart Klipper': 340, 'Firmware Restart': 384,
+                                     'Refresh connection': 428})
+        view._process_input(self.event(view, 'press'))
+        self.assertEqual(view._recovery_selection, 0)
         view.pd.recovery.request.assert_not_called()
-        self.assertEqual(view._recovery_confirm, 'firmware')
 
-    def test_normal_offline_menus_still_reject_producer_input(self):
-        view = self.offline_producer_view()
+    def test_refresh_is_read_only_and_busy_restart_cannot_repeat(self):
+        view = self.view()
+        self.enter(view)
+        view._process_input(self.event(view, 'press'))
+        view.pd.recovery.refresh.assert_called_once_with()
+        view.pd.recovery.request.assert_not_called()
+        view.pd.recovery.busy = True
+        view._recovery_selection = 1
+        view._process_input(self.event(view, 'press'))
+        view.pd.recovery.request.assert_not_called()
+
+    def test_long_release_stale_uart_and_regular_offline_menu_never_restart(self):
+        view = self.view()
+        self.enter(view)
+        view._recovery_selection = 1
+        view._process_input(self.event(view, 'button_release', 500))
+        view._process_input(InputEvent('button_release', 100, 100, 6))
+        view.pd.recovery.request.assert_not_called()
         view.checkkey = view.TemperatureID
+        view._loop.post.reset_mock()
         self.assertFalse(view._remote_input('rotate', -1))
         self.assertFalse(view._remote_input('press', 1))
         view._loop.post.assert_not_called()
 
-    def test_stale_action_feedback_does_not_trap_recovery_navigation(self):
-        view = self.offline_producer_view()
+    def test_stale_feedback_does_not_trap_navigation(self):
+        view = self.view()
+        self.enter(view)
         view._action_feedback = SimpleNamespace(phase='running')
-        self.assertTrue(view._remote_input('rotate', -1))
+        self.assertTrue(view._remote_input('rotate', 1))
         view._process_input(view._loop.post.call_args.args[0])
         self.assertEqual(view._recovery_selection, 1)
+
+    def test_unchanged_poll_is_quiet_and_ready_goes_home_without_resuming_test(self):
+        view = self.view()
+        self.enter(view)
+        view.lcd.reset_mock()
+        view._poll_recovery_ui()
+        view.lcd.draw_text.assert_not_called()
+        view.Goto_MainMenu = Mock()
+        view.pd.connection_error = None
+        self.assertFalse(view._poll_recovery_ui())
+        view.Goto_MainMenu.assert_called_once_with()
+
+    def test_cold_shutdown_stops_splash_and_power_off_has_priority(self):
+        view = self.view()
+        view._boot_active = True
+        view._boot_animation_running = True
+        view._boot_animation_active_library = 1
+        view._boot_animation_x = 100
+        self.enter(view)
+        self.assertFalse(view._boot_active)
+        self.assertFalse(view._boot_animation_running)
+        view = self.view()
+        view._relay_status = 'off'
+        self.assertFalse(view._poll_recovery_ui())

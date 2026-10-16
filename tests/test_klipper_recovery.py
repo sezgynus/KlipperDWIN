@@ -79,7 +79,7 @@ class RecoveryTests(unittest.TestCase):
                 self.read()
                 self.assertTrue(self.recovery.request(action))
                 args, kwargs = self.client.post.call_args
-                self.assertEqual(args, (endpoint, None))
+                self.assertEqual(args, (endpoint, {}))
                 self.assertTrue(kwargs['guard']())
                 self.assertEqual(kwargs['request_timeout'], 10.)
 
@@ -116,10 +116,9 @@ class RecoveryTests(unittest.TestCase):
         self.offline = True
         self.read()
         self.clock += 100000
-        self.assertFalse(self.recovery.request('restart'))
         self.client.post.assert_not_called()
-        self.read()
-        self.assertEqual(self.recovery.state.kind, 'shutdown')
+        self.assertTrue(self.recovery.request('restart'))
+        self.assertTrue(self.client.post.call_args.kwargs['guard']())
 
     def test_pending_command_and_ambiguous_failure_are_never_replayed(self):
         future = Future()
@@ -129,7 +128,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertFalse(self.recovery.request('firmware'))
         future.set_exception(RuntimeError('ambiguous'))
         self.recovery.poll()
-        self.assertIn('not confirmed', self.recovery.notice)
+        self.assertIn('Restart failed', self.recovery.notice)
         self.clock += 20
         self.read()
         self.client.post.assert_called_once()
@@ -160,3 +159,54 @@ class RecoveryTests(unittest.TestCase):
         self.read()
         self.assertEqual(self.recovery.state.kind, 'unavailable')
         self.assertEqual(self.recovery.state.actions, ())
+
+class RestartTransportTests(unittest.TestCase):
+    def test_restart_bodies_are_objects_through_real_http_client_and_live_guard(self):
+        import io
+        import json
+        from urllib.parse import urlsplit
+        from urllib.error import HTTPError
+        from moonraker_client import MoonrakerClient
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                self.close()
+
+        class MoonrakerEndpoint:
+            def __init__(self):
+                self.posts = []
+            def open(self, request, timeout=None):
+                path = urlsplit(request.full_url).path
+                if request.get_method() == 'GET':
+                    result = ({'klippy_connected': True, 'klippy_state': 'shutdown', 'components': []}
+                              if path == '/server/info' else
+                              {'state': 'shutdown', 'state_message': 'Shutdown due to webhooks request'})
+                else:
+                    # Moonraker application.parse_args uses
+                    # args.update(json.loads(request.body)): JSON null fails.
+                    arguments = {}
+                    try:
+                        arguments.update(json.loads(request.data))
+                    except TypeError:
+                        raise HTTPError(request.full_url, 500, 'JSON body must be an object', {}, None)
+                    self.posts.append((path, arguments))
+                    result = 'ok'
+                return Response(json.dumps({'result': result}).encode())
+
+        for action, path in (('restart', '/printer/restart'), ('firmware', '/printer/firmware_restart')):
+            with self.subTest(action=action):
+                server = MoonrakerEndpoint()
+                client = MoonrakerClient(opener=server)
+                try:
+                    recovery = KlipperRecovery(client, ImmediateReadWorker(), lambda: True)
+                    recovery.poll()
+                    recovery.poll()
+                    self.assertTrue(recovery.request(action))
+                    self.assertEqual(recovery._command.result(2), {'result': 'ok'})
+                    recovery.poll()
+                    self.assertEqual(server.posts, [(path, {})])
+                    self.assertIn('Restart requested', recovery.notice)
+                finally:
+                    client.close()

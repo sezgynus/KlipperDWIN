@@ -3,6 +3,7 @@
 Small offline-only reads on the existing worker. No new threads/connections,
 automatic restart, G-code, host reboot, or replay of interrupted operations.
 """
+import logging
 from dataclasses import dataclass
 from collections.abc import Mapping
 from time import monotonic
@@ -100,9 +101,12 @@ class KlipperRecovery:
                 command.result()
                 self.notice = 'Restart requested; waiting...'
                 self._waiting_until = now + 15.
-            except Exception:
+            except Exception as error:
                 # A failed POST may have executed. Never retry automatically.
-                self.notice = 'Restart not confirmed. Check state.'
+                from moonraker_client import MoonrakerError
+                detail = str(error)[:100] if isinstance(error, MoonrakerError) else type(error).__name__
+                self.notice = 'Restart failed: ' + detail
+                logging.getLogger(__name__).warning('Recovery restart failed: %s', detail)
                 self._waiting_until = 0.
             self._next = 0.
         if self._waiting_until and now >= self._waiting_until:
@@ -126,7 +130,7 @@ class KlipperRecovery:
 
     def request(self, action):
         if (self._closed or not self._offline() or self.busy
-                or action not in self.state.actions or monotonic()-self._observed > 5.):
+                or action not in self.state.actions):
             self.notice = 'State changed. Refresh and retry.'
             self.refresh()
             return False
@@ -140,11 +144,12 @@ class KlipperRecovery:
             return (self._offline() and live.kind == expected.kind
                     and action in live.actions and live.service == expected.service)
         path, payload = {
-            'restart': ('/printer/restart', None),
-            'firmware': ('/printer/firmware_restart', None),
+            'restart': ('/printer/restart', {}),
+            'firmware': ('/printer/firmware_restart', {}),
             'service': ('/machine/services/restart', {'service': expected.service})
         }[action]
         try:
+            logging.getLogger(__name__).info('Recovery action requested: %s', action)
             self._command = self._client.post(path, payload, guard=guard,
                                                report_error=False, request_timeout=10.)
             self.notice = 'Sending restart request...'

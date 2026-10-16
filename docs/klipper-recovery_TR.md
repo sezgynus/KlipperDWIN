@@ -13,8 +13,8 @@ Klipper'ın state_message metnini (MCU adı dahil) ve kaydırılabilir ayrıntı
   Erişilemeyen API üzerinden Moonraker yeniden başlatılamaz.
 - Klipper starting/ready durumundaysa eski hata ekranından restart sunulmaz.
 
-Her restart ayrı onay ister; başlangıç seçimi Cancel'dır. Önce yazıcıyı kontrol
-edin ve hatanın nedenini giderin. Komutlar mevcut HTTP komut worker'ında,
+Restart düğmesi tek açık basışla çalışır. Başlangıç seçimi salt-okunur Refresh
+kontrolüdür. Önce yazıcıyı kontrol edin ve hatanın nedenini giderin. Komutlar mevcut HTTP komut worker'ında,
 gönderimden hemen önce taze sunucu/yazıcı kontrolüyle yürütülür. İstek onayı
 READY kanıtı değildir; mevcut aboneliğin toparlanması beklenir. Başarısız veya
 belirsiz komutlar otomatik tekrarlanmaz. Kurtarma Home'a döner; kesilen ısıtma,
@@ -31,3 +31,5 @@ Regresyonlar durum/hata ayrımını, MCU metnini, doğru servis seçimini, taze 
 guard'ını, yinelenen/belirsiz komutları, ayrı onayı, kaydırmayı, soğuk açılışı ve
 kurtarma gezinmesini kapsar. Yalnız CI kullanılır; lokal test veya emülatör
 çalıştırılmadı. Fiziksel kabul bekliyor.
+
+Hata düz çok satırlı metin alanında, düğmeler sabit alt bölümde gösterilir. İlk düğmenin soluna dönerek hata metnine odaklanılır; encoder kaydırır, basış düğmelere döndürür. Satır sonları LCD ASCII dönüşümünden önce ayrılır; soru işaretine dönüşmez. Restart uçlarına null yerine boş JSON nesnesi gönderilir. Başarısız isteğin temizlenmiş transport hatası gösterilir. Ek onay menüsü açılmaz.

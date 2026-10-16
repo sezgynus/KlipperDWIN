@@ -14,8 +14,9 @@ shutdown or Klipper configuration error, the LCD shows the reported state_messag
   It cannot be restarted through an unreachable API.
 - Starting/ready Klipper does not offer restart commands on a stale error screen.
 
-Every restart requires a separate confirmation, initially Cancel. Check the
-printer and correct the underlying fault before restarting. Commands are
+Restart buttons execute on one explicit press. The initial selection is the
+read-only Refresh control. Check the printer and correct the underlying fault
+before restarting. Commands are
 dispatched on the existing HTTP command worker with a fresh server/printer
 check immediately before dispatch. An acknowledgement is not proof of READY;
 the existing subscription must recover. Failed or ambiguous commands are never
@@ -33,3 +34,5 @@ Regression tests cover state/error distinctions, MCU text, exact service
 selection, fresh dispatch guards, duplicate/ambiguous commands, explicit
 confirmation, scrolling, cold boot and recovery navigation. CI only; no local
 test suite or emulator was run. Physical acceptance remains pending.
+
+The error is a plain multiline text panel, with fixed buttons below it. Turn left past the first button to focus error text, turn to scroll, and press to return to buttons. Newlines are split before LCD ASCII conversion, so they do not become question marks. Restart endpoints send an empty JSON object, never null. A failed request shows its sanitized transport error. No extra confirmation menu is opened.

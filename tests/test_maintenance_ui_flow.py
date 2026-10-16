@@ -111,6 +111,51 @@ class MaintenanceUIFlows(unittest.TestCase):
                 self.assertEqual(d._maintenance_page, 'result')
 
 
+    def test_f12_stage_selection_immediately_shows_stop_confirmation(self):
+        # An F12 choice advances the controller to a new nonterminal phase
+        # without an outcome. Redraw must not depend on encoder rotation.
+        for selected in (0, 1, 4, 5):
+            with self.subTest(selected=selected):
+                d = self.setup_view()
+                d._maintenance_page = 'pulse'
+                d._maintenance_selection = selected
+                pulse = d.pd.maintenance_pulse
+                pulse.feature_id = 'F12'
+                pulse.phase = 'await_observation'
+                pulse.pwm_levels = (25, 50, 76, 101, 127)
+                def observe(choice):
+                    self.assertEqual(choice, selected)
+                    pulse.phase = 'f12_await_stop'
+                    return None
+                d.pd.observe_maintenance_physical = Mock(side_effect=observe)
+                d.Draw_Maintenance_Menu = Mock(
+                    wraps=d.Draw_Maintenance_Menu)
+                d.lcd.update = Mock(wraps=d.lcd.update)
+                self.event(d, d.ENCODER_DIFF_ENTER)
+                d.pd.observe_maintenance_physical.assert_called_once_with(selected)
+                self.assertEqual(d._maintenance_page, 'pulse')
+                self.assertEqual(pulse.phase, 'f12_await_stop')
+                self.assertEqual(d._maintenance_selection, 0)
+                self.assertEqual(d._maintenance_rows()[0], 'Fan fully stopped?')
+                d.Draw_Maintenance_Menu.assert_called_once_with()
+                d.lcd.update.assert_called_once_with()
+                d.pd.client.get.assert_not_called()
+
+    def test_invalid_observation_does_not_trigger_extra_redraw(self):
+        d = self.setup_view()
+        d._maintenance_page = 'pulse'
+        d._maintenance_selection = 1
+        pulse = d.pd.maintenance_pulse
+        pulse.feature_id = 'F12'
+        pulse.phase = 'await_observation'
+        pulse.pwm_levels = (25, 50, 76, 101, 127)
+        d.pd.observe_maintenance_physical = Mock(return_value=None)
+        d.Draw_Maintenance_Menu = Mock(wraps=d.Draw_Maintenance_Menu)
+        self.event(d, d.ENCODER_DIFF_ENTER)
+        self.assertEqual(pulse.phase, 'await_observation')
+        self.assertEqual(d._maintenance_selection, 1)
+        d.Draw_Maintenance_Menu.assert_not_called()
+
     def test_diagnostic_result_renders_bounded_observed_values(self):
         d = self.setup_view()
         d._maintenance_page = 'reading'

@@ -190,6 +190,12 @@ class MaintenanceViewMixin:
                 if outcome is not None:
                     self._maintenance_result = outcome
                     self._maintenance_show('result')
+                elif self.pd.maintenance_pulse.phase != phase:
+                    # Multi-round F12 changes state without producing a
+                    # terminal result. Redraw immediately on the ENTER event;
+                    # otherwise the previous choice menu stays visible until
+                    # the next encoder rotation.
+                    self._maintenance_show('pulse')
             elif phase == 'f12_await_stop':
                 if selected == 0:
                     outcome = self.pd.cancel_maintenance_physical()

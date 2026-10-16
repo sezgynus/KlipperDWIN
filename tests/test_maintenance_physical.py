@@ -447,7 +447,7 @@ class PhysicalControllerTests(unittest.TestCase):
         lights = [(0.0, 0.0, 0.3, 0.0), (0.1, 0.2, 0.0, 0.0),
                   (0.0, 0.35, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
         raw['settings'] = {'neopixel diagnostic': {
-            'pin': 'PA7', 'chain_count': 4, 'color_order': 'GRB'}}
+            'pin': 'PA7', 'chain_count': 4, 'color_order': ['GRB']}}
         if managed:
             raw['settings']['mmu_leds unit0'] = {
                 'exit_leds': 'neopixel:diagnostic (1-4)'}

@@ -7,6 +7,7 @@ readback confirming the restored value. No timers/threads/polling at startup.
 from collections.abc import Mapping
 from concurrent.futures import CancelledError
 from dataclasses import dataclass
+import logging
 import math
 import re
 from time import monotonic
@@ -287,7 +288,15 @@ class MaintenancePulseController:
                 return None
             try:
                 found = self._future.result()
-            except (Exception):
+            except Exception as exc:
+                # Avoid logging raw Moonraker exception payloads, which can
+                # contain arbitrary printer data. Compiler ValueError codes
+                # are fixed, safe diagnostic identifiers for field support.
+                code = (str(exc) if isinstance(exc, ValueError)
+                        else type(exc).__name__)
+                logging.warning(
+                    'Maintenance physical preflight blocked: '
+                    'feature=%s reason=%s', self._row.feature_id, code)
                 return self._finish('BLOCKED', 'preflight_failed')
             if found is None:
                 return self._finish('BLOCKED', 'preflight_not_verified')

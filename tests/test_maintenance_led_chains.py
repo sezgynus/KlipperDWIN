@@ -104,6 +104,37 @@ class LedChainTests(unittest.TestCase):
         status[TARGET]['color_data'][0] = (0, 0, 0, .4)
         self.assertFalse(restored(p, status))
 
+    def test_klipper_color_order_list_and_tuple_formats(self):
+        # Klipper config.getlist records tuple values, serialized to JSON
+        # arrays in configfile.settings. Both managed and independent paths
+        # must accept the same effective configuration.
+        for order, white in (
+                (['GRB'], False),
+                (('GRB',), False),
+                (['GRB', 'GRB', 'GRB', 'GRB'], False),
+                (['GRBW'], True),
+                (('GRBW', 'GRBW', 'GRBW', 'GRBW'), True)):
+            with self.subTest(order=order):
+                row, snap, status, settings = fixture()
+                settings[TARGET]['color_order'] = order
+                p = compile_pulse(row, snap, status, settings)
+                self.assertEqual(p.script.count('G4 P650'), 4)
+                self.assertEqual(p.stimulus.count('WHITE='), 16 if white else 0)
+                self.assertTrue(restored(p, status))
+
+    def test_klipper_color_order_malformed_lists_block_before_gcode(self):
+        bad = (
+            [], ['GRB', 'GRBW'], ['GRB', 'GRB'],
+            ['GRB', 'GRB', 'GRB', 'GRBW'],
+            ['GGB'], ['R'], [None], ['RGB', 5],
+            [['GRB']], ('GRB', 'GRBW', 'GRB', 'GRBW'))
+        for order in bad:
+            with self.subTest(order=order):
+                row, snap, status, settings = fixture()
+                settings[TARGET]['color_order'] = order
+                with self.assertRaisesRegex(ValueError, 'led_color_order_unsupported'):
+                    compile_pulse(row, snap, status, settings)
+
     def test_invalid_chain_count_pixels_white_mix_and_bounded_length(self):
         variants = [
             ([COLORS[0]] * 33, 'GRB', None),

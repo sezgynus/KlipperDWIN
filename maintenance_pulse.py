@@ -93,6 +93,37 @@ def _led_frame(name, *, has_white):
     return dict(_LED_FRAMES)[name]
 
 
+def _rgb_capability(kind, cfg, count):
+    """Validate actual RGB/RGBW channels from effective Klipper config.
+
+    Klipper config.getlist('color_order') stores tuples, which Moonraker
+    serializes to JSON arrays; a comma-separated string is also accepted.
+    Never interpret malformed, mixed RGB/RGBW or single-channel hardware
+    as a valid four-color test target.
+    """
+    if kind == 'led':
+        if any(not isinstance(cfg.get(pin), str) or not cfg[pin].strip()
+               for pin in ('red_pin', 'green_pin', 'blue_pin')):
+            raise ValueError('led_rgb_channels_not_configured')
+        return bool(cfg.get('white_pin'))
+    raw = cfg.get('color_order', 'RGB')
+    if isinstance(raw, str):
+        orders = [value.strip().upper() for value in raw.split(',')]
+    elif isinstance(raw, (list, tuple)):
+        if not all(isinstance(value, str) for value in raw):
+            raise ValueError('led_color_order_unsupported')
+        orders = [value.strip().upper() for value in raw]
+    else:
+        raise ValueError('led_color_order_unsupported')
+    if (not orders or len(orders) not in (1, count)
+            or any(len(value) not in (3, 4)
+                   or set(value) not in (set('RGB'), set('RGBW'))
+                   for value in orders)
+            or len({('W' in value) for value in orders}) != 1):
+        raise ValueError('led_color_order_unsupported')
+    return 'W' in orders[0]
+
+
 def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
     """Compile a short, self-restoring script from *fresh* printer status.
 
@@ -171,27 +202,7 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
         count = cfg.get('chain_count', 1)
         if type(count) is not int or count != len(colors):
             raise ValueError('led_chain_count_mismatch')
-        if kind == 'led':
-            if any(not isinstance(cfg.get(pin), str) or not cfg[pin].strip()
-                   for pin in ('red_pin', 'green_pin', 'blue_pin')):
-                # A monochromatic [led] must not be offered an RGB test.
-                raise ValueError('led_rgb_channels_not_configured')
-            has_white = bool(cfg.get('white_pin'))
-        else:
-            has_white = False
-        if kind != 'led':
-            order = cfg.get('color_order', 'RGB')
-            if not isinstance(order, str):
-                raise ValueError('led_color_order_unknown')
-            orders = [s.strip().upper() for s in order.split(',')]
-            if (not orders or len(orders) not in (1, len(colors))
-                    or any(not s or set(s) not in
-                           (set('RGB'), set('RGBW')) or len(s) not in (3, 4)
-                           for s in orders)):
-                raise ValueError('led_color_order_unsupported')
-            if len({('W' in s) for s in orders}) != 1:
-                raise ValueError('mixed_rgb_rgbw_unsupported')
-            has_white = 'W' in orders[0]
+        has_white = _rgb_capability(kind, cfg, len(colors))
         originals = []
         for raw in colors:
             if (not isinstance(raw, (tuple, list)) or len(raw) != 4
@@ -314,17 +325,7 @@ def compile_mmu_led_pulse(row, snapshot, physical, settings, controls, mmu, mach
     # HH controls the effective virtual LED segments, not the physical
     # neopixel directly. Validate all segment readbacks before compiling.
     # Require RGB-capable hardware; a monochrome object cannot do R/B/G/W.
-    if kind == 'led' and any(not isinstance(cfg.get(pin), str) or
-                              not cfg[pin].strip()
-                              for pin in ('red_pin', 'green_pin', 'blue_pin')):
-        raise ValueError('led_rgb_channels_not_configured')
-    if kind != 'led':
-        order = cfg.get('color_order', 'RGB')
-        if (not isinstance(order, str) or
-                any(set(x.strip().upper()) not in (set('RGB'), set('RGBW'))
-                    or len(x.strip()) not in (3, 4)
-                    for x in order.split(','))):
-            raise ValueError('led_color_order_unsupported')
+    _rgb_capability(kind, cfg, count)
     controls_expected, affected = [], set()
     for owner, unit_index in zip(owners, unit_indices):
         current = controls.get(owner.section)

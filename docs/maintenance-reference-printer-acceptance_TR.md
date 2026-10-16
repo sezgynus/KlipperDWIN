@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **5 adet** fiziksel test KABUL sayılır. **F02'nin yeni 2 saniyelik kademeleri ve O04'ün senkron dört renk testi 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **6 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 5 KABUL (F02 eski sürümü), 56 BEKLİYOR, 8 KOŞULLU, 1 N/A. **F02 ve O04 yeni sürümleri kullanıcı tarafından kabul edildi; son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 6 KABUL, 55 BEKLİYOR, 8 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -20,6 +20,7 @@
 |---|---|---|---|---|---|
 | [x] | F01 | `fan` | Parça soğutma fanının dönmesi | Hazır | **KABUL** |
 | [x] | F02 | `fan` | Parça soğutma fanı hız kademeleri | Hazır | **KABUL (2 sn/kademe)** |
+| [x] | F12 | `fan` | Adaptif beş kademeli fan kalkış PWM eşiği | Hazır | **KABUL (iterasyon / LCD PASS)** |
 | [x] | S18 | `pwm_cycle_time Buzzer` | Buzzer ses testi | Hazır | **KABUL** |
 | [x] | O03 | `output_pin case_light` | Güvenli yardımcı çıkış | Hazır | **KABUL** |
 | [x] | O04 | `neopixel mmu_leds` | Adreslenebilir LED testi | Hazır | **KABUL (kırmızı → yeşil → mavi → beyaz)** |
@@ -28,7 +29,6 @@
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | F12 | `fan` | Fanın dönebildiği en düşük PWM | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Geliştirilecek | **BEKLİYOR** |
 | [ ] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Geliştirilecek | **BEKLİYOR** |
 | [ ] | H02 | `extruder` | Hotend PID kalibrasyonu | Geliştirilecek | **BEKLİYOR** |
@@ -110,10 +110,11 @@
 |---|---|---|---|
 | F01 / `fan` | Fan çalıştı ve önceki raporlanan durumuna geri döndü. | `PASSED_USER` | `true` |
 | F02 / `fan` | Yeni 2 sn/kademe sürümü kullanıcı tarafından kabul edildi; önceki kabul ve sonuçsuz deneme JSON geçmişinde korundu. | `OBSERVED_USER` (LCD sonucu ayrıca bildirilmedi) | `false` (ayrıca doğrulanmadı) |
+| F12 / `fan` | Kick-start etkisi giderildikten sonra adaptif beş kademeli iterasyonlar gerçek yazıcıda çalıştı, LCD PASS gösterdi. Kesin PWM eşiği paylaşılmadı. | `PASSED_USER` (kullanıcının bildirdiği LCD PASS) | `true` (controller başarı yolu; bağımsız fiziksel ölçüm yok) |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sesi duyuldu; Klipper PWM geri okuması yok. | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Kasa ışığı değişti; önceki raporlanan durumu doğrulandı. | `PASSED_USER` | `true` |
 | O04 / `neopixel mmu_leds` | Senkron kırmızı → yeşil → mavi → beyaz testi kullanıcı tarafından kabul edildi; önceki denemeler JSON geçmişinde korundu. | `OBSERVED_USER` (LCD sonucu ayrıca bildirilmedi) | `false` (ayrıca doğrulanmadı) |
 
 ## Sıradaki uygulama
 
-**Önce O04 Happy Hare metin-bayrak uyumluluğunu gerçek yazıcıda yeniden test et; F02 `fan` güncel sonuç kaydını da doğruladıktan sonra F12'ye geç.** Her kademede gerçek kullanıcı gözlemi şarttır; PWM komutu RPM ölçümü değildir. Isıtıcı, mekanik hareket, probe ve MMU için kendi özel güvenlik/geri yükleme adaptörleri kurulmadan komut gönderilmez. Uygun olmayan veya sırf koşullu donanıma ait satırlar *otomatik güvenli test* değildir.
+**F12 uygulaması ve bu referans fan hedefinin kullanıcı kabulü tamamlandı.** Sıradaki bekleyen testler için bağımsız keşif, fiziksel güvenlik ve geri yükleme kuralları gerekir. Kalkış eşik komutundan ölçülmüş RPM veya elektriksel PWM çıkarılmaz. Koşullu donanım *otomatik olarak güvenli veya çalıştırılabilir* sayılmaz.

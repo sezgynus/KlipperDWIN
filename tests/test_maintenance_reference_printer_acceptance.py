@@ -92,6 +92,29 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertIn('54', body)  # historical count; not exact live ID dump
             self.assertIn('F02', body)
 
+    def test_f12_operator_acceptance_tracks_adaptive_search_without_invented_pwm(self):
+        data = ledger()
+        by_target = {(entry['feature_id'], entry['target']): entry
+                     for entry in data['entries']}
+        f12 = by_target[('F12', 'fan')]
+        self.assertEqual(f12['status'], 'accepted')
+        self.assertEqual(f12['adapter'], 'implemented')
+        evidence = f12['acceptance']
+        self.assertEqual(evidence['controller_result'], 'PASSED_USER')
+        self.assertTrue(evidence['restore_verified'])
+        self.assertEqual(evidence['algorithm'], 'adaptive_five_stage_command_bracketing')
+        self.assertFalse(evidence['threshold_reported'])
+        self.assertNotIn('threshold_m106_s', evidence)
+        self.assertIn('iterative', evidence['observation'])
+        self.assertIn('kick-start', evidence['observation'])
+        # Ensure the new ledger was not accidentally applied to another fan.
+        self.assertEqual(by_target[('F04', 'fan_generic (not installed)')]
+                         ['status'], 'not_applicable')
+        self.assertEqual(len([e for e in data['entries']
+                              if e['status'] == 'accepted']), 6)
+        self.assertEqual(len([e for e in data['entries']
+                              if e['status'] == 'pending']), 55)
+
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}
         confirmed = [('F01', 'fan'), ('S18', 'pwm_cycle_time Buzzer'),

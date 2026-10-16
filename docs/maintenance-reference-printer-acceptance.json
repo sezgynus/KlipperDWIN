@@ -102,10 +102,19 @@
       "title": "Minimum usable fan PWM",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Five user-observed increasing M106 command levels; pending explicit real-printer operator acceptance. No RPM or actual electrical PWM measurement.",
-      "acceptance": null
+      "note": "Operator-approved physical adaptive five-stage startup PWM search on reference fan. Effective kick-start suppression was required by F12 preflight. No exact threshold command, tachometer RPM, or physical PWM waveform was separately reported.",
+      "acceptance": {
+        "date": "2026-10-16",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly confirmed that the real printer F12 test ended with LCD PASSED and the iterative adaptive five-stage bracket/narrowing workflow functioned as intended after kick-start interference was addressed. The exact calculated M106 threshold was not supplied; no tachometer RPM or electrical PWM measurement is claimed.",
+        "algorithm": "adaptive_five_stage_command_bracketing",
+        "threshold_reported": false,
+        "restore_evidence": "controller_passthrough_result_implies_verified_restore_not_independently_measured"
+      }
     },
     {
       "feature_id": "F13",

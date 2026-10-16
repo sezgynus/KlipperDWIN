@@ -73,3 +73,11 @@ class ThermalMetricsTests(unittest.TestCase):
         self.assertTrue(s.evaluate('H06', 60)[0])
         self.assertFalse(s.evaluate('H07', 60)[0])
         self.assertFalse(s.evaluate('H08', 60)[0])
+
+    def test_selected_metric_is_first_for_small_lcd_result(self):
+        s = ThermalSeries()
+        for t in range(0, 50, 2):
+            s.add(Sample(t, 60-t*.2, 0., 0.))
+        ok, evidence = s.evaluate('H09', 60.)
+        self.assertTrue(ok)
+        self.assertEqual(evidence[0][0], 'cooling_c_per_s')

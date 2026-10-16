@@ -72,3 +72,49 @@ there is no file I/O on menu entry or encoder ticks. Runtime cold/OFF,
 other-heater, safety and dispatch checks still apply. H04 uses the declared
 target and the separate 900 s calibration limit. Missing profiles do not expose
 generic tests. Standard extruder/bed tests need no profile file.
+
+## H01–H18 coverage
+| ID | Implementation / required evidence |
+|---|---|
+| H01 | Guarded warmup; separate heater targets |
+| H02 / H03 | Monitored hotend / bed PID; no automatic save |
+| H04 | Same monitored PID for explicitly profiled generic applications |
+| H05 / H06 | Heating slope / target arrival, independent criteria |
+| H07 / H08 | Overshoot / settled stability, independent windows |
+| H09 | Zero-target cooling slope, >=30 s |
+| H10 | Conditional: compatible measured baseline is absent; no runnable adapter |
+| H11 | Device-specific reported duty Diagnostics |
+| H12 | Conditional: no validated nominal wattage + duty history; no energy estimate |
+| H13 | Normal safe heating response; never deliberate runaway |
+| H14 | Timestamped temperature Diagnostics, including heaters |
+| H15 | Conditional: no verified co-located calibrated pair; no runnable adapter |
+| H16 | Diagnostics only when actual environmental fields are discovered |
+| H17 | Conditional: probe drift calibration also moves/heats; dedicated motion/thermal contract absent, not exposed |
+| H18 | Conditional: no repeatable authorized fan/heater A/B profile; not exposed |
+
+**Scope boundary:** all 16 confirmed reference-printer physical H targets are
+implemented and pending physical acceptance. H10/H12/H15/H17/H18 are not
+implemented hardware adapters; discovery or a catalog row does not change
+that. Additional evidence and independent contracts are required before those
+optional tests can be enabled. This is not a claim that all 18 IDs are runnable.
+
+## Final batch acceptance
+No physical commands were sent during development. On the real idle printer,
+verify checkout/service HEAD and effective heater limits first.
+1. Inspect H11/H14 and any actually available H16 in Diagnostics.
+2. Run H01 independently for hotend and bed. Read the target and shutdown
+   notice before confirming. Confirm the observed heating and OFF behavior.
+3. With heaters cooled to cold admission, run H05, H06, H07, H08, H09 and H13
+   separately for each target. Each row is an independent trial and result;
+   no acceptance propagates to adjacent rows.
+4. Run H02 and H03 last, supervised, one heater at a time. Existing pending
+   config blocks calibration; decide how to handle any previously pending PID
+   result yourself. Petrel never saves/restarts Klipper automatically.
+5. Record exact feature/device, LCD result, observations and restoration
+   evidence. Only then update that target's canonical JSON and both trackers.
+Active stop means Klipper shutdown and may require an operator-managed
+firmware restart after checking the printer. A missing shutdown acknowledgment
+requires checking physical heater power immediately. No automatic retries.
+CI is not physical acceptance. No local tests or emulator were run.
+
+PID additionally requires observed positive duty and measured arrival in the target-minus-5 C band. Heater reactivation during cooling requests shutdown. The selected test's primary metric appears first on the LCD result.

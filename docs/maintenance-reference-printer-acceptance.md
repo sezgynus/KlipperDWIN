@@ -29,22 +29,22 @@
 
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
-| [ ] | H01 | `extruder` | Heater warmup | Not built | **PENDING** |
-| [ ] | H01 | `heater_bed` | Heater warmup | Not built | **PENDING** |
-| [ ] | H02 | `extruder` | Extruder PID calibration | Not built | **PENDING** |
-| [ ] | H03 | `heater_bed` | Bed PID calibration | Not built | **PENDING** |
-| [ ] | H05 | `extruder` | Heating rate | Not built | **PENDING** |
-| [ ] | H05 | `heater_bed` | Heating rate | Not built | **PENDING** |
-| [ ] | H06 | `extruder` | Time to target | Not built | **PENDING** |
-| [ ] | H06 | `heater_bed` | Time to target | Not built | **PENDING** |
-| [ ] | H07 | `extruder` | Temperature overshoot | Not built | **PENDING** |
-| [ ] | H07 | `heater_bed` | Temperature overshoot | Not built | **PENDING** |
-| [ ] | H08 | `extruder` | Temperature stability | Not built | **PENDING** |
-| [ ] | H08 | `heater_bed` | Temperature stability | Not built | **PENDING** |
-| [ ] | H09 | `extruder` | Cooling rate | Not built | **PENDING** |
-| [ ] | H09 | `heater_bed` | Cooling rate | Not built | **PENDING** |
-| [ ] | H13 | `extruder` | Heater response warning | Not built | **PENDING** |
-| [ ] | H13 | `heater_bed` | Heater response warning | Not built | **PENDING** |
+| [ ] | H01 | `extruder` | Heater warmup | Available; batch acceptance pending | **PENDING** |
+| [ ] | H01 | `heater_bed` | Heater warmup | Available; batch acceptance pending | **PENDING** |
+| [ ] | H02 | `extruder` | Extruder PID calibration | Available; batch acceptance pending | **PENDING** |
+| [ ] | H03 | `heater_bed` | Bed PID calibration | Available; batch acceptance pending | **PENDING** |
+| [ ] | H05 | `extruder` | Heating rate | Available; batch acceptance pending | **PENDING** |
+| [ ] | H05 | `heater_bed` | Heating rate | Available; batch acceptance pending | **PENDING** |
+| [ ] | H06 | `extruder` | Time to target | Available; batch acceptance pending | **PENDING** |
+| [ ] | H06 | `heater_bed` | Time to target | Available; batch acceptance pending | **PENDING** |
+| [ ] | H07 | `extruder` | Temperature overshoot | Available; batch acceptance pending | **PENDING** |
+| [ ] | H07 | `heater_bed` | Temperature overshoot | Available; batch acceptance pending | **PENDING** |
+| [ ] | H08 | `extruder` | Temperature stability | Available; batch acceptance pending | **PENDING** |
+| [ ] | H08 | `heater_bed` | Temperature stability | Available; batch acceptance pending | **PENDING** |
+| [ ] | H09 | `extruder` | Cooling rate | Available; batch acceptance pending | **PENDING** |
+| [ ] | H09 | `heater_bed` | Cooling rate | Available; batch acceptance pending | **PENDING** |
+| [ ] | H13 | `extruder` | Heater response warning | Available; batch acceptance pending | **PENDING** |
+| [ ] | H13 | `heater_bed` | Heater response warning | Available; batch acceptance pending | **PENDING** |
 | [ ] | M01 | `physical X endstop` | Physical endstop press/release | Not built | **PENDING** |
 | [ ] | M01 | `physical Y endstop` | Physical endstop press/release | Not built | **PENDING** |
 | [ ] | M03 | `Cartesian X/Y/Z homing` | Homing completion | Not built | **PENDING** |
@@ -118,3 +118,5 @@
 ## Next implementation
 
 **F12 implementation and operator acceptance are complete for the reference fan target.** Other pending tests require their own discovery, physical safety and restoration contracts. Do not infer measured RPM or electrical PWM from the accepted commanded threshold search. Merely conditional devices are **not automatically safe or runnable**.
+
+**H implementation status:** All 16 reference physical H targets have adapters; none has physical acceptance yet. See the [thermal guide](maintenance-thermal.md) for final batch order and H01–H18 scope.

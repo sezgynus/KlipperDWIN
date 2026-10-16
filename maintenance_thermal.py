@@ -184,6 +184,11 @@ class ThermalSeries:
             passed = m['rise_c'] >= 5 and m.get('heating_c_per_s', 0) > 0
         else:
             raise ValueError('unsupported_thermal_metric')
+        primary = {'H01': 'rise_c', 'H05': 'heating_c_per_s',
+                   'H06': 'time_to_target_s', 'H07': 'overshoot_c',
+                   'H08': 'stability_peak_to_peak_c', 'H09': 'cooling_c_per_s',
+                   'H13': 'rise_c'}[feature]
+        metrics = tuple(sorted(metrics, key=lambda pair: pair[0] != primary))
         return passed, metrics
 
 

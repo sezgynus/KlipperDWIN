@@ -29,22 +29,22 @@
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H02 | `extruder` | Hotend PID kalibrasyonu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H03 | `heater_bed` | Tabla PID kalibrasyonu | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H05 | `extruder` | Isınma hızı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H05 | `heater_bed` | Isınma hızı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H06 | `extruder` | Hedef sıcaklığa ulaşma süresi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H06 | `heater_bed` | Hedef sıcaklığa ulaşma süresi | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H07 | `extruder` | Sıcaklık aşımı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H07 | `heater_bed` | Sıcaklık aşımı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H08 | `extruder` | Sıcaklık kararlılığı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H08 | `heater_bed` | Sıcaklık kararlılığı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H09 | `extruder` | Soğuma hızı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H09 | `heater_bed` | Soğuma hızı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H13 | `extruder` | Isıtıcı tepki uyarısı | Geliştirilecek | **BEKLİYOR** |
-| [ ] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Geliştirilecek | **BEKLİYOR** |
+| [ ] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H02 | `extruder` | Hotend PID kalibrasyonu | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H03 | `heater_bed` | Tabla PID kalibrasyonu | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H05 | `extruder` | Isınma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H05 | `heater_bed` | Isınma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H06 | `extruder` | Hedef sıcaklığa ulaşma süresi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H06 | `heater_bed` | Hedef sıcaklığa ulaşma süresi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H07 | `extruder` | Sıcaklık aşımı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H07 | `heater_bed` | Sıcaklık aşımı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H08 | `extruder` | Sıcaklık kararlılığı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H08 | `heater_bed` | Sıcaklık kararlılığı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H09 | `extruder` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H09 | `heater_bed` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H13 | `extruder` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+| [ ] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | M01 | `physical X endstop` | Fiziksel endstop basma/bırakma | Geliştirilecek | **BEKLİYOR** |
 | [ ] | M01 | `physical Y endstop` | Fiziksel endstop basma/bırakma | Geliştirilecek | **BEKLİYOR** |
 | [ ] | M03 | `Cartesian X/Y/Z homing` | Homing tamamlanması | Geliştirilecek | **BEKLİYOR** |
@@ -118,3 +118,5 @@
 ## Sıradaki uygulama
 
 **F12 uygulaması ve bu referans fan hedefinin kullanıcı kabulü tamamlandı.** Sıradaki bekleyen testler için bağımsız keşif, fiziksel güvenlik ve geri yükleme kuralları gerekir. Kalkış eşik komutundan ölçülmüş RPM veya elektriksel PWM çıkarılmaz. Koşullu donanım *otomatik olarak güvenli veya çalıştırılabilir* sayılmaz.
+
+**H uygulama durumu:** Referans yazıcının 16 fiziksel H hedefinin adaptörleri hazır; hiçbirinin fiziksel kabulü henüz yapılmadı. Toplu test sırası ve H01–H18 kapsamı için [termal rehber](maintenance-thermal_TR.md).

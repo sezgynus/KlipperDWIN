@@ -72,3 +72,49 @@ encoder tick'inde dosya okuma yoktur. Canlı soğuk/OFF, diğer ısıtıcı, gü
 ve dispatch kontrolleri yine zorunludur. H04 tanımlanan hedefi ve ayrı 900 sn
 kalibrasyon sınırını kullanır. Profil yoksa genel testler gösterilmez.
 Standart extruder/yatak testleri profil dosyası gerektirmez.
+
+## H01–H18 kapsamı
+| ID | Uygulama / gereken kanıt |
+|---|---|
+| H01 | Kontrollü ısıtma; her ısıtıcı ayrı hedef |
+| H02 / H03 | İzlenen hotend / yatak PID; otomatik kayıt yok |
+| H04 | Açık profilli genel uygulamalar için aynı izlenen PID |
+| H05 / H06 | Isıtma eğimi / hedefe erişme; ayrı ölçüt |
+| H07 / H08 | Aşım / yerleşmiş kararlılık; ayrı pencere |
+| H09 | Sıfır hedefte en az 30 sn soğuma eğimi |
+| H10 | Koşullu: uyumlu ölçülmüş baseline yok; çalıştırılabilir adaptör yok |
+| H11 | Cihaz bazlı raporlanan görev oranı Diagnostics |
+| H12 | Koşullu: doğrulanmış nominal watt + görev oranı geçmişi yok; enerji tahmini yok |
+| H13 | Normal güvenli ısıtma tepkisi; kasıtlı runaway yok |
+| H14 | Isıtıcılar dahil zaman damgalı sıcaklık Diagnostics |
+| H15 | Koşullu: doğrulanmış eş konumlu kalibre sensör çifti yok; çalıştırılabilir adaptör yok |
+| H16 | Yalnız gerçek çevre alanları keşfedilmişse Diagnostics |
+| H17 | Koşullu: probe drift kalibrasyonu hareket/ısıtma da yapar; özel hareket/termal sözleşme yok, gösterilmez |
+| H18 | Koşullu: tekrarlanabilir izinli fan/ısıtıcı A/B profili yok; gösterilmez |
+
+**Kapsam sınırı:** referans yazıcıda doğrulanmış 16 fiziksel H hedefinin tamamı
+uygulandı ve fiziksel kabul bekliyor. H10/H12/H15/H17/H18 uygulanmış donanım
+adaptörleri değildir; keşif veya katalog satırı bu durumu değiştirmez.
+Bu isteğe bağlı testler açılmadan önce ek kanıt ve bağımsız sözleşme gerekir.
+18 ID'nin hepsinin çalıştırılabilir olduğu iddia edilmez.
+
+## Son toplu fiziksel kabul
+Geliştirme sırasında fiziksel komut gönderilmedi. Gerçek boş yazıcıda önce
+checkout/servis HEAD'ini ve etkin ısıtıcı sınırlarını doğrulayın.
+1. Diagnostics altında H11/H14 ve gerçekten mevcutsa H16'yı inceleyin.
+2. H01'i hotend ve yatak için bağımsız çalıştırın. Onaydan önce hedefi ve
+   shutdown bildirimini okuyun. Gözlenen ısıtma ve OFF davranışını doğrulayın.
+3. Isıtıcılar soğuk başlangıç koşuluna döndüğünde H05, H06, H07, H08, H09
+   ve H13'ü her hedef için ayrı çalıştırın. Her satır ayrı deney ve sonuçtur;
+   komşu satırlara kabul aktarılmaz.
+4. H02 ve H03'ü en son, gözetim altında, tek ısıtıcıyla yapın. Bekleyen
+   config kalibrasyonu engeller; önceden bekleyen PID sonucunun ne olacağına
+   kendiniz karar verin. Petrel otomatik kaydetmez/Klipper'ı yeniden başlatmaz.
+5. Tam özellik/hedefi, LCD sonucunu, gözlemi ve geri yükleme kanıtını kaydedin.
+   Ancak bundan sonra ilgili hedefin kanonik JSON ve iki çizelgesini güncelleyin.
+Aktif durdurma Klipper shutdown demektir; yazıcı kontrol edildikten sonra
+operatörün firmware'i yeniden başlatması gerekebilir. Shutdown yanıtı yoksa
+fiziksel ısıtıcı gücü hemen kontrol edilmelidir. Otomatik tekrar yoktur.
+CI fiziksel kabul değildir. Lokal test veya emülatör çalıştırılmadı.
+
+PID ayrıca pozitif raporlanan görev oranı ve hedef eksi 5 C bandına ölçülmüş erişme gerektirir. Soğuma sırasında yeniden aktif ısıtıcı shutdown ister. Sonuçta seçilen testin ana metriği LCD'de ilk gösterilir.

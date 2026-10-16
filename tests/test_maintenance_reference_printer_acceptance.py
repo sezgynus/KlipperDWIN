@@ -115,6 +115,18 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(len([e for e in data['entries']
                               if e['status'] == 'pending']), 55)
 
+    def test_h_implementation_does_not_grant_physical_acceptance(self):
+        targets = [e for e in ledger()['entries']
+                   if e['feature_id'].startswith('H') and e['reference'] == 'confirmed']
+        self.assertEqual(len(targets), 16)
+        for item in targets:
+            self.assertEqual(item['adapter'], 'implemented')
+            self.assertEqual(item['status'], 'pending')
+            self.assertIsNone(item['acceptance'])
+        paired = next(e for e in ledger()['entries'] if e['feature_id'] == 'H15')
+        self.assertEqual(paired['status'], 'conditional')
+        self.assertEqual(paired['adapter'], 'not_implemented')
+
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}
         confirmed = [('F01', 'fan'), ('S18', 'pwm_cycle_time Buzzer'),

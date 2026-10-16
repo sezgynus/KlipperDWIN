@@ -149,3 +149,24 @@ class ThermalControllerTests(unittest.TestCase):
         rows = p.maintenance_guided_plan()
         self.assertEqual(rows, ())
         self.assertEqual(self.requests, [])
+
+    def test_heater_reactivation_during_cooling_forces_shutdown(self):
+        self.armed()
+        self.c.confirm()
+        self.clock = 2.
+        self.c._phase = 'verifying'
+        self.c._cool_started = 0.
+        self.data['status']['extruder'].update(temperature=40., target=60., power=.5)
+        self.c.poll()
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.c.phase, 'stopping')
+        self.assertEqual(self.requests[-1][0], 'printer.emergency_stop')
+        self.assertFalse(self.c.poll().restore_verified)
+
+    def test_completed_command_without_off_has_short_bounded_deadline(self):
+        self.armed()
+        self.c.confirm()
+        self.heat.set_result('ok')
+        self.c.poll()
+        self.assertLessEqual(self.c._deadline, 8.)

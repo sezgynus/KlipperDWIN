@@ -271,6 +271,7 @@ def discover(state, services=()):
                 for f in ('H01', 'H05', 'H06', 'H07', 'H08', 'H09', 'H13'):
                     bits = _add(bits, f, AUTOMATIC)
                 bits = _add(bits, 'H11', INFORMATION)
+                bits = _add(bits, 'H14', INFORMATION)
                 if ('maintenance.heater_baseline:' + name) in services:
                     bits = _add(bits, 'H10', AUTOMATIC | INFORMATION)
                 if ('maintenance.heater_wattage:' + name) in services:

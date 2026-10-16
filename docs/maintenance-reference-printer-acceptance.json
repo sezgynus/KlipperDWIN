@@ -134,8 +134,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "NTC-equipped hotend ~100W and bed ~220W; heating requires independent safety contract.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -145,8 +145,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "NTC-equipped hotend ~100W and bed ~220W; heating requires independent safety contract.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -156,8 +156,8 @@
       "method": "K",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -167,8 +167,8 @@
       "method": "K",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -178,8 +178,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -189,8 +189,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -200,8 +200,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -211,8 +211,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -222,8 +222,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -233,8 +233,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -244,8 +244,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -255,8 +255,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -266,8 +266,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -277,8 +277,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded.",
+      "adapter": "implemented",
+      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
       "acceptance": null
     },
     {
@@ -288,8 +288,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Never deliberately induce thermal runaway or bypass Klipper faults.",
+      "adapter": "implemented",
+      "note": "Implemented limited normal heating response; never induces thermal runaway. Pending final operator batch acceptance.",
       "acceptance": null
     },
     {
@@ -299,8 +299,8 @@
       "method": "A",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "not_implemented",
-      "note": "Never deliberately induce thermal runaway or bypass Klipper faults.",
+      "adapter": "implemented",
+      "note": "Implemented limited normal heating response; never induces thermal runaway. Pending final operator batch acceptance.",
       "acceptance": null
     },
     {

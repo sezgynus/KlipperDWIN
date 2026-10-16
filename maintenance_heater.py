@@ -54,6 +54,7 @@ class MaintenanceHeaterController:
         self._off_matches = 0
         self._closed = self._blocked = False
         self._pid_proof = ()
+        self._pid_saw_power = self._pid_reached = False
         self._metric_ok = False
         self._metrics = ()
 
@@ -120,7 +121,8 @@ class MaintenanceHeaterController:
             for name in names:
                 if name != row.device:
                     v = status.get(name, {})
-                    if v.get('target') != 0 or v.get('power') != 0:
+                    if (type(v.get('target')) not in (int, float) or v.get('target') != 0
+                            or type(v.get('power')) not in (int, float) or v.get('power') != 0):
                         raise ValueError('another_heater_active')
         config = status.get('configfile')
         if initial and row.feature_id in PID and (
@@ -138,7 +140,9 @@ class MaintenanceHeaterController:
         self._series = ThermalSeries()
         self._off_matches = 0
         self._metrics = self._pid_proof = ()
+        self._pid_saw_power = self._pid_reached = False
         self._contract = self._command = None
+        self._ack_seen = False
         self._deadline = monotonic()+12
         try:
             self._future = self._worker.submit(lambda: self._read(True), queue_timeout=8)
@@ -261,6 +265,9 @@ class MaintenanceHeaterController:
         if self._command is not None and self._command.done():
             try:
                 self._command.result()
+                if not self._ack_seen:
+                    self._ack_seen = True
+                    self._deadline = min(self._deadline, now+8)
             except Exception:
                 return self._shutdown('thermal_script_failed_or_ambiguous')
         if now >= self._deadline:
@@ -286,11 +293,15 @@ class MaintenanceHeaterController:
             if self.feature_id in PID:
                 # Keep continuity proof without retaining a 15-minute trace.
                 self._series.samples[:] = self._series.samples[-2:]
+                self._pid_saw_power |= point.power > 0
+                self._pid_reached |= point.temperature >= self._contract.target - 5
                 if proof:
                     self._pid_proof = proof
             c = self._contract
             if not c.min_temp <= point.temperature < c.ceiling:
                 raise ValueError('thermal_temperature_limit')
+            if self.phase == 'verifying' and (point.target != 0 or point.power != 0):
+                raise ValueError('heater_reactivated_during_cooling')
             elapsed = now-self._started
             finished = (self._command.done() if self.feature_id in PID else elapsed >= c.duration)
             if self.phase == 'running' and not finished:
@@ -313,7 +324,8 @@ class MaintenanceHeaterController:
         if self.phase == 'verifying' and point.eventtime-self._cool_started >= 32:
             try:
                 if self.feature_id in PID:
-                    self._metric_ok, self._metrics = bool(self._pid_proof), self._pid_proof
+                    self._metric_ok = bool(self._pid_proof) and self._pid_saw_power and self._pid_reached
+                    self._metrics = self._pid_proof + (('heated_to_target_band', self._pid_reached),)
                 else:
                     self._metric_ok, self._metrics = self._series.evaluate(self.feature_id, self._contract.target)
             except ValueError:

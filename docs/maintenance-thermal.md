@@ -58,3 +58,17 @@ Unlike the fixed dwell tests, PID duration is controlled by Klipper's autotune.
 If Petrel exits, host monitoring is lost; do not leave calibration unattended.
 Cancel or technical failure requests emergency shutdown; no automatic retry.
 H04 generic heaters still require an application-specific safe profile.
+
+## Explicit generic applications (H04)
+Optional ~/.config/Petrel/maintenance-thermal-profiles.json is read only at
+READY. Version 1 has exactly {"version":1,"heaters":[{"object":"heater_generic dryer",
+"target":45,"ceiling":55,"duration_s":120}]}.
+This is an application declaration, not evidence the example is safe for
+your dryer. Choose limits from the actual appliance. At most 8 exact discovered
+generic heaters, 4096 bytes; unknown fields/duplicates/nonfinite values block
+the whole profile. Target < ceiling < configured max_temp, margin 5..15 C,
+duration 30..120 s are required. Frozen profile tokens join the same snapshot;
+there is no file I/O on menu entry or encoder ticks. Runtime cold/OFF,
+other-heater, safety and dispatch checks still apply. H04 uses the declared
+target and the separate 900 s calibration limit. Missing profiles do not expose
+generic tests. Standard extruder/bed tests need no profile file.

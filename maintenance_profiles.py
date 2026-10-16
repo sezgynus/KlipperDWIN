@@ -5,6 +5,7 @@ we validate exact Klipper objects and safe effective settings; no I/O occurs.
 """
 from collections.abc import Mapping
 from maintenance_hh_leds import auto_happy_hare_led_services
+from maintenance_thermal_profiles import profile_services
 import json
 import math
 from pathlib import Path
@@ -110,4 +111,5 @@ def approved_integrations(state, profiles):
     # register them without a local machine-specific role declaration.
     # The physical runner still requires fresh evidence and user consent.
     services.extend(auto_happy_hare_led_services(state))
+    services.extend(profile_services(state))
     return tuple(dict.fromkeys(services))

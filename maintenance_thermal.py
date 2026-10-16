@@ -45,7 +45,7 @@ class ThermalContract:
         return '%s\nG4 P%d\n%s' % (self.heat, self.duration * 1000, self.off)
 
 
-def contract(device, settings, status, feature):
+def contract(device, settings, status, feature, profile=None):
     heater_name(device)
     cfg = settings.get(device) if isinstance(settings, Mapping) else None
     live = status.get(device) if isinstance(status, Mapping) else None
@@ -64,11 +64,19 @@ def contract(device, settings, status, feature):
         raise ValueError('unsupported_thermal_feature')
     # No generic chamber/dryer can be assigned a safe temperature from its
     # name. Require an explicit application-specific profile in a later layer.
-    if device.startswith('heater_generic '):
+    if device.startswith('heater_generic ') and profile is None:
         raise ValueError('generic_thermal_profile_required')
     target = ((60. if device == 'heater_bed' else 150.) if feature in PID
               else 45. if device == 'heater_bed' else 60.)
     ceiling = target + 10
+    duration = 120.
+    if profile is not None:
+        if (not isinstance(profile, tuple) or len(profile) != 3
+                or not all(number(v) for v in profile)):
+            raise ValueError('invalid_thermal_profile')
+        target, ceiling, duration = profile
+        if not 5 <= ceiling-target <= 15 or not 30 <= duration <= 120:
+            raise ValueError('invalid_thermal_profile')
     if not low < target < ceiling < high:
         raise ValueError('thermal_test_outside_config_limits')
     temp, original, power = (live.get(k) for k in ('temperature', 'target', 'power'))
@@ -83,7 +91,7 @@ def contract(device, settings, status, feature):
                     or not number(values.get('target')) or values['target'] != 0
                     or not number(values.get('power')) or values['power'] != 0):
                 raise ValueError('another_heater_active_or_unknown')
-    return ThermalContract(device, target, ceiling, 900. if feature in PID else 120., low, high)
+    return ThermalContract(device, target, ceiling, 900. if feature in PID else duration, low, high)
 
 
 @dataclass(frozen=True, slots=True)

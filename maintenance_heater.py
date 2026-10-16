@@ -10,6 +10,7 @@ from time import monotonic
 from urllib.parse import quote
 
 from maintenance_catalog import definition_for
+from maintenance_thermal_profiles import profile_for
 from maintenance_discovery import AUTOMATIC, CALIBRATION
 from maintenance_planner import AdapterRegistration, build_plan, visible_plan
 from maintenance_runtime import read_queue_evidence, live_safety_context
@@ -27,7 +28,9 @@ def thermal_plan(snapshot):
     return tuple(r for r in visible_plan(build_plan(snapshot, thermal_adapters()))
                  if r.device == 'heater_bed' or
                  (isinstance(r.device, str) and r.device.startswith('extruder')
-                  and (r.device == 'extruder' or r.device[8:].isdigit())))
+                  and (r.device == 'extruder' or r.device[8:].isdigit())) or
+                 (isinstance(r.device, str) and r.device.startswith('heater_generic ')
+                  and profile_for(snapshot, r.device) is not None))
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +114,8 @@ class MaintenanceHeaterController:
         reply = self._client.get(path)
         point = sample(reply, row.device)
         status = reply['result']['status']
-        c = contract(row.device, self._printer.state.settings, status, row.feature_id) if initial else None
+        c = contract(row.device, self._printer.state.settings, status, row.feature_id,
+                     profile_for(self._printer.maintenance.snapshot, row.device)) if initial else None
         if not initial:
             for name in names:
                 if name != row.device:
@@ -186,7 +190,8 @@ class MaintenanceHeaterController:
             try:
                 # Dispatch-time status must still be cold and every heater OFF.
                 state = live_safety_context(self._printer, self._queue).state
-                contract(row.device, state.settings, state.status, row.feature_id)
+                contract(row.device, state.settings, state.status, row.feature_id,
+                         profile_for(self._printer.maintenance.snapshot, row.device))
                 return True
             except Exception:
                 return False

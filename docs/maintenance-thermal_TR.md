@@ -58,3 +58,17 @@ Sabit beklemeli testlerden farklı olarak PID süresini Klipper autotune belirle
 Petrel kapanırsa host izlemesi kaybolur; kalibrasyonu gözetimsiz bırakmayın.
 İptal veya teknik hata acil shutdown ister; otomatik tekrar yoktur.
 H04 genel ısıtıcılar hâlâ uygulamaya özel güvenli profil gerektirir.
+
+## Açık genel ısıtıcı uygulamaları (H04)
+İsteğe bağlı ~/.config/Petrel/maintenance-thermal-profiles.json yalnız READY
+aşamasında okunur. Sürüm 1 tam olarak {"version":1,"heaters":[{"object":"heater_generic dryer",
+"target":45,"ceiling":55,"duration_s":120}]} biçimindedir.
+Bu uygulama beyanıdır; örneğin kurutucunuz için güvenli olduğunun kanıtı değildir.
+Sınırları gerçek cihazdan seçin. En çok 8 tam keşfedilmiş genel ısıtıcı ve
+4096 bayt; bilinmeyen alan/tekrar/sonlu olmayan değer tüm profili reddettirir.
+Hedef < tavan < yapılandırılmış max_temp, 5..15 C marj ve 30..120 sn süre
+gerekir. Donmuş profil token'ları aynı snapshot'a katılır; menü girişinde veya
+encoder tick'inde dosya okuma yoktur. Canlı soğuk/OFF, diğer ısıtıcı, güvenlik
+ve dispatch kontrolleri yine zorunludur. H04 tanımlanan hedefi ve ayrı 900 sn
+kalibrasyon sınırını kullanır. Profil yoksa genel testler gösterilmez.
+Standart extruder/yatak testleri profil dosyası gerektirmez.

@@ -662,6 +662,10 @@ class PhysicalControllerTests(unittest.TestCase):
         # a string-form snapshot followed by an equivalent real bool one.
         for animated in ('True', 'False'):
             with self.subTest(animated=animated):
+                # read_queue_evidence timestamps use real monotonic(), while
+                # the physical runner clock is synthetic in this CI fixture.
+                # Reset the synthetic clock for each independent consent.
+                self.clock[0] = monotonic()
                 self.configure_led_chain(managed=True)
                 control = self.client.status['mmu_leds unit0']
                 control['enabled'] = 'True'

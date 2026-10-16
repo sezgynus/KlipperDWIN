@@ -114,9 +114,9 @@ class MaintenanceViewMixin:
             getattr(self, '_maintenance_selection', 0), len(entries) - 1))
         self._draw_list_menu(title, entries, self._maintenance_selection)
 
-    def _maintenance_show(self, page):
+    def _maintenance_show(self, page, selection=0):
         self._maintenance_page = page
-        self._maintenance_selection = 0
+        self._maintenance_selection = selection
         self.Draw_Maintenance_Menu()
         self.lcd.update()
 
@@ -155,6 +155,11 @@ class MaintenanceViewMixin:
             if selected > len(rows):
                 return
             row = rows[selected - 1]
+            # A test/diagnostic result belongs to the list it was opened
+            # from, not the Maintenance root. Retain the selected device
+            # when returning so the operator can test adjacent entries.
+            self._maintenance_result_parent = page
+            self._maintenance_result_selection = selected
             if page == 'tests':
                 accepted, why = self.pd.start_maintenance_physical(
                     row.feature_id, row.device)
@@ -221,7 +226,13 @@ class MaintenanceViewMixin:
             self._maintenance_show('result')
             return
         if page == 'result' and selected == 0:
-            self._maintenance_show('root')
+            parent = getattr(self, '_maintenance_result_parent', None)
+            if parent in ('tests', 'diagnostics'):
+                self._maintenance_show(
+                    parent, getattr(self, '_maintenance_result_selection', 0))
+            else:
+                # Defensive fallback for results without a known list origin.
+                self._maintenance_show('root')
 
     def _poll_maintenance_ui(self):
         # Invoked from the normal UI owner tick; zero additional I/O when idle.

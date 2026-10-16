@@ -192,6 +192,82 @@ class MaintenanceUIFlows(unittest.TestCase):
         d.pd.start_maintenance_read.assert_called_once_with('S01')
         self.assertEqual(d._maintenance_page, 'reading')
 
+    def test_self_test_result_back_returns_to_selected_test_instead_of_root(self):
+        for mode in ('blocked', 'completed', 'cancelled'):
+            with self.subTest(mode=mode):
+                d = self.setup_view()
+                row = SimpleNamespace(feature_id='F01', device='fan')
+                d.pd.maintenance_guided_plan = Mock(return_value=(row,))
+                d.pd.start_maintenance_physical = Mock(
+                    return_value=((False, 'unsafe') if mode == 'blocked'
+                                  else (True, 'preflight_queued')))
+                self.event(d, d.ENCODER_DIFF_CW)
+                self.event(d, d.ENCODER_DIFF_ENTER)
+                self.assertEqual(d._maintenance_page, 'tests')
+                self.event(d, d.ENCODER_DIFF_CW)
+                self.event(d, d.ENCODER_DIFF_ENTER)
+                if mode == 'completed':
+                    d.pd.poll_maintenance_physical = Mock(return_value=SimpleNamespace(
+                        status='PASSED_USER', reason='explicit_user_observation'))
+                    d._poll_maintenance_ui()
+                elif mode == 'cancelled':
+                    d.pd.maintenance_pulse.phase = 'await_confirmation'
+                    d.pd.cancel_maintenance_physical = Mock(
+                        return_value=SimpleNamespace(
+                            status='ABORTED', reason='user_cancelled'))
+                    self.event(d, d.ENCODER_DIFF_ENTER)
+                self.assertEqual(d._maintenance_page, 'result')
+                self.assertEqual(d._maintenance_selection, 0)
+                self.event(d, d.ENCODER_DIFF_ENTER)
+                self.assertEqual(d._maintenance_page, 'tests')
+                self.assertEqual(d._maintenance_selection, 1)
+                self.assertEqual(d._maintenance_rows()[0], 'Self Tests')
+                d.pd.start_maintenance_physical.assert_called_once_with(
+                    'F01', 'fan')
+                d.pd.client.get.assert_not_called()
+
+    def test_diagnostics_result_back_returns_to_selected_diagnostic(self):
+        for mode in ('blocked', 'completed', 'cancelled'):
+            with self.subTest(mode=mode):
+                d = self.setup_view()
+                rows = (SimpleNamespace(feature_id='S01'),
+                        SimpleNamespace(feature_id='S02'))
+                d.pd.maintenance_read_plan = Mock(return_value=rows)
+                d.pd.start_maintenance_read = Mock(
+                    return_value=((False, 'read_unavailable')
+                                  if mode == 'blocked' else (True, 'queued')))
+                self.event(d, d.ENCODER_DIFF_CW)
+                self.event(d, d.ENCODER_DIFF_CW)
+                self.event(d, d.ENCODER_DIFF_ENTER)
+                self.assertEqual(d._maintenance_page, 'diagnostics')
+                self.event(d, d.ENCODER_DIFF_CW)
+                self.event(d, d.ENCODER_DIFF_CW)
+                self.event(d, d.ENCODER_DIFF_ENTER)
+                if mode == 'completed':
+                    d.pd.poll_maintenance_read = Mock(return_value=SimpleNamespace(
+                        status='OBSERVED', reason='observed_information', evidence=()))
+                    d._poll_maintenance_ui()
+                elif mode == 'cancelled':
+                    d.pd.cancel_maintenance_read = Mock(return_value=SimpleNamespace(
+                        status='ABORTED', reason='user_cancelled'))
+                    self.event(d, d.ENCODER_DIFF_ENTER)
+                self.assertEqual(d._maintenance_page, 'result')
+                self.event(d, d.ENCODER_DIFF_ENTER)
+                self.assertEqual(d._maintenance_page, 'diagnostics')
+                self.assertEqual(d._maintenance_selection, 2)
+                self.assertEqual(d._maintenance_rows()[0], 'Diagnostics')
+                d.pd.start_maintenance_read.assert_called_once_with('S02')
+                d.pd.client.get.assert_not_called()
+
+    def test_result_without_known_origin_falls_back_to_maintenance_root(self):
+        d = self.setup_view()
+        d._maintenance_page = 'result'
+        d._maintenance_result = SimpleNamespace(
+            status='BLOCKED', reason='unknown')
+        self.event(d, d.ENCODER_DIFF_ENTER)
+        self.assertEqual(d._maintenance_page, 'root')
+        self.assertEqual(d._maintenance_selection, 0)
+
     def test_background_poll_updates_only_selected_maintenance_view(self):
         d = self.setup_view()
         d._maintenance_page = 'pulse'

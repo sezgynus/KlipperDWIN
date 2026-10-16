@@ -118,3 +118,5 @@ fiziksel ısıtıcı gücü hemen kontrol edilmelidir. Otomatik tekrar yoktur.
 CI fiziksel kabul değildir. Lokal test veya emülatör çalıştırılmadı.
 
 PID ayrıca pozitif raporlanan görev oranı ve hedef eksi 5 C bandına ölçülmüş erişme gerektirir. Soğuma sırasında yeniden aktif ısıtıcı shutdown ister. Sonuçta seçilen testin ana metriği LCD'de ilk gösterilir.
+
+Isıtma programı `G4` sonrasında `M400` ile gerçek beklemenin tamamlanmasını bekler; ardından OFF gönderir. G4/M400 veya termal komutların macro ile override edildiği yapılandırmalar güvenilir protokol kabul edilmez.

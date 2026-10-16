@@ -491,7 +491,9 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(payload['script'].count('G4 P2000'), 3)
         self.assertEqual(future.request_timeout, 10.0)
         self.assertTrue(guard())
-        self.assertGreaterEqual(self.runner._deadline - self.clock[0], 14.0)
+        # Binary float subtraction can yield 13.999999999999993.
+        # Keep the 14-second lower bound with nanosecond-only test tolerance.
+        self.assertGreaterEqual(self.runner._deadline - self.clock[0] + 1e-9, 14.0)
         future.set_result({'result': 'ok'})
         self.assertIsNone(self.runner.poll())
         self.advance(5.9)

@@ -10,7 +10,7 @@ class ThermalContractTests(unittest.TestCase):
         c = contract('extruder', self.settings, self.status, 'H01')
         self.assertEqual(c.target, 60.)
         self.assertEqual(c.script.splitlines()[-1], c.off)
-        self.assertIn('G4 P120000', c.script)
+        self.assertIn('G4 P120000\nM400\n' + c.off, c.script)
         self.assertNotIn('SAVE_CONFIG', c.script)
 
     def test_unsafe_or_unknown_states_block(self):

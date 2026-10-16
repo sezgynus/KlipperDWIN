@@ -42,7 +42,7 @@ class ThermalContract:
     def script(self):
         # The OFF is in the same finite Klipper script. It does not depend
         # on Petrel continuing to poll or staying alive after dispatch.
-        return '%s\nG4 P%d\n%s' % (self.heat, self.duration * 1000, self.off)
+        return '%s\nG4 P%d\nM400\n%s' % (self.heat, self.duration * 1000, self.off)
 
 
 def contract(device, settings, status, feature, profile=None):
@@ -53,7 +53,8 @@ def contract(device, settings, status, feature, profile=None):
         raise ValueError('heater_evidence_missing')
     for section, value in settings.items():
         if (isinstance(section, str) and section.lower() in
-                ('gcode_macro set_heater_temperature', 'gcode_macro pid_calibrate')):
+                ('gcode_macro set_heater_temperature', 'gcode_macro pid_calibrate',
+                 'gcode_macro g4', 'gcode_macro m400')):
             raise ValueError('thermal_command_overridden')
     low, high = cfg.get('min_temp'), cfg.get('max_temp')
     if not all(number(v) for v in (low, high)) or low >= high:

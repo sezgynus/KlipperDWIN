@@ -118,3 +118,5 @@ requires checking physical heater power immediately. No automatic retries.
 CI is not physical acceptance. No local tests or emulator were run.
 
 PID additionally requires observed positive duty and measured arrival in the target-minus-5 C band. Heater reactivation during cooling requests shutdown. The selected test's primary metric appears first on the LCD result.
+
+The heat script uses M400 after G4 to await actual dwell completion before OFF. Configurations overriding G4/M400 or thermal commands with macros are not admitted as this trusted protocol.

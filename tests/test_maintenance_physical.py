@@ -416,7 +416,9 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertTrue(self.commands[0][2]())
         self.commands[0][0].set_result({'result': 'ok'})
         self.runner.poll()
-        self.advance(1.2)
+        # Leave a scheduling margin beyond duration + dispatch floor.
+        # Checking exactly at the floating-point deadline is racy.
+        self.advance(1.3)
         self.poll_verify()
         self.advance(.35)
         self.poll_verify()

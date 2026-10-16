@@ -56,7 +56,19 @@
         "tested_signed_head": "b3ecd1be0da8f30b79471c71608aa43ca474817c",
         "note": "Acceptance applies only to the original 800 ms-per-step version. Longer 2,000 ms-per-step revision requires user retest."
       },
-      "retest_required": true
+      "retest_required": true,
+      "latest_attempt": {
+        "date": "2026-10-16",
+        "source": "user_reported_physical_attempt",
+        "tested_signed_head": "0bb69d31fda6737c5f21806aeb085d14654086c7",
+        "tested_step_duration_ms": 2000,
+        "controller_result": "INCONCLUSIVE",
+        "controller_reason": "not_supplied_by_user",
+        "operator_confirmation_requested": false,
+        "restore_verified": null,
+        "observation": "The three commanded fan-speed stages physically ran, but LCD showed INCONCLUSIVE without requesting the operator Yes/No observation. No successful electronic restore readback or operator acceptance can be inferred.",
+        "suspected_cause": "MoonrakerClient default 5-second HTTP timeout is shorter than the six-second G4 dwell sequence; diagnosis from source code, not yet confirmed by Pi logs."
+      }
     },
     {
       "feature_id": "F04",

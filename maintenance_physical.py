@@ -445,19 +445,29 @@ class MaintenancePulseController:
             return (self._current() and
                     self._safety.guard(session, self._snapshot(), self._context()).allowed)
 
+        # MoonrakerClient defaults to a 5-second HTTP timeout. A F02
+        # script has three 2-second G4 dwells: a 5-second POST timeout would
+        # report an ambiguous failure despite completed physical movement.
+        # Extend ONLY this validated bounded F02 script; no global timeout
+        # changes and no command replay on a transport failure.
+        extended = program.feature_id == 'F02'
+        http_timeout = min(15.0, program.duration_ms / 1000 + 4.0) if extended else None
+        options = {'json': {'script': program.script},
+                   'report_error': False, 'dispatch_guard': guard}
+        if extended:
+            options['request_timeout'] = http_timeout
         try:
             self._command_started = monotonic()
             self._future = self._printer.postREST(
-                '/printer/gcode/script', json={'script': program.script},
-                report_error=False, dispatch_guard=guard)
+                '/printer/gcode/script', **options)
         except Exception:
             self._release()
             return False, 'command_queue_rejected'
         self._phase = 'running'
-        # A longer bounded multi-stage fan program needs a proportional
-        # dispatch/transport margin without weakening the timeout cap.
-        self._deadline = monotonic() + min(
-            12.0, max(9.0, program.duration_ms / 1000 + 5.0))
+        # Time for bounded script, HTTP response, and a limited serialized
+        # queue wait. Timeout still fail-closes as ambiguous without replay.
+        self._deadline = monotonic() + (
+            min(18.0, http_timeout + 4.0) if extended else 9.0)
         return True, 'bounded_pulse_queued'
 
     def observe(self, seen):

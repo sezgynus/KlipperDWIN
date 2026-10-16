@@ -48,7 +48,10 @@ class MoonrakerClient:
         self._worker = Thread(target=self._run, name='moonraker-commands', daemon=True)
         self._worker.start()
 
-    def request(self, method, path, payload=None):
+    def request(self, method, path, payload=None, *, request_timeout=None):
+        if request_timeout is not None and (type(request_timeout) not in (int, float)
+                or not math.isfinite(request_timeout) or not 0 < request_timeout <= 15):
+            raise ValueError('Request timeout must be finite and within 0-15 seconds')
         if not path.startswith('/') or path.startswith('//'):
             raise ValueError('Endpoint path must start with a single slash')
         if self._stop.is_set():
@@ -56,7 +59,9 @@ class MoonrakerClient:
         data = None if method == 'GET' else json.dumps(payload).encode('utf-8')
         request = Request(self.url + path, data=data, headers=self.headers, method=method)
         try:
-            with self._opener.open(request, timeout=self.timeout) as response:
+            with self._opener.open(
+                    request, timeout=(self.timeout if request_timeout is None
+                                      else request_timeout)) as response:
                 raw = response.read(self.max_json_bytes + 1)
                 if len(raw) > self.max_json_bytes:
                     raise MoonrakerError('Moonraker JSON response exceeds %d byte limit' % self.max_json_bytes)
@@ -96,7 +101,11 @@ class MoonrakerClient:
         except (HTTPError, URLError, OSError) as error:
             raise MoonrakerError('Thumbnail download failed') from error
 
-    def post(self, path, payload=None, guard=None, cleanup=None, report_error=True, cleanup_guard=None):
+    def post(self, path, payload=None, guard=None, cleanup=None, report_error=True,
+             cleanup_guard=None, request_timeout=None):
+        if request_timeout is not None and (type(request_timeout) not in (int, float)
+                or not math.isfinite(request_timeout) or not 0 < request_timeout <= 15):
+            raise ValueError('Request timeout must be finite and within 0-15 seconds')
         future = Future()
         future.cleanup_complete = cleanup is not None
         future.cleanup_guard = cleanup_guard or guard
@@ -105,7 +114,8 @@ class MoonrakerClient:
                 future.set_exception(MoonrakerError('Client is closed'))
             else:
                 try:
-                    self._queue.put_nowait((future, path, payload, guard, cleanup, report_error))
+                    self._queue.put_nowait((future, path, payload, guard, cleanup,
+                                            report_error, request_timeout))
                 except Full:
                     future.set_exception(MoonrakerError('Command queue is full'))
         if future.done() and report_error:
@@ -115,7 +125,7 @@ class MoonrakerClient:
     def _discard_pending(self, message):
         while True:
             try:
-                future, path, _, _, _, report_error = self._queue.get_nowait()
+                future, path, _, _, _, report_error, _ = self._queue.get_nowait()
             except Empty:
                 return
             if not future.done():
@@ -127,7 +137,7 @@ class MoonrakerClient:
     def _run(self):
         while not self._stop.is_set():
             try:
-                future, path, payload, guard, cleanup, report_error = self._queue.get(timeout=0.1)
+                future, path, payload, guard, cleanup, report_error, request_timeout = self._queue.get(timeout=0.1)
             except Empty:
                 continue
             if self._stop.is_set():
@@ -152,7 +162,8 @@ class MoonrakerClient:
                         payload = {'script': rest}
                         mutated = True
                     dispatched = True
-                    result = self.request('POST', path, payload)
+                    result = self.request('POST', path, payload,
+                                          request_timeout=request_timeout)
                     future.cleanup_complete = True
                     future.set_result(result)
                 except Exception as exc:

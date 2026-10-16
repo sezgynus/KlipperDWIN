@@ -79,6 +79,7 @@ def setup():
     def send(path, json, dispatch_guard=None, **kwargs):
         assert path == '/printer/gcode/script'
         future = Future()
+        future.request_timeout = kwargs.get('request_timeout')
         pending.append((future, json, dispatch_guard))
         return future
     printer.postREST = send
@@ -126,6 +127,7 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(len(self.commands), 1)
         future, payload, guard = self.commands[0]
         self.assertIn('G4 P950', payload['script'])
+        self.assertIsNone(future.request_timeout)
         self.assertIn('M106 S89', payload['script'])
         self.assertTrue(guard())
         future.set_result({'result': 'ok'})
@@ -357,9 +359,10 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(self.runner.phase, 'await_confirmation')
         self.assertTrue(self.runner.confirm()[0])
         future, payload, guard = self.commands[0]
-        self.assertIn('G4 P2000', payload['script'])
+        self.assertEqual(payload['script'].count('G4 P2000'), 3)
+        self.assertEqual(future.request_timeout, 10.0)
         self.assertTrue(guard())
-        self.assertGreaterEqual(self.runner._deadline - self.clock[0], 11.0)
+        self.assertGreaterEqual(self.runner._deadline - self.clock[0], 14.0)
         future.set_result({'result': 'ok'})
         self.assertIsNone(self.runner.poll())
         self.advance(5.9)

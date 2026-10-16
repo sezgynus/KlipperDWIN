@@ -109,7 +109,7 @@
 | ID / target | Human observation and outcome | Controller result | `restore_verified` |
 |---|---|---|---|
 | F01 / `fan` | Fan visibly rotated and recovered its original reported state | `PASSED_USER` | `true` |
-| F02 / `fan` | User observed three fan-speed steps and LCD PASS on prior 800 ms/stage version; duration felt too short. Revised 2,000 ms/stage version requires a separate acceptance test. | `PASSED_USER` (prior revision) | `true` |
+| F02 / `fan` | **Previous version:** 800 ms/stage was operator-approved. **Longer version:** all three 2,000-ms stages actuated but returned INCONCLUSIVE without user confirmation; no restore proof. A bounded F02 HTTP timeout fix now awaits retest. | `PASSED_USER` (old), `INCONCLUSIVE` (new attempt) | `true` (old), unknown (new) |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sound heard; no live readback from Klipper pwm_cycle_time | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Case light changed and returned to original reported output | `PASSED_USER` | `true` |
 | O04 / `neopixel mmu_leds` | Four Happy Hare LEDs showed red, blue, green, white; original LED policy resumed | `OBSERVED_USER` | `false` |

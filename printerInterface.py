@@ -532,7 +532,8 @@ class PrinterData:
     def getREST(self, path):
         return self.client.get(path)
 
-    def postREST(self, path, json, cleanup=None, report_error=True, dispatch_guard=None):
+    def postREST(self, path, json, cleanup=None, report_error=True,
+                 dispatch_guard=None, request_timeout=None):
         snapshot = self.subscription.snapshot()
         if (self.connection_error or not self.state.ready or snapshot['state'] != 'ready'
                 or snapshot['epoch'] != self.state.epoch):
@@ -551,7 +552,15 @@ class PrinterData:
         def operation_guard():
             return guard() and (dispatch_guard is None or dispatch_guard())
 
-        return self.client.post(path, json, guard=operation_guard, cleanup=cleanup, cleanup_guard=guard, report_error=report_error) if cleanup is not None else self.client.post(path, json, guard=operation_guard, report_error=report_error)
+        # Only explicitly requesting callers override the normal transport
+        # timeout. Keep the default path untouched for every existing
+        # printer operation; the override remains bounded by MoonrakerClient.
+        options = {'guard': operation_guard, 'report_error': report_error}
+        if cleanup is not None:
+            options.update(cleanup=cleanup, cleanup_guard=guard)
+        if request_timeout is not None:
+            options['request_timeout'] = request_timeout
+        return self.client.post(path, json, **options)
 
     def power_on_if_off(self):
         """Turn on the configured Moonraker power device only when it is off."""

@@ -109,7 +109,7 @@
 | ID / hedef | Kullanıcı gözlemi / güvenli sonuç | Yürütücü sonucu | `restore_verified` |
 |---|---|---|---|
 | F01 / `fan` | Fan çalıştı ve önceki raporlanan durumuna geri döndü. | `PASSED_USER` | `true` |
-| F02 / `fan` | 0,8 sn × 3 kademeli testte kullanıcı hız değişimlerini gördü; LCD PASS verdi, süre kısa bulundu. Yeni 2 sn × 3 sürümü henüz kabul edilmedi. | `PASSED_USER` (eski sürüm) | `true` |
+| F02 / `fan` | **Eski sürüm:** 0,8 sn/kademe kullanıcı onaylı. **Yeni sürüm:** 2 sn × 3 kademe çalıştı ama onay ekranı çıkmadan INCONCLUSIVE verdi; geri yükleme kanıtı yok. Sınırlandırılmış HTTP timeout düzeltmesi yeniden test edilecek. | `PASSED_USER` (eski), `INCONCLUSIVE` (son deneme) | `true` (eski), bilinmiyor (yeni) |
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sesi duyuldu; Klipper PWM geri okuması yok. | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Kasa ışığı değişti; önceki raporlanan durumu doğrulandı. | `PASSED_USER` | `true` |
 | O04 / `neopixel mmu_leds` | 4 MMU LED'i kırmızı → mavi → yeşil → beyaz gösterdi; Happy Hare normal görünümü geri geldi. | `OBSERVED_USER` | `false` |

@@ -129,6 +129,41 @@ class TransportTests(unittest.TestCase):
             second.result(2)
         self.assertEqual(opener.open.call_count, 1)
 
+    def test_long_bounded_post_override_does_not_change_normal_timeout(self):
+        opener = Mock()
+        opener.open.return_value = response({'result': 'ok'})
+        client = self.client(opener, timeout=5.0)
+        self.assertEqual(
+            client.post('/printer/gcode/script',
+                        {'script': 'G4 P2000\\nG4 P2000\\nG4 P2000'},
+                        request_timeout=10.0).result(2), {'result': 'ok'})
+        self.assertEqual(opener.open.call_args.kwargs['timeout'], 10.0)
+        self.assertEqual(client.get('/printer/info'), {'result': 'ok'})
+        self.assertEqual(opener.open.call_args.kwargs['timeout'], 5.0)
+        self.assertEqual(client.post('/printer/print/resume').result(2),
+                         {'result': 'ok'})
+        self.assertEqual(opener.open.call_args.kwargs['timeout'], 5.0)
+
+    def test_request_timeout_override_is_strict_and_bounded(self):
+        opener = Mock()
+        opener.open.return_value = response({'result': 'ok'})
+        client = self.client(opener)
+        for invalid in (False, True, None, -1, 0, 16, 25,
+                        float('inf'), float('nan'), '10'):
+            # None is the explicit signal for the normal default timeout.
+            if invalid is None:
+                continue
+            with self.subTest(timeout=invalid):
+                with self.assertRaises(ValueError):
+                    client.post('/printer/gcode/script', {'script': 'G4 P2000'},
+                                request_timeout=invalid)
+                with self.assertRaises(ValueError):
+                    client.request('POST', '/printer/gcode/script',
+                                   {'script': 'G4 P2000'},
+                                   request_timeout=invalid)
+        opener.open.assert_not_called()
+        self.assertTrue(client.command_results.empty())
+
     def test_post_returns_result(self):
         opener = Mock()
         opener.open.return_value = response({'result': 'ok'})

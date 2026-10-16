@@ -116,6 +116,13 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertTrue(old_f02['acceptance']['restore_verified'])
         self.assertEqual(_FAN_STEP_MS, 2000)
         self.assertNotEqual(old_f02['acceptance']['tested_step_duration_ms'], _FAN_STEP_MS)
+        attempt = old_f02['latest_attempt']
+        self.assertEqual(attempt['controller_result'], 'INCONCLUSIVE')
+        self.assertIsNone(attempt['restore_verified'])
+        self.assertFalse(attempt['operator_confirmation_requested'])
+        self.assertEqual(attempt['tested_step_duration_ms'], 2000)
+        self.assertNotEqual(attempt['tested_signed_head'],
+                            old_f02['acceptance']['tested_signed_head'])
         self.assertIn('YENİDEN TEST', TR.read_text(encoding='utf-8'))
         self.assertIn('RETEST REQUIRED', EN.read_text(encoding='utf-8'))
 

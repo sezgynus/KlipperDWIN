@@ -52,7 +52,9 @@ class MaintenanceViewMixin:
                 # The physical controller owns the active feature identity;
                 # avoid calling multi-step tests a short pulse.
                 feature_id = getattr(self.pd.maintenance_pulse, 'feature_id', None)
-                action = {'F02': 'Run speed steps',
+                action = {'M01': 'Read released switch', 'M03': 'Home XYZ (clear path)',
+                          'M04': 'Run stepper buzz', 'M05': 'Move 1mm and return',
+                          'M06': 'Move measured 10mm', 'M12': 'Calibrate phase (no save)', 'F02': 'Run speed steps',
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
                               feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
@@ -63,8 +65,18 @@ class MaintenanceViewMixin:
                         (action, self.ICON_FanSpeed, None, None),
                         *((text[:26], self.ICON_Info, None, None) for text in live[:1]),
                         ('Cancel = Klipper shutdown', self.ICON_Info, None, None))
+                if feature_id == 'M01':
+                    return self.pd.maintenance_pulse.prompt, (
+                        ('Cancel', self.ICON_Back, None, None),
+                        ('Read switch now', self.ICON_Info, None, None),
+                        *((text[:26], self.ICON_Info, None, None) for text in self.pd.maintenance_pulse.live_text))
                 return 'Confirm test', (('Cancel', self.ICON_Back, None, None),
                                         (action, self.ICON_FanSpeed, None, None))
+            if phase in ('await_press', 'await_release'):
+                return self.pd.maintenance_pulse.prompt, (
+                    ('Cancel', self.ICON_Back, None, None),
+                    ('Read switch now', self.ICON_Info, None, None),
+                    *((text[:26], self.ICON_Info, None, None) for text in self.pd.maintenance_pulse.live_text))
             if phase == 'f12_await_stop':
                 return 'Fan fully stopped?', (('Cancel', self.ICON_Back, None, None),
                                               ('Yes, stopped', self.ICON_Info, None, None))
@@ -221,6 +233,17 @@ class MaintenanceViewMixin:
                     # otherwise the previous choice menu stays visible until
                     # the next encoder rotation.
                     self._maintenance_show('pulse')
+            elif phase in ('await_press', 'await_release'):
+                if selected == 1:
+                    accepted, why = self.pd.confirm_maintenance_physical()
+                    if not accepted:
+                        self._maintenance_result = SimpleNamespace(status='BLOCKED', reason=why)
+                        self._maintenance_show('result')
+                    else:
+                        self._maintenance_show('pulse')
+                elif selected == 0:
+                    self._maintenance_result = self.pd.cancel_maintenance_physical()
+                    self._maintenance_show('result')
             elif phase == 'f12_await_stop':
                 if selected == 0:
                     outcome = self.pd.cancel_maintenance_physical()

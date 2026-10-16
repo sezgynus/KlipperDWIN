@@ -322,6 +322,8 @@ def discover(state, services=()):
             pin = str(_get(cfg, 'endstop_pin', ''))
             if pin and 'virtual_endstop' not in pin:
                 physical_endstops = True
+                if name in ('stepper_x', 'stepper_y', 'stepper_z'):
+                    bits = _add(bits, 'M01', AUTOMATIC | USER)
         elif name.startswith(('filament_switch_sensor ',
                               'filament_motion_sensor ')):
             family = 'filament'

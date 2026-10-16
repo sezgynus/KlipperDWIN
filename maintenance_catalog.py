@@ -74,7 +74,7 @@ H15|Paired sensor deviation|global|AI|verified_colocated_sensor_pair|read_only
 H16|Environmental telemetry|device|I|reported_humidity_pressure_or_gas|read_only
 H17|Temperature probe calibration|global|K|klipper_temperature_probe_result|calibration
 H18|Fan assisted cooling comparison|device|A|repeatable_fan_heater_ab_series|heater
-M01|Physical endstop response|global|AU|press_release_firmware_transitions|guided
+M01|Physical endstop response|mixed|AU|press_release_firmware_transitions|guided
 M02|Virtual endstop manual press|global|-|unavailable|hidden
 M03|Homing completion|global|K|klipper_homing_state|motion
 M04|Stepper coarse motion|device|U|user_observed_stepper_motion|motion

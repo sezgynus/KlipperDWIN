@@ -357,8 +357,10 @@ class MaintenanceHeaterController:
 
 class MaintenancePhysicalRouter:
     """One UI operation owner for pulse and thermal domains."""
-    def __init__(self, pulse, heater):
+    def __init__(self, pulse, heater, motion=None, switches=None):
         self._pulse, self._heater = pulse, heater
+        self._motion, self._switches = motion, switches
+        self._owners = tuple(x for x in (pulse, heater, motion, switches) if x is not None)
         self._active = pulse
 
     def __getattr__(self, key):
@@ -366,17 +368,22 @@ class MaintenancePhysicalRouter:
 
     @property
     def pending(self):
-        return self._pulse.pending or self._heater.pending
+        return any(owner.pending for owner in self._owners)
 
     def available(self):
-        return self._pulse.available() + self._heater.available()
+        return tuple(row for owner in self._owners for row in owner.available())
 
     def start(self, feature_id, device=None, **kwargs):
         if self.pending:
             return False, 'maintenance_busy'
-        self._active = self._heater if feature_id.startswith('H') else self._pulse
+        self._active = (self._switches if feature_id in ('M01', 'M10') else
+                        self._motion if feature_id.startswith('M') else
+                        self._heater if feature_id.startswith('H') else self._pulse)
+        if self._active is None:
+            self._active = self._pulse
+            return False, 'motion_adapter_unavailable'
         return self._active.start(feature_id, device, **kwargs)
 
     def close(self):
-        self._pulse.close()
-        self._heater.close()
+        for owner in self._owners:
+            owner.close()

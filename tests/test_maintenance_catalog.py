@@ -51,7 +51,7 @@ class MaintenanceCatalogTests(unittest.TestCase):
         self.assertEqual(definition_for('H01').safety_profile, 'heater')
         self.assertEqual(definition_for('M07').scope, 'device')
         self.assertEqual(definition_for('M07').methods, AUTOMATIC | INFORMATION)
-        self.assertEqual(definition_for('M01').scope, 'global')
+        self.assertEqual(definition_for('M01').scope, 'mixed')
         self.assertEqual(definition_for('R02').scope, 'mixed')
         self.assertEqual(definition_for('R04').methods, CALIBRATION)
         self.assertEqual(definition_for('E02').methods, EXTERNAL)

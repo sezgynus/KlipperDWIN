@@ -1,0 +1,91 @@
+from types import SimpleNamespace
+from unittest.mock import patch
+import unittest
+from test_maintenance_controller import printer, Worker
+from printer_state import PrinterState
+from maintenance_discovery import MaintenanceSnapshot, DeviceCapabilities, USER, AUTOMATIC, _add
+from maintenance_switches import MaintenanceSwitchController
+
+class SwitchTests(unittest.TestCase):
+    def setUp(self):
+        self.p, self.data = printer()
+        self.data['settings'] = {'stepper_x': {'endstop_pin': '^PA1'}}
+        self.p.state = PrinterState.from_snapshot(self.data)
+        self.p.subscription.lifecycle = lambda: {'state': self.data['state'], 'epoch': self.data['epoch']}
+        self.p.maintenance.snapshot = MaintenanceSnapshot(12, (
+            DeviceCapabilities('stepper_x','stepper',_add(0,'M01',USER)),
+            DeviceCapabilities('tmc2208 stepper_x','driver',_add(0,'M10',AUTOMATIC))), config_marker=id(self.p.state.settings))
+        self.worker=Worker()
+        self.paths=[]
+        self.value='open'
+        self.flags={}
+        self.client=SimpleNamespace(get=self.get)
+        self.c=MaintenanceSwitchController(self.p,self.worker,self.client)
+
+    def get(self,path):
+        self.paths.append(path)
+        if path=='/server/info':
+            return {'result':{'components':[]}}
+        if path=='/printer/query_endstops/status':
+            return {'result':{'x':self.value}}
+        return {'result':{'status':{'tmc2208 stepper_x':{'drv_status':self.flags}}}}
+
+    def click(self):
+        self.assertTrue(self.c.confirm()[0])
+        self.worker.drain()
+        return self.c.poll()
+
+    def test_operator_paced_open_pressed_open_and_unlimited_wait(self):
+        self.assertTrue(self.c.start('M01','stepper_x')[0])
+        self.assertEqual(self.paths,[])
+        with patch('maintenance_switches.monotonic',return_value=100000):
+            self.assertIsNone(self.c.poll())
+        self.click()
+        self.assertEqual(self.c.phase,'await_press')
+        self.click()  # still open: operator may try again, never fake transition
+        self.assertEqual(self.c.phase,'await_press')
+        self.value='TRIGGERED'
+        self.click()
+        self.assertEqual(self.c.phase,'await_release')
+        self.value='open'
+        self.click()
+        self.assertEqual(self.c.phase,'await_observation')
+        result=self.c.observe(True)
+        self.assertEqual(result.status,'PASSED_USER')
+        self.assertTrue(result.restore_verified)
+
+    def test_virtual_endstop_cannot_be_queried_as_physical(self):
+        self.p.state=PrinterState.from_snapshot(dict(self.data,settings={'stepper_x':{'endstop_pin':'tmc2208_stepper_x:virtual_endstop'}}))
+        self.p.maintenance.snapshot=MaintenanceSnapshot(12,self.p.maintenance.snapshot.devices,config_marker=id(self.p.state.settings))
+        self.c.start('M01','stepper_x')
+        self.c.confirm()
+        self.worker.drain()
+        self.assertEqual(self.c.poll().status,'INCONCLUSIVE')
+        self.assertNotIn('/printer/query_endstops/status',self.paths)
+
+    def test_disabled_driver_is_unknown_and_faults_cannot_pass(self):
+        self.flags=None
+        self.c.start('M10','tmc2208 stepper_x')
+        self.worker.drain()
+        self.assertEqual(self.c.poll().status,'INCONCLUSIVE')
+        self.flags={'ot':1}
+        self.c.start('M10','tmc2208 stepper_x')
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.c.observe(True).status,'FAILED_USER')
+        self.flags={}
+        self.c.start('M10','tmc2208 stepper_x')
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.c.observe(True).status,'OBSERVED_USER')
+        self.assertTrue(all(not path.startswith('/printer/gcode') for path in self.paths))
+
+    def test_cancel_and_disconnect_do_not_send_motion(self):
+        self.c.start('M01','stepper_x')
+        self.assertEqual(self.c.cancel().status,'ABORTED')
+        self.c.start('M01','stepper_x')
+        self.c.confirm()
+        self.data['epoch']=13
+        self.assertEqual(self.c.poll().status,'INCONCLUSIVE')
+        self.worker.drain()
+        self.assertEqual(self.paths,[])

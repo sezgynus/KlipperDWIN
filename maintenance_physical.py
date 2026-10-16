@@ -371,7 +371,10 @@ class MaintenancePulseController:
             self._verify_next_at = now + _VERIFY_RETRY_INTERVAL_S
             return None
         if self._phase == 'await_observation' and now >= self._deadline:
-            return self._finish('INCONCLUSIVE', 'observation_timeout', True)
+            # S18 has no Klipper readback: an expired user-observation window
+            # must never imply that the output was restored.
+            return self._finish('INCONCLUSIVE', 'observation_timeout',
+                                self._program.feature_id != 'S18')
         return None
 
     def confirm(self):

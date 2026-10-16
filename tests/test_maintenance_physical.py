@@ -322,6 +322,27 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertFalse(result.restore_verified)
         self.assertIn('no_readback', result.reason)
 
+    def test_s18_observation_timeout_keeps_restore_unverified(self):
+        self.configure_config_only_buzzer()
+        self.assertTrue(self.runner.start('S18')[0])
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertTrue(self.runner.confirm()[0])
+        self.assertEqual(len(self.commands), 1)
+        self.assertTrue(self.commands[0][2]())
+        self.commands[0][0].set_result({'result': 'ok'})
+        self.assertIsNone(self.runner.poll())
+        self.advance(.8)
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_observation')
+        self.advance(31)
+        result = self.runner.poll()
+        self.assertEqual(result.status, 'INCONCLUSIVE')
+        self.assertEqual(result.reason, 'observation_timeout')
+        self.assertFalse(result.restore_verified)
+        self.assertFalse(self.runner.pending)
+        self.assertEqual(len(self.commands), 1)
+
     def test_s18_missing_or_mismatched_original_name_blocks_without_gcode(self):
         from maintenance_physical import _resolve_buzzer_gcode_name
         self.configure_config_only_buzzer()

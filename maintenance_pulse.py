@@ -23,7 +23,7 @@ _LED_FRAMES = (
     ('green', (0., 1., 0., 0.)),
     ('white', (1., 1., 1., 0.)),
 )
-_PULSE_MS = {'F01': 950, 'F04': 950, 'O03': 850,
+_PULSE_MS = {'F01': 950, 'F04': 950, 'F02': 2400, 'O03': 850,
              'O04': 4 * _LED_STEP_MS, 'S18': 150}
 
 
@@ -151,11 +151,31 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
     if not isinstance(cfg, Mapping) or (feature != 'S18' and not isinstance(current, Mapping)):
         raise ValueError('target_state_or_config_unknown')
 
-    if feature in ('F01', 'F04'):
+    if feature in ('F01', 'F02', 'F04'):
         original = current.get('speed')
         if not _unit(original):
             raise ValueError('fan_speed_unavailable')
-        if feature == 'F01':
+        if feature == 'F02':
+            # Do not infer measured RPM from PWM. Validate a meaningful
+            # control range using the *effective* fan configuration.
+            lo, hi = cfg.get('off_below', 0), cfg.get('max_power', 1)
+            if (not _unit(lo) or not _unit(hi) or hi <= lo or
+                    hi - lo < 0.35):
+                raise ValueError('fan_speed_step_range_unavailable')
+            if (not _unit(cfg.get('min_power', 0))):
+                raise ValueError('fan_power_limits_invalid')
+            # Three visible command steps, safely above off_below, without
+            # crossing the configured max_power duty ceiling.
+            levels = tuple(lo + (hi - lo) * share for share in (.4, .7, 1.))
+            speeds = tuple(min(255, max(0, round(v * 255))) for v in levels)
+            if len(set(speeds)) != 3:
+                raise ValueError('fan_pwm_step_resolution_insufficient')
+            start = '\n'.join('M106 S%d' % s for s in speeds)
+            restore = 'M106 S%d' % round(original * 255)
+            observation = ('Fan low/mid/high then back? '
+                           'Did the part fan visibly change speed in three '
+                           'steps, then return to its original setting?')
+        elif feature == 'F01':
             start = 'M106 S191'  # 75% commanded, never inferred tachometer RPM
             restore = 'M106 S%d' % round(original * 255)
             observation = 'Did the part-cooling fan rotate during the pulse?'
@@ -263,6 +283,8 @@ def compile_pulse(row, snapshot, status, settings, *, pin_command_name=None):
         script = '%s\nG4 P50\n%s\nG4 P%d\n%s' % (
             restore, start, duration, restore)
         duration += 50
+    elif feature == 'F02':
+        script = '\n'.join('%s\nG4 P800' % line for line in start.splitlines()) + '\n' + restore
     elif feature == 'O04':
         script = '\n'.join(
             part for frame in frames for part in (frame, 'G4 P%d' % _LED_STEP_MS))

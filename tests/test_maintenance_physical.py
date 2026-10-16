@@ -343,6 +343,35 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertFalse(self.runner.pending)
         self.assertEqual(len(self.commands), 1)
 
+    def test_f02_user_observed_speed_steps_with_verified_restore(self):
+        # Reuse the same bounded consent/dispatch/readback lifecycle as F01.
+        from maintenance_discovery import _add, DeviceCapabilities, USER, MaintenanceSnapshot
+        old = self.printer.maintenance.snapshot
+        self.printer.maintenance.snapshot = MaintenanceSnapshot(
+            old.epoch, (DeviceCapabilities('fan', 'fan',
+                        _add(0, 'F02', USER)),),
+            old.global_modes, old.config_marker, old.service_key)
+        self.assertTrue(self.runner.start('F02', 'fan')[0])
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertTrue(self.runner.confirm()[0])
+        future, payload, guard = self.commands[0]
+        self.assertIn('G4 P800', payload['script'])
+        self.assertTrue(guard())
+        future.set_result({'result': 'ok'})
+        self.assertIsNone(self.runner.poll())
+        self.advance(2.9)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'verifying')
+        self.advance(.35)
+        self.poll_verify()
+        self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertIn('low/mid/high', self.runner.observation_prompt)
+        result = self.runner.observe(True)
+        self.assertEqual(result.status, 'PASSED_USER')
+        self.assertTrue(result.restore_verified)
+
     def test_s18_missing_or_mismatched_original_name_blocks_without_gcode(self):
         from maintenance_physical import _resolve_pin_gcode_name
         self.configure_config_only_buzzer()

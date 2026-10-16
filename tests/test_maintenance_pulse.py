@@ -14,7 +14,7 @@ def environment(features=('F01',), services=()):
     settings = {}
     status = {}
     for feature in features:
-        if feature == 'F01':
+        if feature in ('F01', 'F02'):
             name = 'fan'; family = 'fan'
             settings[name] = {'pin': 'PA3'}
             status[name] = {'speed': .35}
@@ -57,6 +57,35 @@ class PhysicalPulseTests(unittest.TestCase):
         self.assertEqual(p.script, 'M106 S191\nG4 P950\nM106 S89')
         self.assertTrue(restored(p, status))
         self.assertFalse(restored(p, {'fan': {'speed': .75}}))
+
+    def test_f02_three_bounded_pwm_steps_and_exact_restore(self):
+        snap, settings, status = environment(('F02',))
+        settings['fan'].update({'off_below': .05, 'max_power': .90})
+        row = guided_plan(snap)[0]
+        p = compile_pulse(row, snap, status, settings)
+        self.assertEqual(p.feature_id, 'F02')
+        self.assertEqual(p.duration_ms, 2400)
+        self.assertEqual(p.stimulus.splitlines(),
+                         ['M106 S99', 'M106 S164', 'M106 S230'])
+        self.assertEqual(p.script.count('G4 P800'), 3)
+        self.assertTrue(p.script.endswith('M106 S89'))
+        self.assertIn('low/mid/high', p.observation)
+        self.assertTrue(restored(p, status))
+        self.assertFalse(restored(p, {'fan': {'speed': .9}}))
+
+    def test_f02_blocks_unusable_limits_and_invalid_baseline(self):
+        snap, settings, status = environment(('F02',))
+        row = guided_plan(snap)[0]
+        for lo, hi in ((0, .25), (.4, .4), (.8, .3),
+                       (None, 1), (0, float('nan')), (0, 2)):
+            with self.subTest(lo=lo, hi=hi):
+                settings['fan'].update({'off_below': lo, 'max_power': hi})
+                with self.assertRaises(ValueError):
+                    compile_pulse(row, snap, status, settings)
+        settings['fan'].update({'off_below': 0, 'max_power': 1})
+        status['fan']['speed'] = None
+        with self.assertRaisesRegex(ValueError, 'fan_speed_unavailable'):
+            compile_pulse(row, snap, status, settings)
 
     def test_generic_fan_is_specific_and_templates_are_blocked(self):
         snap, settings, status = environment(('F04',))

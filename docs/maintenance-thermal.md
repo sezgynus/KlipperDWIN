@@ -20,3 +20,26 @@ target+10 C observation ceiling strictly below configured max_temp. Every
 configured heater must start OFF with reported zero duty. Generic heaters
 require an explicit application profile; no chamber temperature is guessed.
 The pure compiler includes OFF after its finite dwell. No SAVE_CONFIG.
+
+## Physical controller
+Self Tests now offers H01/H05/H06/H07/H08/H09/H13 per standard heater.
+Selection is read-only preflight; a separate confirmation sends the exact
+120 s heat/dwell/OFF script through the existing completion WebSocket RPC.
+Status/queue reads use the existing bounded worker, approximately once per
+second only while a test runs. Two OFF target/zero-duty samples and 32 s
+cooling precede the unlimited user observation. Metric success alone is no PASS.
+
+**Stopping an active thermal test requests Klipper emergency shutdown.**
+This bypasses the G-code dwell; ordinary OFF could wait behind that dwell.
+The confirmation screen discloses this behavior. Safety/telemetry ambiguity,
+unexpected target, another heater, print/operation conflict or technical
+deadline also requests shutdown once, locks further heating and reports
+unconfirmed shutdown explicitly if acknowledgment is absent. No automatic
+restart is issued. Acknowledged shutdown is not independent electrical OFF
+proof. The finite script also ends OFF if Petrel exits; Klipper protections
+are retained. Petrel is not a hardware safety controller.
+Cold idle admission, configured limits, lifecycle/epoch identity and fresh
+dispatch guard are mandatory. No heater target is restored to a nonzero
+value. Physical acceptance remains pending for every H target until the
+operator's final batch test. Generic/application-specific and advanced
+calibration adapters remain unavailable at this stage.

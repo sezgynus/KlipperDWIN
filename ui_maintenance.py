@@ -55,7 +55,14 @@ class MaintenanceViewMixin:
                 action = {'F02': 'Run speed steps',
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
-                              feature_id, 'Run short pulse')
+                              feature_id, 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
+                if feature_id and feature_id.startswith('H'):
+                    live = getattr(self.pd.maintenance_pulse, 'live_text', ())
+                    return 'Confirm HEAT test', (
+                        ('Cancel', self.ICON_Back, None, None),
+                        (action, self.ICON_FanSpeed, None, None),
+                        *((text[:26], self.ICON_Info, None, None) for text in live[:1]),
+                        ('Cancel = Klipper shutdown', self.ICON_Info, None, None))
                 return 'Confirm test', (('Cancel', self.ICON_Back, None, None),
                                         (action, self.ICON_FanSpeed, None, None))
             if phase == 'f12_await_stop':
@@ -80,11 +87,19 @@ class MaintenanceViewMixin:
                             ('Cancel test', self.ICON_Back, None, None),
                             ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
                             ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
+                if getattr(self.pd.maintenance_pulse, 'feature_id', '').startswith('H'):
+                    live = getattr(self.pd.maintenance_pulse, 'live_text', ())
+                    return 'Thermal test', (
+                        ('Stop: Klipper shutdown', self.ICON_Back, None, None),
+                        *((text[:26], self.ICON_Info, None, None) for text in live))
                 text = {'preflight': 'Safety checks...', 'running': 'Testing...',
                         'verifying': 'Checking restore...',
                         'f12_next_preflight': 'Next stage safety...'}[phase]
                 return 'Self Test', (('Cancel test', self.ICON_Back, None, None),
                                      (text, self.ICON_Info, None, None))
+            if phase == 'stopping':
+                return 'Stopping heat', (('Shutdown requested', self.ICON_Info, None, None),
+                                         ('Check printer is safe', self.ICON_Info, None, None))
             return 'Self Test', (('Back', self.ICON_Back, None, None),)
         if page == 'reading':
             return 'Diagnostics', (('Cancel read', self.ICON_Back, None, None),
@@ -251,8 +266,11 @@ class MaintenanceViewMixin:
             f12_live = (pulse.phase == 'running' and
                         getattr(pulse, 'feature_id', None) == 'F12')
             f12_step = (pulse.f12_status[1] if f12_live and pulse.f12_status else None)
-            if before != pulse.phase or (f12_live and
+            thermal_live = (getattr(pulse, 'feature_id', '') or '').startswith('H') and pulse.phase in ('running', 'verifying')
+            thermal_second = int(__import__('time').monotonic()) if thermal_live else None
+            if (thermal_live and getattr(self, '_maintenance_thermal_second', None) != thermal_second) or before != pulse.phase or (f12_live and
                     getattr(self, '_maintenance_f12_step_seen', None) != f12_step):
+                self._maintenance_thermal_second = thermal_second
                 self._maintenance_f12_step_seen = f12_step
                 self._maintenance_selection = 0
                 self.Draw_Maintenance_Menu()

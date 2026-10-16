@@ -26,6 +26,7 @@ from maintenance_session import MaintenanceDiscoveryManager
 from maintenance_controller import MaintenanceReadController
 from maintenance_guided import guided_plan
 from maintenance_physical import MaintenancePulseController
+from maintenance_heater import MaintenanceHeaterController, MaintenancePhysicalRouter, thermal_plan
 from system_info import host_memory_usage, host_metrics, network_info, updater_version, wifi_info
 
 class xyze_t:
@@ -277,8 +278,9 @@ class PrinterData:
         # Created without I/O; reads happen only after an explicit request.
         self.maintenance_reader = MaintenanceReadController(
             self, self._maintenance_worker, self.client)
-        self.maintenance_pulse = MaintenancePulseController(
-            self, self._maintenance_worker, self.client)
+        self.maintenance_pulse = MaintenancePhysicalRouter(
+            MaintenancePulseController(self, self._maintenance_worker, self.client),
+            MaintenanceHeaterController(self, self._maintenance_worker, self.client))
 
     def _read(self, key, work, stamp=None):
         if stamp is None:
@@ -479,7 +481,8 @@ class PrinterData:
 
     def maintenance_guided_plan(self):
         # Passive target discovery only; not an actuation authorization.
-        return guided_plan(self.maintenance.snapshot)
+        owner = getattr(self, 'maintenance_pulse', None)
+        return owner.available() if owner is not None else guided_plan(self.maintenance.snapshot)
 
     def start_maintenance_physical(self, feature_id, device=None, **kwargs):
         return self.maintenance_pulse.start(feature_id, device, **kwargs)

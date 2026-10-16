@@ -345,6 +345,60 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertFalse(self.runner.pending)
         self.assertEqual(len(self.commands), 1)
 
+    def test_f12_five_separately_verified_stages_and_next_round(self):
+        from maintenance_discovery import _add, DeviceCapabilities, USER, MaintenanceSnapshot
+        old = self.printer.maintenance.snapshot
+        self.printer.maintenance.snapshot = MaintenanceSnapshot(
+            old.epoch, (DeviceCapabilities('fan', 'fan', _add(0, 'F12', USER)),),
+            old.global_modes, old.config_marker, old.service_key)
+        self.client.status['fan']['speed'] = 0.0
+        self.assertEqual(self.runner.start('F12', 'fan'), (True, 'preflight_queued'))
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertEqual(self.runner.pwm_levels, ())
+        self.assertTrue(self.runner.confirm()[0])
+        self.assertEqual(self.runner.f12_status[:3], (1, 1, 25))
+        self.assertEqual(len(self.commands), 1)
+        for i, pwm in enumerate((25, 50, 76, 101, 127)):
+            with self.subTest(stage=i + 1):
+                self.assertEqual(self.runner.phase, 'running')
+                future, payload, guard = self.commands[i]
+                self.assertEqual(future.request_timeout, 9.0)
+                self.assertTrue(guard())
+                self.assertIn('M106 S%d' % pwm, payload['script'])
+                self.assertTrue(payload['script'].endswith('M106 S0\\nM400'))
+                self.assertEqual(payload['script'].count('G4 P2000'), 1)
+                future.set_result({'result': 'ok'})
+                self.assertIsNone(self.runner.poll())
+                self.advance(4.1)
+                self.poll_verify()
+                self.advance(.35)
+                self.poll_verify()
+                if i < 4:
+                    self.assertEqual(self.runner.phase, 'f12_next_preflight')
+                    self.assertEqual(len(self.commands), i + 1)
+                    self.worker.next()
+                    self.assertIsNone(self.runner.poll())
+                    self.assertEqual(len(self.commands), i + 2)
+                    self.assertEqual(self.runner.f12_status[:3],
+                                     (1, i + 2, (25, 50, 76, 101, 127)[i + 1]))
+                else:
+                    self.assertEqual(self.runner.phase, 'await_observation')
+        self.assertIsNone(self.runner.observe(4))
+        self.assertEqual(self.runner.phase, 'f12_await_stop')
+        self.assertEqual(len(self.commands), 5)
+        result, why = self.runner.f12_confirm_stopped()
+        self.assertTrue(result)
+        self.assertEqual(why, 'preflight_queued')
+        self.worker.next()
+        self.assertIsNone(self.runner.poll())
+        self.assertEqual(self.runner.phase, 'await_confirmation')
+        self.assertTrue(self.runner.confirm()[0])
+        self.assertEqual(self.runner.f12_status[:3], (2, 1, 81))
+        self.assertEqual(len(self.commands), 6)
+        self.assertIn('M106 S81', self.commands[5][1]['script'])
+
     def test_f02_user_observed_speed_steps_with_verified_restore(self):
         # Reuse the same bounded consent/dispatch/readback lifecycle as F01.
         from maintenance_discovery import _add, DeviceCapabilities, USER, MaintenanceSnapshot

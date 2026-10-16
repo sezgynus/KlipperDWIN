@@ -67,10 +67,10 @@ class MaintenanceViewMixin:
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
                               feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
-                if feature_id and feature_id.startswith('P'):
+                if feature_id and feature_id.startswith(('P','R')):
                     return 'Confirm '+feature_id, (
                         ('Cancel', self.ICON_Back, None, None),
-                        ('Start probe workflow', self.ICON_Info, None, None),
+                        ('Start firmware workflow', self.ICON_Info, None, None),
                         *((text[:26], self.ICON_Info, None, None)
                           for text in self.pd.maintenance_pulse.live_text))
                 if feature_id and feature_id.startswith('H'):
@@ -122,6 +122,10 @@ class MaintenanceViewMixin:
                                    'observation_prompt', None) or 'Did it work?'
                 return question[:27], (('Not observed', self.ICON_Back, None, None),
                                        ('Yes, observed', self.ICON_Info, None, None))
+            if phase in ('analysis','saving_baseline'):
+                return 'Measured data', (
+                    ('Cancel processing', self.ICON_Back, None, None),
+                    ('Processing result...', self.ICON_Info, None, None))
             if phase in ('preflight', 'running', 'verifying', 'f12_next_preflight'):
                 if phase == 'running' and getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12':
                     info = self.pd.maintenance_pulse.f12_status
@@ -131,8 +135,8 @@ class MaintenanceViewMixin:
                             ('Cancel test', self.ICON_Back, None, None),
                             ('PWM %d / 255' % pwm, self.ICON_FanSpeed, None, None),
                             ('Range %d - %d' % (low, high), self.ICON_Info, None, None))
-                if (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith('P'):
-                    return 'Probe workflow', (
+                if (getattr(self.pd.maintenance_pulse, 'feature_id', '') or '').startswith(('P','R')):
+                    return 'Firmware workflow', (
                         ('Stop / cancel workflow', self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None)
                           for text in self.pd.maintenance_pulse.live_text))

@@ -150,7 +150,7 @@ S11|Maintenance history|global|I|versioned_maintenance_records|read_only
 S12|Heater and fan usage counters|global|I|persistent_usage_counters|read_only
 S13|Axis travel counters|global|I|authoritative_travel_counter|read_only
 S14|Petrel UART diagnostics|global|I|instrumented_uart_counters|read_only
-S15|Petrel encoder diagnostics|global|I|instrumented_encoder_events|read_only
+S15|Petrel encoder diagnostics|global|IU|instrumented_encoder_events|read_only
 S16|Petrel LCD diagnostics|global|IU|validated_display_asset_or_user_check|guided
 S17|Backlight observation|global|U|user_observed_brightness_change|guided
 S18|Audible output observation|device|U|user_observed_audible_tone|guided

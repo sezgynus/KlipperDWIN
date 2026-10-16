@@ -8,7 +8,7 @@ S11 gerçek yöntem, zaman, cihaz, planlanan epoch/config işareti, firmware/con
 
 S13 konum farkı toplamı yerine yetkili bir eklenti sayacı ister. ~/.config/Petrel altında maintenance-travel-counter.json içine {"version":1,"object":"your_registered_object","authoritative":true} beyan edilir; kayıtlı nesne mm cinsinden negatif olmayan x_mm/y_mm/z_mm sayaçlarını döndürmelidir. Bu kaynak yoksa özellik gizli kalır.
 
-S14 güncel sürücü/UART epoch'u kapsamında gerçek TX/RX, handshake isteği, yanıt zaman aşımı, CRC bildirimi ve sınırlı RX atmalarını gösterir. CRC bildirimi panel protokol olayıdır, optik kontrol değildir. S15 fiziksel GPIO çevirme adımı ve buton kenarlarını sayar; uzaktan girdiler bu sayaçları artırmaz. GPIO callback'inde yazıcı snapshot'ı alınmaz.
+S14 güncel sürücü/UART epoch'u kapsamında gerçek TX/RX, handshake isteği, yanıt zaman aşımı, CRC bildirimi ve sınırlı RX atmalarını gösterir. CRC bildirimi panel protokol olayıdır, optik kontrol değildir. S15 fiziksel GPIO çevirme adımı ve buton kenarlarını sayar; uzaktan girdiler bu sayaçları artırmaz. Yönlendirmeli testi Start sonrasında iki yönde yeni fiziksel adım ve yeni fiziksel buton kenarı ister; yalnız sayaç okumak PASS üretemez. GPIO callback'inde yazıcı snapshot'ı alınmaz.
 
 S16 fiziksel LCD'de açık ilerletilen kırmızı/yeşil/mavi/beyaz/siyah gözlem alanları ve açılış kaynak eşitleme bilgisi sunar. S17 açık ilerletilen %10/%50/%100 arka ışık seviyeleri sunar ve yakalanmış çalışma anı parlaklığına döner. Ayarlar kaydedilmez. Otomatik karartma yalnız sahipli panel akışında askıya alınır. Kullanıcı sorusu zaman aşımına uğramaz; yeniden bağlanan panele eski oturum parlaklık komutu sessizce uygulanmaz.
 

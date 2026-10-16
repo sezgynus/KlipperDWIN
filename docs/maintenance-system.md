@@ -8,7 +8,7 @@ S11 stores up to 64 result records with actual method, timestamp, device, planne
 
 S13 requires an authoritative extension counter, never position-difference integration. Declare maintenance-travel-counter.json under ~/.config/Petrel with {"version":1,"object":"your_registered_object","authoritative":true}; the registered object must return nonnegative x_mm/y_mm/z_mm counters in mm. Without it the feature stays hidden.
 
-S14 reports actual driver TX/RX, handshake requests, response timeouts, CRC notifications and bounded RX drops, scoped to the current driver/UART epoch. CRC notifications are panel protocol events, not optical checks. S15 counts physical GPIO rotation steps and button edges; remote inputs do not increment them. No printer snapshot is taken in the GPIO callback.
+S14 reports actual driver TX/RX, handshake requests, response timeouts, CRC notifications and bounded RX drops, scoped to the current driver/UART epoch. CRC notifications are panel protocol events, not optical checks. S15 counts physical GPIO rotation steps and button edges; remote inputs do not increment them. Its guided test requires new physical steps in both directions plus a new physical button edge after Start; counter reads alone cannot PASS. No printer snapshot is taken in the GPIO callback.
 
 S16 offers explicit red/green/blue/white/black observation patches on the physical LCD, plus startup-asset-sync information. S17 offers explicitly advanced 10/50/100% backlight levels and restores the captured runtime brightness. Settings are not saved. Auto-dimming is suspended only during the owned panel workflow. No user question expires, and a reconnected panel cannot silently receive an old session's brightness command.
 

@@ -103,7 +103,7 @@ class PanelTests(unittest.TestCase):
     def setUp(self):
         fixture.ProbeWorkflowTests.setUp(self)
         self.owner = MaintenancePanelController(self.p,self.worker,self.client)
-        modes = _add(_add(0,'S16',USER),'S17',USER)
+        modes = _add(_add(_add(0,'S15',USER),'S16',USER),'S17',USER)
         self.p.maintenance.snapshot = MaintenanceSnapshot(12,global_modes=modes,
                                           config_marker=id(self.p.state.settings))
         self.calls = []
@@ -168,6 +168,17 @@ class PanelTests(unittest.TestCase):
         self.assertFalse(self.owner.choose(0)[0])
         self.assertEqual(self.owner.phase,'workflow')
         self.assertIn('100%',self.owner.workflow_choices[0][0])
+
+    def test_encoder_requires_new_physical_steps_both_ways_and_a_click(self):
+        gpio = {'uart_epoch':9,'gpio_positive_steps':0,'gpio_negative_steps':0,'gpio_button_presses':0}
+        self.p._maintenance_panel_api = lambda action,*args:dict(gpio)
+        self.arm('S15')
+        self.assertFalse(self.owner.choose(0)[0])
+        gpio.update(gpio_positive_steps=1,gpio_negative_steps=1,gpio_button_presses=1)
+        self.assertTrue(self.owner.choose(0)[0])
+        result = self.owner.observe(True)
+        self.assertEqual(result.status,'PASSED_USER')
+        self.assertEqual(dict(result.evidence)['gpio_button_presses'],1)
 
     def test_color_sequence_is_observation_only_and_cancel_restores(self):
         self.arm('S16')

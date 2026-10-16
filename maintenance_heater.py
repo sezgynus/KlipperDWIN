@@ -429,7 +429,7 @@ class MaintenancePhysicalRouter:
     def start(self, feature_id, device=None, **kwargs):
         if self.pending:
             return False, 'maintenance_busy'
-        self._active = (self._panel if feature_id in ('S16','S17') else
+        self._active = (self._panel if feature_id in ('S15','S16','S17') else
                         self._filament if feature_id.startswith('E') else
                         self._resonance if feature_id.startswith('R') else
                         self._probe if feature_id.startswith('P') else

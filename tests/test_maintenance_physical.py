@@ -346,6 +346,11 @@ class PhysicalControllerTests(unittest.TestCase):
         self.assertEqual(len(self.commands), 1)
 
     def test_f12_five_separately_verified_stages_and_next_round(self):
+        # Match the queue evidence clock to the controller's simulated clock.
+        runtime_clock = patch('maintenance_runtime.monotonic',
+                              side_effect=lambda: self.clock[0])
+        runtime_clock.start()
+        self.addCleanup(runtime_clock.stop)
         from maintenance_discovery import _add, DeviceCapabilities, USER, MaintenanceSnapshot
         old = self.printer.maintenance.snapshot
         self.printer.maintenance.snapshot = MaintenanceSnapshot(

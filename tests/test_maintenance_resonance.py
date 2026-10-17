@@ -93,7 +93,12 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertEqual(len(self.commands),2)
 
     def _running_r02(self):
+        from dataclasses import replace
+        from printer_state import PrinterState
         self.raw['settings']['resonance_tester']={'probe_points':[[50.,50.,20.]]}
+        self.p.state=PrinterState.from_snapshot(self.raw)
+        self.p.maintenance.snapshot=replace(self.p.maintenance.snapshot,
+                                            config_marker=id(self.p.state.settings))
         self.client.url='http://127.0.0.1:7125'
         self.arm_sensor('R02')
         self.dispatch()

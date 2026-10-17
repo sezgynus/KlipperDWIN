@@ -198,6 +198,20 @@ class ThermalControllerTests(unittest.TestCase):
             self.assertNotIn('599898 s', item)
         self.assertIn('samples', self.c.live_text[-1])
 
+    def test_overshoot_is_measured_not_a_petrel_emergency_stop(self):
+        # H01 and H07 both use this thermal controller. Crossing the former
+        # target+10 cap must not turn an ordinary measurement into shutdown.
+        self.armed('H07')
+        self.assertTrue(self.c.confirm()[0])
+        self.clock = 1.
+        self.assertIsNone(self.c.poll())  # queue fresh telemetry work
+        self.data['status']['extruder']['temperature'] = 76.
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+        self.assertEqual(self.c.phase, 'running')
+        self.assertNotIn('printer.emergency_stop', [r[0] for r in self.requests])
+        self.assertEqual(self.c._contract.ceiling, 280.)
+
     def test_cancel_during_heat_uses_emergency_rpc_never_queued_gcode_off(self):
         self.armed()
         self.c.confirm()

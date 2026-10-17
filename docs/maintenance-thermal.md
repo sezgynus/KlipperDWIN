@@ -15,9 +15,12 @@ H06 reaches target minus 1 C; H07 peak overshoot at most 5 C; H08 at least
 30 s after 20 s settling, peak-to-peak at most 2 C; H09 at least 30 s of
 negative cooling slope. These are bounded diagnostic criteria, not factory
 performance specifications or proof of independent thermal safety.
-Initial standard targets are 60 C hotend / 45 C bed, duration 120 s and a
-target+10 C observation ceiling strictly below configured max_temp. Every
-configured heater must start OFF with reported zero duty. Generic heaters
+Initial standard targets are 60 C hotend / 45 C bed and duration 120 s.
+No Petrel-specific target-relative temperature-overshoot ceiling is enforced
+for any H test: H07 still measures overshoot and grades its diagnostic metric,
+but overshoot alone does not request emergency shutdown. The configured
+Klipper heater min_temp/max_temp limits are retained. Every configured heater
+must start OFF with reported zero duty. Generic heaters
 require an explicit application profile; no chamber temperature is guessed.
 The pure compiler includes OFF after its finite dwell. No SAVE_CONFIG.
 
@@ -61,13 +64,15 @@ H04 generic heaters still require an application-specific safe profile.
 
 ## Explicit generic applications (H04)
 Optional ~/.config/Petrel/maintenance-thermal-profiles.json is read only at
-READY. Version 1 has exactly {"version":1,"heaters":[{"object":"heater_generic dryer",
-"target":45,"ceiling":55,"duration_s":120}]}.
-This is an application declaration, not evidence the example is safe for
-your dryer. Choose limits from the actual appliance. At most 8 exact discovered
-generic heaters, 4096 bytes; unknown fields/duplicates/nonfinite values block
-the whole profile. Target < ceiling < configured max_temp, margin 5..15 C,
-duration 30..120 s are required. Frozen profile tokens join the same snapshot;
+READY. Version 1 supports {"version":1,"heaters":[{"object":"heater_generic dryer",
+"target":45,"duration_s":120}]}.
+The former numeric `ceiling` field is accepted for compatibility but ignored;
+it no longer caps temperature or triggers shutdown. This is an application
+declaration, not evidence the example is safe for your dryer. Choose the
+target from the actual appliance. At most 8 exact discovered generic heaters,
+4096 bytes; unknown fields/duplicates/nonfinite values block the whole
+profile. Configured min_temp < target < max_temp and duration 30..120 s are
+required. Frozen profile tokens join the same snapshot;
 there is no file I/O on menu entry or encoder ticks. Runtime cold/OFF,
 other-heater, safety and dispatch checks still apply. H04 uses the declared
 target and the separate 900 s calibration limit. Missing profiles do not expose
@@ -141,3 +146,12 @@ uses the existing shutdown policy. The user can wait as long as desired
 before the initial action; no idle response timeout or repeated click
 exists. Preheat status no longer displays an uninitialized elapsed timer.
 All H features share this fix; no physical acceptance is inferred from CI.
+
+**Maintenance thermal ceiling removal (17 October 2026):** The former
+`target + 10 C` and generic-profile `ceiling` emergency-stop thresholds
+are removed across H01–H13. H02 PID calibration may overshoot its target
+while Klipper autotunes; such samples remain valid measurements. H07 still
+reports measured overshoot and evaluates its 5 C criterion as a test metric,
+not as a heater-stop threshold. This change does not alter Klipper firmware
+limits, live print/operation guards, off verification, cancellation or
+uncertain-operation shutdown behavior. CI is not physical acceptance.

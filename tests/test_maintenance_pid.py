@@ -64,6 +64,21 @@ class PIDControllerTests(ThermalControllerTests):
         self.assertEqual(dict(result.evidence)['pid_kp'], 20.)
         self.assertTrue(result.restore_verified)
 
+    def test_pid_autotune_overshoot_does_not_trigger_petrel_shutdown(self):
+        self.armed('H02')
+        self.assertTrue(self.c.confirm()[0])
+        self.assertEqual(self.c._contract.target, 150.)
+        self.assertEqual(self.c._contract.ceiling, 280.)
+        self.clock = 1.
+        self.assertIsNone(self.c.poll())
+        self.data['status']['extruder']['temperature'] = 163.24
+        self.data['status']['extruder']['power'] = 0.
+        self.data['status']['extruder']['target'] = 145.
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+        self.assertEqual(self.c.phase, 'running')
+        self.assertEqual([r[0] for r in self.requests], ['printer.gcode.script'])
+
     def test_pid_rejects_existing_pending_config_before_any_command(self):
         self.pending_config = True
         self.c.start('H02', 'extruder')

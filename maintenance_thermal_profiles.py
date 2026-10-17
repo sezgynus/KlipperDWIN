@@ -20,7 +20,9 @@ def profile_services(state, path=None):
             return ()
         result, seen = [], set()
         for item in data['heaters']:
-            if not isinstance(item, dict) or set(item) != {'object', 'target', 'ceiling', 'duration_s'}:
+            if not isinstance(item, dict) or set(item) not in (
+                    {'object', 'target', 'duration_s'},
+                    {'object', 'target', 'ceiling', 'duration_s'}):
                 return ()
             name = item['object']
             heater_name(name)
@@ -28,13 +30,17 @@ def profile_services(state, path=None):
                 return ()
             seen.add(name)
             cfg = state.settings.get(name)
-            values = (item['target'], item['ceiling'], item['duration_s'])
+            # The optional legacy 'ceiling' field is validated as numeric
+            # for compatibility but no longer participates in admission,
+            # runtime temperature limits or the discovery snapshot.
+            if 'ceiling' in item and not number(item['ceiling']):
+                return ()
+            values = (item['target'], item['duration_s'])
             if (name not in state.objects or not isinstance(cfg, Mapping)
                     or not all(number(v) for v in values)
                     or not number(cfg.get('min_temp')) or not number(cfg.get('max_temp'))
-                    or not cfg['min_temp'] < values[0] < values[1] < cfg['max_temp']
-                    or not 5 <= values[1]-values[0] <= 15
-                    or not 30 <= values[2] <= 120):
+                    or not cfg['min_temp'] < values[0] < cfg['max_temp']
+                    or not 30 <= values[1] <= 120):
                 return ()
             result.append(_PREFIX+name+'|'+','.join(format(v, '.6g') for v in values))
         return tuple(result)
@@ -51,11 +57,12 @@ def profile_for(snapshot, device):
         return None
     try:
         values = tuple(float(v) for v in entries[0].split(','))
-        if len(values) != 3 or not all(number(v) for v in values):
+        if len(values) not in (2, 3) or not all(number(v) for v in values):
             return None
-        target, ceiling, duration = values
-        if not 5 <= ceiling-target <= 15 or not 30 <= duration <= 120:
+        # Prior snapshot tokens had a middle ceiling value; ignore it.
+        target, duration = values[0], values[-1]
+        if not 30 <= duration <= 120:
             return None
-        return values
+        return target, duration
     except (ValueError, TypeError):
         return None

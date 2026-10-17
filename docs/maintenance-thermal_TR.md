@@ -15,8 +15,9 @@ H06 hedef eksi 1 C'ye erişme; H07 en çok 5 C aşım; H08 20 sn yerleşme
 sonrasında en az 30 sn boyunca en çok 2 C tepeden tepeye değişim;
 H09 en az 30 sn negatif soğuma eğimi ister. Bunlar sınırlı tanılama
 ölçütleridir; fabrika performans şartı veya bağımsız termal güvenlik kanıtı değildir.
-Standart başlangıç hedefleri hotend 60 C / yatak 45 C, süre 120 sn ve
-yapılandırılmış max_temp altında kalması gereken hedef+10 C gözlem sınırıdır.
+Standart başlangıç hedefleri hotend 60 C / yatak 45 C, süre 120 sn'dir.
+Testteki sıcaklık ölçümleri için Klipper'ın yapılandırılmış min_temp/max_temp
+sınırları esas alınır. H07 aşımı ayrı bir performans ölçütü olarak raporlar.
 Yapılandırılmış bütün ısıtıcılar sıfır hedef ve sıfır görev oranıyla başlamalıdır.
 Genel ısıtıcılar açık uygulama profili gerektirir; hazne sıcaklığı tahmin edilmez.
 Salt derleyici, süreli bekleme sonrasına OFF ekler. SAVE_CONFIG yoktur.
@@ -61,13 +62,13 @@ H04 genel ısıtıcılar hâlâ uygulamaya özel güvenli profil gerektirir.
 
 ## Açık genel ısıtıcı uygulamaları (H04)
 İsteğe bağlı ~/.config/Petrel/maintenance-thermal-profiles.json yalnız READY
-aşamasında okunur. Sürüm 1 tam olarak {"version":1,"heaters":[{"object":"heater_generic dryer",
-"target":45,"ceiling":55,"duration_s":120}]} biçimindedir.
+aşamasında okunur. Sürüm 1 {"version":1,"heaters":[{"object":"heater_generic dryer",
+"target":45,"duration_s":120}]} biçimini destekler. Eski sayısal
+`ceiling` alanı geriye dönük uyumluluk amacıyla kabul edilir; kullanılmaz.
 Bu uygulama beyanıdır; örneğin kurutucunuz için güvenli olduğunun kanıtı değildir.
 Sınırları gerçek cihazdan seçin. En çok 8 tam keşfedilmiş genel ısıtıcı ve
 4096 bayt; bilinmeyen alan/tekrar/sonlu olmayan değer tüm profili reddettirir.
-Hedef < tavan < yapılandırılmış max_temp, 5..15 C marj ve 30..120 sn süre
-gerekir. Donmuş profil token'ları aynı snapshot'a katılır; menü girişinde veya
+Yapılandırılmış min_temp < hedef < max_temp ve 30..120 sn süre gerekir. Donmuş profil token'ları aynı snapshot'a katılır; menü girişinde veya
 encoder tick'inde dosya okuma yoktur. Canlı soğuk/OFF, diğer ısıtıcı, güvenlik
 ve dispatch kontrolleri yine zorunludur. H04 tanımlanan hedefi ve ayrı 900 sn
 kalibrasyon sınırını kullanır. Profil yoksa genel testler gösterilmez.
@@ -166,3 +167,10 @@ Kullanıcı ilk onaydan önce süresiz bekleyebilir; hareketsizlik nedeniyle
 test sonlandırılmaz veya tekrar onay istenmez. Isıtma öncesindeki
 başlatılmamış süre sayacı artık hatalı büyük süre göstermez.
 Bu düzeltme H grubunun tamamında ortaktır; CI fiziksel kabul değildir.
+
+**17 Ekim 2026 termal ölçüm düzenlemesi:** Önceden Petrel'in
+`target + 10 C` hesabına dayanan denetimi yerine yazıcıda yapılandırılmış
+Klipper sıcaklık sınırları kullanılır. Bu düzenleme H02/H03 PID salınımlarının
+hedef üstündeki geçerli ölçümlerini kapsar. H07'nin 5 C aşım ölçütü sonuç
+değerlendirmesidir; sıcaklık denetim eşiği değildir. Diğer çalışma güvenliği,
+OFF doğrulaması ve operatör onayı değişmedi. CI fiziksel kabul sayılmaz.

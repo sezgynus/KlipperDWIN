@@ -69,16 +69,18 @@ def contract(device, settings, status, feature, profile=None):
         raise ValueError('generic_thermal_profile_required')
     target = ((60. if device == 'heater_bed' else 150.) if feature in PID
               else 45. if device == 'heater_bed' else 60.)
-    ceiling = target + 10
+    ceiling = high  # Use Klipper's configured heater limit, not an extra overshoot margin
     duration = 120.
     if profile is not None:
-        if (not isinstance(profile, tuple) or len(profile) != 3
+        if (not isinstance(profile, tuple) or len(profile) not in (2, 3)
                 or not all(number(v) for v in profile)):
             raise ValueError('invalid_thermal_profile')
-        target, ceiling, duration = profile
-        if not 5 <= ceiling-target <= 15 or not 30 <= duration <= 120:
+        # Accept legacy (target, ceiling, duration) data without using the
+        # retired Petrel-specific ceiling. New profiles carry target/duration.
+        target, duration = profile[0], profile[-1]
+        if not 30 <= duration <= 120:
             raise ValueError('invalid_thermal_profile')
-    if not low < target < ceiling < high:
+    if not low < target < high:
         raise ValueError('thermal_test_outside_config_limits')
     temp, original, power = (live.get(k) for k in ('temperature', 'target', 'power'))
     if (not all(number(v) for v in (temp, original, power))

@@ -13,6 +13,27 @@ class ThermalContractTests(unittest.TestCase):
         self.assertIn('G4 P120000\nM400\n' + c.off, c.script)
         self.assertNotIn('SAVE_CONFIG', c.script)
 
+    def test_h_group_uses_klipper_configured_limit_not_target_plus_ten(self):
+        for feature in ('H01', 'H02', 'H03', 'H04', 'H05',
+                        'H06', 'H07', 'H08', 'H09', 'H13'):
+            profile = (60., 120.) if feature == 'H04' else None
+            settings = dict(self.settings)
+            if feature == 'H04':
+                settings = {'heater_generic dryer': settings['extruder']}
+                status = {'heater_generic dryer': self.status['extruder']}
+                device = 'heater_generic dryer'
+            else:
+                status, device = self.status, 'extruder'
+            result = contract(device, settings, status, feature, profile)
+            self.assertEqual(result.ceiling, 280.)
+            self.assertEqual(result.max_temp, 280.)
+            self.assertGreater(result.ceiling, result.target + 10.)
+        old_profile = contract('heater_generic dryer',
+                               {'heater_generic dryer': self.settings['extruder']},
+                               {'heater_generic dryer': self.status['extruder']},
+                               'H04', (60., 70., 120.))
+        self.assertEqual(old_profile.ceiling, 280.)
+
     def test_unsafe_or_unknown_states_block(self):
         for key, value in (('target', 50), ('power', .1), ('temperature', 70),
                            ('temperature', float('nan')), ('target', True)):

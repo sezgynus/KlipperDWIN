@@ -157,6 +157,24 @@
         ],
         "reason": "Operator requested explanation before accepting M10/M12; Observed clicks alone do not grant acceptance."
       }
+    },
+    "physical_trace_2026_10_17_m12_acceptance": {
+      "date": "2026-10-17",
+      "accepted_targets": [
+        {
+          "feature_id": "M12",
+          "target": "endstop_phase X",
+          "trigger_phase": "49/64",
+          "homing_cycles": 10
+        },
+        {
+          "feature_id": "M12",
+          "target": "endstop_phase Y",
+          "trigger_phase": "33/64",
+          "homing_cycles": 10
+        }
+      ],
+      "qualification": "Operator accepted both M12 tests. Repeat-entry precheck limitation explicitly excluded. SAVE_CONFIG not performed."
     }
   },
   "policy": {
@@ -985,11 +1003,31 @@
       "title": "Endstop phase calibration",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
-      "acceptance": null,
-      "retest_required": true,
+      "note": "Operator accepted the ten-homing M12 workflow; pending SAVE_CONFIG not performed. Known repeat-entry precheck limitation excluded from acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator explicitly accepted M12 stepper_x ten-homing calibration. Pending trigger_phase 49/64 was reviewed; no SAVE_CONFIG was issued. Repeat-entry precheck limitation explicitly waived.",
+        "trace": {
+          "session": "2a74f7fe73914463b7798c7551b51c92",
+          "head": "c9d3b3326c95734c2e03366608ee9631785714ff",
+          "run": 1,
+          "observe_seq": 1086,
+          "result_seq": 1088
+        },
+        "measurements": {
+          "homing_cycles": 10,
+          "trigger_phase": "49/64",
+          "pending_config": true,
+          "saved": false,
+          "independent_metrology": false
+        }
+      },
+      "retest_required": false,
       "previous_acceptances": [
         {
           "date": "2026-10-17",
@@ -1021,10 +1059,31 @@
       "title": "Endstop phase calibration",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented exact configured physical-stepper phase calibration from existing homing history; pending config only, no automatic SAVE_CONFIG. Pending operator acceptance.",
-      "acceptance": null
+      "note": "Operator accepted the ten-homing M12 workflow; pending SAVE_CONFIG not performed. Known repeat-entry precheck limitation excluded from acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator explicitly accepted M12 stepper_y ten-homing calibration. Pending trigger_phase 33/64 was reviewed; no SAVE_CONFIG was issued. Repeat-entry precheck limitation explicitly waived.",
+        "trace": {
+          "session": "2fd812d7ffdb4c6e8b59275ef181b1b2",
+          "head": "e85474ff788d9a17007bbe6e24c2e3f8e0445a98",
+          "run": 2,
+          "observe_seq": 769,
+          "result_seq": 771
+        },
+        "measurements": {
+          "homing_cycles": 10,
+          "trigger_phase": "33/64",
+          "pending_config": true,
+          "saved": false,
+          "independent_metrology": false
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "P01",

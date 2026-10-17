@@ -93,6 +93,35 @@ class ProbeWorkflowTests(unittest.TestCase):
         self.p.maintenance.snapshot = replace(self.p.maintenance.snapshot,
                         config_marker=id(self.p.state.settings))
 
+    def set_p04_low_z(self, z=2.964, z_max=200., *, kinematics='cartesian'):
+        from dataclasses import replace
+        from printer_state import PrinterState
+        self.raw['settings']['printer'] = {'kinematics':kinematics}
+        self.p.state = PrinterState.from_snapshot(self.raw)
+        self.p.maintenance.snapshot = replace(self.p.maintenance.snapshot,
+            config_marker=id(self.p.state.settings))
+        self.status['toolhead']['position'][2] = z
+        self.status['toolhead']['axis_maximum'][2] = z_max
+        self.status['gcode_move'] = {
+            'position':[50.,50.,z,0.], 'homing_origin':[0.,0.,0.,0.],
+            'speed':50., 'speed_factor':1., 'extrude_factor':1.,
+            'absolute_coordinates':True, 'absolute_extrude':True}
+        self.raw['status'].update(copy.deepcopy(self.status))
+
+    def finish_p04_z_lift(self, z=10., *, x=None, speed_factor=None):
+        self.status['toolhead']['position'][2] = z
+        self.status['gcode_move']['position'][2] = z
+        if x is not None:
+            self.status['toolhead']['position'][0] = x
+            self.status['gcode_move']['position'][0] = x
+        if speed_factor is not None:
+            self.status['gcode_move']['speed_factor'] = speed_factor
+        self.raw['status'].update(copy.deepcopy(self.status))
+        self.command.set_result('ok')
+        self.assertIsNone(self.owner.poll())
+        self.worker.drain()
+        return self.owner.poll()
+
     def arm(self,feature='P01'):
         self.assertTrue(self.owner.start(feature)[0])
         self.worker.drain()
@@ -160,6 +189,75 @@ class ProbeWorkflowTests(unittest.TestCase):
         self.assertEqual(self.owner.phase,'running')
         self.assertEqual(self.commands[1][1]['script'],'PROBE')
         self.assertEqual(len(self.commands),2)
+
+    def test_p04_low_z_raises_only_z_then_probes_after_fresh_readback(self):
+        self.set_p04_low_z()
+        self.arm('P04')
+        self.assertEqual(self.commands,[])
+        self.dispatch()
+        script=self.commands[0][1]['script']
+        self.assertIn('SAVE_GCODE_STATE NAME=_PETREL_P04_',script)
+        self.assertIn('G91\nM220 S100\nG1 Z7.0360 F300\nM400',script)
+        self.assertIn('RESTORE_GCODE_STATE NAME=_PETREL_P04_',script)
+        self.assertFalse(any(line.strip() == 'PROBE' for line in script.splitlines()))
+        self.assertIsNone(self.finish_p04_z_lift())
+        self.assertEqual(self.owner.phase,'preflight')
+        self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.commands[1][1]['script'],'PROBE')
+        self.assertEqual(self.owner.phase,'running')
+        result=self.complete(('Result: at 50.000,50.000 estimate contact at z=-0.025000',))
+        self.assertEqual(result.status,'PASSED')
+        self.assertEqual(dict(result.evidence)['preparation_z_lift_mm'],7.036)
+        self.assertEqual(dict(result.evidence)['z_mm'],-.025)
+        self.assertFalse(result.restore_verified)
+        self.assertNotIn('G28',str(self.commands))
+        self.assertEqual(len(self.commands),2)
+
+    def test_p04_sufficient_z_runs_directly_without_lift(self):
+        self.arm('P04')
+        self.dispatch()
+        self.assertEqual(self.commands[0][1]['script'],'PROBE')
+        self.assertEqual(self.complete(
+            ('Result: at 50.000,50.000 estimate contact at z=0.125000',)
+        ).status,'PASSED')
+        self.assertEqual(len(self.commands),1)
+
+    def test_p04_rejects_unverified_lift_and_never_probes(self):
+        for kwargs in ({'z':7.}, {'z':10.,'x':51.},
+                       {'z':10.,'speed_factor':1.2}):
+            with self.subTest(kwargs=kwargs):
+                self.set_p04_low_z()
+                self.arm('P04')
+                self.dispatch()
+                result=self.finish_p04_z_lift(**kwargs)
+                self.assertEqual(result.status,'INCONCLUSIVE')
+                self.assertEqual(result.reason,'probe_z_lift_readback_unverified')
+                self.assertEqual(len(self.commands),1)
+                self.assertTrue(self.owner._locked)
+                # Reset only fake harness for the next independent case.
+                self.owner = MaintenanceProbeController(self.p,self.worker,self.client)
+                self.commands.clear()
+                self.status['toolhead']['position'][0]=50.
+
+    def test_p04_lift_requires_valid_bounded_motion_profile(self):
+        for zmax,kinematics in ((5.5,'cartesian'),(200.,'delta')):
+            with self.subTest(zmax=zmax, kinematics=kinematics):
+                self.set_p04_low_z(z_max=zmax,kinematics=kinematics)
+                self.assertTrue(self.owner.start('P04')[0])
+                self.worker.drain()
+                result=self.owner.poll()
+                self.assertEqual(result.status,'BLOCKED')
+                self.assertEqual(self.commands,[])
+
+    def test_p04_lift_does_not_start_when_printing_after_consent(self):
+        self.set_p04_low_z()
+        self.arm('P04')
+        self.raw['status']['print_stats']['state']='printing'
+        self.assertTrue(self.owner.confirm()[0])
+        self.worker.drain()
+        self.assertEqual(self.owner.poll().status,'BLOCKED')
+        self.assertEqual(self.commands,[])
 
     def test_unhomed_read_only_probe_does_not_home(self):
         self.status['toolhead']['homed_axes']=''

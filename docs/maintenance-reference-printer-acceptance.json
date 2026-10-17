@@ -499,6 +499,34 @@
         "result_seq": 4290
       },
       "qualification": "H03 physical procedure accepted. The PID coefficients are pending SAVE_CONFIG; the trace does not show persistence of settings to disk. Historical earlier H03 BLOCKED attempt is retained under the H02 session and does not affect this later successful run."
+    },
+    "physical_trace_2026_10_17_probe": {
+      "session": "2d899dbe5dcc42e6a5e6a020df941369",
+      "tested_signed_head": "6d8abb4a064ec9a32c726e23e279637e69d23af5",
+      "last_seq": 693,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "rotations": 0,
+      "operator_accepted_targets": [
+        "P01 probe",
+        "P03 probe",
+        "P04 probe"
+      ],
+      "p04_first_attempt": {
+        "controller_result": "BLOCKED",
+        "reason": "raise_z_before_probe_test",
+        "initial_z_mm": 2.964
+      },
+      "p04_second_attempt": {
+        "controller_result": "PASSED",
+        "initial_z_mm": 52.964,
+        "measured_z_mm": -0.025
+      },
+      "p03_measurement": {
+        "range_mm": 0.0175,
+        "standard_deviation_mm": 0.004644
+      },
+      "qualification": "User explicitly stated P01, P03 and P04 passed. Earlier P04 was blocked by a preflight-only low-Z guard; auto-lift improvement was not present or physically tested in this trace."
     }
   },
   "policy": {
@@ -1772,10 +1800,21 @@
       "title": "Probe trigger response",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Servo-deployed physical [probe], not a BLTouch. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Physical P-group test accepted on 2026-10-17 after operator reported PASS; source trace retained.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED",
+        "restore_verified": true,
+        "observation": "Operator explicitly confirmed P01 probe activation, released/triggered/released transitions and final deactivation passed on the real servo-probe.",
+        "tested_signed_head": "6d8abb4a064ec9a32c726e23e279637e69d23af5",
+        "trace": {
+          "session": "2d899dbe5dcc42e6a5e6a020df941369",
+          "last_seq": 693
+        }
+      }
     },
     {
       "feature_id": "P03",
@@ -1783,10 +1822,25 @@
       "title": "Probe repeatability",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Physical P-group test accepted on 2026-10-17 after operator reported PASS; source trace retained.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED",
+        "restore_verified": false,
+        "observation": "Operator explicitly confirmed P03 ten-sample probe repeatability passed on the real printer; the range and standard deviation are measured Klipper outputs, not independent accuracy metrology.",
+        "tested_signed_head": "6d8abb4a064ec9a32c726e23e279637e69d23af5",
+        "trace": {
+          "session": "2d899dbe5dcc42e6a5e6a020df941369",
+          "last_seq": 693
+        },
+        "measurement": {
+          "range_mm": 0.0175,
+          "standard_deviation_mm": 0.004644
+        }
+      }
     },
     {
       "feature_id": "P04",
@@ -1794,10 +1848,27 @@
       "title": "Single probe measurement",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Single probe measurement accepted after operator manually raised Z; automatic low-Z lift added later and awaits independent physical re-test.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED",
+        "restore_verified": false,
+        "observation": "Operator explicitly confirmed P04 single probe reading passed after manually lifting Z. An earlier attempt was BLOCKED at Z=2.964 mm, followed by successful measurement starting at Z=52.964 mm. The new automatic pre-lift procedure requires separate physical retest.",
+        "tested_signed_head": "6d8abb4a064ec9a32c726e23e279637e69d23af5",
+        "trace": {
+          "session": "2d899dbe5dcc42e6a5e6a020df941369",
+          "last_seq": 693
+        },
+        "measurement": {
+          "starting_z_mm": 52.964,
+          "measured_z_mm": -0.025,
+          "earlier_blocked_z_mm": 2.964,
+          "automatic_lift_physically_retested": false
+        }
+      }
     },
     {
       "feature_id": "P05",

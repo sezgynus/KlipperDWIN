@@ -2,10 +2,11 @@
 from collections.abc import Mapping
 import math
 import re
+from uuid import uuid4
 
 from maintenance_discovery import AUTOMATIC, USER, EXTERNAL, CALIBRATION
 from maintenance_workflow import FirmwareWorkflow, safe_name
-from maintenance_motion import number, vector
+from maintenance_motion import number, vector, modal, modes_match
 
 # Probe offset, all bed-mesh items and screws-tilt belong to Leveling.
 LEVELING_ONLY = frozenset(('P05','P07','P08','P09','P10','P11'))
@@ -51,6 +52,25 @@ class MaintenanceProbeController(FirmwareWorkflow):
         self._measured = set()
         self._p01_active = False
         self._p01_cancel_requested = False
+        self._p04_lift_mm = 0.
+
+    def _p04_lift_plan(self, values):
+        """Bounded, Z-only preparation before P04 probing near the bed."""
+        settings = self._printer.state.settings
+        if settings.get('printer', {}).get('kinematics') not in ('cartesian','corexy'):
+            raise ValueError('probe_lift_motion_profile_required')
+        if any(k in settings for k in ('dual_carriage','generic_cartesian','skew_correction')):
+            raise ValueError('probe_lift_transform_profile_required')
+        th = values['toolhead']
+        pos, low, high = (vector(th[k]) for k in
+                          ('position','axis_minimum','axis_maximum'))
+        minimum = max(5., low[2]+1.)
+        # Additional deploy clearance, bounded by the actual Z travel limits.
+        target = min(max(10.,low[2]+5.),high[2]-1.)
+        if target < minimum or target <= pos[2]+.001:
+            raise ValueError('probe_lift_insufficient_z_travel')
+        modal(values)   # The saved modal state must be readable and restorable.
+        return pos, target, target-pos[2]
 
     def _p01_hook(self, name):
         """Read the configured, exact Klipper G-code text; never infer servo settings."""
@@ -170,10 +190,14 @@ class MaintenanceProbeController(FirmwareWorkflow):
         self._stage, self._dimension, self._initial_force = 0, None, None
         self._measured = set()
         self._p01_active = self._p01_cancel_requested = False
+        self._p04_lift_mm = 0.
         return super().start(*args, **kwargs)
 
     def fields(self):
         fields = super().fields()
+        if self.feature_id == 'P04':
+            fields['gcode_move'] = ('position,homing_origin,speed,speed_factor,'
+                                    'extrude_factor,absolute_coordinates,absolute_extrude')
         names = set(self._printer.state.objects)
         for name in ('probe','bltouch','bed_screws','z_tilt','quad_gantry_level',
                      'bed_tilt','axis_twist_compensation','load_cell_probe'):
@@ -207,7 +231,10 @@ class MaintenanceProbeController(FirmwareWorkflow):
             if any(not math.isfinite(p) or not low[i]+1 <= p <= high[i]-1 for i,p in enumerate(xy)):
                 raise ValueError('probe_point_outside_safe_limits')
             if pos[2] < max(5.,low[2]+1):
-                raise ValueError('raise_z_before_probe_test')
+                if self.feature_id == 'P04' and action == 'start':
+                    self._p04_lift_plan(values)
+                else:
+                    raise ValueError('raise_z_before_probe_test')
         if self.feature_id == 'P19':
             th = values['toolhead']
             if vector(th['position'])[2] < 10:
@@ -246,7 +273,18 @@ class MaintenanceProbeController(FirmwareWorkflow):
         if f == 'P03':
             return 'PROBE_ACCURACY SAMPLES=10 SAMPLE_RETRACT_DIST=2'
         if f == 'P04':
-            return 'PROBE'
+            if action == 'start':
+                th = values['toolhead']
+                pos, low = vector(th['position']), vector(th['axis_minimum'])
+                if pos[2] < max(5.,low[2]+1.):
+                    _, target, distance = self._p04_lift_plan(values)
+                    token = '_PETREL_P04_'+uuid4().hex
+                    return ('SAVE_GCODE_STATE NAME='+token+'\nG91\nM220 S100\n'
+                            'G1 Z%.4f F300\nM400\n' % distance+
+                            'RESTORE_GCODE_STATE NAME='+token+' MOVE=0\nM400')
+            if action in ('start','probe'):
+                return 'PROBE'
+            raise ValueError('probe_action_invalid')
         if f == 'P06':
             return 'Z_ENDSTOP_CALIBRATE'
         if f == 'P12':
@@ -277,8 +315,30 @@ class MaintenanceProbeController(FirmwareWorkflow):
         raise ValueError('probe_workflow_unregistered')
 
     def completed(self, values, lines):
-        self._values = values
         f = self.feature_id
+        if f == 'P04' and self._action == 'start':
+            prior = self._values
+            th = prior['toolhead']
+            before, low = vector(th['position']), vector(th['axis_minimum'])
+            if before[2] < max(5.,low[2]+1.):
+                # A completed Z lift is not a completed probe. Verify position
+                # and modal restoration before a fresh, separately guarded PROBE.
+                try:
+                    _, target, distance = self._p04_lift_plan(prior)
+                    after = vector(values['toolhead']['position'])
+                    verified = (set('xyz') <= set(values['toolhead']['homed_axes'])
+                                and all(abs(a-b) <= .05 for a,b in zip(before[:2],after[:2]))
+                                and abs(after[2]-target) <= .05
+                                and modes_match(modal(prior),modal(values)))
+                except (ValueError,KeyError,TypeError):
+                    verified = False
+                if not verified:
+                    self._locked = True
+                    return self._finish('INCONCLUSIVE','probe_z_lift_readback_unverified')
+                self._p04_lift_mm = distance
+                accepted,reason = self._schedule('probe',True)
+                return None if accepted else self._finish('BLOCKED',reason)
+        self._values = values
         if self._action == 'abort':
             if values.get('manual_probe',{}).get('is_active') is True:
                 return self._finish('INCONCLUSIVE','manual_abort_unconfirmed')
@@ -317,6 +377,8 @@ class MaintenanceProbeController(FirmwareWorkflow):
             evidence = probe_measurement(f,lines)
             if not evidence:
                 return self._finish('INCONCLUSIVE','probe_numeric_result_missing')
+            if f == 'P04' and self._p04_lift_mm > 0:
+                evidence += (('preparation_z_lift_mm',round(self._p04_lift_mm,4)),)
             return self._finish('PASSED','probe_measurement_not_absolute_accuracy',evidence)
         if f == 'P02':
             # A tap capture completing successfully proves the requested tap;

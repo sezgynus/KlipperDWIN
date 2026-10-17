@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **39 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **42 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 39 KABUL, 17 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 42 KABUL, 14 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Kabul türleri:** Termal karakterizasyonda *test prosedürünün kabulü*, yazıcının termal performans kriterini geçmesi demek değildir. H07/H08 Extruder sonuçları `FAILED_METRIC` olarak korunur; doğru ölçüm ve güvenli tamamlanma sayesinde prosedürler kabul edilir.
 
@@ -45,7 +45,6 @@
 | [x] | M06 | `axis Z` | Haricî ölçümle eksen mesafesi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
 | [x] | M12 | `endstop_phase X` | Endstop phase kalibrasyonu | On homing, bekleyen 49/64 | **KABUL** |
 | [x] | M12 | `endstop_phase Y` | Endstop phase kalibrasyonu | On homing, bekleyen 33/64 | **KABUL** |
-
 | [x] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
 | [x] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
 | [x] | H05 | `extruder` | Isınma hızı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
@@ -61,17 +60,15 @@
 | [x] | H13 | `extruder` | Isıtıcı tepki uyarısı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
 | [x] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
 | [x] | H02 | `extruder` | Hotend PID kalibrasyonu | Klipper PID, katsayılar + OFF doğrulandı | **KABUL** |
-
 | [x] | H03 | `heater_bed` | Tabla PID kalibrasyonu | Klipper PID, katsayılar + OFF doğrulandı | **KABUL** |
+| [x] | P01 | `probe` | Prob tetikleme | Üç taze durum okuması; servo geri toplama tamamlandı | **KABUL** |
+| [x] | P03 | `probe` | Prob tekrarlanabilirliği | 10 ölçüm; aralık 0,0175 mm, σ=0,004644 mm | **KABUL** |
+| [x] | P04 | `probe` | Tek prob ölçümü | İlk düşük Z denemesi BLOCKED; Z kaldırılınca PASSED | **KABUL (ölçüm)** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-
-| [ ] | P01 | `probe` | Prob tetikleme | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | P04 | `probe` | Tek prob ölçümü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P05 | `probe Z-offset` | Prob Z-offset sihirbazı | Leveling’de; Maintenance dışında | **BEKLİYOR** |
 | [ ] | P07 | `bed_mesh (probe)` | Otomatik tabla mesh | Leveling’de; Maintenance dışında | **BEKLİYOR** |
 | [ ] | P08 | `bed_mesh (manual)` | Manuel tabla mesh | Leveling’de; Maintenance dışında | **BEKLİYOR** |
@@ -113,6 +110,9 @@
 | S18 / `pwm_cycle_time Buzzer` | Buzzer sesi duyuldu; Klipper PWM geri okuması yok. | `OBSERVED_USER` | `false` |
 | O03 / `output_pin case_light` | Kasa ışığı değişti; önceki raporlanan durumu doğrulandı. | `PASSED_USER` | `true` |
 | O04 / `neopixel mmu_leds` | Senkron kırmızı → yeşil → mavi → beyaz testi kullanıcı tarafından kabul edildi; önceki denemeler JSON geçmişinde korundu. | `OBSERVED_USER` (LCD sonucu ayrıca bildirilmedi) | `false` (ayrıca doğrulanmadı) |
+| P01 / `probe` | Kullanıcı açıkça üç durum geçişinin ve prob geri toplamasının çalıştığını doğruladı. | `PASSED` | `true` |
+| P03 / `probe` | Kullanıcı 10 ölçümlü testi kabul etti; aralık 0,0175 mm, σ 0,004644 mm. | `PASSED` | `false` (gerekli geri yükleme kanıtı yok) |
+| P04 / `probe` | İlk Z=2,964 mm denemesi BLOCKED; kullanıcı Z'yi 52,964 mm'ye kaldırdıktan sonra ölçüm −0,025 mm ile tamamlandı. Yeni otomatik Z yükseltme ayrıca fiziksel doğrulama bekliyor. | `PASSED` | `false` (Z konum geri yüklemesi iddia edilmez) |
 
 ## Sıradaki uygulama
 
@@ -191,4 +191,8 @@ sonucunu verdi. H03 fiziksel test prosedürü kabul edildi.
 `SAVE_CONFIG` çağrılmadı; kalıcı kaydetme doğrulanmadı.
 Önceki H03 BLOCKED denemesi geçmişte korunur.
 **Referans yazıcıda H grubunun 16/16 prosedürü kabul edildi.
-Güncel toplam: 62 kayıt, 39 KABUL, 17 BEKLİYOR, 5 KOŞULLU, 1 N/A.**
+Güncel toplam: 62 kayıt, 42 KABUL, 14 BEKLİYOR, 5 KOŞULLU, 1 N/A.**
+
+## P grubu fiziksel kabulü ve P04 hazırlığı (17 Ekim 2026)
+
+Kullanıcı P01, P03 ve P04'ün gerçek yazıcıda geçtiğini açıkça bildirdi. Trace `2d899dbe5dcc42e6a5e6a020df941369` (693 olay, 0 kayıp/yazma hatası) korunur. P04'ün eski kodunda Z=2,964 mm konumundaki ilk ön kontrol `raise_z_before_probe_test` ile BLOCKED olmuş, kullanıcı Z'yi 52,964 mm'ye yükselttikten sonra tek ölçüm başarıyla alınmıştır. Tek ölçüm prosedürü KABUL'dür; yeni otomatik Z kaldırma hazırlığı bu kayıt sırasında çalıştırılmamıştır ve ayrı fiziksel tekrar gerektirir.

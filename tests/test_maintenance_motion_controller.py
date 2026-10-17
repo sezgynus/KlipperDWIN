@@ -124,7 +124,7 @@ class MotionControllerTests(unittest.TestCase):
     def test_cancel_before_home_does_not_send_motion(self):
         self.prepare_unhomed()
         self.assertEqual(self.c.cancel().status,'ABORTED')
-        self.worker.drain()
+        self.assertFalse(self.worker.jobs)
         self.c.poll()
         self.assertEqual(self.commands,[])
 

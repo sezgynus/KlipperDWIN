@@ -80,14 +80,90 @@ class MotionControllerTests(unittest.TestCase):
         self.assertEqual(self.c.phase,'await_observation')
         self.assertEqual(self.c.observe(True).status,'PASSED_USER')
 
-    def test_unhomed_normal_move_reports_home_prerequisite_without_rpc(self):
+    def prepare_unhomed(self,feature='M05'):
         self.data['status']['toolhead'].update(homed_axes='',axis_minimum=[1.5,7.,-5.])
         self.data['status']['gcode_move']['position']=[0.,0.,0.,0.]
-        self.c.start('M05','stepper_x')
+        self.assertTrue(self.c.start(feature,'stepper_x')[0])
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+        self.assertEqual(self.c.phase,'await_confirmation')
+        self.assertTrue(self.c.preparing_home)
+        self.assertEqual(self.c.feature_id,feature)
+        self.assertEqual(self.commands,[])
+
+    def finish_preparatory_home(self):
+        self.data['status']['toolhead']['homed_axes']='xyz'
+        self.data['status']['gcode_move']['position']=[50.,50.,20.,0.]
+        self.verified()
+        # Preparation verification queues a fresh original-test preflight.
+        self.assertFalse(self.c.preparing_home)
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+
+    def test_unhomed_tests_home_once_after_consent_then_run_original(self):
+        for feature in ('M04','M05','M06','M12'):
+            with self.subTest(feature=feature):
+                self.setUp()
+                self.prepare_unhomed(feature)
+                self.clock+=10000  # user question has no deadline
+                self.assertIsNone(self.c.poll())
+                self.c.confirm()
+                self.worker.drain()
+                self.c.poll()
+                self.assertEqual(self.commands[0][1]['script'],'G28\nM400')
+                self.assertEqual(len(self.commands),1)
+                self.finish_preparatory_home()
+                self.assertEqual(self.c.phase,'running')
+                self.assertEqual(self.c.feature_id,feature)
+                self.assertEqual(len(self.commands),2)
+                self.assertNotIn('G28',self.commands[1][1]['script'])
+                self.assertTrue(self.c._homing_verified)
+
+    def test_cancel_before_home_does_not_send_motion(self):
+        self.prepare_unhomed()
+        self.assertEqual(self.c.cancel().status,'ABORTED')
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.commands,[])
+
+    def test_cancel_while_homing_uses_emergency_stop_without_test_dispatch(self):
+        self.prepare_unhomed()
+        self.c.confirm()
+        self.c.cancel()
+        result=self.c.poll()
+        self.assertEqual(result.status,'INCONCLUSIVE')
+        self.assertEqual([m for m,p in self.commands],
+                         ['printer.gcode.script','printer.emergency_stop'])
+
+    def test_failed_homing_never_starts_original_test(self):
+        self.prepare_unhomed()
+        self.c.confirm()
+        self.command.set_exception(ValueError('homing_failed'))
+        self.c.poll()
+        result=self.c.poll()
+        self.assertEqual(result.status,'INCONCLUSIVE')
+        self.assertEqual(len(self.commands),2)
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
+
+    def test_print_start_between_home_and_test_denies_original_dispatch(self):
+        self.prepare_unhomed()
+        self.c.confirm()
+        self.data['status']['toolhead']['homed_axes']='xyz'
+        self.data['status']['gcode_move']['position']=[50.,50.,20.,0.]
+        self.verified()
+        self.data['status']['print_stats']['state']='printing'
         self.worker.drain()
         result=self.c.poll()
-        self.assertEqual(result.reason,'home_xyz_before_motion_test')
-        self.assertEqual(self.commands,[])
+        self.assertEqual(result.status,'BLOCKED')
+        self.assertEqual(len(self.commands),1)
+
+    def test_already_homed_test_does_not_home_again(self):
+        self.arm()
+        self.c.confirm()
+        self.assertEqual(len(self.commands),1)
+        self.assertNotIn('G28',self.commands[0][1]['script'])
 
     def test_confirmation_at_2_9_seconds_does_not_shutdown_before_first_refresh(self):
         # Reproduce the physical trace: dispatch at 2.9 s, first poll at 3.12 s.

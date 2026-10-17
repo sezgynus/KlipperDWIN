@@ -1,4 +1,11 @@
 # Motion Maintenance
+
+## Required homing inside the selected test
+
+Trace `0f7da07e7fe6402985255baaeb09e8bf` on 17 October blocked M04/X before motion solely because the axes were unhomed. M04/M05/M06 and M12 now open homing preparation inside the same test owner when initial XYZ/phase history is missing. The UI explicitly asks `Home XYZ, then run test`, covering the clear path for both homing and the selected test. The existing guarded G28+M400 protocol and two fresh XYZ/mode readbacks finish before a new original-test preflight and dispatch guard continue without another start confirmation. Already-homed tests skip unnecessary homing. Preparation is attempted only once per test; failed motion is never replayed.
+
+Failed/cancelled homing never starts the original test; active cancellation requests emergency stop. Cold/OFF heaters, supported kinematics/commands, position bounds, enabled motors, Z clearance, mesh and lifecycle checks still apply after homing. A safe interior test position or cleared mesh is never assumed. M06 measurement/return never rehome; return retains separate consent. Diagnostic reads never initiate homing. Recording preserves the selected feature identity, preparation substage, homing RPC/readbacks and continuation separately. Implementation/CI grants no new physical acceptance.
+
 M07/M08/M09 (driver status/temperature/current), M11 (enable state),
 M12 (last homing phase), M13 (angle-driver temperature telemetry only),
 M14 (commanded toolhead state) and M16 (known carriage modes) are opt-in
@@ -30,7 +37,7 @@ M04 uses Klipper's 10-cycle 1 mm STEPPER_BUZZ only for primary Cartesian motors;
 independent multi-Z and coupled-motor buzzing are not admitted. M05 compiles a
 1 mm roundtrip at <=5 mm/s XY / <=1 mm/s Z. M06 compiles one 10 mm outbound
 move; a separately consented return requires the same measured-stop coordinate.
-No homing is silently added to a move. XYZ limits have 2 mm margins and XY
+Missing homing is completed inside the test after explicit preparation consent. XYZ limits have 2 mm margins and XY
 motion requires >=5 mm Z clearance. Loaded mesh/unknown transforms, carriage
 configurations and overridden protocol commands block rather than get disabled.
 Unique SAVE/RESTORE_GCODE_STATE with MOVE=0 preserves modal settings; M400
@@ -63,7 +70,7 @@ return/user observation passes this limited diagnostic; rotation_distance is
 never changed. This is user-reported measurement, not calibrated metrology.
 
 M12 uses existing Klipper homing history for one configured physical endstop
-stepper. It neither homes automatically nor invokes SAVE_CONFIG. Exact pending
+stepper. Missing axes/history trigger consented preparatory homing; SAVE_CONFIG is never invoked. Exact pending
 trigger_phase and preserved modes/position are required, followed by user
 observation. Outcome is OBSERVED_USER with restore_verified=false because
 pending calibration config is intentionally not rolled back. Existing pending
@@ -102,7 +109,7 @@ M03 after clearing the bed/homing path; then deliberately position the already
 homed carriage at an interior, raised, clear location through normal printer
 controls. M04/M05/M06 then run per X/Y/Z as supported, cooling heaters first.
 Keep primary motors enabled and clear the bed mesh yourself if the contract
-reports that requirement; the test does not clear compensation or home for you.
+reports that requirement; the test does not clear compensation. Missing homing is a consented preparation step.
 A mechanical clearance acknowledgment cannot prove geometry for arbitrary
 objects on the bed. Do not start a queued print or issue external motion while
 a test owns the printer. Local Petrel motion guards reject competing owned
@@ -139,7 +146,7 @@ M03 does not treat unhomed zero placeholders as measured physical positions.
 Finite/ordered configured limits, cold/OFF heaters, modes, overrides, lifecycle and
 separate user consent remain checked. Already-homed axes must remain in bounds.
 All XYZ homing, position and modal readbacks are verified after completion.
-Unhomed M04/M05/M06 return `home_xyz_before_motion_test`;
+In that historical build, unhomed M04/M05/M06 returned `home_xyz_before_motion_test`; current preparation converts this prerequisite into consented homing.
 M12 retains its axis/last_home checks.
 
 Retest M03 alone first. After completion, use the normal Move menu to place XYZ

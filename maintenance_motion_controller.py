@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from time import monotonic
 from urllib.parse import quote
 import uuid
+from maintenance_homing import begin_homing, poll_homing
 from maintenance_catalog import definition_for
 from maintenance_discovery import USER, EXTERNAL, CALIBRATION
 from maintenance_planner import AdapterRegistration, build_plan, visible_plan
@@ -50,6 +51,15 @@ class MaintenanceMotionController:
         self._confirm_attempts=0
         self._refresh_reason=None
         self._dispatch_guard_reason=None
+        self._homing=None
+        self._home_attempted=self._homing_verified=self._auto_continue=False
+
+    @property
+    def preparing_home(self):
+        return self._homing is not None
+    @property
+    def preparation_stage(self):
+        return self._homing.phase if self._homing is not None else ('homing_verified' if self._homing_verified else None)
 
     @property
     def refreshing_consent(self):
@@ -60,7 +70,7 @@ class MaintenanceMotionController:
         return self._phase is not None
     @property
     def phase(self):
-        return self._phase
+        return self._homing.phase if self._homing is not None else self._phase
     @property
     def feature_id(self):
         return self._row.feature_id if self._row else None
@@ -69,7 +79,7 @@ class MaintenanceMotionController:
         return bool(self._program and self._program.returning)
     @property
     def measurement_value(self):
-        return self._measurement if self._measurement is not None else abs(self._program.distance)
+        return self._measurement if self._measurement is not None else abs(self._program.distance) if self._program is not None else 0.
     @property
     def observation_prompt(self):
         return {'M03':'Homing completed safely?', 'M04':'Correct motor and return?',
@@ -78,6 +88,8 @@ class MaintenanceMotionController:
     @property
     def live_text(self):
         p=self._program
+        if self.preparing_home:
+            return ('Home XYZ, then selected test','Clear bed and homing path','Stop = Klipper shutdown')
         if self.refreshing_consent:
             return ('Refreshing safety data','Your confirmation is kept','Cancel to stop checks')
         if p is None:
@@ -136,6 +148,11 @@ class MaintenanceMotionController:
     def _prepare(self,returning):
         queue,values,stamp=self._read()
         token='_PETREL_M_'+uuid.uuid4().hex
+        axes=values.get('toolhead',{}).get('homed_axes')
+        if (not returning and not self._home_attempted and self.feature_id!='M03'
+                and isinstance(axes,str) and set(axes)<=set('xyz')
+                and not set('xyz')<=set(axes)):
+            raise ValueError('home_xyz_before_motion_test')
         program=(return_program(self._outward,self._printer.state,values,token)
                  if returning else compile_motion(self._row,self._printer.state,values,token))
         consent=self._consented_program
@@ -162,6 +179,8 @@ class MaintenanceMotionController:
         if row is None:
             return False,'motion_adapter_unavailable'
         self._row=row
+        self._homing=None
+        self._home_attempted=self._homing_verified=self._auto_continue=False
         self._consented_program=None
         self._confirm_attempts=0
         self._refresh_reason=None
@@ -170,6 +189,8 @@ class MaintenanceMotionController:
         self._evidence=()
         return self._preflight()
     def confirm(self):
+        if self._homing is not None:
+            return self._homing.confirm()
         if self.phase!='await_confirmation':
             return False,'not_waiting_for_motion_consent'
         self._confirm_attempts+=1
@@ -220,6 +241,8 @@ class MaintenanceMotionController:
         result=MotionResult(self.feature_id,self._row.device,status,reason,restored,self._evidence)
         self._phase=self._future=self._command=None
         self._consented_program=None
+        self._homing=None
+        self._auto_continue=False
         return result
     def _shutdown(self,reason):
         if self.phase!='stopping':
@@ -235,6 +258,17 @@ class MaintenanceMotionController:
                 self._stop=None
         return None
     def poll(self):
+        if self._homing is not None:
+            stage,result=poll_homing(self)
+            if stage=='failed':
+                self._blocked=result.status=='INCONCLUSIVE'
+                return self._finish(result.status,'preparation_'+result.reason)
+            if stage=='complete':
+                self._auto_continue=True
+                accepted,reason=self._preflight()
+                if not accepted:
+                    return self._finish('BLOCKED',reason)
+            return None
         now=monotonic()
         if self.phase=='stopping':
             if self._stop is not None and self._stop.done():
@@ -260,6 +294,15 @@ class MaintenanceMotionController:
                     raise ValueError('motion_guard_failed')
             except Exception as exc:
                 code=str(exc) if isinstance(exc,ValueError) else ''
+                if (code in ('home_xyz_before_motion_test','home_axis_before_phase_calibration',
+                             'axis_not_homed_for_phase') and not self._home_attempted
+                        and not self._return_requested and self.feature_id!='M03'):
+                    self._consented_program=None
+                    try:
+                        begin_homing(self)
+                    except Exception:
+                        return self._finish('BLOCKED','homing_preparation_unavailable')
+                    return None
                 safe_codes={
                     'motion_consent_context_changed',
                     'home_xyz_before_motion_test','move_away_from_axis_limits',
@@ -277,7 +320,8 @@ class MaintenanceMotionController:
             self._phase='await_confirmation'
             self._future=None
             self._deadline=min(now+3,queue.observed_at+3)
-            if self._consented_program is not None:
+            if self._consented_program is not None or self._auto_continue:
+                self._auto_continue=False
                 self._consented_program=None
                 self._dispatch()
             return None
@@ -376,6 +420,11 @@ class MaintenanceMotionController:
             return self._finish('FAILED_USER','external_travel_outside_0_2_mm',True)
         return self._finish('PASSED_USER' if seen else 'FAILED_USER','motion_user_observation_after_readback',True)
     def cancel(self):
+        if self._homing is not None:
+            result=self._homing.cancel()
+            if result is not None:
+                return self._finish(result.status,'preparation_'+result.reason)
+            return None
         if self.phase in ('running','verifying','stopping'):
             return self._shutdown('user_cancelled_motion')
         if self.pending:

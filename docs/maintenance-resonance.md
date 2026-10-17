@@ -15,3 +15,7 @@ After R02, explicitly save a mount baseline if wanted. R05 compares compatible f
 With belt_test true and CoreXY/CoreXZ geometry, R06 performs two separately consented diagonal measurements and reports peak frequencies and their ratio, never belt tension in Newtons. Keep all configured resonance-test points and diagonal paths clear. Firmware limits and natural input-shaper restoration remain in force.
 
 User choices never expire. Every dispatch refreshes queue/lifecycle safety; uncertain movement cancellation uses Klipper emergency_stop, without replay. No physical acceptance follows from CI.
+
+## Missing homing preparation
+
+A moving test no longer ends solely because XYZ is initially unhomed. Explicit `Home XYZ, then run test` consent starts shared guarded homing preparation; after two fresh XYZ/mode readbacks the same test automatically continues through fresh preflight. Failure/active cancellation never starts the original test. Read-only sensor/information tests do not home; excluded Leveling features remain excluded. Supported motion profiles, cold/OFF heaters, position/clearance and other safety conditions remain enforced.

@@ -209,6 +209,19 @@ class TestRecorder(unittest.TestCase):
         manifest,events = unpack(later)
         self.assertTrue(any(e['event']=='first' for e in events))
 
+    def test_preparatory_homing_keeps_original_feature_and_child_stage(self):
+        from maintenance_test_trace import owner_snapshot
+        child=SimpleNamespace(_phase='running',_row=SimpleNamespace(feature_id='M03'),
+                              _homing=None,phase='running')
+        owner=SimpleNamespace(_phase='homing_preparation',phase='running',
+            _homing=child,_row=SimpleNamespace(feature_id='M04',device='stepper_x'),
+            preparing_home=True,preparation_stage='running')
+        data=owner_snapshot(owner)
+        self.assertEqual(data['plan']['feature_id'],'M04')
+        self.assertEqual(data['phase'],'running')
+        self.assertEqual(data['preparation']['phase'],'running')
+        self.assertEqual(data['preparation']['plan']['feature_id'],'M03')
+
     def test_ui_logs_selected_row_parent_and_unexpected_list_return(self):
         self.arm()
         view = SimpleNamespace(checkkey=42,MaintenanceMenu=42,RecoveryScreen=43,
@@ -249,6 +262,19 @@ class TestRecorder(unittest.TestCase):
 
 
 class TestRecorderUI(unittest.TestCase):
+    def test_auto_homing_is_announced_before_any_motion(self):
+        from test_capabilities import display,snapshot
+        d=display(snapshot())
+        d._maintenance_page='pulse'
+        d.pd.maintenance_pulse=SimpleNamespace(
+            phase='await_confirmation',preparing_home=True,feature_id='M04')
+        title,rows=d._maintenance_rows()
+        self.assertEqual(title,'Prepare: home XYZ')
+        self.assertEqual(rows[1][0],'Home XYZ, then run test')
+        d.pd.maintenance_pulse.phase='running'
+        self.assertEqual(d._maintenance_rows()[0],'Homing for selected test')
+
+
     def test_start_stop_recording_menu_does_not_dispatch_any_test(self):
         from test_capabilities import display,snapshot
         d = display(snapshot())

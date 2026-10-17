@@ -101,6 +101,61 @@ class ProbeWorkflowTests(unittest.TestCase):
         self.worker.drain()
         return self.owner.poll()
 
+    def prepare_unhomed_motion(self):
+        from dataclasses import replace
+        from printer_state import PrinterState
+        from test_maintenance_motion import state_and_status
+        raw,values=state_and_status()
+        self.raw['settings'].update(raw.settings)
+        self.p.state=PrinterState.from_snapshot(self.raw)
+        self.p.maintenance.snapshot=replace(self.p.maintenance.snapshot,
+            config_marker=id(self.p.state.settings))
+        for key in ('gcode_move','stepper_enable','extruder','heater_bed'):
+            if key in values:
+                self.status[key]=copy.deepcopy(values[key])
+        self.status['toolhead'].update(values['toolhead'])
+        self.status['toolhead']['homed_axes']=''
+        self.raw['status'].update(copy.deepcopy(self.status))
+        p=patch('maintenance_motion_controller.monotonic',side_effect=lambda:self.clock)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def finish_preparation_home(self):
+        self.status['toolhead']['homed_axes']='xyz'
+        self.raw['status'].update(copy.deepcopy(self.status))
+        self.command.set_result('ok')
+        for _ in range(2):
+            self.clock+=.5
+            self.owner.poll()
+            self.worker.drain()
+            self.owner.poll()
+        self.assertFalse(self.owner.preparing_home)
+        self.worker.drain()
+        self.owner.poll()
+
+    def test_unhomed_probe_home_then_test_share_one_consent(self):
+        self.prepare_unhomed_motion()
+        self.owner.start('P04')
+        self.worker.drain()
+        self.owner.poll()
+        self.worker.drain()
+        self.owner.poll()
+        self.assertTrue(self.owner.preparing_home)
+        self.assertEqual(self.owner.feature_id,'P04')
+        self.assertEqual(self.commands,[])
+        self.owner.confirm()
+        self.assertEqual(self.commands[0][1]['script'],'G28\nM400')
+        self.finish_preparation_home()
+        self.assertEqual(self.owner.phase,'running')
+        self.assertEqual(self.commands[1][1]['script'],'PROBE')
+        self.assertEqual(len(self.commands),2)
+
+    def test_unhomed_read_only_probe_does_not_home(self):
+        self.status['toolhead']['homed_axes']=''
+        self.arm('P01')
+        self.assertFalse(self.owner.preparing_home)
+        self.assertEqual(self.commands,[])
+
     def test_entry_and_human_wait_never_dispatch_or_expire(self):
         self.arm()
         self.clock += 100000

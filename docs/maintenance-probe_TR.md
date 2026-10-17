@@ -17,3 +17,7 @@ Her seçim önce salt okunur ön kontrol yapar, ardından açık Start ister. So
 - P22 firmware sıcaklık kayması kalibrasyonuna Next/Complete sağlar. Isıtıcı başlatmaz; dışarıdan ısıtma kullanıcının kontrolündedir.
 
 Belirsiz aktif hareketin iptali Klipper emergency_stop ister. Firmware kalibrasyonu canlı kompanzasyonu değiştirebilir veya bekleyen konfigürasyon bırakabilir; akışı bitirmek geri alma iddiası değildir. CI fiziksel kabul kaydetmez. Testler yalnız imzalı branch HEAD üzerinde Driver Branch Regression ile çalışır.
+
+## Eksik homing hazırlığı
+
+XYZ hareketi gerektiren testlerin ilk ön kontrolünde eksenler home edilmemişse test yalnız bu nedenle sonlandırılmaz. `Home XYZ, then run test` onayından sonra ortak güvenlikli homing hazırlığı yürür; iki taze XYZ/mod okuması doğrulanınca aynı test yeni ön kontrolle otomatik devam eder. Hata/aktif iptal asıl testi başlatmaz. Bilgi/sensör okuma testleri homing yapmaz; Leveling'deki hariç tutulan özellikler bu değişiklikle Maintenance'a eklenmez. Hareket profili, soğuk/OFF ısıtıcılar, konum/açıklık ve diğer güvenlik koşulları korunur.

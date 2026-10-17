@@ -10,6 +10,7 @@ from urllib.parse import quote
 import math
 import re
 
+from maintenance_homing import begin_homing, poll_homing
 from maintenance_catalog import definition_for
 from maintenance_planner import AdapterRegistration, build_plan, visible_plan
 from maintenance_runtime import read_queue_evidence, live_safety_context
@@ -72,13 +73,25 @@ class FirmwareWorkflow:
         self._manual_position = None
         self._safety_future = None
         self._next_safety = 0.
+        self._homing=None
+        self._home_attempted=self._homing_verified=False
+
+    @property
+    def requires_homing(self):
+        return self.moving
+    @property
+    def preparing_home(self):
+        return self._homing is not None
+    @property
+    def preparation_stage(self):
+        return self._homing.phase if self._homing is not None else ('homing_verified' if self._homing_verified else None)
 
     @property
     def pending(self):
         return self._phase is not None
     @property
     def phase(self):
-        return self._phase
+        return self._homing.phase if self._homing is not None else self._phase
     @property
     def feature_id(self):
         return self._row.feature_id if self._row else None
@@ -136,7 +149,7 @@ class FirmwareWorkflow:
     def validate(self, values, action):
         settings = self._printer.state.settings
         idle_heaters(settings, values)
-        if self.moving:
+        if self.requires_homing:
             th = values.get('toolhead', {})
             if not set('xyz') <= set(th.get('homed_axes', '')):
                 raise ValueError('home_xyz_before_workflow')
@@ -194,6 +207,8 @@ class FirmwareWorkflow:
         if row is None:
             return False, 'workflow_adapter_unavailable'
         self._row, self._owned_manual, self._sent = row, False, False
+        self._homing=None
+        self._home_attempted=self._homing_verified=False
         self._safety_future = None
         self._next_safety = 0.
         self._evidence, self._lines, self._values = (), (), {}
@@ -207,6 +222,8 @@ class FirmwareWorkflow:
             return False, 'workflow_worker_rejected'
 
     def confirm(self):
+        if self._homing is not None:
+            return self._homing.confirm()
         if self.phase != 'await_confirmation':
             return False, 'workflow_not_waiting_for_consent'
         try:
@@ -219,6 +236,7 @@ class FirmwareWorkflow:
                                 restored, tuple(evidence or self._evidence)[:12])
         self._phase = self._future = self._command = None
         self._owned_manual = False
+        self._homing=None
         return result
 
     def _shutdown(self, reason):
@@ -239,6 +257,16 @@ class FirmwareWorkflow:
         return None
 
     def poll(self):
+        if self._homing is not None:
+            stage,result=poll_homing(self)
+            if stage=='failed':
+                self._locked=result.status=='INCONCLUSIVE'
+                return self._finish(result.status,'preparation_'+result.reason)
+            if stage=='complete':
+                accepted,reason=self._schedule(self._action,True)
+                if not accepted:
+                    return self._finish('BLOCKED',reason)
+            return None
         if self.phase in (None, 'await_confirmation', 'workflow', 'await_observation',
                           'measurement_edit'):
             return None
@@ -270,6 +298,13 @@ class FirmwareWorkflow:
                     raise ValueError('workflow_state_changed')
             except Exception as exc:
                 code = str(exc) if isinstance(exc, ValueError) and re.fullmatch(r'[a-z0-9_]{1,80}', str(exc)) else 'workflow_preflight_failed'
+                if (code=='home_xyz_before_workflow' and self._action=='start'
+                        and not self._home_attempted and self.requires_homing):
+                    try:
+                        begin_homing(self)
+                    except Exception:
+                        return self._finish('BLOCKED','homing_preparation_unavailable')
+                    return None
                 return self._finish('BLOCKED', code)
             self._queue, self._values, self._stamp = queue, values, stamp
             self._future = None
@@ -348,7 +383,7 @@ class FirmwareWorkflow:
             raw = self._printer.subscription.snapshot(include_settings=False)
             live = raw['status']['toolhead']
             prior = prepared.get('toolhead', {})
-            if self.moving:
+            if self.requires_homing:
                 return (live.get('homed_axes') == prior.get('homed_axes') and
                     all(abs(a-b) <= .05 for a,b in zip(
                         vector(live.get('position')), vector(prior.get('position')))))
@@ -375,6 +410,11 @@ class FirmwareWorkflow:
                             'firmware_result_user_observed_no_auto_save')
 
     def cancel(self):
+        if self._homing is not None:
+            result=self._homing.cancel()
+            if result is not None:
+                return self._finish(result.status,'preparation_'+result.reason)
+            return None
         if self.phase in ('running','verifying','stopping') and self.moving:
             return self._shutdown('user_cancelled_workflow')
         if self._owned_manual:

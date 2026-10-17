@@ -15,3 +15,7 @@ R02 sonrasında istenirse montaj referansı açık eylemle kaydedilir. R05 uyuml
 belt_test true ve CoreXY/CoreXZ geometrisinde R06, ayrı ayrı onaylanan iki çapraz ölçüm yapar; tepe frekanslarını ve oranını gösterir, Newton cinsinden kayış gerilimi üretmez. Yapılandırılmış bütün rezonans noktalarını ve çapraz hareket yollarını açık tutun. Firmware limitleri ve doğal input-shaper geri yüklemesi korunur.
 
 Kullanıcı seçimlerinin süresi dolmaz. Her dispatch kuyruk/bağlantı güvenliğini yeniler; belirsiz hareketin iptali tekrar gönderimsiz Klipper emergency_stop kullanır. CI fiziksel kabul değildir.
+
+## Eksik homing hazırlığı
+
+XYZ hareketi gerektiren testlerin ilk ön kontrolünde eksenler home edilmemişse test yalnız bu nedenle sonlandırılmaz. `Home XYZ, then run test` onayından sonra ortak güvenlikli homing hazırlığı yürür; iki taze XYZ/mod okuması doğrulanınca aynı test yeni ön kontrolle otomatik devam eder. Hata/aktif iptal asıl testi başlatmaz. Bilgi/sensör okuma testleri homing yapmaz; Leveling'deki hariç tutulan özellikler bu değişiklikle Maintenance'a eklenmez. Hareket profili, soğuk/OFF ısıtıcılar, konum/açıklık ve diğer güvenlik koşulları korunur.

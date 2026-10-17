@@ -93,6 +93,11 @@ class MaintenanceFilamentController(FirmwareWorkflow):
         return tuple(rows)
 
     @property
+    def requires_homing(self):
+        # Extruder/MMU/dryer operations do not move the printer XYZ axes.
+        return False
+
+    @property
     def moving(self):
         return self.feature_id in EXTRUSION or self.feature_id in ('E12','E14')
 

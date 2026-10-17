@@ -92,6 +92,21 @@ class FilamentWorkflowTests(unittest.TestCase):
         result = self.complete()
         self.assertEqual(result.status,'INCONCLUSIVE')
 
+    def test_extrusion_without_xyz_motion_does_not_require_xyz_homing(self):
+        from test_maintenance_motion import state_and_status
+        self.owner._row=SimpleNamespace(feature_id='E01',device=None)
+        raw,values=state_and_status()
+        self.raw['settings']['extruder']={'min_extrude_temp':170.,'max_temp':300.}
+        self.p.state=PrinterState.from_snapshot(self.raw)
+        values['manual_probe']={'is_active':False}
+        values['configfile']={'save_config_pending':False}
+        values['toolhead'].update(extruder='extruder',homed_axes='')
+        values['extruder']={'temperature':200.,'target':200.,'power':.2,'can_extrude':True}
+        self.assertFalse(self.owner.requires_homing)
+        self.owner.validate(values,'start')
+        self.assertFalse(self.owner.preparing_home)
+        self.assertEqual(self.commands,[])
+
     def test_extrusion_never_starts_with_unknown_active_tool_or_cold_heater(self):
         self.owner._row = SimpleNamespace(feature_id='E01',device=None)
         values = copy.deepcopy(self.status)

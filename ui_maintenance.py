@@ -70,6 +70,12 @@ class MaintenanceViewMixin:
                       for label, action in owner.workflow_choices),
                     *((text[:26], self.ICON_Info, None, None) for text in owner.live_text))
             if phase == 'await_confirmation':
+                if getattr(self.pd.maintenance_pulse,'preparing_home',False):
+                    return 'Prepare: home XYZ', (
+                        ('Cancel', self.ICON_Back, None, None),
+                        ('Home XYZ, then run test', self.ICON_Info, None, None),
+                        ('Clear bed and homing path', self.ICON_Info, None, None),
+                        ('Selected test follows home', self.ICON_Info, None, None))
                 # The physical controller owns the active feature identity;
                 # avoid calling multi-step tests a short pulse.
                 feature_id = getattr(self.pd.maintenance_pulse, 'feature_id', None)
@@ -139,6 +145,11 @@ class MaintenanceViewMixin:
                     ('Cancel processing', self.ICON_Back, None, None),
                     ('Processing result...', self.ICON_Info, None, None))
             if phase in ('preflight', 'running', 'verifying', 'f12_next_preflight'):
+                if getattr(self.pd.maintenance_pulse,'preparing_home',False):
+                    return 'Homing for selected test', (
+                        ('Cancel checks' if phase=='preflight' else 'Stop: Klipper shutdown', self.ICON_Back, None, None),
+                        ('Home XYZ / verify position', self.ICON_Info, None, None),
+                        ('Then run selected test', self.ICON_Info, None, None))
                 if phase == 'running' and getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12':
                     info = self.pd.maintenance_pulse.f12_status
                     if info:

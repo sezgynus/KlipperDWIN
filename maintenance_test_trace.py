@@ -181,6 +181,9 @@ def owner_snapshot(owner):
                 value = {f.name:getattr(value,f.name) for f in fields(value)}
             if value is not None:
                 out[key.lstrip('_')] = clean(value)
+        if getattr(owner,'_homing',None) is not None:
+            out['phase']=clean(owner.phase)
+            out['preparation']=owner_snapshot(owner._homing)
         row = getattr(owner,'_row',None)
         if row is not None:
             out['plan'] = {k:clean(getattr(row,k,None)) for k in
@@ -190,7 +193,7 @@ def owner_snapshot(owner):
             if value is not None:
                 out[key[1:]] = {k:clean(getattr(value,k,None)) for k in
                     ('target','duration','ceiling','min_temp','distance','axis','returning','deadline_s')}
-        for key in ('live_text','workflow_choices','f12_status','pwm_levels','measurement_value'):
+        for key in ('live_text','workflow_choices','f12_status','pwm_levels','measurement_value','preparing_home','preparation_stage'):
             try:
                 value = getattr(owner,key,None)
                 if value is not None:

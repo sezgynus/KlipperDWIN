@@ -17,3 +17,7 @@ Each selection runs read-only preflight first, then requires explicit Start. Eve
 - P22 provides Next/Complete for firmware temperature-drift calibration. It never starts a heater; external warming remains operator-controlled.
 
 Cancellation of an uncertain active movement requests Klipper emergency_stop. A firmware calibration may change live compensation or leave pending config; ending the workflow does not claim rollback. No physical acceptance is recorded by CI. Tests run only through Driver Branch Regression on the signed branch HEAD.
+
+## Missing homing preparation
+
+A moving test no longer ends solely because XYZ is initially unhomed. Explicit `Home XYZ, then run test` consent starts shared guarded homing preparation; after two fresh XYZ/mode readbacks the same test automatically continues through fresh preflight. Failure/active cancellation never starts the original test. Read-only sensor/information tests do not home; excluded Leveling features remain excluded. Supported motion profiles, cold/OFF heaters, position/clearance and other safety conditions remain enforced.

@@ -59,6 +59,9 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.profile_patch.start()
         self.addCleanup(self.profile_patch.stop)
 
+    prepare_unhomed_motion = probe_fixture.ProbeWorkflowTests.prepare_unhomed_motion
+    finish_preparation_home = probe_fixture.ProbeWorkflowTests.finish_preparation_home
+
     def arm_sensor(self,feature):
         self.assertTrue(self.owner.start(feature,'adxl345')[0])
         self.worker.drain()
@@ -70,6 +73,24 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertEqual(self.owner.phase,'analysis')
         self.worker.drain()
         return self.owner.poll()
+
+    def test_unhomed_resonance_homes_before_measurement(self):
+        self.raw['settings']['resonance_tester']={'probe_points':[[50.,50.,20.]]}
+        self.prepare_unhomed_motion()
+        self.client.url='http://127.0.0.1:7125'
+        self.owner.start('R02','adxl345')
+        self.worker.drain()
+        self.owner.poll()
+        self.worker.drain()
+        self.owner.poll()
+        self.assertTrue(self.owner.preparing_home)
+        self.assertEqual(self.commands,[])
+        self.owner.confirm()
+        self.assertEqual(self.commands[0][1]['script'],'G28\nM400')
+        self.finish_preparation_home()
+        self.assertEqual(self.owner.phase,'running')
+        self.assertTrue(self.commands[1][1]['script'].startswith('TEST_RESONANCES '))
+        self.assertEqual(len(self.commands),2)
 
     def test_real_accelerometer_vector_required(self):
         self.arm_sensor('R01')

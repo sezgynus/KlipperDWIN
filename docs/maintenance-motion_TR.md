@@ -1,4 +1,11 @@
 # Hareket Maintenance
+
+## Test içinde gerekli homing hazırlığı
+
+17 Ekim `0f7da07e7fe6402985255baaeb09e8bf` kaydında M04/X, yalnız eksenler home edilmediği için hareket göndermeden BLOCKED oldu. Artık M04/M05/M06 ve M12'nin başlangıç ön kontrolünde eksik XYZ/faz geçmişi varsa aynı test sahibi içinde homing hazırlığı açılır. UI `Home XYZ, then run test` diyerek hem homing hem seçilen test için boş-yol onayı alır. Mevcut güvenlikli G28+M400 protokolü ve iki taze XYZ/mod geri okuması tamamlanınca seçilen test yeni ön kontrol ve gönderim guard'ından geçerek ikinci başlangıç onayı istemeden devam eder. Zaten home edilmiş testte gereksiz homing yapılmaz. Aynı test içinde hazırlık yalnız bir kez denenir; hareket hatası tekrar oynatılmaz.
+
+Homing hata/iptalinde asıl test başlamaz; aktif iptal güvenlik durdurmasını kullanır. Homing sonrasında da soğuk/OFF ısıtıcı, desteklenen kinematik/komutlar, konum sınırları, motor etkinliği, Z açıklığı, mesh ve yaşam döngüsü kontrolleri korunur. Gerekli güvenli test konumu veya mesh temizliği otomatik varsayılmaz. M06'nın ölçüm ve dönüş aşamasında yeniden homing yapılmaz; dönüş kendi onayını korur. Tanılama okumaları homing başlatmaz. Logger seçilen test kimliğini, hazırlık alt aşamasını, homing RPC/okumalarını ve teste devamı ayrı kaydeder. Bu kod/CI değişikliği yeni fiziksel kabul vermez.
+
 M07/M08/M09 (sürücü durum/sıcaklık/akım), M11 (enable durumu),
 M12 (son homing fazı), M13 (yalnız angle sürücüsü sıcaklık telemetrisi),
 M14 (komutlanan toolhead durumu) ve M16 (bilinen carriage modları)
@@ -31,7 +38,7 @@ M04 yalnız ana Cartesian motorlarda Klipper'ın 10 çevrimlik 1 mm STEPPER_BUZZ
 komutunu kullanır; bağımsız çoklu Z ve bağlı motor buzzing kabul edilmez.
 M05 en çok 5 mm/sn XY / 1 mm/sn Z ile 1 mm gidip dönme derler. M06 tek
 10 mm ileri hareket derler; ayrı onaylı dönüş aynı ölçüm durağı konumunu ister.
-Hareket öncesine gizlice homing eklenmez. XYZ sınırlarında 2 mm pay; XY için
+Eksik homing, açık hazırlık onayından sonra testin içinde tamamlanır. XYZ sınırlarında 2 mm pay; XY için
 en az 5 mm Z açıklığı gerekir. Yüklü mesh/bilinmeyen dönüşüm, carriage ve
 override edilmiş protokol komutları kapatılmak yerine testi engeller.
 Benzersiz SAVE/RESTORE_GCODE_STATE MOVE=0 modal ayarları korur; M400 hareket
@@ -64,7 +71,7 @@ geçirir; rotation_distance değişmez. Bu kullanıcı bildirimi ölçümüdür;
 kalibre metroloji iddiası değildir.
 
 M12 bir yapılandırılmış fiziksel endstop stepper'ı için mevcut Klipper homing
-geçmişini kullanır. Otomatik homing ve SAVE_CONFIG yoktur. Tam hedefin bekleyen
+geçmişini kullanır. Eksen/geçmiş eksikse önce onaylı homing yapılır; SAVE_CONFIG yoktur. Tam hedefin bekleyen
 trigger_phase sonucu, korunmuş mod/konum ve sonra kullanıcı gözlemi gerekir.
 Bekleyen kalibrasyon config'i bilerek geri alınmadığı için sonuç OBSERVED_USER,
 restore_verified=false olur. Önceden bekleyen config başlangıcı engeller.
@@ -102,7 +109,7 @@ yatağı/homing yolunu boşalttıktan sonra M03; ardından normal yazıcı kontr
 homing yapılmış arabayı iç, yükseltilmiş, yolu boş bir konuma bilinçli getir.
 Isıtıcıları soğutarak desteklenen X/Y/Z için M04/M05/M06'yı sırayla uygula.
 Ana motorları açık tut; sözleşme mesh temizliği istiyorsa bunu kendin yönet.
-Test kompanzasyonu temizlemez, senin yerine ön homing yapmaz.
+Test kompanzasyonu temizlemez; eksik homing'i açık onayla hazırlık aşamasında tamamlar.
 Boş alan onayı, yataktaki rastgele nesnelerin geometrisini otomatik kanıtlamaz.
 Test yazıcının sahibiyken kuyruktan baskı/harici hareket başlatma. Yerel Petrel
 hareket guard'ları rakip sahipli işlemleri reddeder; bu yazılım rezervasyonu
@@ -140,7 +147,7 @@ yapılandırılmış sonlu/artan sınırlar, soğuk/OFF ısıtıcılar, modlar, 
 yaşam döngüsü ve ayrı kullanıcı onayı hâlâ denetlenir.
 Zaten home edilmiş eksenlerin konumu sınır içinde olmalıdır.
 Homing sonrası tüm XYZ, konum ve modal geri okumaları doğrulanır.
-M04/M05/M06 home yapılmamışsa `home_xyz_before_motion_test` verir;
+Bu eski kayıtta M04/M05/M06 home yapılmamışsa `home_xyz_before_motion_test` veriyordu; güncel hazırlık akışı bunu onaylı homing'e çevirir.
 M12'nin kendi eksen/last_home denetimleri korunur.
 
 Yeniden testte önce yalnız M03'ü çalıştırın. Tamamlandıktan sonra normal Move menüsüyle

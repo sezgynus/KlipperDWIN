@@ -58,7 +58,17 @@ izlenir. Klipper'ın normal hedef salınımı (hedef veya hedef eksi 5 C) kabul
 edilir; ilgisiz hedef değişimi reddedilir. Program sona OFF ekler.
 Başarılı RPC, tam ilgili ısıtıcı için yeni bekleyen pozitif/sonlu Kp/Ki/Kd,
 iki sıfır hedef/sıfır görev oranı örneği ve açık kullanıcı gözlemi birlikte gerekir.
-PID katsayıları Klipper'da bekler; Petrel SAVE_CONFIG çağırmaz.
+Petrel, Klipper'ın `save_config_pending_items` nesnesinde büyük/küçük
+harfe duyarlı `pid_Kp`, `pid_Ki`, `pid_Kd` alanlarını ilgili ısıtıcının
+tam bölüm adında (`extruder`, `heater_bed` veya `heater_generic NAME`)
+okur. LCD/geçmiş kanıt adları uyumluluk için `pid_kp`, `pid_ki`,
+`pid_kd` kalır. Bu üç sayısal değer yoksa başarılı Klipper komutu bile
+PID arızası değil, INCONCLUSIVE doğrulama sonucudur. PID katsayıları
+Klipper'da bekler; Petrel SAVE_CONFIG çağırmaz. Önceki testten kaydedilmemiş
+ayarlar varken sonraki PID testi `existing_or_unknown_pending_config`
+nedeniyle BLOCKED kalır. Kullanıcı önce bu değişiklikleri bilinçli olarak
+kaydetmeli veya iptal edip uygun biçimde yeniden başlatmalıdır;
+Petrel bekleyen ayarların üzerine sessizce yazmaz.
 Sabit beklemeli testlerden farklı olarak PID süresini Klipper autotune belirler.
 Petrel kapanırsa host izlemesi kaybolur; kalibrasyonu gözetimsiz bırakmayın.
 İptal veya teknik hata acil shutdown ister; otomatik tekrar yoktur.

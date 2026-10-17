@@ -330,7 +330,13 @@ class MaintenanceHeaterController:
                 if not self._safe(evidence):
                     raise ValueError('thermal_safety_denied')
                 self._series.add(point)
-            except Exception:
+            except Exception as exc:
+                # This known, read-only Klipper admission failure should be
+                # distinguishable from a cold/unsafe heater. Do not leak
+                # arbitrary exception text or relax the pending-config guard.
+                if (isinstance(exc, ValueError) and
+                        str(exc) == 'existing_or_unknown_pending_config'):
+                    return self._finish('BLOCKED', 'existing_or_unknown_pending_config')
                 return self._finish('BLOCKED', 'cold_idle_thermal_preflight_required')
             self._queue, self._contract = evidence, c
             self._future = None

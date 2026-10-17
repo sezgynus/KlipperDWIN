@@ -204,7 +204,10 @@ def pid_evidence(config, device):
     if not isinstance(values, Mapping) or values.get('control') != 'pid':
         return ()
     result = []
-    for key in ('pid_kp', 'pid_ki', 'pid_kd'):
+    # Klipper ConfigAutoSave.set() preserves option case in
+    # save_config_pending_items: pid_Kp / pid_Ki / pid_Kd.
+    # Use lowercase *only* for our existing LCD/report evidence labels.
+    for key in ('pid_Kp', 'pid_Ki', 'pid_Kd'):
         value = values.get(key)
         if type(value) not in (int, float, str):
             return ()
@@ -214,5 +217,5 @@ def pid_evidence(config, device):
             return ()
         if not math.isfinite(value) or value <= 0:
             return ()
-        result.append((key, value))
+        result.append((key.lower(), value))
     return tuple(result)

@@ -60,7 +60,16 @@ autotune. Normal Klipper target oscillation (target or target minus 5 C) is
 accepted; unrelated target changes are rejected. A script appends OFF.
 Successful RPC, newly pending positive finite Kp/Ki/Kd for the exact heater,
 two zero-target/zero-duty samples and explicit observation are all required.
-PID coefficients remain pending in Klipper; Petrel never invokes SAVE_CONFIG.
+Petrel reads Klipper's case-sensitive `save_config_pending_items` entries
+`pid_Kp`, `pid_Ki`, `pid_Kd` for that heater's full config section name
+(`extruder`, `heater_bed`, or `heater_generic NAME`). LCD/history metric
+labels stay `pid_kp`, `pid_ki`, `pid_kd` for compatibility. A successful
+Klipper RPC without these three numeric values is still INCONCLUSIVE, not
+PID failure. PID coefficients remain pending in Klipper; Petrel never invokes
+SAVE_CONFIG. A later PID test remains BLOCKED with
+`existing_or_unknown_pending_config` until the operator intentionally
+saves or discards prior pending settings and restarts as appropriate; Petrel
+must not silently overwrite those settings.
 Unlike the fixed dwell tests, PID duration is controlled by Klipper's autotune.
 If Petrel exits, host monitoring is lost; do not leave calibration unattended.
 Cancel or technical failure requests emergency shutdown; no automatic retry.

@@ -380,6 +380,54 @@
           "acceptance": null
         }
       ]
+    },
+    "physical_trace_2026_10_17_thermal_group": {
+      "session": "58240fb38284486dbb6cbdd3d45f6358",
+      "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+      "events": 1830,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "rotations": 0,
+      "accepted_procedures_per_target": 14,
+      "heating_cooling_runs": 2,
+      "operator_confirmed": true,
+      "restore_verified": true,
+      "scope": "H01/H05/H06/H07/H08/H09/H13, per extruder and heater_bed; 14 independent procedure acceptances from two single-cycle runs",
+      "exception": "Extruder H07 and H08 retain FAILED_METRIC (7.72 C overshoot and 6.69 C peak-to-peak stability); only measurement procedure is accepted.",
+      "runs": [
+        {
+          "device": "extruder",
+          "run": 1,
+          "observe_seq": 792,
+          "result_seq": 794,
+          "parent_result": "FAILED_METRIC",
+          "subresults": {
+            "H01": "PASSED_USER",
+            "H05": "PASSED_USER",
+            "H06": "PASSED_USER",
+            "H07": "FAILED_METRIC",
+            "H08": "FAILED_METRIC",
+            "H09": "PASSED_USER",
+            "H13": "PASSED_USER"
+          }
+        },
+        {
+          "device": "heater_bed",
+          "run": 2,
+          "observe_seq": 1660,
+          "result_seq": 1662,
+          "parent_result": "PASSED_USER",
+          "subresults": {
+            "H01": "PASSED_USER",
+            "H05": "PASSED_USER",
+            "H06": "PASSED_USER",
+            "H07": "PASSED_USER",
+            "H08": "PASSED_USER",
+            "H09": "PASSED_USER",
+            "H13": "PASSED_USER"
+          }
+        }
+      ]
     }
   },
   "policy": {
@@ -506,10 +554,42 @@
       "title": "Heater warmup",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H01 measurement procedure from one Thermal Characterization heating/cooling run on extruder, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "rise_c",
+          "value": 38.8,
+          "samples": 120,
+          "span_s": 153.57
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 1,
+          "observe_seq": 792,
+          "result_seq": 794
+        },
+        "run_id": "thermal_characterization_1",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H01",
@@ -517,10 +597,42 @@
       "title": "Heater warmup",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H01 measurement procedure from one Thermal Characterization heating/cooling run on heater_bed, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "rise_c",
+          "value": 17.89,
+          "samples": 119,
+          "span_s": 153.56
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 2,
+          "observe_seq": 1660,
+          "result_seq": 1662
+        },
+        "run_id": "thermal_characterization_2",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H02",
@@ -550,10 +662,42 @@
       "title": "Heating rate",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H05 measurement procedure from one Thermal Characterization heating/cooling run on extruder, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "heating_c_per_s",
+          "value": 0.2649,
+          "samples": 120,
+          "span_s": 153.57
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 1,
+          "observe_seq": 792,
+          "result_seq": 794
+        },
+        "run_id": "thermal_characterization_1",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H05",
@@ -561,10 +705,42 @@
       "title": "Heating rate",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H05 measurement procedure from one Thermal Characterization heating/cooling run on heater_bed, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "heating_c_per_s",
+          "value": 0.1501,
+          "samples": 119,
+          "span_s": 153.56
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 2,
+          "observe_seq": 1660,
+          "result_seq": 1662
+        },
+        "run_id": "thermal_characterization_2",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H06",
@@ -572,10 +748,42 @@
       "title": "Time to target",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H06 measurement procedure from one Thermal Characterization heating/cooling run on extruder, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "time_to_target_s",
+          "value": 15.53,
+          "samples": 120,
+          "span_s": 153.57
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 1,
+          "observe_seq": 792,
+          "result_seq": 794
+        },
+        "run_id": "thermal_characterization_1",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H06",
@@ -583,10 +791,42 @@
       "title": "Time to target",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H06 measurement procedure from one Thermal Characterization heating/cooling run on heater_bed, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "time_to_target_s",
+          "value": 55.87,
+          "samples": 119,
+          "span_s": 153.56
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 2,
+          "observe_seq": 1660,
+          "result_seq": 1662
+        },
+        "run_id": "thermal_characterization_2",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H07",
@@ -594,10 +834,42 @@
       "title": "Temperature overshoot",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "FAILED_METRIC",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H07 measurement procedure on extruder; measured thermal performance did not meet the criterion. Procedure acceptance does not convert FAILED_METRIC to PASS.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": false,
+        "measurement": {
+          "name": "overshoot_c",
+          "value": 7.72,
+          "samples": 120,
+          "span_s": 153.57
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 1,
+          "observe_seq": 792,
+          "result_seq": 794
+        },
+        "run_id": "thermal_characterization_1",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H07",
@@ -605,10 +877,42 @@
       "title": "Temperature overshoot",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H07 measurement procedure from one Thermal Characterization heating/cooling run on heater_bed, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "overshoot_c",
+          "value": 1.3,
+          "samples": 119,
+          "span_s": 153.56
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 2,
+          "observe_seq": 1660,
+          "result_seq": 1662
+        },
+        "run_id": "thermal_characterization_2",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H08",
@@ -616,10 +920,42 @@
       "title": "Temperature stability",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "FAILED_METRIC",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H08 measurement procedure on extruder; measured thermal performance did not meet the criterion. Procedure acceptance does not convert FAILED_METRIC to PASS.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": false,
+        "measurement": {
+          "name": "stability_peak_to_peak_c",
+          "value": 6.69,
+          "samples": 120,
+          "span_s": 153.57
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 1,
+          "observe_seq": 792,
+          "result_seq": 794
+        },
+        "run_id": "thermal_characterization_1",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H08",
@@ -627,10 +963,42 @@
       "title": "Temperature stability",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H08 measurement procedure from one Thermal Characterization heating/cooling run on heater_bed, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "stability_peak_to_peak_c",
+          "value": 0.52,
+          "samples": 119,
+          "span_s": 153.56
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 2,
+          "observe_seq": 1660,
+          "result_seq": 1662
+        },
+        "run_id": "thermal_characterization_2",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H09",
@@ -638,10 +1006,42 @@
       "title": "Cooling rate",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H09 measurement procedure from one Thermal Characterization heating/cooling run on extruder, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "cooling_c_per_s",
+          "value": -0.1666,
+          "samples": 120,
+          "span_s": 153.57
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 1,
+          "observe_seq": 792,
+          "result_seq": 794
+        },
+        "run_id": "thermal_characterization_1",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H09",
@@ -649,10 +1049,42 @@
       "title": "Cooling rate",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H09 measurement procedure from one Thermal Characterization heating/cooling run on heater_bed, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "cooling_c_per_s",
+          "value": -0.053,
+          "samples": 119,
+          "span_s": 153.56
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 2,
+          "observe_seq": 1660,
+          "result_seq": 1662
+        },
+        "run_id": "thermal_characterization_2",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H13",
@@ -660,10 +1092,42 @@
       "title": "Heater response warning",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented limited normal heating response; never induces thermal runaway. Pending final operator batch acceptance.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H13 measurement procedure from one Thermal Characterization heating/cooling run on extruder, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "rise_c",
+          "value": 38.8,
+          "samples": 120,
+          "span_s": 153.57
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 1,
+          "observe_seq": 792,
+          "result_seq": 794
+        },
+        "run_id": "thermal_characterization_1",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H13",
@@ -671,10 +1135,42 @@
       "title": "Heater response warning",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented limited normal heating response; never induces thermal runaway. Pending final operator batch acceptance.",
-      "acceptance": null
+      "note": "Thermal Characterization procedure physically accepted after one bounded heating/cooling run and verified OFF. Printer performance criteria are retained independently; CI is not physical acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted the H13 measurement procedure from one Thermal Characterization heating/cooling run on heater_bed, with observed OFF restoration and independent metric result.",
+        "procedure_accepted": true,
+        "performance_criterion_passed": true,
+        "measurement": {
+          "name": "rise_c",
+          "value": 17.89,
+          "samples": 119,
+          "span_s": 153.56
+        },
+        "trace": {
+          "session": "58240fb38284486dbb6cbdd3d45f6358",
+          "head": "115e392c348292ab5d6bcf57bcde27874c359536",
+          "run": 2,
+          "observe_seq": 1660,
+          "result_seq": 1662
+        },
+        "run_id": "thermal_characterization_2",
+        "grouped_features": [
+          "H01",
+          "H05",
+          "H06",
+          "H07",
+          "H08",
+          "H09",
+          "H13"
+        ]
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H15",

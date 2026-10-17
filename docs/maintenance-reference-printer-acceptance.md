@@ -6,9 +6,11 @@
 
 **Evidence boundary:** the independent 121-ID hardware reference from 15 Oct 2026, the 16 Oct 2026 discovery log and explicit user observations. The log confirms **54 discovered features**, but no serialized list of their exact IDs was preserved. Here, `confirmed` means confirmed by the independent capability reference, **not** an exact complete dump of the 54 currently observed IDs. `conditional` entries are not currently authorized, discoverable test commands.
 
-**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Twenty-three** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
+**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Thirty-seven** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **62 rows / 46 IDs** — 23 ACCEPTED, 33 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+**Per-device tracking:** **62 rows / 46 IDs** — 37 ACCEPTED, 19 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+
+**Acceptance semantics:** For grouped thermal characterization, acceptance certifies that the *test procedure* worked; it does not mean the printer met every thermal performance threshold. Extruder H07/H08 remain `FAILED_METRIC` and are never rewritten to PASS.
 
 **Mandatory after each user-approved test:** set only that target's JSON `status` to `accepted`; record date, operator observation, controller outcome and `restore_verified` in `acceptance`; check only the corresponding target in both EN/TR tables in the same signed commit. Add relevant regressions; verify the full CI suite on the **bot-signed HEAD**. Never mark an item done because of a config line, HTTP success, G-code OK, simulated CI or an informational read. Never merge `master` without explicit request.
 
@@ -44,26 +46,27 @@
 | [x] | M12 | `endstop_phase X` | Endstop phase calibration | Ten homings, pending 49/64 | **ACCEPTED** |
 | [x] | M12 | `endstop_phase Y` | Endstop phase calibration | Ten homings, pending 33/64 | **ACCEPTED** |
 
+| [x] | H01 | `extruder` | Heater warmup | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H01 | `heater_bed` | Heater warmup | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H05 | `extruder` | Heating rate | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H05 | `heater_bed` | Heating rate | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H06 | `extruder` | Time to target | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H06 | `heater_bed` | Time to target | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H07 | `extruder` | Temperature overshoot | Single cycle; OFF verified | **ACCEPTED (procedure; FAILED_METRIC)** |
+| [x] | H07 | `heater_bed` | Temperature overshoot | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H08 | `extruder` | Temperature stability | Single cycle; OFF verified | **ACCEPTED (procedure; FAILED_METRIC)** |
+| [x] | H08 | `heater_bed` | Temperature stability | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H09 | `extruder` | Cooling rate | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H09 | `heater_bed` | Cooling rate | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H13 | `extruder` | Heater response warning | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+| [x] | H13 | `heater_bed` | Heater response warning | Single cycle; OFF verified | **ACCEPTED (procedure)** |
+
 ## Reference-confirmed hardware — adapter/acceptance pending
 
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
-| [ ] | H01 | `extruder` | Heater warmup | Available; batch acceptance pending | **PENDING** |
-| [ ] | H01 | `heater_bed` | Heater warmup | Available; batch acceptance pending | **PENDING** |
 | [ ] | H02 | `extruder` | Extruder PID calibration | Available; batch acceptance pending | **PENDING** |
 | [ ] | H03 | `heater_bed` | Bed PID calibration | Available; batch acceptance pending | **PENDING** |
-| [ ] | H05 | `extruder` | Heating rate | Available; batch acceptance pending | **PENDING** |
-| [ ] | H05 | `heater_bed` | Heating rate | Available; batch acceptance pending | **PENDING** |
-| [ ] | H06 | `extruder` | Time to target | Available; batch acceptance pending | **PENDING** |
-| [ ] | H06 | `heater_bed` | Time to target | Available; batch acceptance pending | **PENDING** |
-| [ ] | H07 | `extruder` | Temperature overshoot | Available; batch acceptance pending | **PENDING** |
-| [ ] | H07 | `heater_bed` | Temperature overshoot | Available; batch acceptance pending | **PENDING** |
-| [ ] | H08 | `extruder` | Temperature stability | Available; batch acceptance pending | **PENDING** |
-| [ ] | H08 | `heater_bed` | Temperature stability | Available; batch acceptance pending | **PENDING** |
-| [ ] | H09 | `extruder` | Cooling rate | Available; batch acceptance pending | **PENDING** |
-| [ ] | H09 | `heater_bed` | Cooling rate | Available; batch acceptance pending | **PENDING** |
-| [ ] | H13 | `extruder` | Heater response warning | Available; batch acceptance pending | **PENDING** |
-| [ ] | H13 | `heater_bed` | Heater response warning | Available; batch acceptance pending | **PENDING** |
 | [ ] | P01 | `probe` | Probe trigger response | Ready; physical acceptance pending | **PENDING** |
 | [ ] | P03 | `probe` | Probe repeatability | Ready; physical acceptance pending | **PENDING** |
 | [ ] | P04 | `probe` | Single probe measurement | Ready; physical acceptance pending | **PENDING** |
@@ -142,3 +145,19 @@ M10 only reads TMC2208 drv_status fault/thermal warning flags; no motion, load t
 **M10 reserved ID (17 October 2026):** M10 was misclassified as a Self Test and is now hidden and unused, without renumbering any other ID. Driver fault reporting is available as read-only M07 Diagnostics with no motor-health PASS. Prior invalidated M10 X/Y/Z observations and the pending extruder row are preserved in the JSON historical archive; no M10 rows remain in the active acceptance tracker. Current totals: 66 rows, 23 accepted, 37 pending, 5 conditional, 1 N/A.
 
 **M07 removed from physical acceptance tracking (17 October 2026):** The four M07 X/Y/Z/Extruder entries are information-only Diagnostics, not physical Self Tests, and have been removed from the active hardware acceptance table. JSON `evidence.m07_informational_diagnostics` preserves the direct `DRV_STATUS` read evidence, user validation and the four historical pending entries. No new hardware PASS was awarded; all 23 existing acceptances and M12 evidence remain unchanged. Current total: **62 rows / 46 IDs — 23 ACCEPTED, 33 PENDING, 5 CONDITIONAL, 1 N/A.**
+
+**Thermal characterization procedure acceptance (17 October 2026):** Session
+`58240fb38284486dbb6cbdd3d45f6358`, signed HEAD `115e392`.
+1,830 consecutive events, zero dropped/write errors/shutdowns.
+Extruder single cycle run 1, observation #792, result #794; bed
+single cycle run 2, observation #1660, result #1662. Both finished
+with heater OFF/zero duty/cooling proof (`restore_verified=true`).
+The operator explicitly approved **14 measurement procedures**
+(H01/H05/H06/H07/H08/H09/H13 for each heater) from these two
+physical runs. Extruder **H07 = 7.72 C overshoot** and
+**H08 = 6.69 C stability fluctuation** remain `FAILED_METRIC`:
+performance criteria were not met, while the procedures were
+correctly exercised and accepted. Bed metrics were 7/7, extruder
+metrics 5/7. H02/H03 PID remain pending physical acceptance.
+**Current totals: 62 rows / 46 IDs — 37 ACCEPTED, 19 PENDING,
+5 CONDITIONAL, 1 N/A.**

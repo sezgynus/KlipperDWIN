@@ -6,9 +6,11 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **23 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **37 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 23 KABUL, 33 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 37 KABUL, 19 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+
+**Kabul türleri:** Termal karakterizasyonda *test prosedürünün kabulü*, yazıcının termal performans kriterini geçmesi demek değildir. H07/H08 Extruder sonuçları `FAILED_METRIC` olarak korunur; doğru ölçüm ve güvenli tamamlanma sayesinde prosedürler kabul edilir.
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -44,26 +46,27 @@
 | [x] | M12 | `endstop_phase X` | Endstop phase kalibrasyonu | On homing, bekleyen 49/64 | **KABUL** |
 | [x] | M12 | `endstop_phase Y` | Endstop phase kalibrasyonu | On homing, bekleyen 33/64 | **KABUL** |
 
+| [x] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H05 | `extruder` | Isınma hızı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H05 | `heater_bed` | Isınma hızı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H06 | `extruder` | Hedef sıcaklığa ulaşma süresi | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H06 | `heater_bed` | Hedef sıcaklığa ulaşma süresi | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H07 | `extruder` | Sıcaklık aşımı | Tek döngü; OFF doğrulandı | **KABUL (prosedür; FAILED_METRIC)** |
+| [x] | H07 | `heater_bed` | Sıcaklık aşımı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H08 | `extruder` | Sıcaklık kararlılığı | Tek döngü; OFF doğrulandı | **KABUL (prosedür; FAILED_METRIC)** |
+| [x] | H08 | `heater_bed` | Sıcaklık kararlılığı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H09 | `extruder` | Soğuma hızı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H09 | `heater_bed` | Soğuma hızı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H13 | `extruder` | Isıtıcı tepki uyarısı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H02 | `extruder` | Hotend PID kalibrasyonu | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H03 | `heater_bed` | Tabla PID kalibrasyonu | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H05 | `extruder` | Isınma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H05 | `heater_bed` | Isınma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H06 | `extruder` | Hedef sıcaklığa ulaşma süresi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H06 | `heater_bed` | Hedef sıcaklığa ulaşma süresi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H07 | `extruder` | Sıcaklık aşımı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H07 | `heater_bed` | Sıcaklık aşımı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H08 | `extruder` | Sıcaklık kararlılığı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H08 | `heater_bed` | Sıcaklık kararlılığı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H09 | `extruder` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H09 | `heater_bed` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H13 | `extruder` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | P01 | `probe` | Prob tetikleme | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P04 | `probe` | Tek prob ölçümü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -142,3 +145,19 @@ M10 yalnız TMC2208 drv_status hata/sıcaklık uyarı bayraklarını okur; harek
 **M10 ayrılmış ID (17 Ekim 2026):** M10, yanlış sınıflandırılmış bir Self Test olduğu için gizli ve boş bırakıldı. Diğer numaralar kaydırılmadı. Sürücü hata durumu M07 Diagnostics altında salt okunur bilgi olarak sunulur, motor sağlığı PASS'i verilmez. M10 X/Y/Z önceki geçersiz kullanıcı gözlemleri ve Extruder bekleyen kaydı JSON geçmiş arşivinde korunur; aktif kabul çizelgesinde M10 satırı yoktur. Güncel durum: 66 kayıt, 23 kabul, 37 bekleyen, 5 koşullu, 1 uygulanamaz.
 
 **M07 fiziksel kabul listesinden çıkarıldı (17 Ekim 2026):** X/Y/Z/Extruder için dört `M07` kaydı, Self Test değil salt okunur Diagnostics oldukları için aktif fiziksel kabul çizelgesinden çıkarıldı. Ayrı JSON `evidence.m07_informational_diagnostics` kaydı doğrudan `DRV_STATUS` okumalarını, kullanıcı doğrulamasını ve önceki dört bekleyen satırı arşivler. Yeni fiziksel PASS üretilmedi, mevcut 23 kabul ve M12 kayıtları değişmedi. Güncel toplam: **62 kayıt / 46 ID — 23 KABUL, 33 BEKLİYOR, 5 KOŞULLU, 1 N/A.**
+
+**Termal karakterizasyon prosedür kabulü (17 Ekim 2026):** Oturum
+`58240fb38284486dbb6cbdd3d45f6358`, imzalı HEAD `115e392`.
+1.830 sıralı olay; kayıp/yazma hatası/shutdown yok.
+Extruder tek döngü run 1, onay #792, sonuç #794; Bed tek döngü
+run 2, onay #1660, sonuç #1662. Her iki döngüde hedef OFF,
+güç sıfır ve soğuma doğrulandı (`restore_verified=true`).
+H01/H05/H06/H07/H08/H09/H13 için iki cihazda **14 prosedür kabulü**
+açık kullanıcı talimatıyla verildi; iki ayrı fiziksel çalıştırmadan
+14 bağımsız test ölçümü ve kaydı elde edildi.
+Extruder H07 ölçümü **7,72 °C sıcaklık aşımı** (`FAILED_METRIC`),
+H08 ölçümü **6,69 °C kararlılık dalgalanması** (`FAILED_METRIC`);
+**bu performans sonuçları değiştirilmiyor**. Bed 7/7 ve Extruder
+5/7 metrik kriterini karşıladı. H02/H03 PID kabulü hâlâ bekliyor.
+**Güncel toplam: 62 kayıt / 46 ID — 37 KABUL, 19 BEKLİYOR,
+5 KOŞULLU, 1 N/A.**

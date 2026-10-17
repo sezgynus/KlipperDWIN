@@ -347,7 +347,8 @@ class FirmwareWorkflow:
                     self._safety_future = self._worker.submit(
                         self.runtime_evidence,
                         queue_timeout=2)
-                if not self._safe(self._queue):
+                if (not self._safe(self._queue)
+                        and not self._runtime_queue_refresh_pending()):
                     return self._shutdown('workflow_runtime_safety_unknown') if self.moving else self._finish('INCONCLUSIVE','workflow_runtime_safety_unknown')
             self._cursor, lines = self._printer.subscription.responses_since(self._cursor)
             self._lines = (self._lines + tuple(str(s)[:2048] for s in lines))[-32:]
@@ -380,6 +381,23 @@ class FirmwareWorkflow:
     def runtime_evidence(self):
         row = self._row
         return read_queue_evidence(self._client,row.epoch,row.config_marker)
+
+    def _runtime_queue_refresh_pending(self):
+        """Only tolerate an aged queue sample while its replacement is in flight.
+
+        A running Klipper motion can delay Moonraker's queue read beyond the
+        admission-only three-second freshness limit. Keep enforcing LIVE
+        printer/print/pause/MMU/operation status. Never treat an unknown queue
+        as fresh or allow it at initial admission / a new command dispatch.
+        """
+        if (not self._sent or not self.moving or self._queue is None
+                or self._safety_future is None or self._safety_future.done()):
+            return False
+        context = self.context(self._queue)
+        decision = precheck(self._printer.maintenance.snapshot, context)
+        return (decision.reason == 'queue_unknown'
+                and context.operations_checked is True
+                and context.conflicting_operation is False)
 
     def dispatch(self, script, guard):
         return self._printer.subscription.request('printer.gcode.script',

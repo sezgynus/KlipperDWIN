@@ -92,6 +92,47 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertTrue(self.commands[1][1]['script'].startswith('TEST_RESONANCES '))
         self.assertEqual(len(self.commands),2)
 
+    def _running_r02(self):
+        self.raw['settings']['resonance_tester']={'probe_points':[[50.,50.,20.]]}
+        self.client.url='http://127.0.0.1:7125'
+        self.arm_sensor('R02')
+        self.dispatch()
+        self.assertIn('TEST_RESONANCES',self.commands[0][1]['script'])
+        self.assertEqual(len(self.commands),1)
+
+    def test_r02_queue_refresh_delay_does_not_trigger_false_emergency_stop(self):
+        self._running_r02()
+        # Reproduce the real 3.07-second gap during the long command.
+        self.clock += 3.07
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'running')
+        self.assertIsNotNone(self.owner._safety_future)
+        self.assertFalse(self.owner._safety_future.done())
+        self.assertEqual([x[0] for x in self.commands],['printer.gcode.script'])
+        # A fresh read still has to satisfy the strict safety contract.
+        self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'running')
+        self.assertEqual([x[0] for x in self.commands],['printer.gcode.script'])
+
+    def test_r02_confirmed_print_start_still_requests_emergency_stop(self):
+        self._running_r02()
+        self.clock += 3.07
+        self.raw['status']['print_stats']['state']='printing'
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'stopping')
+        self.assertEqual([x[0] for x in self.commands],
+                         ['printer.gcode.script','printer.emergency_stop'])
+        self.assertEqual(self.owner._stop_reason,'workflow_runtime_safety_unknown')
+
+    def test_r02_stale_queue_without_inflight_refresh_cannot_be_bypassed(self):
+        self._running_r02()
+        self.clock += 3.07
+        self.owner._next_safety = self.clock+5
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'stopping')
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
+
     def test_real_accelerometer_vector_required(self):
         self.arm_sensor('R01')
         self.dispatch()

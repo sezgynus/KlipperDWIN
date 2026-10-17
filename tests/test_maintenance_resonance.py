@@ -2,7 +2,7 @@
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from types import SimpleNamespace
 from maintenance_discovery import MaintenanceSnapshot, DeviceCapabilities, _add
 from maintenance_resonance import MaintenanceResonanceController, METHODS, read_spectrum, comparison
@@ -119,6 +119,41 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertIsNone(self.owner.poll())
         self.assertEqual(self.owner.phase,'running')
         self.assertEqual([x[0] for x in self.commands],['printer.gcode.script'])
+
+    def test_r02_refresh_completion_race_waits_for_unconsumed_safe_read(self):
+        self._running_r02()
+        self.clock += 3.07
+        # The worker completed just AFTER poll() checked done=False.
+        # A second done() check in the guard used to cause false shutdown.
+        fresh = self.owner.runtime_evidence()
+        future = SimpleNamespace(done=Mock(side_effect=(False,True)),
+                                 result=lambda: fresh)
+        self.owner._safety_future = future
+        self.owner._next_safety = self.clock + 5.
+        self.assertIsNone(self.owner.poll())
+        future.done.assert_called_once()
+        self.assertEqual(self.owner.phase,'running')
+        self.assertEqual(self.owner._safety_reason,'queue_unknown')
+        self.assertGreater(self.owner._queue_age_s,3.)
+        self.assertEqual(self.owner._refresh_reason,'queue_refresh_unconsumed')
+        self.assertEqual([x[0] for x in self.commands],['printer.gcode.script'])
+        # The already-completed refresh MUST be processed next tick.
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'running')
+        self.assertEqual(self.owner._safety_reason,'allowed')
+        self.assertEqual([x[0] for x in self.commands],['printer.gcode.script'])
+
+    def test_r02_safety_trace_explains_a_real_print_guard_failure(self):
+        from maintenance_test_trace import owner_snapshot
+        self._running_r02()
+        self.clock += 3.07
+        self.raw['status']['print_stats']['state']='printing'
+        self.assertIsNone(self.owner.poll())
+        snapshot = owner_snapshot(self.owner)
+        self.assertEqual(self.owner.phase,'stopping')
+        self.assertEqual(snapshot['safety_reason'],'print_not_idle')
+        self.assertGreater(snapshot['queue_age_s'],3.)
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
 
     def test_r02_confirmed_print_start_still_requests_emergency_stop(self):
         self._running_r02()

@@ -13,7 +13,7 @@ import re
 from maintenance_homing import begin_homing, poll_homing
 from maintenance_catalog import definition_for
 from maintenance_planner import AdapterRegistration, build_plan, visible_plan
-from maintenance_runtime import read_queue_evidence, live_safety_context
+from maintenance_runtime import QueueEvidence, read_queue_evidence, live_safety_context
 from maintenance_safety import precheck
 from maintenance_motion import idle_heaters, vector, number
 
@@ -73,6 +73,7 @@ class FirmwareWorkflow:
         self._manual_position = None
         self._safety_future = None
         self._next_safety = 0.
+        self._safety_reason = self._queue_age_s = self._refresh_reason = None
         self._homing=None
         self._home_attempted=self._homing_verified=False
 
@@ -121,7 +122,12 @@ class FirmwareWorkflow:
             return False
 
     def _safe(self, queue):
+        # Keep the exact fail-closed decision for the opt-in test trace.
+        # No queue identifiers or printer configuration are retained.
+        self._queue_age_s = (round(max(0., monotonic()-queue.observed_at), 3)
+            if isinstance(queue, QueueEvidence) else None)
         if not self._current():
+            self._safety_reason = 'workflow_lifecycle_changed'
             return False
         context = self.context(queue)
         if self._owned_manual and context.state is not None:
@@ -135,7 +141,9 @@ class FirmwareWorkflow:
                 context = replace(context, state=SimpleNamespace(
                     ready=state.ready, epoch=state.epoch,
                     settings=state.settings, status=status))
-        return precheck(self._printer.maintenance.snapshot, context).allowed
+        decision = precheck(self._printer.maintenance.snapshot, context)
+        self._safety_reason = decision.reason
+        return decision.allowed
 
     def fields(self):
         fields = {'toolhead':'position,homed_axes,axis_minimum,axis_maximum',
@@ -218,6 +226,7 @@ class FirmwareWorkflow:
         self._home_attempted=self._homing_verified=False
         self._safety_future = None
         self._next_safety = 0.
+        self._safety_reason = self._queue_age_s = self._refresh_reason = None
         self._evidence, self._lines, self._values = (), (), {}
         try:
             accepted,reason = self._schedule('start', False)
@@ -390,14 +399,21 @@ class FirmwareWorkflow:
         printer/print/pause/MMU/operation status. Never treat an unknown queue
         as fresh or allow it at initial admission / a new command dispatch.
         """
+        # A worker may finish between the running-phase .done() check and
+        # this guard. Do not inspect .done() a second time: its result has not
+        # yet been consumed into self._queue. Next poll consumes it and must
+        # enforce precheck on the new evidence (including malformed replies).
         if (not self._sent or not self.moving or self._queue is None
-                or self._safety_future is None or self._safety_future.done()):
+                or self._safety_future is None):
             return False
         context = self.context(self._queue)
         decision = precheck(self._printer.maintenance.snapshot, context)
-        return (decision.reason == 'queue_unknown'
-                and context.operations_checked is True
-                and context.conflicting_operation is False)
+        tolerated = (decision.reason == 'queue_unknown'
+                     and context.operations_checked is True
+                     and context.conflicting_operation is False)
+        if tolerated:
+            self._refresh_reason = 'queue_refresh_unconsumed'
+        return tolerated
 
     def dispatch(self, script, guard):
         return self._printer.subscription.request('printer.gcode.script',

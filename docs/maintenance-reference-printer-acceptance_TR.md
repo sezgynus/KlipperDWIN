@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **37 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **38 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 37 KABUL, 19 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 38 KABUL, 18 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Kabul türleri:** Termal karakterizasyonda *test prosedürünün kabulü*, yazıcının termal performans kriterini geçmesi demek değildir. H07/H08 Extruder sonuçları `FAILED_METRIC` olarak korunur; doğru ölçüm ve güvenli tamamlanma sayesinde prosedürler kabul edilir.
 
@@ -60,12 +60,12 @@
 | [x] | H09 | `heater_bed` | Soğuma hızı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
 | [x] | H13 | `extruder` | Isıtıcı tepki uyarısı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
 | [x] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
+| [x] | H02 | `extruder` | Hotend PID kalibrasyonu | Klipper PID, katsayılar + OFF doğrulandı | **KABUL** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | H02 | `extruder` | Hotend PID kalibrasyonu | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H03 | `heater_bed` | Tabla PID kalibrasyonu | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | P01 | `probe` | Prob tetikleme | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -158,6 +158,22 @@ açık kullanıcı talimatıyla verildi; iki ayrı fiziksel çalıştırmadan
 Extruder H07 ölçümü **7,72 °C sıcaklık aşımı** (`FAILED_METRIC`),
 H08 ölçümü **6,69 °C kararlılık dalgalanması** (`FAILED_METRIC`);
 **bu performans sonuçları değiştirilmiyor**. Bed 7/7 ve Extruder
-5/7 metrik kriterini karşıladı. H02/H03 PID kabulü hâlâ bekliyor.
-**Güncel toplam: 62 kayıt / 46 ID — 37 KABUL, 19 BEKLİYOR,
+5/7 metrik kriterini karşıladı. H02/H03 PID kabulü bu oturum sırasında hâlâ bekliyordu; sonraki ayrı H02 testi kabul edildi.
+**Önceki termal karakterizasyon sonrası toplam: 62 kayıt / 46 ID — 37 KABUL, 19 BEKLİYOR,
+5 KOŞULLU, 1 N/A.**
+
+**H02 Extruder PID kabulü (17 Ekim 2026):** İzleme oturumu
+`31cd66be65bd4a3b88968c920adfe340`, test edilen imzalı HEAD
+`1b6511d`; 1.720 ardışık olay, sıfır kayıp ve yazma hatası,
+bir dosya rotasyonu. H02 run 1, hedef 150 °C; Klipper
+`PID_CALIBRATE` tamamlandı (#1352). Bekleyen PID değerleri
+Kp=**14,738**, Ki=**0,558**, Kd=**97,273** olarak Petrel'de
+doğru okundu. OFF/soğuma doğrulandı (`restore_verified=true`).
+Kullanıcı `observe(true)` (#1595) verdi; sonuç #1597
+`PASSED_USER`. **H02 fiziksel prosedürü kabul edildi.**
+`SAVE_CONFIG` çalıştırılmadı; katsayılar kalıcı kaydedildi diye
+iddia edilmez. H03 Bed PID run 2, H02'den kalan
+`existing_or_unknown_pending_config` nedeniyle komut gönderilmeden
+`BLOCKED` (#1672); H03 kabulü verilmedi.
+**Güncel toplam: 62 kayıt / 46 ID — 38 KABUL, 18 BEKLİYOR,
 5 KOŞULLU, 1 N/A.**

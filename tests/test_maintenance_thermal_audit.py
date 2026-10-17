@@ -31,16 +31,25 @@ class ThermalAuditTests(unittest.TestCase):
         accepted = {(e['feature_id'],e['target']) for e in rows
                     if e['status'] == 'accepted'}
         group = {'H01','H05','H06','H07','H08','H09','H13'}
-        self.assertEqual(accepted, {(f,device) for f in group
-                           for device in ('extruder','heater_bed')})
+        self.assertEqual(accepted, ({(f,device) for f in group
+                           for device in ('extruder','heater_bed')} |
+                           {('H02','extruder')}))
         for entry in rows:
             if entry['status'] == 'accepted':
                 proof = entry['acceptance']
-                self.assertTrue(proof['procedure_accepted'])
                 self.assertTrue(proof['restore_verified'])
-                self.assertEqual(proof['trace']['head'],
-                    '115e392c348292ab5d6bcf57bcde27874c359536')
-            elif entry['feature_id'] in ('H02','H03'):
+                if entry['feature_id'] == 'H02':
+                    self.assertEqual(proof['controller_result'],'PASSED_USER')
+                    self.assertEqual(proof['trace']['head'],
+                        '1b6511db3ab45a3f9b3afc30c2c5364f836c356f')
+                    self.assertEqual(set(proof['metrics']),
+                        {'pid_kp','pid_ki','pid_kd','heated_to_target_band'})
+                    self.assertFalse(proof['save_config_executed'])
+                else:
+                    self.assertTrue(proof['procedure_accepted'])
+                    self.assertEqual(proof['trace']['head'],
+                        '115e392c348292ab5d6bcf57bcde27874c359536')
+            elif entry['feature_id'] == 'H03':
                 self.assertEqual(entry['status'],'pending')
                 self.assertIsNone(entry['acceptance'])
         for feature in ('H07','H08'):

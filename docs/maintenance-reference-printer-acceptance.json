@@ -428,6 +428,44 @@
           }
         }
       ]
+    },
+    "physical_trace_2026_10_17_h02_pid": {
+      "session": "31cd66be65bd4a3b88968c920adfe340",
+      "head": "1b6511db3ab45a3f9b3afc30c2c5364f836c356f",
+      "events": 1720,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "rotations": 1,
+      "h02": {
+        "device": "extruder",
+        "run": 1,
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "metric_ok": true,
+        "coefficients": {
+          "pid_kp": 14.738,
+          "pid_ki": 0.558,
+          "pid_kd": 97.273
+        },
+        "target_c": 150,
+        "user_observation": true,
+        "confirm_seq": 72,
+        "dispatch_seq": 81,
+        "completion_seq": 1352,
+        "observe_seq": 1595,
+        "result_seq": 1597,
+        "pending_config_not_saved": true
+      },
+      "h03": {
+        "device": "heater_bed",
+        "run": 2,
+        "controller_result": "BLOCKED",
+        "reason": "existing_or_unknown_pending_config",
+        "result_seq": 1672,
+        "actuation_dispatched": false,
+        "physical_acceptance": false
+      },
+      "qualification": "Operator observation verifies H02 test procedure and safe OFF, not persistence of the calculated PID values. No SAVE_CONFIG. H03 remains pending; its preflight correctly blocks on H02's unsaved pending config."
     }
   },
   "policy": {
@@ -640,10 +678,37 @@
       "title": "Extruder PID calibration",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Real H02 PID procedure physically verified after fixing canonical mixed-case Klipper pending PID fields. Klipper PID_CALIBRATE completed and OFF was verified. The pending coefficients were read but neither SAVE_CONFIG nor an on-printer config write was issued by Petrel.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly selected Observed after a complete H02 extruder PID calibration, fresh three-coefficient proof, heater OFF and cooling verification; the LCD displayed PASSED_USER.",
+        "tested_signed_head": "1b6511db3ab45a3f9b3afc30c2c5364f836c356f",
+        "target_c": 150,
+        "metrics": {
+          "pid_kp": 14.738,
+          "pid_ki": 0.558,
+          "pid_kd": 97.273,
+          "heated_to_target_band": true
+        },
+        "klipper_save_config_pending": true,
+        "save_config_executed": false,
+        "trace": {
+          "session": "31cd66be65bd4a3b88968c920adfe340",
+          "head": "1b6511db3ab45a3f9b3afc30c2c5364f836c356f",
+          "run": 1,
+          "confirm_seq": 72,
+          "dispatch_seq": 81,
+          "completion_seq": 1352,
+          "observe_seq": 1595,
+          "result_seq": 1597
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H03",

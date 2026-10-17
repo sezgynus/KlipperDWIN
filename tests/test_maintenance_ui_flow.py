@@ -23,6 +23,37 @@ class MaintenanceUIFlows(unittest.TestCase):
         d.get_encoder_state.return_value = event
         d.HMI_Maintenance_Menu()
 
+    def test_r02_result_does_not_report_petrel_derived_peak_as_shaper(self):
+        d=self.setup_view()
+        d._maintenance_page='result'
+        d._maintenance_result=SimpleNamespace(
+            feature_id='R02',status='PASSED',
+            reason='klipper_resonance_psd_recorded_no_petrel_rating',
+            evidence=(('axis','X'),('data','Klipper PSD recorded'),
+                      ('next','Run R04 for Klipper fit')))
+        title,rows=d._maintenance_rows()
+        labels=[item[0] for item in rows]
+        self.assertEqual(title,'Klipper PSD captured')
+        self.assertIn('Run R04 for Klipper fit',labels)
+        self.assertNotIn('peak_hz',str(labels))
+        d.pd.client.get.assert_not_called()
+
+    def test_r04_result_shows_only_native_klipper_recommendation(self):
+        d=self.setup_view()
+        d._maintenance_page='result'
+        d._maintenance_result=SimpleNamespace(
+            feature_id='R04',status='OBSERVED',
+            reason='klipper_shaper_recommendation_not_saved',
+            evidence=(('axis','x'),('shaper','mzv'),
+                      ('frequency_hz',34.6),('saved',False)))
+        title,rows=d._maintenance_rows()
+        self.assertEqual(title,'Klipper recommendation')
+        self.assertEqual([r[0] for r in rows],[
+            'Back','Axis X','Shaper: mzv','Frequency: 34.6 Hz',
+            'Klipper suggested values','Live shaper may change',
+            'Not saved to printer.cfg'])
+        d.pd.client.get.assert_not_called()
+
     def test_entry_has_no_io_or_actuation(self):
         d = self.setup_view()
         self.assertEqual(d._maintenance_rows()[0], 'Maintenance')

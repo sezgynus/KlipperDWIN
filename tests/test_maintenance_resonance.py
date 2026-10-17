@@ -239,6 +239,65 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertEqual(self.owner.phase,'stopping')
         self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
 
+    def test_r02_shows_klipper_psd_without_petrel_peak_as_advice(self):
+        token = 'petrelr_'+'c'*32
+        target = Path('/tmp/resonances_x_'+token+'.csv')
+        self.addCleanup(lambda:target.unlink(missing_ok=True))
+        target.write_text('freq,psd_xyz\\n5,1\\n6,4\\n7,2\\n8,1\\n')
+        self._running_r02()
+        self.owner._token=token
+        self.assertIsNone(self.analyze(('Resonances data written to '+str(target)+' file',)))
+        self.assertEqual(self.owner.phase,'workflow')
+        self.assertNotIn('peak_hz',dict(self.owner._evidence))
+        self.assertEqual(dict(self.owner._spectra[-1])['peak_hz'],6)
+        self.assertIn('R04',dict(self.owner._evidence)['next'])
+        self.assertTrue(self.owner.choose(0)[0])
+        result=self.owner.observe(True)
+        self.assertEqual(result.status,'PASSED')
+        self.assertEqual(result.feature_id,'R02')
+        self.assertNotIn('peak_hz',dict(result.evidence))
+
+    def _r04_pending(self, *, shaper='mzv', frequency=34.6):
+        self.status['configfile']['save_config_pending_items']={
+            'input_shaper':{'shaper_type_x':shaper,'shaper_freq_x':frequency}}
+        self.raw['status']['configfile']=self.status['configfile']
+
+    def test_r04_uses_only_klipper_native_shaper_recommendation(self):
+        self.raw['settings']['resonance_tester']={'probe_points':[[50.,50.,20.]]}
+        from dataclasses import replace
+        from printer_state import PrinterState
+        self.p.state=PrinterState.from_snapshot(self.raw)
+        self.p.maintenance.snapshot=replace(self.p.maintenance.snapshot,
+                                            config_marker=id(self.p.state.settings))
+        self.client.url='http://127.0.0.1:7125'
+        self.arm_sensor('R04')
+        self.dispatch()
+        self.assertIn('SHAPER_CALIBRATE AXIS=X',self.commands[0][1]['script'])
+        self.assertNotIn('SAVE_CONFIG',self.commands[0][1]['script'])
+        self._r04_pending()
+        out=self.analyze(('Recommended shaper_type_x = mzv, shaper_freq_x = 34.6 Hz',))
+        self.assertEqual(out.feature_id,'R04')
+        self.assertEqual(out.status,'OBSERVED')
+        self.assertEqual(out.reason,'klipper_shaper_recommendation_not_saved')
+        self.assertEqual(dict(out.evidence),{
+            'axis':'x','shaper':'mzv','frequency_hz':34.6,'saved':False})
+        self.assertEqual(len(self.commands),1)
+
+    def test_r04_never_invents_missing_or_mismatched_klipper_recommendations(self):
+        self.raw['settings']['resonance_tester']={'probe_points':[[50.,50.,20.]]}
+        from dataclasses import replace
+        from printer_state import PrinterState
+        self.p.state=PrinterState.from_snapshot(self.raw)
+        self.p.maintenance.snapshot=replace(self.p.maintenance.snapshot,
+                                            config_marker=id(self.p.state.settings))
+        self.client.url='http://127.0.0.1:7125'
+        self.arm_sensor('R04')
+        self.dispatch()
+        self._r04_pending(shaper='ei',frequency=51.)
+        result=self.analyze(('Recommended shaper_type_x = mzv, shaper_freq_x = 34.6 Hz',))
+        self.assertEqual(result.status,'INCONCLUSIVE')
+        self.assertEqual(result.reason,'resonance_numeric_evidence_unavailable')
+
     def test_real_accelerometer_vector_required(self):
         self.arm_sensor('R01')
         self.dispatch()

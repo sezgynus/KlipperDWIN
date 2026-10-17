@@ -4,7 +4,7 @@
 
 R01 queries the exact discovered chip and validates its actual acceleration vector. R03 parses noise only for the chip's assigned axes. R02/R04 offer an explicit axis choice when one sensor serves several axes. Unsupported axes never appear.
 
-R02 runs Klipper TEST_RESONANCES with a unique filename and parses the real PSD CSV on the existing worker. Same-host Moonraker access is required for this local result-file transport; unavailable, stale, malformed, unrelated or oversized files never produce PASS. R04 validates both the measured recommendation and matching pending input-shaper configuration. It may change live input shaping; it never sends SAVE_CONFIG.
+R02 runs Klipper TEST_RESONANCES with a unique filename and validates the real PSD CSV on the existing worker. Its result shows only that Klipper recorded the spectrum: Petrel does **not** rate the mechanical resonance or present an internal PSD peak as a shaper recommendation. An internal peak is retained solely for explicitly requested R05 trend/baseline comparisons. Same-host Moonraker access is required for local result files; unavailable, stale, malformed, unrelated or oversized files never produce PASS. To get an actual input-shaper recommendation, run **R04** separately with explicit motion consent: it invokes Klipper's native SHAPER_CALIBRATE and displays Klipper's shaper type and frequency, cross-checked against Klipper's pending configuration. Petrel never computes or chooses a shaper. SHAPER_CALIBRATE may immediately change live input shaping; Petrel never sends SAVE_CONFIG, so values are not persisted automatically.
 
 Optional declarations: ~/.config/Petrel/maintenance-resonance.json:
 ```json

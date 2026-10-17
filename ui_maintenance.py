@@ -205,6 +205,30 @@ class MaintenanceViewMixin:
             entries = [back,
                        (status[:25], self.ICON_Info, None, None),
                        (reason.replace('_', ' ')[:25], self.ICON_Info, None, None)]
+            # R02 records Klipper's raw resonance spectrum only. Do not
+            # display Petrel's internal PSD peak as a quality assessment.
+            # Klipper's own SHAPER_CALIBRATE (R04) is the sole source of
+            # input-shaper recommendations.
+            if (getattr(outcome,'feature_id',None)=='R02' and status=='PASSED'):
+                axis = dict(getattr(outcome,'evidence',())).get('axis','?')
+                return 'Klipper PSD captured', tuple([
+                    back,
+                    ('Axis '+str(axis).upper()+' measured',self.ICON_Info,None,None),
+                    ('Resonance data recorded',self.ICON_Info,None,None),
+                    ('No shaper evaluated',self.ICON_Info,None,None),
+                    ('Run R04 for Klipper fit',self.ICON_Info,None,None),
+                    ('No config saved',self.ICON_Info,None,None)])
+            if (getattr(outcome,'feature_id',None)=='R04' and status=='OBSERVED'):
+                data = dict(getattr(outcome,'evidence',()))
+                if {'axis','shaper','frequency_hz','saved'} <= data.keys() and data['saved'] is False:
+                    return 'Klipper recommendation', tuple([
+                        back,
+                        ('Axis '+str(data['axis']).upper(),self.ICON_Info,None,None),
+                        ('Shaper: '+str(data['shaper']),self.ICON_Info,None,None),
+                        ('Frequency: '+str(data['frequency_hz'])+' Hz',self.ICON_Info,None,None),
+                        ('Klipper suggested values',self.ICON_Info,None,None),
+                        ('Live shaper may change',self.ICON_Info,None,None),
+                        ('Not saved to printer.cfg',self.ICON_Info,None,None)])
             if 'SHUTDOWN_UNCONFIRMED' in reason:
                 entries.extend((('CHECK PRINTER SAFETY NOW', self.ICON_Info, None, None),
                                 ('Use physical power switch', self.ICON_Info, None, None)))

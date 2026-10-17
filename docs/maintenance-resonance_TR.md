@@ -4,7 +4,7 @@
 
 R01 keşfedilen doğru çipi sorgular ve gerçek ivme vektörünü doğrular. R03 yalnız sensöre atanmış eksenlerin gürültüsünü ayrıştırır. Bir sensör birkaç eksene hizmet ediyorsa R02/R04 açık eksen seçimi sunar. Desteklenmeyen eksenler görünmez.
 
-R02 benzersiz dosya adıyla Klipper TEST_RESONANCES çalıştırır ve gerçek PSD CSV'sini mevcut worker üzerinde ayrıştırır. Yerel sonuç dosyası aktarımı için aynı host üzerindeki Moonraker gerekir; erişilemeyen, eski, bozuk, ilgisiz veya aşırı büyük dosya PASS üretmez. R04 hem ölçülmüş öneriyi hem eşleşen bekleyen input-shaper konfigürasyonunu doğrular. Canlı input shaping değişebilir; SAVE_CONFIG gönderilmez.
+R02 benzersiz dosya adıyla Klipper TEST_RESONANCES çalıştırır ve gerçek PSD CSV'sini mevcut worker üzerinde doğrular. Sonuç yalnızca Klipper'ın ölçüm verilerini kaydettiğini bildirir: Petrel mekanik rezonansın iyi/kötü olduğuna karar vermez, kendi bulduğu PSD tepe frekansını input-shaper önerisi gibi göstermez. Dahili tepe değeri yalnız kullanıcının açıkça seçtiği R05 eğilim/referans karşılaştırması için korunur. Yerel sonuç dosyası aktarımı için aynı host üzerindeki Moonraker gerekir; erişilemeyen, eski, bozuk, ilgisiz veya aşırı büyük dosya PASS üretmez. Gerçek input-shaper önerisi için ayrı onayla **R04** çalıştırılır: Klipper'ın kendi SHAPER_CALIBRATE komutu kullanılır, Klipper'ın önerdiği shaper türü ve frekansı bekleyen ayarlarla karşılaştırılarak gösterilir. Petrel shaper hesaplamaz veya seçmez. SHAPER_CALIBRATE canlı input shaping ayarını değiştirebilir; Petrel SAVE_CONFIG göndermez ve otomatik kalıcı kayıt yapmaz.
 
 İsteğe bağlı beyan: ~/.config/Petrel/maintenance-resonance.json:
 ```json

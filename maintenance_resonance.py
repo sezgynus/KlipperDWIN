@@ -153,6 +153,12 @@ class MaintenanceResonanceController(FirmwareWorkflow):
         return (self._row.device or 'Assigned sensor','Clear configured test points')
 
     @property
+    def observation_prompt(self):
+        if self.feature_id == 'R02':
+            return 'Klipper PSD recorded?'
+        return super().observation_prompt
+
+    @property
     def workflow_choices(self):
         if self._axis_choice:
             return tuple(('Measure '+axis.upper(),'axis_'+axis)
@@ -160,8 +166,8 @@ class MaintenanceResonanceController(FirmwareWorkflow):
         if self.feature_id == 'R06' and len(self._spectra)==1:
             return (('Measure second belt direction','second_belt'),)
         if self.feature_id == 'R02' and self._profile:
-            return (('Finish measured result','finish'),('Save mount baseline / finish','baseline'))
-        return (('Finish measured result','finish'),)
+            return (('Finish Klipper PSD','finish'),('Save mount baseline / finish','baseline'))
+        return ((('Finish Klipper PSD' if self.feature_id == 'R02' else 'Finish measured result'),'finish'),)
 
     def available(self):
         rows = []
@@ -356,11 +362,21 @@ class MaintenanceResonanceController(FirmwareWorkflow):
             return None
         try:
             result = self._future.result()
-            if self.feature_id in ('R01','R03','R04'):
-                return self._finish('OBSERVED' if self.feature_id=='R04' else 'PASSED',
-                                    'measured_firmware_evidence_no_auto_save',result)
+            if self.feature_id in ('R01','R03'):
+                return self._finish('PASSED','measured_firmware_evidence_no_auto_save',result)
+            if self.feature_id == 'R04':
+                # Klipper has already selected and staged the shaper parameters.
+                # Only display its verified recommendation; Petrel does not
+                # score vibrations or choose an alternative input shaper.
+                return self._finish('OBSERVED','klipper_shaper_recommendation_not_saved',result)
             self._spectra.append(result)
             self._evidence = (('axis',self._axis),('peak_hz',result['peak_hz']))
+            if self.feature_id == 'R02':
+                # The internal PSD peak remains available to an explicitly
+                # selected R05 trend baseline. It is not a shaper recommendation.
+                self._evidence = (('axis',self._axis.upper()),
+                                  ('data','Klipper PSD recorded'),
+                                  ('next','Run R04 for Klipper fit'))
             if self.feature_id == 'R05':
                 self._evidence += result['comparison']
             if self.feature_id == 'R06' and len(self._spectra)==2:
@@ -408,4 +424,6 @@ class MaintenanceResonanceController(FirmwareWorkflow):
         if self.phase != 'await_observation' or type(seen) is not bool:
             return None
         return self._finish('PASSED' if seen else 'INCONCLUSIVE',
-            'measured_comparison_not_fault_or_belt_tension')
+            ('klipper_resonance_psd_recorded_no_petrel_rating'
+             if self.feature_id == 'R02' else
+             'measured_comparison_not_fault_or_belt_tension'))

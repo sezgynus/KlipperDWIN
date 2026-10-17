@@ -69,14 +69,16 @@ automatic return, and reports restoration false. Error <=0.2 mm plus confirmed
 return/user observation passes this limited diagnostic; rotation_distance is
 never changed. This is user-reported measurement, not calibrated metrology.
 
-M12 uses existing Klipper homing history for one configured physical endstop
-stepper. Missing axes/history trigger consented preparatory homing; SAVE_CONFIG is never invoked. Exact pending
-trigger_phase and preserved modes/position are required, followed by user
-observation. Outcome is OBSERVED_USER with restore_verified=false because
-pending calibration config is intentionally not rolled back. Existing pending
-config blocks admission. M01 and M12 catalog scopes now support device rows,
-retaining legacy global informational fallback when no per-device evidence
-exists. No physical acceptance is granted by implementation or CI.
+The per-stepper M12 test creates ten bounded, randomized axis-only homings
+after one consented XYZ preparation if needed, then invokes Klipper's phase
+calibration command. SAVE_CONFIG is never invoked automatically. The computed
+pending trigger_phase, restored G-code modes and non-selected axes (except a
+single safety Z lift) are verified before user review. Result is OBSERVED_USER
+with restore_verified=false because the pending config remains in memory.
+Pending calibration for the target stepper blocks a repeat; pending results
+for other steppers do not. M01 and M12 retain per-device catalog rows and a
+legacy informational fallback where applicable. Only physical verification
+can establish acceptance.
 
 ## Final scope and field sequence
 | ID | Delivery |
@@ -92,7 +94,7 @@ exists. No physical acceptance is granted by implementation or CI.
 | M09 | Reported current settings, not measured winding current |
 | M10 | TMC2208 exact-schema passive fault/warning check and user observation |
 | M11 | Motor enable information |
-| M12 | Per configured physical stepper pending phase calibration; last_home diagnostics |
+| M12 | Per physical stepper ten random-start targeted homings and pending phase calibration; passive last_home diagnostics |
 | M13 | Available angle-driver temperature status only; no invented shaft angle |
 | M14 | Commanded position/homing/max-velocity information |
 | M15 | No generic manual-stepper motion adapter without an application-specific contract |
@@ -117,11 +119,10 @@ operations; external clients cannot be locked by this software reservation.
 
 Run M10 and M07 while driver monitor data actually exists; disabled/null is
 inconclusive, not a clean bill of health and not a reason to auto-enable motors.
-M12 last: obtain homing statistics through deliberate normal homing, select
-the exact configured phase stepper, review and approve pending calibration,
-record the result. Handle pending config explicitly before calibrating a
-second axis. SAVE_CONFIG is never automatic. M12 user outcome remains
-OBSERVED_USER with pending config not restored; no electrical/metrology claim.
+M12 last: run the existing per-stepper entry for ten random-start homings
+of that axis, review and record the computed pending trigger_phase. A pending
+calibration for another stepper does not block the second axis; SAVE_CONFIG
+is never automatic. OBSERVED_USER does not claim measured metrology.
 
 No local tests/emulator or physical motion were run during development.
 All checks run on GitHub Actions, on the bot-signed feature HEAD. The same
@@ -194,7 +195,7 @@ Only a transport-confirmed guard_denied before socket send finishes with the spe
 
 ## M10/M12 evidence before review
 
-M10 and M12 no longer ask Observed before displaying their evidence. Read-only evidence rows appear first in the test screen, followed by review actions; clicking an evidence row does nothing. M10 shows the target driver, passive-read scope, fault count and a readable name for every active flag (or No fault flags reported), plus its motor-health limitation. M12 shows the target, actual trigger_phase fraction, Pending config: YES / Saved to file: NO and preserved position/modes, without a repeatability claim. The operator can read/scroll and select Result reviewed or reject with Not accepted. Review has no inactivity deadline and sends no new motion or SAVE_CONFIG. M10/M12 physical acceptance remains pending explicit informed operator approval.
+M10 and M12 no longer ask Observed before displaying their evidence. Read-only evidence rows appear first in the test screen, followed by review actions; clicking an evidence row does nothing. M10 shows the target driver, passive-read scope, fault count and a readable name for every active flag (or No fault flags reported), plus its motor-health limitation. M12 shows the target, Homing cycles: 10, computed trigger_phase fraction, Pending config: YES / Saved to file: NO and restored G-code modes, without an independent accuracy claim. The operator can read/scroll and select Result reviewed or reject with Not accepted. Review has no inactivity deadline and sends no new motion or SAVE_CONFIG. M10/M12 physical acceptance remains pending explicit informed operator approval.
 
 
 ## M12: ten targeted phase-calibration homings (17 October 2026)

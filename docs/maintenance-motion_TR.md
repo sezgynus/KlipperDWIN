@@ -70,13 +70,17 @@ En çok 0,2 mm hata + doğrulanmış dönüş/kullanıcı gözlemi bu sınırlı
 geçirir; rotation_distance değişmez. Bu kullanıcı bildirimi ölçümüdür;
 kalibre metroloji iddiası değildir.
 
-M12 bir yapılandırılmış fiziksel endstop stepper'ı için mevcut Klipper homing
-geçmişini kullanır. Eksen/geçmiş eksikse önce onaylı homing yapılır; SAVE_CONFIG yoktur. Tam hedefin bekleyen
-trigger_phase sonucu, korunmuş mod/konum ve sonra kullanıcı gözlemi gerekir.
-Bekleyen kalibrasyon config'i bilerek geri alınmadığı için sonuç OBSERVED_USER,
-restore_verified=false olur. Önceden bekleyen config başlangıcı engeller.
-M01 ve M12 katalog kapsamları cihaz satırlarını destekler; cihaz bazlı kanıt
-yokken eski global bilgi fallback'i korunur. Uygulama ve CI fiziksel kabul vermez.
+Stepper başına ayrı M12 testi, gerekiyorsa başlangıçta bir kez onaylı XYZ
+homing hazırlığından sonra seçilen ekseni güvenli rastgele konumlardan on kez
+tek eksen olarak home eder ve Klipper faz kalibrasyonunu çalıştırır.
+SAVE_CONFIG otomatik çalıştırılmaz. Hesaplanan bekleyen trigger_phase,
+geri yüklenen G-code modları ve seçilmeyen eksenler (yalnız bir defalık
+güvenli Z yükseltmesi hariç) kullanıcı incelemesinden önce doğrulanır.
+Bekleyen yapılandırma tutulduğu için sonuç OBSERVED_USER,
+restore_verified=false olur. Aynı stepper'ın bekleyen kalibrasyonu tekrar
+çalışmayı engeller; diğer stepper'ın bekleyen sonucu engellemez.
+M01/M12 cihaz bazlı katalog satırları ve uygun eski bilgi fallback'i korunur.
+Yalnız fiziksel doğrulama kabul sağlayabilir.
 
 ## Son kapsam ve saha sırası
 | ID | Sunulan |
@@ -92,7 +96,7 @@ yokken eski global bilgi fallback'i korunur. Uygulama ve CI fiziksel kabul verme
 | M09 | Raporlanan akım ayarı; ölçülmüş sargı akımı değil |
 | M10 | Tam TMC2208 şemalı pasif hata/uyarı kontrolü ve kullanıcı gözlemi |
 | M11 | Motor enable bilgisi |
-| M12 | Yapılandırılmış fiziksel stepper başına bekleyen faz kalibrasyonu; last_home tanılaması |
+| M12 | Fiziksel stepper başına rastgele başlangıçlı on hedefli homing ve bekleyen faz kalibrasyonu; pasif last_home tanılaması |
 | M13 | Mevcut angle sürücüsü sıcaklık durumu; mil açısı uydurulmaz |
 | M14 | Komutlanan konum/homing/azami hız bilgisi |
 | M15 | Uygulamaya özel sözleşme olmadan genel manual_stepper hareket adaptörü yok |
@@ -117,11 +121,11 @@ harici istemcileri kilitlemez.
 
 M10 ve M07'yi gerçekten sürücü monitor verisi varken uygula; kapalı/null
 sonuçsuzdur, sağlık onayı veya otomatik motor açma nedeni değildir.
-M12 en son: bilinçli normal homing ile faz geçmişi elde et, tam yapılandırılmış
-phase stepper'ı seç, bekleyen kalibrasyonu inceleyip onayla, sonucu kaydet.
-İkinci ekseni kalibre etmeden bekleyen config'i açıkça yönet. SAVE_CONFIG
-otomatik değildir. M12 sonucu bekleyen config geri alınmadan OBSERVED_USER
-kalır; elektriksel/metrolojik doğrulama iddiası yoktur.
+M12 en son: mevcut stepper test girdisinde ilgili ekseni rastgele on
+başlangıç konumundan home et, hesaplanan bekleyen trigger_phase değerini
+incele ve kaydet. Başka stepper'ın bekleyen kalibrasyonu ikinci ekseni
+engellemez; SAVE_CONFIG otomatik değildir. OBSERVED_USER metrolojik
+hassasiyetin ölçüldüğü anlamına gelmez.
 
 Geliştirme sırasında lokal test/emülatör veya gerçek fiziksel hareket yapılmadı.
 Kontroller bot imzalı feature HEAD'de GitHub Actions ile çalışır. M için de
@@ -195,7 +199,7 @@ Yalnız iletişim katmanının socket gönderiminden önce kesin olarak guard_de
 
 ## M10/M12 sonuç önce, inceleme sonra
 
-M10 ve M12 artık veriyi göstermeden Observed sorusu sormaz. Sonuç bilgileri aynı test ekranının üstünde, inceleme düğmeleri altında gösterilir. Bilgi satırlarına basmak işlem yapmaz. M10 hedef sürücüyü, pasif okuma olduğunu, hata sayısını ve her aktif bayrağın okunabilir adını (veya No fault flags reported) gösterir; motor sağlığı testi olmadığı belirtilir. M12 hedefi, gerçek trigger_phase kesrini, Pending config: YES / Saved to file: NO bilgisini ve korunmuş konum/modları gösterir; tekrarlanabilirlik ölçümü iddiası yoktur. Kullanıcı listeyi okuyup Result reviewed seçebilir veya Not accepted ile reddedebilir. İnceleme ekranı süresizdir; yeni hareket veya SAVE_CONFIG göndermez. M10/M12 fiziksel kabulleri açık kullanıcı doğrulamasına kadar beklemede kalır.
+M10 ve M12 artık veriyi göstermeden Observed sorusu sormaz. Sonuç bilgileri aynı test ekranının üstünde, inceleme düğmeleri altında gösterilir. Bilgi satırlarına basmak işlem yapmaz. M10 hedef sürücüyü, pasif okuma olduğunu, hata sayısını ve her aktif bayrağın okunabilir adını (veya No fault flags reported) gösterir; motor sağlığı testi olmadığı belirtilir. M12 hedefi, Homing cycles: 10, hesaplanan trigger_phase kesri, Pending config: YES / Saved to file: NO durumu ve geri yüklenen G-code modlarını gösterir; bağımsız doğruluk ölçümü iddiası yoktur. Kullanıcı listeyi okuyup Result reviewed seçebilir veya Not accepted ile reddedebilir. İnceleme ekranı süresizdir; yeni hareket veya SAVE_CONFIG göndermez. M10/M12 fiziksel kabulleri açık kullanıcı doğrulamasına kadar beklemede kalır.
 
 
 ## M12: seçili eksende on kez faz kalibrasyonu homing'i (17 Ekim 2026)

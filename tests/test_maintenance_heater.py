@@ -92,16 +92,110 @@ class ThermalControllerTests(unittest.TestCase):
         self.assertTrue(result.restore_verified)
         self.assertGreater(dict(result.evidence)['rise_c'], 5)
 
-    def test_unlimited_user_wait_refreshes_preflight_without_heat(self):
+    def test_unlimited_wait_one_click_refreshes_then_starts_heat(self):
         self.armed()
         self.clock = 10000
-        self.assertIsNone(self.c.poll())
+        self.assertIsNone(self.c.poll())  # Human time never aborts the test.
+        self.assertEqual(self.requests, [])
         self.assertTrue(self.c.confirm()[0])
         self.assertEqual(self.c.phase, 'preflight')
-        self.assertEqual(self.requests, [])
+        self.assertTrue(self.c.refreshing_consent)
+        self.assertEqual(self.requests, [])  # Fresh read before any G-code.
+        self.assertIsNone(self.c.poll())  # No extra confirmation requested.
         self.worker.drain()
-        self.c.poll()
-        self.assertEqual(self.c.phase, 'await_confirmation')
+        self.assertIsNone(self.c.poll())
+        self.assertFalse(self.c.refreshing_consent)
+        self.assertEqual(self.c.phase, 'running')
+        self.assertEqual(len(self.requests), 1)
+        self.assertEqual(self.requests[0][0], 'printer.gcode.script')
+        self.assertFalse(self.c.confirm()[0])  # Never dispatch twice.
+
+    def test_refresh_rechecks_cold_limits_and_fails_without_heating(self):
+        self.armed()
+        self.clock = 10000
+        self.assertTrue(self.c.confirm()[0])
+        self.data['status']['extruder']['temperature'] = 55.
+        self.worker.drain()
+        result = self.c.poll()
+        self.assertEqual(result.status, 'BLOCKED')
+        self.assertEqual(result.reason, 'cold_idle_thermal_preflight_required')
+        self.assertFalse(self.c.pending)
+        self.assertFalse(self.c._blocked)
+        self.assertEqual(self.requests, [])
+
+    def test_refresh_rejects_print_start_and_stale_epochs_without_dispatch(self):
+        self.armed()
+        self.clock = 10000
+        self.assertTrue(self.c.confirm()[0])
+        self.data['status']['print_stats']['state'] = 'printing'
+        self.p.state = PrinterState.from_snapshot(
+            self.data, reused_settings=self.p.state.settings)
+        self.worker.drain()
+        result = self.c.poll()
+        self.assertEqual(result.status, 'BLOCKED')
+        self.assertEqual(self.requests, [])
+        self.assertFalse(self.c._blocked)
+        self.data['status']['print_stats']['state'] = 'standby'
+        self.p.state = PrinterState.from_snapshot(
+            self.data, reused_settings=self.p.state.settings)
+        self.assertTrue(self.c.start('H01','extruder')[0])
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+        self.clock = 20000
+        self.data['epoch'] += 1
+        self.p.state = PrinterState.from_snapshot(
+            self.data, reused_settings=self.p.state.settings)
+        self.assertEqual(self.c.confirm(),
+                         (False, 'thermal_confirmation_stale_session'))
+        self.assertEqual(self.requests, [])
+
+    def test_refresh_cancel_disowns_future_and_does_not_shutdown(self):
+        self.armed()
+        self.clock = 10000
+        self.assertTrue(self.c.confirm()[0])
+        self.assertEqual(self.c.phase, 'preflight')
+        self.assertEqual(self.c.cancel().status, 'ABORTED')
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+        self.assertEqual(self.requests, [])
+        self.assertFalse(self.c.refreshing_consent)
+
+    def test_refresh_worker_rejection_is_blocked_without_heating(self):
+        self.armed()
+        self.clock = 10000
+        self.worker.submit = Mock(side_effect=RuntimeError('busy'))
+        self.assertEqual(self.c.confirm(),
+                         (False, 'thermal_refresh_worker_rejected'))
+        self.assertFalse(self.c.pending)
+        self.assertEqual(self.requests, [])
+
+    def test_expired_refreshed_safety_never_uses_old_consent_to_heat(self):
+        self.armed()
+        self.clock = 10000
+        self.assertTrue(self.c.confirm()[0])
+        self.worker.drain()
+        self.clock += 15
+        result = self.c.poll()
+        self.assertEqual(result.status, 'BLOCKED')
+        self.assertEqual(result.reason, 'thermal_preflight_stale')
+        self.assertEqual(self.requests, [])
+
+    def test_h05_shared_heater_confirmation_refresh_requires_one_click(self):
+        self.armed('H05')
+        self.clock = 10000
+        self.assertTrue(self.c.confirm()[0])
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+        self.assertEqual(self.c.phase, 'running')
+        self.assertEqual(len(self.requests), 1)
+        self.assertFalse(self.c.confirm()[0])
+
+    def test_preheat_label_has_no_uninitialized_elapsed_timer(self):
+        self.armed()
+        self.clock = 599898
+        for item in self.c.live_text:
+            self.assertNotIn('599898 s', item)
+        self.assertIn('samples', self.c.live_text[-1])
 
     def test_cancel_during_heat_uses_emergency_rpc_never_queued_gcode_off(self):
         self.armed()

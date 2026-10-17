@@ -98,6 +98,36 @@ class MaintenanceUIFlows(unittest.TestCase):
         d.pd.start_maintenance_physical.assert_called_once_with('S18', 'pwm_cycle_time alert')
         d._buzzer_settings.assert_not_called()
 
+    def test_thermal_confirmation_refresh_is_one_click_and_clear_ui(self):
+        d = self.setup_view()
+        d._maintenance_page = 'pulse'
+        owner = SimpleNamespace(
+            phase='await_confirmation', pending=True, feature_id='H01',
+            live_text=('Target 60.0 C',), refreshing_consent=False)
+        d.pd.maintenance_pulse = owner
+        confirmations = []
+        def confirm():
+            confirmations.append('operator_click')
+            owner.phase = 'preflight'
+            owner.refreshing_consent = True
+            return True, 'thermal_confirmation_safety_refresh'
+        d.pd.confirm_maintenance_physical = Mock(side_effect=confirm)
+        d._maintenance_selection = 1
+        self.event(d, d.ENCODER_DIFF_ENTER)
+        self.assertEqual(confirmations, ['operator_click'])
+        self.assertEqual(d._maintenance_page, 'pulse')
+        title, entries = d._maintenance_rows()
+        self.assertEqual(title, 'Refreshing HEAT safety')
+        self.assertEqual(entries[0][0], 'Cancel safety checks')
+        self.assertEqual([r[0] for r in entries[1:]], ['Target 60.0 C'])
+        d.pd.poll_maintenance_physical = Mock(return_value=None)
+        owner.phase = 'running'
+        owner.refreshing_consent = False
+        d._poll_maintenance_ui()
+        self.assertEqual(d._maintenance_page, 'pulse')
+        self.assertEqual(confirmations, ['operator_click'])
+        self.assertEqual(d._maintenance_rows()[0], 'Thermal test')
+
     def test_confirm_default_is_cancel_and_result_not_auto_pass(self):
         d = self.setup_view()
         d._maintenance_page = 'pulse'

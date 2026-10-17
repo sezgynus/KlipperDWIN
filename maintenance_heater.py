@@ -62,6 +62,7 @@ class MaintenanceHeaterController:
         self._pid_saw_power = self._pid_reached = False
         self._metric_ok = False
         self._metrics = ()
+        self._refreshing_consent = False
 
     @property
     def phase(self):
@@ -70,6 +71,10 @@ class MaintenanceHeaterController:
     @property
     def pending(self):
         return self._phase is not None
+
+    @property
+    def refreshing_consent(self):
+        return self._phase == 'preflight' and self._refreshing_consent
 
     @property
     def feature_id(self):
@@ -85,6 +90,11 @@ class MaintenanceHeaterController:
         values = self._series.samples
         if c is None:
             return ()
+        if self._phase in ('preflight', 'await_confirmation'):
+            return ('Target %.1f C' % c.target,
+                    'Checking safety...' if self.refreshing_consent else
+                    'Ready for confirmation',
+                    '%d samples' % len(values))
         return ('Target %.1f C' % c.target,
                 'Temp %.1f C' % values[-1].temperature if values else 'Reading temperature',
                 '%.0f s / %d samples' % (max(0, monotonic()-self._started), len(values)))
@@ -147,6 +157,8 @@ class MaintenanceHeaterController:
         self._metrics = self._pid_proof = ()
         self._pid_saw_power = self._pid_reached = False
         self._contract = self._command = None
+        self._refreshing_consent = False
+        self._started = 0.
         self._ack_seen = False
         self._dispatch_rejected = False
         self._deadline = monotonic()+12
@@ -165,6 +177,7 @@ class MaintenanceHeaterController:
         self._phase = None
         self._future = None
         self._command = None
+        self._refreshing_consent = False
         return result
 
     def _shutdown(self, reason):
@@ -211,11 +224,30 @@ class MaintenanceHeaterController:
         if self.phase != 'await_confirmation':
             return False, 'not_awaiting_thermal_confirmation'
         if monotonic() >= self._deadline or not self._safe(self._queue):
-            # User waiting is unlimited; expired evidence only requests
-            # another read-only preflight and a new deliberate confirmation.
-            f, d = self.feature_id, self._row.device
-            self._phase = None
-            return self.start(f, d)
+            # Retain this exact operator click across one read-only safety
+            # refresh. The new preflight must prove cold/idle/queue safety,
+            # and the dispatch guard checks again immediately before send.
+            # Never reuse the old queue evidence or blindly start heating.
+            if not self._current():
+                return False, 'thermal_confirmation_stale_session'
+            self._refreshing_consent = True
+            self._phase = 'preflight'
+            self._queue = None
+            self._deadline = monotonic() + 12
+            try:
+                self._future = self._worker.submit(
+                    lambda: self._read(True), queue_timeout=8)
+            except Exception:
+                self._refreshing_consent = False
+                self._phase = None
+                self._future = None
+                return False, 'thermal_refresh_worker_rejected'
+            return True, 'thermal_confirmation_safety_refresh'
+        return self._dispatch_confirmed()
+
+    def _dispatch_confirmed(self):
+        # Called only after one explicit user confirmation and fresh positive
+        # safety, either immediately or when its read-only refresh completes.
         c = self._contract
         row = self._row
         def guard():
@@ -287,6 +319,15 @@ class MaintenanceHeaterController:
                 return self._finish('BLOCKED', 'cold_idle_thermal_preflight_required')
             self._queue, self._contract = evidence, c
             self._future = None
+            if self._refreshing_consent:
+                # A successful refreshed preflight consumes the existing
+                # consent exactly once; no second 'Run thermal test' screen.
+                self._refreshing_consent = False
+                self._phase = 'await_confirmation'
+                if not self._safe(self._queue):
+                    return self._finish('BLOCKED', 'thermal_refreshed_safety_stale')
+                self._dispatch_confirmed()
+                return None
             self._phase = 'await_confirmation'
             self._deadline = min(now+3, evidence.observed_at+3)
             return None

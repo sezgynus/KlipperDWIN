@@ -145,3 +145,24 @@ Bu düzeltme gerçek cihazda henüz yeniden denenmedi. PID kesilmesinin kesin
 nedeni için yeni sonuç kodu ve aynı zamana ait Klipper/Petrel günlüğü gerekir.
 Sıcak veya başka ısıtıcısı etkin yazıcıda BLOCKED normaldir; yatakta başlangıç
 sıcaklığı en çok 35 C, hotend'de en çok 45 C olmalıdır.
+
+## **Termal güvenlik yenilemesinde tek onay (17 Ekim 2026)**
+
+H01/H02/H03/H04/H05/H06/H07/H08/H09/H13 seçildiğinde ilk aşamada
+yalnız soğuk/boş güvenlik ön kontrolü yapılır; ayrıca
+`Run thermal test` (veya `Run PID`) onayı gösterilir. Kullanıcının
+bu eylemi seçmesi, ekrandaki bilgileri incelerken ilk kuyruk kanıtı
+eskimiş olsa da **yalnız bu işlem için bir kez verilmiş açık onaydır**.
+Petrel bu durumda `Refreshing HEAT safety` ekranını gösterir, yeni
+soğuk/boş/kuyruk/diğer ısıtıcı kanıtı toplar ve yalnız taze, olumlu
+doğrulamanın ardından ikinci kez tıklatmadan tek korumalı ısıtma
+programını gönderir. Eski kanıt komut yetkisi sağlamaz. Socket gönderimi
+öncesinde canlı güvenlik, termal sözleşme ve epoch kontrolleri tekrar
+zorunludur. Yenilenen ön kontrol başarısızsa, eskirse veya kesilirse
+G-code gönderilmez, otomatik yeniden deneme yapılmaz, BLOCKED bildirilir;
+ısıtma başlamadan iptal acil shutdown istemez. Gönderilmiş ya da
+gönderimi belirsiz aktif ısıtma için mevcut shutdown güvenliği korunur.
+Kullanıcı ilk onaydan önce süresiz bekleyebilir; hareketsizlik nedeniyle
+test sonlandırılmaz veya tekrar onay istenmez. Isıtma öncesindeki
+başlatılmamış süre sayacı artık hatalı büyük süre göstermez.
+Bu düzeltme H grubunun tamamında ortaktır; CI fiziksel kabul değildir.

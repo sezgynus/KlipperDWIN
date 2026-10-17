@@ -120,3 +120,24 @@ CI is not physical acceptance. No local tests or emulator were run.
 PID additionally requires observed positive duty and measured arrival in the target-minus-5 C band. Heater reactivation during cooling requests shutdown. The selected test's primary metric appears first on the LCD result.
 
 The heat script uses M400 after G4 to await actual dwell completion before OFF. Configurations overriding G4/M400 or thermal commands with macros are not admitted as this trusted protocol.
+
+## **Single-consent thermal safety refresh (17 October 2026)**
+
+The first selection of H01/H02/H03/H04/H05/H06/H07/H08/H09/H13
+performs only a cold/idle preflight and displays the separate
+`Run thermal test` (or `Run PID`) confirmation. The user's selection of
+that action is a **single explicit authorization for that operation**, even
+when the earlier read-only queue evidence has aged while the user reads
+the screen. In that case, Petrel displays `Refreshing HEAT safety`,
+takes a **new** bounded cold/idle/queue/other-heater preflight, and on
+fresh positive evidence proceeds directly to the one guarded finite
+heater script. The old evidence never authorizes the dispatch. Immediately
+before socket send, the normal live safety, thermal contract and epoch
+checks remain mandatory. Failed, stale or interrupted refreshed preflight
+does not dispatch G-code, does not auto-retry, and reports a blocked
+condition; cancellation before heating does not request emergency
+shutdown. An active or ambiguously dispatched thermal command still
+uses the existing shutdown policy. The user can wait as long as desired
+before the initial action; no idle response timeout or repeated click
+exists. Preheat status no longer displays an uninitialized elapsed timer.
+All H features share this fix; no physical acceptance is inferred from CI.

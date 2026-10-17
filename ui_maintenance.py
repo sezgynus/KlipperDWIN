@@ -172,9 +172,13 @@ class MaintenanceViewMixin:
                         *((text[:26], self.ICON_Info, None, None)
                           for text in self.pd.maintenance_pulse.live_text))
                 if getattr(self.pd.maintenance_pulse, 'feature_id', '').startswith('H'):
-                    live = getattr(self.pd.maintenance_pulse, 'live_text', ())
-                    return 'Thermal test', (
-                        ('Stop: Klipper shutdown', self.ICON_Back, None, None),
+                    owner = self.pd.maintenance_pulse
+                    live = getattr(owner, 'live_text', ())
+                    checking = phase == 'preflight'
+                    return ('Refreshing HEAT safety' if checking and
+                            getattr(owner, 'refreshing_consent', False) else 'Thermal test'), (
+                        ('Cancel safety checks' if checking else 'Stop: Klipper shutdown',
+                         self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None) for text in live))
                 if getattr(self.pd.maintenance_pulse, 'feature_id', '') in ('M03','M04','M05','M06','M12'):
                     return ('Refreshing safety' if getattr(self.pd.maintenance_pulse,'refreshing_consent',False) else 'Motion test'), (

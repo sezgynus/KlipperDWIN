@@ -224,3 +224,18 @@ reddedilir. Süre Moonraker'ın 900s RPC sınırına göre kontrol edilir.
 Sonuç ekranı Homing cycles: 10 ve hesaplanan bekleyen trigger_phase
 değerini gösterir. Bağımsız metrolojik doğruluk veya fiziksel kabul
 iddiasında bulunmaz.
+
+### M12 homing sonu endstop konumu düzeltmesi (17 Ekim 2026)
+
+Fiziksel Y çalıştırmasında on homing içeren Klipper komutu tamamlandı; ancak
+Klipper'ın bildirdiği Y konumu 6,825 mm, axis_minimum ise 7,0 mm idi.
+Petrel'in genel sıkı eksen sınırı denetimi faz sonucu doğrulamasını
+engelledi ve sonrasında doğrulama zaman aşımı emergency stop oluşturdu.
+M12 artık **yalnız seçilen ve home edilmiş eksenin** fiziksel
+position_endstop konumundan en çok yapılandırılmış bir motor tam-adımı
+kadar ayrılmasını kabul eder. Diğer eksenler normal sınırlarında ve
+beklenen konumlarında kalmalıdır. Sınır, yazıcıya özel sabit yerine
+rotation_distance/full_steps_per_rotation ile hesaplanır.
+Bilinmeyen veya sanal endstop geometrisi için bu istisna geçerli değildir.
+Genel hareket/jog güvenlik sınırları değişmedi. RPC başarısı veya bu yazılım
+düzeltmesi tek başına fiziksel kabul sayılmaz.

@@ -378,6 +378,28 @@ class MotionControllerTests(unittest.TestCase):
         self.assertEqual(result.status,'OBSERVED_USER')
         self.assertFalse(result.restore_verified)
         self.assertIn(('homing_cycles',10),result.evidence)
+    def test_phase_y_style_offset_finishes_without_shutdown(self):
+        # Synthetic physical trace with an endstop-phase offset outside min.
+        from dataclasses import replace
+        self.data['settings']['stepper_x'].update(
+            position_endstop=1.5,rotation_distance=40.,
+            full_steps_per_rotation=200)
+        self.data['status']['toolhead']['axis_minimum'][0]=1.5
+        self.p.state=PrinterState.from_snapshot(self.data)
+        self.p.maintenance.snapshot=replace(
+            self.p.maintenance.snapshot,config_marker=id(self.p.state.settings))
+        self.arm('M12')
+        self.c.confirm()
+        self.data['status']['configfile']={'save_config_pending':True,
+            'save_config_pending_items':{'endstop_phase stepper_x':{
+                'trigger_phase':'49/64'}}}
+        self.data['status']['gcode_move']['position'][0]=1.325
+        self.verified()
+        self.assertEqual(self.c.phase,'await_observation')
+        self.assertEqual(self.c.observe(True).status,'OBSERVED_USER')
+        self.assertNotIn('printer.emergency_stop',
+                         [method for method,_ in self.commands])
+
     def test_live_dispatch_geometry_rejection_keeps_specific_diagnostic(self):
         self.arm('M04')
         # On-demand preflight was valid; the subscription dispatch snapshot

@@ -121,6 +121,8 @@ class MotionProgram:
     returning: bool = False
     phase_count: int | None = None
     homing_runs: int = 0
+    phase_endstop: float | None = None
+    phase_step_tolerance: float = 0.
 
 
 def _script(axis, distance, speed, token, roundtrip):
@@ -144,6 +146,27 @@ def phase_pending_allowed(cfg, device):
     return (cfg.get('save_config_pending') is True and
             isinstance(items, Mapping) and bool(items) and
             'endstop_phase '+device not in items)
+
+
+def phase_endstop_window(settings, name):
+    """Klipper can report up to one full motor step outside axis_minimum
+    after homing-phase correction. Only trust configured physical endstops.
+    """
+    cfg=settings.get(name)
+    if not isinstance(cfg, Mapping):
+        return None
+    pin=cfg.get('endstop_pin')
+    endstop=cfg.get('position_endstop')
+    distance=cfg.get('rotation_distance')
+    steps=cfg.get('full_steps_per_rotation',200)
+    if (not isinstance(pin,str) or not pin or 'virtual_endstop' in pin
+            or not all(number(x) for x in (endstop,distance,steps))
+            or distance<=0 or steps<=0):
+        return None
+    full_step=distance/steps
+    if not number(full_step) or full_step<=0:
+        return None
+    return float(endstop),full_step+0.001
 
 
 def compile_motion(row, state, status, token):
@@ -223,9 +246,12 @@ def compile_motion(row, state, status, token):
                   'RESTORE_GCODE_STATE NAME='+token+' MOVE=0']
         expected=list(position)
         expected[2]=z_target
+        window=phase_endstop_window(settings,name)
         return MotionProgram(feature,name,chr(10).join(lines),position,
                              tuple(expected),modes,axis,0.,deadline,
-                             phase_count=count,homing_runs=10)
+                             phase_count=count,homing_runs=10,
+                             phase_endstop=window[0] if window else None,
+                             phase_step_tolerance=window[1] if window else 0.)
     if name not in _AXES:
         raise ValueError('primary_axis_stepper_required')
     axis = _AXES[name]
@@ -276,14 +302,26 @@ def verify_motion(program, status):
             return False
         actual = vector(status['gcode_move']['position'])
         low, high = vector(th['axis_minimum']), vector(th['axis_maximum'])
-        if any(not lo <= p <= hi for lo,hi,p in zip(low,high,actual)):
-            return False
         if program.feature_id == 'M12':
-            if any(abs(actual[i]-program.expected[i])>.01
-                   for i in range(3) if i!=program.axis):
+            if program.device[-1] not in th['homed_axes']:
                 return False
-        elif program.expected is not None and not position_matches(program.expected, actual):
-            return False
+            for i, (lo, hi, pos) in enumerate(zip(low,high,actual)):
+                if i == program.axis and program.phase_endstop is not None:
+                    # A completed Klipper G28 can position this axis just
+                    # outside axis_minimum after endstop-phase correction.
+                    # Bound it to the configured switch + one full step,
+                    # not an arbitrary expansion of general move limits.
+                    if abs(pos-program.phase_endstop)>program.phase_step_tolerance:
+                        return False
+                elif not lo<=pos<=hi:
+                    return False
+                if i!=program.axis and abs(pos-program.expected[i])>.01:
+                    return False
+        else:
+            if any(not lo<=pos<=hi for lo,hi,pos in zip(low,high,actual)):
+                return False
+            if program.expected is not None and not position_matches(program.expected, actual):
+                return False
         if program.feature_id in ('M04', 'M05', 'M06'):
             enabled = status['stepper_enable']['steppers']
             if any(enabled.get('stepper_'+a) is not True for a in 'xyz'):

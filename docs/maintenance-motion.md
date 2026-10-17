@@ -218,3 +218,17 @@ in Klipper and is rejected. Runtime is bounded against the 900s RPC ceiling.
 The review screen shows Homing cycles: 10 and the computed pending trigger
 phase. It does not claim independent metrological accuracy or automatically
 accept this test as physically passed.
+
+### M12 homing-endstop readback correction (17 October 2026)
+
+A physical Y run returned G-code position 6.825 mm after homing while the
+reported axis_minimum was 7.0 mm. Klipper completed the ten-homing script,
+but Petrel's generic strict axis bounds prevented phase-result verification
+and subsequently triggered its completion timeout emergency stop. M12 now
+accepts the **selected homed axis only** within one configured full motor step
+of its physical position_endstop; all other axes keep their normal bounds and
+must retain their expected positions. The window is derived from
+rotation_distance/full_steps_per_rotation, not a printer-specific constant.
+Unknown or virtual endstop geometry does not authorize this exception.
+Motion/jog safety limits remain unchanged. Neither the command RPC nor this
+software fix alone constitutes physical acceptance.

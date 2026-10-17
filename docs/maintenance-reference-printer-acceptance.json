@@ -466,6 +466,39 @@
         "physical_acceptance": false
       },
       "qualification": "Operator observation verifies H02 test procedure and safe OFF, not persistence of the calculated PID values. No SAVE_CONFIG. H03 remains pending; its preflight correctly blocks on H02's unsaved pending config."
+    },
+    "physical_trace_2026_10_17_h03_pid": {
+      "session": "8fa2b04372d94b7ca60e6d443fc098a8",
+      "head": "1b6511db3ab45a3f9b3afc30c2c5364f836c356f",
+      "first_seq": 1721,
+      "last_seq": 4391,
+      "session_events": 2671,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "rotations": 1,
+      "h03": {
+        "device": "heater_bed",
+        "run": 3,
+        "target_c": 60,
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "metric_ok": true,
+        "coefficients": {
+          "pid_kp": 72.339,
+          "pid_ki": 1.502,
+          "pid_kd": 870.785
+        },
+        "heated_to_target_band": true,
+        "operator_observation": true,
+        "config_pending_not_saved": true,
+        "start_seq": 1766,
+        "confirm_seq": 1783,
+        "dispatch_seq": 1792,
+        "completion_seq": 4118,
+        "observe_seq": 4288,
+        "result_seq": 4290
+      },
+      "qualification": "H03 physical procedure accepted. The PID coefficients are pending SAVE_CONFIG; the trace does not show persistence of settings to disk. Historical earlier H03 BLOCKED attempt is retained under the H02 session and does not affect this later successful run."
     }
   },
   "policy": {
@@ -716,10 +749,38 @@
       "title": "Bed PID calibration",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded thermal/PID adapter; pending final operator batch acceptance. No physical PASS inferred from CI.",
-      "acceptance": null
+      "note": "Klipper PID_CALIBRATE heater_bed completed under guarded Petrel H03 procedure. Three new PID parameters were read from Klipper's pending config; heater OFF and cooling were verified; operator explicitly confirmed result. Petrel did not send SAVE_CONFIG.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly confirmed successful H03 bed PID calibration. Klipper completed autotune, Petrel verified positive finite PID values from pending config and heater OFF/cooling, and LCD reported PASSED_USER.",
+        "tested_signed_head": "1b6511db3ab45a3f9b3afc30c2c5364f836c356f",
+        "target_c": 60,
+        "metrics": {
+          "pid_kp": 72.339,
+          "pid_ki": 1.502,
+          "pid_kd": 870.785,
+          "heated_to_target_band": true
+        },
+        "klipper_save_config_pending": true,
+        "save_config_executed": false,
+        "trace": {
+          "session": "8fa2b04372d94b7ca60e6d443fc098a8",
+          "head": "1b6511db3ab45a3f9b3afc30c2c5364f836c356f",
+          "run": 3,
+          "start_seq": 1766,
+          "confirm_seq": 1783,
+          "dispatch_seq": 1792,
+          "completion_seq": 4118,
+          "observe_seq": 4288,
+          "result_seq": 4290
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "H05",

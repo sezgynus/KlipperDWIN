@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **38 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **39 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 38 KABUL, 18 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 39 KABUL, 17 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Kabul türleri:** Termal karakterizasyonda *test prosedürünün kabulü*, yazıcının termal performans kriterini geçmesi demek değildir. H07/H08 Extruder sonuçları `FAILED_METRIC` olarak korunur; doğru ölçüm ve güvenli tamamlanma sayesinde prosedürler kabul edilir.
 
@@ -62,11 +62,13 @@
 | [x] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Tek döngü; OFF doğrulandı | **KABUL (prosedür)** |
 | [x] | H02 | `extruder` | Hotend PID kalibrasyonu | Klipper PID, katsayılar + OFF doğrulandı | **KABUL** |
 
+| [x] | H03 | `heater_bed` | Tabla PID kalibrasyonu | Klipper PID, katsayılar + OFF doğrulandı | **KABUL** |
+
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | H03 | `heater_bed` | Tabla PID kalibrasyonu | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
+
 | [ ] | P01 | `probe` | Prob tetikleme | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P04 | `probe` | Tek prob ölçümü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -175,5 +177,18 @@ Kullanıcı `observe(true)` (#1595) verdi; sonuç #1597
 iddia edilmez. H03 Bed PID run 2, H02'den kalan
 `existing_or_unknown_pending_config` nedeniyle komut gönderilmeden
 `BLOCKED` (#1672); H03 kabulü verilmedi.
-**Güncel toplam: 62 kayıt / 46 ID — 38 KABUL, 18 BEKLİYOR,
+**H02 kabulü sonrası toplam: 62 kayıt / 46 ID — 38 KABUL, 18 BEKLİYOR,
 5 KOŞULLU, 1 N/A.**
+
+**H03 Bed PID fiziksel kabulü (17 Ekim 2026):**
+Oturum `8fa2b04372d94b7ca60e6d443fc098a8`, imzalı HEAD `1b6511d`.
+2.671 olay (sıra 1721–4391); sıfır kayıp/yazma hatası, bir rotasyon.
+H03 run 3, hedef 60 °C. PID_CALIBRATE gönderim #1792, tamamlanma #4118.
+Yeni katsayılar: Kp=72,339; Ki=1,502; Kd=870,785.
+Isıtıcı OFF/soğuma ve `restore_verified=true` doğrulandı.
+Kullanıcı `observe(true)` (#4288) onayıyla `PASSED_USER` (#4290)
+sonucunu verdi. H03 fiziksel test prosedürü kabul edildi.
+`SAVE_CONFIG` çağrılmadı; kalıcı kaydetme doğrulanmadı.
+Önceki H03 BLOCKED denemesi geçmişte korunur.
+**Referans yazıcıda H grubunun 16/16 prosedürü kabul edildi.
+Güncel toplam: 62 kayıt, 39 KABUL, 17 BEKLİYOR, 5 KOŞULLU, 1 N/A.**

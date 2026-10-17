@@ -6,9 +6,9 @@
 
 **Evidence boundary:** the independent 121-ID hardware reference from 15 Oct 2026, the 16 Oct 2026 discovery log and explicit user observations. The log confirms **54 discovered features**, but no serialized list of their exact IDs was preserved. Here, `confirmed` means confirmed by the independent capability reference, **not** an exact complete dump of the 54 currently observed IDs. `conditional` entries are not currently authorized, discoverable test commands.
 
-**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Thirty-eight** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
+**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Thirty-nine** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **62 rows / 46 IDs** — 38 ACCEPTED, 18 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+**Per-device tracking:** **62 rows / 46 IDs** — 39 ACCEPTED, 17 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
 
 **Acceptance semantics:** For grouped thermal characterization, acceptance certifies that the *test procedure* worked; it does not mean the printer met every thermal performance threshold. Extruder H07/H08 remain `FAILED_METRIC` and are never rewritten to PASS.
 
@@ -62,11 +62,13 @@
 | [x] | H13 | `heater_bed` | Heater response warning | Single cycle; OFF verified | **ACCEPTED (procedure)** |
 | [x] | H02 | `extruder` | Extruder PID calibration | Klipper PID, coefficients and OFF verified | **ACCEPTED** |
 
+| [x] | H03 | `heater_bed` | Bed PID calibration | Klipper PID, coefficients and OFF verified | **ACCEPTED** |
+
 ## Reference-confirmed hardware — adapter/acceptance pending
 
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
-| [ ] | H03 | `heater_bed` | Bed PID calibration | Available; batch acceptance pending | **PENDING** |
+
 | [ ] | P01 | `probe` | Probe trigger response | Ready; physical acceptance pending | **PENDING** |
 | [ ] | P03 | `probe` | Probe repeatability | Ready; physical acceptance pending | **PENDING** |
 | [ ] | P04 | `probe` | Single probe measurement | Ready; physical acceptance pending | **PENDING** |
@@ -175,5 +177,22 @@ Operator `observe(true)` (#1595) and result #1597 was
 verified persisted. H03 bed PID run 2 was `BLOCKED` before
 dispatch (#1672) by H02's `existing_or_unknown_pending_config`;
 H03 is not accepted.
-**Current totals: 62 rows / 46 IDs — 38 ACCEPTED,
+**Totals after H02 acceptance: 62 rows / 46 IDs — 38 ACCEPTED,
 18 PENDING, 5 CONDITIONAL, 1 N/A.**
+
+**H03 bed PID physical acceptance (17 October 2026):**
+Session `8fa2b04372d94b7ca60e6d443fc098a8`, tested signed HEAD
+`1b6511d`; 2,671 events (#1721–4391), zero dropped/write
+errors, one file rotation. H03 run 3 targeted **60 C**;
+Klipper `PID_CALIBRATE` was sent at #1792 and completed
+at #4118. The pending PID coefficients were read as
+**Kp=72.339**, **Ki=1.502**, **Kd=870.785**. Heater OFF,
+cooling and `restore_verified=true` were verified. Operator
+`observe(true)` (#4288) confirmed the run, resulting in
+`PASSED_USER` (#4290). **H03 physical procedure accepted.**
+Petrel did not issue `SAVE_CONFIG`; coefficient persistence
+is not claimed. The earlier H03 `BLOCKED` attempt is retained
+in history and does not override the later successful run.
+**All 16/16 H-group physical procedures on this reference printer
+have operator acceptance. Current totals: 62 rows / 46 IDs —
+39 ACCEPTED, 17 PENDING, 5 CONDITIONAL, 1 N/A.**

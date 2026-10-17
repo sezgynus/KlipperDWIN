@@ -233,6 +233,10 @@ class MaintenanceHeaterController:
             self._refreshing_consent = True
             self._phase = 'preflight'
             self._queue = None
+            # The earlier preflight sample can be arbitrarily old while the
+            # operator reads the screen. Never splice it into a fresh
+            # bounded-gap thermal series (max 5s between samples).
+            self._series = ThermalSeries()
             self._deadline = monotonic() + 12
             try:
                 self._future = self._worker.submit(

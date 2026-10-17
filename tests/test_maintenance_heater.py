@@ -100,6 +100,7 @@ class ThermalControllerTests(unittest.TestCase):
         self.assertTrue(self.c.confirm()[0])
         self.assertEqual(self.c.phase, 'preflight')
         self.assertTrue(self.c.refreshing_consent)
+        self.assertEqual(self.c._series.samples, [])  # Old preflight sample discarded.
         self.assertEqual(self.requests, [])  # Fresh read before any G-code.
         self.assertIsNone(self.c.poll())  # No extra confirmation requested.
         self.worker.drain()

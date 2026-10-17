@@ -178,7 +178,7 @@ def owner_snapshot(owner):
         out = {}
         for key in ('_phase','_action','_index','_step','_stop_reason','_blocked','_locked',
                     '_sent','_off_matches','_metric_ok','_measurement','_evidence','_metrics',
-                    '_pid_proof','_gpio_start','_restore','_last_read_point','_safety_reason','_queue_age_s','_confirm_attempts','_refresh_reason','_dispatch_guard_reason'):
+                    '_pid_proof','_gpio_start','_restore','_last_read_point','_safety_reason','_queue_age_s','_queue_read_failures','_confirm_attempts','_refresh_reason','_dispatch_guard_reason'):
             value = getattr(owner,key,None)
             if is_dataclass(value):
                 value = {f.name:getattr(value,f.name) for f in fields(value)}

@@ -155,6 +155,63 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertGreater(snapshot['queue_age_s'],3.)
         self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
 
+    def test_r02_transient_moonraker_queue_read_failure_retries_without_shutdown(self):
+        self._running_r02()
+        self.clock += 3.07
+        self.assertIsNone(self.owner.poll())
+        with patch.object(self.owner,'runtime_evidence',return_value=None):
+            self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'running')
+        self.assertEqual(self.owner._refresh_reason,'queue_read_retry')
+        self.assertEqual(self.owner._queue_read_failures,1)
+        self.assertEqual([x[0] for x in self.commands],['printer.gcode.script'])
+        self.clock += 1.1
+        self.assertIsNone(self.owner.poll())
+        self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'running')
+        self.assertEqual(self.owner._queue_read_failures,0)
+        self.assertEqual(self.owner._safety_reason,'allowed')
+        self.assertEqual([x[0] for x in self.commands],['printer.gcode.script'])
+
+    def test_r02_transient_worker_exception_retries_only_with_live_safe_state(self):
+        self._running_r02()
+        self.clock += 3.07
+        self.assertIsNone(self.owner.poll())
+        with patch.object(self.owner,'runtime_evidence',side_effect=RuntimeError('offline')):
+            self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'running')
+        self.assertEqual(self.owner._refresh_reason,'queue_read_retry')
+        self.raw['status']['print_stats']['state']='printing'
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'stopping')
+        self.assertEqual(self.owner._safety_reason,'print_not_idle')
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
+
+    def test_r02_stale_queue_grace_is_bounded_during_pending_refresh(self):
+        self._running_r02()
+        self.clock += self.owner._RUNTIME_QUEUE_RETRY_MAX_AGE + .1
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'stopping')
+        self.assertEqual(self.owner._refresh_reason,'queue_refresh_grace_expired')
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
+
+    def test_r02_actual_unsafe_queue_read_stops_without_retry(self):
+        from maintenance_runtime import QueueEvidence
+        self._running_r02()
+        self.clock += 3.07
+        self.assertIsNone(self.owner.poll())
+        with patch.object(self.owner,'runtime_evidence',side_effect=lambda:QueueEvidence(
+                self.owner._row.epoch,self.owner._row.config_marker,
+                self.clock,True,'ready',False)):
+            self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.owner.phase,'stopping')
+        self.assertEqual(self.owner._safety_reason,'queue_pending_or_busy')
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
+
     def test_r02_confirmed_print_start_still_requests_emergency_stop(self):
         self._running_r02()
         self.clock += 3.07

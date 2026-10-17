@@ -54,6 +54,10 @@ def safe_name(name):
 
 
 class FirmwareWorkflow:
+    # A transient Moonraker GET failure must not become an immediate E-STOP.
+    # This is a hard limit, not a user-choice timeout: live printer and
+    # conflicting-operation checks remain mandatory on EVERY poll.
+    _RUNTIME_QUEUE_RETRY_MAX_AGE = 20.0
     methods = {}
     domain = ''
     moving = True
@@ -74,6 +78,7 @@ class FirmwareWorkflow:
         self._safety_future = None
         self._next_safety = 0.
         self._safety_reason = self._queue_age_s = self._refresh_reason = None
+        self._queue_read_failures = 0
         self._homing=None
         self._home_attempted=self._homing_verified=False
 
@@ -227,6 +232,7 @@ class FirmwareWorkflow:
         self._safety_future = None
         self._next_safety = 0.
         self._safety_reason = self._queue_age_s = self._refresh_reason = None
+        self._queue_read_failures = 0
         self._evidence, self._lines, self._values = (), (), {}
         try:
             accepted,reason = self._schedule('start', False)
@@ -344,11 +350,22 @@ class FirmwareWorkflow:
                 if self._safety_future is not None and self._safety_future.done():
                     try:
                         queue = self._safety_future.result()
-                        if not self._safe(queue):
-                            raise ValueError('workflow_runtime_unsafe')
-                        self._queue = queue
                     except Exception:
+                        queue = None  # Worker/HTTP failure is not an unsafe queue.
+                    if queue is None:
+                        self._queue_read_failures += 1
+                        if not self._runtime_queue_refresh_pending(read_failed=True):
+                            return self._shutdown('workflow_runtime_safety_changed') if self.moving else self._finish('INCONCLUSIVE','workflow_runtime_safety_changed')
+                        # Retry a failed read, but never reuse cached evidence
+                        # for a new command dispatch or beyond the hard bound.
+                        self._safety_future = None
+                        self._next_safety = now+1
+                        return None
+                    if not self._safe(queue):
                         return self._shutdown('workflow_runtime_safety_changed') if self.moving else self._finish('INCONCLUSIVE','workflow_runtime_safety_changed')
+                    self._queue_read_failures = 0
+                    self._refresh_reason = None
+                    self._queue = queue
                     self._safety_future = None
                     self._next_safety = now+1
                 if self._safety_future is None and now >= self._next_safety:
@@ -391,29 +408,33 @@ class FirmwareWorkflow:
         row = self._row
         return read_queue_evidence(self._client,row.epoch,row.config_marker)
 
-    def _runtime_queue_refresh_pending(self):
-        """Only tolerate an aged queue sample while its replacement is in flight.
+    def _runtime_queue_refresh_pending(self, *, read_failed=False):
+        """Bounded continuation on the LAST POSITIVELY VERIFIED queue state.
 
-        A running Klipper motion can delay Moonraker's queue read beyond the
-        admission-only three-second freshness limit. Keep enforcing LIVE
-        printer/print/pause/MMU/operation status. Never treat an unknown queue
-        as fresh or allow it at initial admission / a new command dispatch.
+        During one already-dispatched moving command, a pending or failed
+        Moonraker read is not itself proof of an unsafe queue. The prior
+        *actual* queue reading can cover a short transient GET failure, while
+        ALL live print/ready/pause/MMU/other-owner guards are checked on each
+        poll. Never permit this at preflight or new dispatch. A completed
+        future is consumed next poll, not inspected twice in the same poll.
         """
-        # A worker may finish between the running-phase .done() check and
-        # this guard. Do not inspect .done() a second time: its result has not
-        # yet been consumed into self._queue. Next poll consumes it and must
-        # enforce precheck on the new evidence (including malformed replies).
-        if (not self._sent or not self.moving or self._queue is None
-                or self._safety_future is None):
+        if (not self._sent or not self.moving
+                or not isinstance(self._queue, QueueEvidence)
+                or (self._safety_future is None and not read_failed)):
             return False
-        context = self.context(self._queue)
+        context = live_safety_context(
+            self._printer, self._queue,
+            queue_max_age=self._RUNTIME_QUEUE_RETRY_MAX_AGE)
         decision = precheck(self._printer.maintenance.snapshot, context)
-        tolerated = (decision.reason == 'queue_unknown'
-                     and context.operations_checked is True
-                     and context.conflicting_operation is False)
-        if tolerated:
-            self._refresh_reason = 'queue_refresh_unconsumed'
-        return tolerated
+        self._safety_reason = decision.reason
+        if not decision.allowed:
+            self._refresh_reason = ('queue_refresh_grace_expired'
+                                    if decision.reason == 'queue_unknown'
+                                    else 'runtime_safety_rejected')
+            return False
+        self._refresh_reason = ('queue_read_retry' if read_failed
+                                else 'queue_refresh_unconsumed')
+        return True
 
     def dispatch(self, script, guard):
         return self._printer.subscription.request('printer.gcode.script',

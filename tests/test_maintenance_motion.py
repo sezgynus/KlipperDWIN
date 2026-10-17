@@ -65,6 +65,30 @@ class MotionContractTests(unittest.TestCase):
         home=compile_motion(self.row('M03',None),self.state,self.status,TOKEN)
         self.assertEqual(home.script,'G28\nM400')
         self.assertNotIn('FORCE_MOVE',home.script)
+    def test_homing_accepts_unhomed_zero_outside_positive_axis_minima(self):
+        self.status['toolhead'].update(homed_axes='',axis_minimum=[1.5,7.,-5.],
+                                      axis_maximum=[252.,235.,200.])
+        self.status['gcode_move']['position']=[0.,0.,0.,0.]
+        home=compile_motion(self.row('M03',None),self.state,self.status,TOKEN)
+        self.assertEqual(home.script,'G28\nM400')
+        # The same data cannot authorize a buzz or relative/measurement move.
+        for feature in ('M04','M05','M06'):
+            with self.assertRaisesRegex(ValueError,'home_xyz_before_motion_test'):
+                compile_motion(self.row(feature),self.state,self.status,TOKEN)
+        self.status['toolhead']['homed_axes']='x'
+        with self.assertRaisesRegex(ValueError,'motion_limits_or_position_invalid'):
+            compile_motion(self.row('M03',None),self.state,self.status,TOKEN)
+
+    def test_unhomed_homing_still_rejects_invalid_limits_and_nan(self):
+        self.status['toolhead']['homed_axes']=''
+        self.status['toolhead']['axis_minimum'][0]=201.
+        with self.assertRaisesRegex(ValueError,'motion_limits_or_position_invalid'):
+            compile_motion(self.row('M03',None),self.state,self.status,TOKEN)
+        self.status['toolhead']['axis_minimum'][0]=1.5
+        self.status['gcode_move']['position'][0]=float('nan')
+        with self.assertRaisesRegex(ValueError,'motion_coordinates_unknown'):
+            compile_motion(self.row('M03',None),self.state,self.status,TOKEN)
+
     def test_phase_calibration_requires_actual_history_and_exact_pending_result(self):
         self.state.settings['endstop_phase stepper_x']={}
         self.status['configfile']={'save_config_pending':False}

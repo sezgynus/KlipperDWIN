@@ -6,15 +6,15 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **9 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **11 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 9 KABUL, 55 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 11 KABUL, 53 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
 **Özellikle hariç tutulanlar:** Yalnız bilgi okuyan S01/S02/S03/S05/S08/S10 ve H11/H14/M09/P09 vb. `INFORMATION` tanılamaları fiziksel PASS değildir. Tachometresiz fan için RPM ölçümü yapılmış sayılmaz. Z sanal endstop elle basılan fiziksel anahtar değildir. BLTouch yoktur; servo-probe vardır. R02 yalnız X/Y sensörüyle eşleşmiştir. Geçici `PFAB_Bucket_Percentage` bu referansın dışında; genel keşif kodu için kullanıcıya özel filtre değildir.
 
-**17 Ekim kayıt kabulü:** S15 fiziksel enkoder (iki yön + basma), S16 beş renk ve S17 10/50/100% parlaklık; her birinde açık `observe(true)`, `PASSED_USER` ve kontrolcünün restore kanıtı var. Oturum `dec3042495ca4ab78b58b947e2b3c73a`. P03/P04 otomatik ölçüm sonuçları ayrıca kaydedildi; fiziksel kabul verilmedi. [Ayrıntılı kayıt incelemesi](maintenance-acceptance-2026-10-17_TR.md).
+**17 Ekim kayıt kabulü:** S15 fiziksel enkoder (iki yön + basma), S16 beş renk ve S17 10/50/100% parlaklık; her birinde açık `observe(true)`, `PASSED_USER` ve kontrolcünün restore kanıtı var. Oturum `dec3042495ca4ab78b58b947e2b3c73a`. P03/P04 otomatik ölçüm sonuçları ayrıca kaydedildi; fiziksel kabul verilmedi. [Ayrıntılı kayıt incelemesi](maintenance-acceptance-2026-10-17_TR.md). İkinci oturumda M01 fiziksel X/Y endstop'ları da `open → TRIGGERED → open` ve açık kullanıcı onayıyla kabul edildi.
 
 ## Kullanıcı tarafından tamamlananlar
 
@@ -29,6 +29,8 @@
 | [x] | S15 | `Petrel encoder` | Petrel enkoder tanılama | Kullanıcı gördü; restore doğrulandı | **KABUL** |
 | [x] | S16 | `DWIN LCD` | LCD tanılama | Kullanıcı gördü; restore doğrulandı | **KABUL** |
 | [x] | S17 | `DWIN backlight` | LCD arka ışık testi | Kullanıcı gördü; restore doğrulandı | **KABUL** |
+| [x] | M01 | `physical X endstop` | Fiziksel endstop basma/bırakma | Kullanıcı onayı; serbest durum doğrulandı | **KABUL** |
+| [x] | M01 | `physical Y endstop` | Fiziksel endstop basma/bırakma | Kullanıcı onayı; serbest durum doğrulandı | **KABUL** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
@@ -50,8 +52,6 @@
 | [ ] | H09 | `heater_bed` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `extruder` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | M01 | `physical X endstop` | Fiziksel endstop basma/bırakma | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M01 | `physical Y endstop` | Fiziksel endstop basma/bırakma | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M03 | `Cartesian X/Y/Z homing` | Homing tamamlanması | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M04 | `stepper_x` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M04 | `stepper_y` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |

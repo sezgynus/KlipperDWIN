@@ -111,9 +111,9 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(by_target[('F04', 'fan_generic (not installed)')]
                          ['status'], 'not_applicable')
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'accepted']), 9)
+                              if e['status'] == 'accepted']), 11)
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'pending']), 55)
+                              if e['status'] == 'pending']), 53)
 
     def test_h_implementation_does_not_grant_physical_acceptance(self):
         targets = [e for e in ledger()['entries']
@@ -133,8 +133,11 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(len(items),22)
         for item in items:
             self.assertEqual(item['adapter'],'implemented')
-            self.assertEqual(item['status'],'pending')
-            self.assertIsNone(item['acceptance'])
+            if item['feature_id']=='M01':
+                self.assertEqual(item['status'],'accepted')
+            else:
+                self.assertEqual(item['status'],'pending')
+                self.assertIsNone(item['acceptance'])
 
     def test_remaining_group_implementation_never_grants_physical_acceptance(self):
         implemented = {'P01','P03','P04','R01','R02','R03','R04','E01','E02','E03','E07','E11',
@@ -165,6 +168,21 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             if item['feature_id'] in ('P03','P04'):
                 self.assertEqual(item['status'],'pending')
                 self.assertIsNone(item['acceptance'])
+
+    def test_registered_endstop_fix_has_per_axis_operator_acceptance(self):
+        rows = {e['target']:e for e in ledger()['entries'] if e['feature_id']=='M01'}
+        for target,run,observed,result in (
+                ('physical X endstop',1,249,251),('physical Y endstop',2,392,394)):
+            item=rows[target]
+            self.assertEqual(item['status'],'accepted')
+            evidence=item['acceptance']
+            self.assertEqual(evidence['controller_result'],'PASSED_USER')
+            self.assertTrue(evidence['restore_verified'])
+            self.assertEqual(evidence['measurements']['transitions'],'open > TRIGGERED > open')
+            trace=evidence['trace']
+            self.assertEqual(trace['session'],'2de3566ce59d476cb020ad83dd5360bf')
+            self.assertEqual((trace['run'],trace['observe_seq'],trace['result_seq']),
+                             (run,observed,result))
 
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}

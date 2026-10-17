@@ -126,3 +126,25 @@ Mesh preflight requests only profile and bounds, never a matrix. Unknown
 TMC2208 register schemas remain inconclusive. Information source rejection
 releases its reservation. Confirmation information rows are inert; the measured
 distance editor redraws immediately and never dispatches the return itself.
+
+## 17 October physical verification — pre-homing position
+
+Physical X/Y M01 endstops passed with explicit operator observation.
+The second trace session (`2de3566ce59d476cb020ad83dd5360bf`, 787 events, no drops)
+blocked M03 and 11 subsequent attempts at the same geometry check before dispatch:
+`homed_axes=""`, position `[0,0,0]`, minima `[1.5,7,-5]`.
+These are not 12 separate motor faults.
+
+M03 does not treat unhomed zero placeholders as measured physical positions.
+Finite/ordered configured limits, cold/OFF heaters, modes, overrides, lifecycle and
+separate user consent remain checked. Already-homed axes must remain in bounds.
+All XYZ homing, position and modal readbacks are verified after completion.
+Unhomed M04/M05/M06 return `home_xyz_before_motion_test`;
+M12 retains its axis/last_home checks.
+
+Retest M03 alone first. After completion, use the normal Move menu to place XYZ
+at least 2 mm inside the bounds, with Z at least 5 mm above its minimum for XY motion
+and a mechanically clear path; keep motors enabled.
+Then run M04/M05/M06. If a mesh is active, use the existing normal mesh-clear flow
+required by the test. Leave M12 until homing history exists and run it last;
+new calibration is refused while config changes are pending.

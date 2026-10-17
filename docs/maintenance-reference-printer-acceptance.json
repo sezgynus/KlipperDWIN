@@ -19,6 +19,17 @@
         "S16",
         "S17"
       ]
+    },
+    "physical_trace_2026_10_17_m": {
+      "session": "2de3566ce59d476cb020ad83dd5360bf",
+      "head": "0c96a4c3deed78615028c0d2ecd074fc42198680",
+      "events": 787,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "accepted_targets": [
+        "physical X endstop",
+        "physical Y endstop"
+      ]
     }
   },
   "policy": {
@@ -332,10 +343,27 @@
       "title": "Physical endstop press/release",
       "method": "AU",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Registered endstop-name parser physically verified; open > TRIGGERED > open and explicit operator observation recorded on 2026-10-17.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator exercised physical X endstop open > TRIGGERED > open and selected observe(true); premature clicks remained retryable without failing the test.",
+        "trace": {
+          "session": "2de3566ce59d476cb020ad83dd5360bf",
+          "head": "0c96a4c3deed78615028c0d2ecd074fc42198680",
+          "run": 1,
+          "observe_seq": 249,
+          "result_seq": 251
+        },
+        "measurements": {
+          "transitions": "open > TRIGGERED > open"
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M01",
@@ -343,10 +371,27 @@
       "title": "Physical endstop press/release",
       "method": "AU",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Registered endstop-name parser physically verified; open > TRIGGERED > open and explicit operator observation recorded on 2026-10-17.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator exercised physical Y endstop open > TRIGGERED > open and selected observe(true); premature clicks remained retryable without failing the test.",
+        "trace": {
+          "session": "2de3566ce59d476cb020ad83dd5360bf",
+          "head": "0c96a4c3deed78615028c0d2ecd074fc42198680",
+          "run": 2,
+          "observe_seq": 392,
+          "result_seq": 394
+        },
+        "measurements": {
+          "transitions": "open > TRIGGERED > open"
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M03",

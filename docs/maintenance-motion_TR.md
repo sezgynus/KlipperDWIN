@@ -126,3 +126,26 @@ Mesh ön kontrolünde yalnız profil ve sınırlar istenir; matris çekilmez.
 Bilinmeyen TMC2208 register şeması sonuçsuz kalır. Bilgi kaynağı reddi
 rezervasyonu bırakır. Onay ekranındaki bilgi satırları işlem yapmaz; ölçülen
 mesafe editörü anlık yenilenir ve dönüşü kendiliğinden başlatmaz.
+
+## 17 Ekim fiziksel doğrulama — homing öncesi konum
+
+M01 fiziksel X/Y endstop'ları açık kullanıcı gözlemiyle geçti.
+İkinci kayıt oturumunda (`2de3566ce59d476cb020ad83dd5360bf`, 787 olay, kayıp yok)
+M03 ve sonraki 11 deneme komut gönderilmeden aynı geometri denetiminde engellendi:
+`homed_axes=""`, konum `[0,0,0]`, minimumlar `[1.5,7,-5]`.
+Bu, 12 ayrı motor arızası değildir.
+
+M03 homing öncesi bilinmeyen eksenlerin geçici sıfırını fiziksel konum kabul etmez;
+yapılandırılmış sonlu/artan sınırlar, soğuk/OFF ısıtıcılar, modlar, override,
+yaşam döngüsü ve ayrı kullanıcı onayı hâlâ denetlenir.
+Zaten home edilmiş eksenlerin konumu sınır içinde olmalıdır.
+Homing sonrası tüm XYZ, konum ve modal geri okumaları doğrulanır.
+M04/M05/M06 home yapılmamışsa `home_xyz_before_motion_test` verir;
+M12'nin kendi eksen/last_home denetimleri korunur.
+
+Yeniden testte önce yalnız M03'ü çalıştırın. Tamamlandıktan sonra normal Move menüsüyle
+XYZ'yi sınırlardan en az 2 mm içeri, XY hareketi için Z'yi alt sınırdan en az 5 mm
+yukarı ve mekanik açıdan açık bir konuma getirin; motorlar açık kalsın.
+M04/M05/M06 ardından çalıştırılır. Aktif mesh varsa testin istediği mevcut normal
+mesh temizleme akışını kullanın. M12'yi homing geçmişi oluştuktan sonra en sona bırakın;
+bekleyen config varken yeni kalibrasyon başlatılmaz.

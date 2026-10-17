@@ -40,7 +40,7 @@ def idle_heaters(settings, status):
                 raise ValueError('motion_requires_cold_idle_heaters')
 
 
-def geometry(settings, status, homed=True):
+def geometry(settings, status, homed=True, homing=False):
     if not isinstance(settings, Mapping) or not isinstance(status, Mapping):
         raise ValueError('motion_evidence_unknown')
     printer = settings.get('printer', {})
@@ -62,13 +62,20 @@ def geometry(settings, status, homed=True):
         raise ValueError('motion_status_missing')
     low, high = vector(th.get('axis_minimum')), vector(th.get('axis_maximum'))
     position = vector(gm.get('position'))
-    if any(not lo < hi or not lo <= p <= hi for lo, hi, p in zip(low, high, position)):
+    if any(not lo < hi for lo, hi in zip(low, high)):
         raise ValueError('motion_limits_or_position_invalid')
     axes = th.get('homed_axes')
     if not isinstance(axes, str) or not set(axes) <= set('xyz'):
         raise ValueError('homing_state_unknown')
     if homed and not set('xyz') <= set(axes):
         raise ValueError('home_xyz_before_motion_test')
+    # Before G28 an unhomed axis has no measured coordinate. Klipper may
+    # report zero even when its configured minimum is positive. Validate all
+    # limits, but apply current-position bounds only to known axes for G28.
+    # Every ordinary motion/calibration path retains its position checks.
+    if any((not homing or 'xyz'[axis] in axes) and not lo <= p <= hi
+           for axis,(lo,hi,p) in enumerate(zip(low,high,position))):
+        raise ValueError('motion_limits_or_position_invalid')
     velocity = th.get('max_velocity')
     if not number(velocity) or velocity <= 0:
         raise ValueError('motion_velocity_unknown')
@@ -120,7 +127,8 @@ def compile_motion(row, state, status, token):
     if feature not in _MOVE:
         raise ValueError('motion_feature_unavailable')
     settings = state.settings
-    position, low, high, velocity = geometry(settings, status, homed=feature not in ('M03', 'M12'))
+    position, low, high, velocity = geometry(settings, status, homed=feature not in ('M03', 'M12'),
+                                             homing=feature == 'M03')
     modes = modal(status)
     if feature == 'M03':
         if name is not None:

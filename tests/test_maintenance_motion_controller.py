@@ -65,6 +65,30 @@ class MotionControllerTests(unittest.TestCase):
             self.assertIsNone(self.c.poll())
             self.worker.drain()
             self.assertIsNone(self.c.poll())
+    def test_unhomed_positive_minimum_homing_has_consent_and_final_bounds(self):
+        th=self.data['status']['toolhead']
+        th.update(homed_axes='',axis_minimum=[1.5,7.,-5.],axis_maximum=[252.,235.,200.])
+        self.data['status']['gcode_move']['position']=[0.,0.,0.,0.]
+        self.arm('M03',None)
+        self.assertEqual(self.commands,[])
+        self.assertTrue(self.c.confirm()[0])
+        self.assertFalse(self.command.done())  # dispatch guard accepted the same unhomed data
+        self.assertEqual(self.commands[0][1]['script'],'G28\nM400')
+        th['homed_axes']='xyz'
+        self.data['status']['gcode_move']['position']=[117.5,117.5,10.,0.]
+        self.verified()
+        self.assertEqual(self.c.phase,'await_observation')
+        self.assertEqual(self.c.observe(True).status,'PASSED_USER')
+
+    def test_unhomed_normal_move_reports_home_prerequisite_without_rpc(self):
+        self.data['status']['toolhead'].update(homed_axes='',axis_minimum=[1.5,7.,-5.])
+        self.data['status']['gcode_move']['position']=[0.,0.,0.,0.]
+        self.c.start('M05','stepper_x')
+        self.worker.drain()
+        result=self.c.poll()
+        self.assertEqual(result.reason,'home_xyz_before_motion_test')
+        self.assertEqual(self.commands,[])
+
     def test_roundtrip_needs_user_observation_and_two_position_mode_reads(self):
         self.arm()
         self.assertTrue(self.c.confirm()[0])

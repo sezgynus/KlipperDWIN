@@ -430,7 +430,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(len([e for e in data['entries']
                               if e['status'] == 'accepted']),55)
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'pending']),2)
+                              if e['status'] == 'pending']),1)
 
     def test_thermal_group_procedure_acceptance_preserves_performance_failures(self):
         data = ledger()

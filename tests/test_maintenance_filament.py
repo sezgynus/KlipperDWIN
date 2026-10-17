@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch, Mock
 import test_maintenance_probe as fixture
 from printer_state import PrinterState
-from maintenance_discovery import MaintenanceSnapshot, DeviceCapabilities, _add, INFORMATION
+from maintenance_discovery import MaintenanceSnapshot, DeviceCapabilities, _add, INFORMATION, USER
 from maintenance_filament import MaintenanceFilamentController, METHODS, filament_services
 from maintenance_filament_info import read_fields
 from maintenance_executor import read_only_adapters

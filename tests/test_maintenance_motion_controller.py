@@ -118,7 +118,13 @@ class MotionControllerTests(unittest.TestCase):
                 self.assertEqual(self.c.phase,'running')
                 self.assertEqual(self.c.feature_id,feature)
                 self.assertEqual(len(self.commands),2)
-                self.assertNotIn('G28',self.commands[1][1]['script'])
+                script=self.commands[1][1]['script']
+                if feature=='M12':
+                    self.assertEqual(script.count('G28 X'),10)
+                    self.assertNotIn('G28'+chr(10),script)
+                    self.assertNotIn('G28 Y',script)
+                else:
+                    self.assertNotIn('G28',script)
                 self.assertTrue(self.c._homing_verified)
 
     def test_cancel_before_home_does_not_send_motion(self):

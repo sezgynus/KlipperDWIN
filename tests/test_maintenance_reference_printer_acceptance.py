@@ -111,9 +111,9 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(by_target[('F04', 'fan_generic (not installed)')]
                          ['status'], 'not_applicable')
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'accepted']), 25)
+                              if e['status'] == 'accepted']), 21)
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'pending']), 39)
+                              if e['status'] == 'pending']), 43)
 
     def test_h_implementation_does_not_grant_physical_acceptance(self):
         targets = [e for e in ledger()['entries']
@@ -133,9 +133,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(len(items),22)
         for item in items:
             self.assertEqual(item['adapter'],'implemented')
-            if (item['feature_id'] in ('M01','M03','M04','M05','M06') or
-                    item['feature_id']=='M10' and item['target']!='tmc2208 extruder' or
-                    item['feature_id']=='M12' and item['target']=='endstop_phase X'):
+            if item['feature_id'] in ('M01','M03','M04','M05','M06'):
                 self.assertEqual(item['status'],'accepted')
             else:
                 self.assertEqual(item['status'],'pending')
@@ -205,8 +203,15 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         rows={(e['feature_id'],e['target']):e for e in ledger()['entries']}
         for feature,target,run,observed,result,restored in expected:
             item=rows[(feature,target)]
-            self.assertEqual(item['status'],'accepted')
-            evidence=item['acceptance']
+            if feature in ('M10','M12'):
+                self.assertEqual(item['status'],'pending')
+                self.assertIsNone(item['acceptance'])
+                evidence=item['previous_acceptances'][-1]
+                self.assertTrue(evidence['invalidated'])
+                self.assertIn('without understanding',evidence['invalidation_reason'])
+            else:
+                self.assertEqual(item['status'],'accepted')
+                evidence=item['acceptance']
             self.assertEqual(evidence['restore_verified'],restored)
             self.assertEqual(evidence['controller_result'],
                              'PASSED_USER' if restored else 'OBSERVED_USER')

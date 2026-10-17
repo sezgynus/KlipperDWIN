@@ -133,24 +133,30 @@
         {
           "feature_id": "M06",
           "target": "axis Z"
-        },
-        {
-          "feature_id": "M12",
-          "target": "endstop_phase X"
-        },
-        {
-          "feature_id": "M10",
-          "target": "tmc2208 stepper_x"
-        },
-        {
-          "feature_id": "M10",
-          "target": "tmc2208 stepper_y"
-        },
-        {
-          "feature_id": "M10",
-          "target": "tmc2208 stepper_z"
         }
-      ]
+      ],
+      "withheld_acceptance": {
+        "date": "2026-10-17",
+        "targets": [
+          {
+            "feature_id": "M10",
+            "target": "tmc2208 stepper_x"
+          },
+          {
+            "feature_id": "M10",
+            "target": "tmc2208 stepper_y"
+          },
+          {
+            "feature_id": "M10",
+            "target": "tmc2208 stepper_z"
+          },
+          {
+            "feature_id": "M12",
+            "target": "endstop_phase X"
+          }
+        ],
+        "reason": "Operator requested explanation before accepting M10/M12; Observed clicks alone do not grant acceptance."
+      }
     }
   },
   "policy": {
@@ -860,29 +866,35 @@
       "title": "TMC driver fault diagnostics",
       "method": "A",
       "reference": "confirmed",
-      "status": "accepted",
+      "status": "pending",
       "adapter": "implemented",
-      "note": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-      "acceptance": {
-        "date": "2026-10-17",
-        "source": "user_explicit_physical_observation",
-        "controller_result": "OBSERVED_USER",
-        "restore_verified": false,
-        "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-        "trace": {
-          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
-          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
-          "run": 23,
-          "observe_seq": 2355,
-          "result_seq": 2357
-        },
-        "measurements": {
-          "fault_count": 0,
-          "faults": "none",
-          "motor_health_verified": false
+      "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
+      "acceptance": null,
+      "retest_required": true,
+      "previous_acceptances": [
+        {
+          "date": "2026-10-17",
+          "source": "user_explicit_physical_observation",
+          "controller_result": "OBSERVED_USER",
+          "restore_verified": false,
+          "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+          "trace": {
+            "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+            "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+            "run": 23,
+            "observe_seq": 2355,
+            "result_seq": 2357
+          },
+          "measurements": {
+            "fault_count": 0,
+            "faults": "none",
+            "motor_health_verified": false
+          },
+          "invalidated": true,
+          "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
+          "invalidation_date": "2026-10-17"
         }
-      },
-      "retest_required": false
+      ]
     },
     {
       "feature_id": "M10",
@@ -890,29 +902,35 @@
       "title": "TMC driver fault diagnostics",
       "method": "A",
       "reference": "confirmed",
-      "status": "accepted",
+      "status": "pending",
       "adapter": "implemented",
-      "note": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-      "acceptance": {
-        "date": "2026-10-17",
-        "source": "user_explicit_physical_observation",
-        "controller_result": "OBSERVED_USER",
-        "restore_verified": false,
-        "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-        "trace": {
-          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
-          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
-          "run": 24,
-          "observe_seq": 2394,
-          "result_seq": 2396
-        },
-        "measurements": {
-          "fault_count": 0,
-          "faults": "none",
-          "motor_health_verified": false
+      "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
+      "acceptance": null,
+      "retest_required": true,
+      "previous_acceptances": [
+        {
+          "date": "2026-10-17",
+          "source": "user_explicit_physical_observation",
+          "controller_result": "OBSERVED_USER",
+          "restore_verified": false,
+          "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+          "trace": {
+            "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+            "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+            "run": 24,
+            "observe_seq": 2394,
+            "result_seq": 2396
+          },
+          "measurements": {
+            "fault_count": 0,
+            "faults": "none",
+            "motor_health_verified": false
+          },
+          "invalidated": true,
+          "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
+          "invalidation_date": "2026-10-17"
         }
-      },
-      "retest_required": false
+      ]
     },
     {
       "feature_id": "M10",
@@ -920,29 +938,35 @@
       "title": "TMC driver fault diagnostics",
       "method": "A",
       "reference": "confirmed",
-      "status": "accepted",
+      "status": "pending",
       "adapter": "implemented",
-      "note": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-      "acceptance": {
-        "date": "2026-10-17",
-        "source": "user_explicit_physical_observation",
-        "controller_result": "OBSERVED_USER",
-        "restore_verified": false,
-        "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-        "trace": {
-          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
-          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
-          "run": 25,
-          "observe_seq": 2452,
-          "result_seq": 2454
-        },
-        "measurements": {
-          "fault_count": 0,
-          "faults": "none",
-          "motor_health_verified": false
+      "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
+      "acceptance": null,
+      "retest_required": true,
+      "previous_acceptances": [
+        {
+          "date": "2026-10-17",
+          "source": "user_explicit_physical_observation",
+          "controller_result": "OBSERVED_USER",
+          "restore_verified": false,
+          "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+          "trace": {
+            "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+            "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+            "run": 25,
+            "observe_seq": 2452,
+            "result_seq": 2454
+          },
+          "measurements": {
+            "fault_count": 0,
+            "faults": "none",
+            "motor_health_verified": false
+          },
+          "invalidated": true,
+          "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
+          "invalidation_date": "2026-10-17"
         }
-      },
-      "retest_required": false
+      ]
     },
     {
       "feature_id": "M10",
@@ -961,29 +985,35 @@
       "title": "Endstop phase calibration",
       "method": "K",
       "reference": "confirmed",
-      "status": "accepted",
+      "status": "pending",
       "adapter": "implemented",
-      "note": "Operator observed phase calibration; pending config deliberately retained without SAVE_CONFIG. Numerical trigger phase was omitted by the old trace sanitizer.",
-      "acceptance": {
-        "date": "2026-10-17",
-        "source": "user_explicit_physical_observation",
-        "controller_result": "OBSERVED_USER",
-        "restore_verified": false,
-        "observation": "Operator observed phase calibration; pending config deliberately retained without SAVE_CONFIG. Numerical trigger phase was omitted by the old trace sanitizer.",
-        "trace": {
-          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
-          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
-          "run": 16,
-          "observe_seq": 2019,
-          "result_seq": 2021
-        },
-        "measurements": {
-          "pending_config": true,
-          "saved": false,
-          "trigger_phase_recorded": false
+      "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
+      "acceptance": null,
+      "retest_required": true,
+      "previous_acceptances": [
+        {
+          "date": "2026-10-17",
+          "source": "user_explicit_physical_observation",
+          "controller_result": "OBSERVED_USER",
+          "restore_verified": false,
+          "observation": "Operator observed phase calibration; pending config deliberately retained without SAVE_CONFIG. Numerical trigger phase was omitted by the old trace sanitizer.",
+          "trace": {
+            "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+            "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+            "run": 16,
+            "observe_seq": 2019,
+            "result_seq": 2021
+          },
+          "measurements": {
+            "pending_config": true,
+            "saved": false,
+            "trigger_phase_recorded": false
+          },
+          "invalidated": true,
+          "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
+          "invalidation_date": "2026-10-17"
         }
-      },
-      "retest_required": false
+      ]
     },
     {
       "feature_id": "M12",

@@ -16,7 +16,7 @@ TR = DOCS / 'maintenance-reference-printer-acceptance_TR.md'
 ROW = re.compile(r'^\|\s+\[([x ])\]\s+\|\s+([FHMPRESO]\d{2})\s+\|\s+\x60([^\x60]+)\x60\s+\|')
 VALID = {'accepted', 'pending', 'conditional', 'not_applicable'}
 ADAPTERS = {'implemented', 'not_implemented'}
-ACCEPTED_RESULTS = {'PASSED_USER', 'OBSERVED_USER', 'FAILED_METRIC', 'PASSED'}
+ACCEPTED_RESULTS = {'PASSED_USER', 'OBSERVED_USER', 'FAILED_METRIC', 'PASSED', 'OBSERVED'}
 
 
 def ledger():
@@ -69,6 +69,12 @@ class ReferenceAcceptanceTests(unittest.TestCase):
                     self.assertRegex(evidence.get('date', ''),
                                      r'^\d{4}-\d{2}-\d{2}$')
                     self.assertIn(evidence.get('controller_result'), ACCEPTED_RESULTS)
+                    if evidence.get('controller_result') == 'OBSERVED':
+                        # R04 reports Klipper-native, unsaved recommendations;
+                        # do not mislabel this as a controller PASSED metric.
+                        self.assertEqual(key, ('R04', 'input_shaper X/Y'))
+                        self.assertFalse(evidence.get('saved'))
+                        self.assertFalse(evidence.get('restore_verified'))
                     if evidence.get('controller_result') == 'FAILED_METRIC':
                         # Operator accepts correct test execution, never rewrites
                         # the actual thermal performance outcome to PASS.

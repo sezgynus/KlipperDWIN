@@ -243,7 +243,7 @@ class ResonanceWorkflowTests(unittest.TestCase):
         token = 'petrelr_'+'c'*32
         target = Path('/tmp/resonances_x_'+token+'.csv')
         self.addCleanup(lambda:target.unlink(missing_ok=True))
-        target.write_text('freq,psd_xyz\\n5,1\\n6,4\\n7,2\\n8,1\\n')
+        target.write_text('freq,psd_xyz\n5,1\n6,4\n7,2\n8,1\n')
         self._running_r02()
         self.owner._token=token
         self.assertIsNone(self.analyze(('Resonances data written to '+str(target)+' file',)))

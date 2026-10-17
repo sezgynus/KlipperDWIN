@@ -51,12 +51,26 @@ class TestRecorder(unittest.TestCase):
         self.assertEqual(self.p.maintenance_pulse.phase,'await_confirmation')
         self.assertEqual(self.fixture.requests,[])
 
+    def test_target_overshoot_is_not_a_shutdown_or_safety_trace(self):
+        self.arm()
+        self.p.maintenance_pulse.confirm()
+        self.fixture.clock = 2.
+        self.fixture.data['status']['extruder'].update(temperature=70.38,power=0.)
+        self.p.maintenance_pulse.poll()
+        self.fixture.worker.drain()
+        self.p.maintenance_pulse.poll()
+        self.assertEqual(self.p.maintenance_pulse.phase,'running')
+        self.assertEqual(len(self.fixture.requests),1)
+        self.assertFalse(any(e['event']=='safety_shutdown' for e in unpack(self.trace)[1]))
+
     def test_real_heat_shutdown_keeps_reason_temperature_and_exact_future(self):
         self.arm()
         self.p.maintenance_pulse.confirm()
         self.assertIs(self.fixture.c._command,self.fixture.heat)
         self.fixture.clock = 2.
-        self.fixture.data['status']['extruder'].update(temperature=70.38,power=0.)
+        # Unlike target overshoot, evidence above the Klipper-configured
+        # max_temp still invokes the existing fault handling and trace.
+        self.fixture.data['status']['extruder'].update(temperature=281.38,power=0.)
         self.p.maintenance_pulse.poll()
         self.fixture.worker.drain()
         self.p.maintenance_pulse.poll()
@@ -66,7 +80,7 @@ class TestRecorder(unittest.TestCase):
         _,events = unpack(self.trace)
         shutdown = next(e for e in events if e['event']=='safety_shutdown')
         self.assertIn('thermal_temperature_limit',shutdown['data']['reason'])
-        self.assertEqual(shutdown['data']['snapshot']['last_read_point']['temperature'],70.38)
+        self.assertEqual(shutdown['data']['snapshot']['last_read_point']['temperature'],281.38)
         self.assertTrue(any(e['event']=='result' and e['data']['reason']==result.reason for e in events))
         self.assertEqual(len(self.fixture.requests),2)
 

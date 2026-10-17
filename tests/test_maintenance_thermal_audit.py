@@ -20,12 +20,31 @@ class ThermalAuditTests(unittest.TestCase):
         self.assertTrue({'H01', 'H02', 'H03', 'H04', 'H05', 'H06', 'H07',
                          'H08', 'H09', 'H11', 'H13', 'H14', 'H16'} <= registered)
 
-    def test_bilingual_scope_covers_every_h_id_without_accepting_hardware(self):
+    def test_bilingual_scope_covers_every_h_id_and_accepts_only_observed_procedures(self):
         docs = Path(__file__).resolve().parents[1] / 'docs'
         for name in ('maintenance-thermal.md', 'maintenance-thermal_TR.md'):
             text = (docs / name).read_text()
             for n in range(1, 19):
                 self.assertIn('H%02d' % n, text)
         from test_maintenance_reference_printer_acceptance import ledger
-        self.assertFalse(any(e['status'] == 'accepted' for e in ledger()['entries']
-                             if e['feature_id'].startswith('H')))
+        rows = [e for e in ledger()['entries'] if e['feature_id'].startswith('H')]
+        accepted = {(e['feature_id'],e['target']) for e in rows
+                    if e['status'] == 'accepted'}
+        group = {'H01','H05','H06','H07','H08','H09','H13'}
+        self.assertEqual(accepted, {(f,device) for f in group
+                           for device in ('extruder','heater_bed')})
+        for entry in rows:
+            if entry['status'] == 'accepted':
+                proof = entry['acceptance']
+                self.assertTrue(proof['procedure_accepted'])
+                self.assertTrue(proof['restore_verified'])
+                self.assertEqual(proof['trace']['head'],
+                    '115e392c348292ab5d6bcf57bcde27874c359536')
+            elif entry['feature_id'] in ('H02','H03'):
+                self.assertEqual(entry['status'],'pending')
+                self.assertIsNone(entry['acceptance'])
+        for feature in ('H07','H08'):
+            proof = next(e['acceptance'] for e in rows
+                         if e['feature_id']==feature and e['target']=='extruder')
+            self.assertFalse(proof['performance_criterion_passed'])
+            self.assertEqual(proof['controller_result'],'FAILED_METRIC')

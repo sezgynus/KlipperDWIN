@@ -46,6 +46,13 @@ class MaintenanceMotionController:
         self._evidence=()
         self._safety_reason=None
         self._queue_age_s=None
+        self._consented_program=None
+        self._confirm_attempts=0
+        self._refresh_reason=None
+
+    @property
+    def refreshing_consent(self):
+        return self._consented_program is not None and self.phase=='preflight'
 
     @property
     def pending(self):
@@ -70,6 +77,8 @@ class MaintenanceMotionController:
     @property
     def live_text(self):
         p=self._program
+        if self.refreshing_consent:
+            return ('Refreshing safety data','Your confirmation is kept','Cancel to stop checks')
         if p is None:
             return ()
         if p.feature_id=='M03':
@@ -128,6 +137,12 @@ class MaintenanceMotionController:
         token='_PETREL_M_'+uuid.uuid4().hex
         program=(return_program(self._outward,self._printer.state,values,token)
                  if returning else compile_motion(self._row,self._printer.state,values,token))
+        consent=self._consented_program
+        if consent is not None:
+            if (program.phase_count!=consent.phase_count or
+                    not dispatch_compatible(consent,self._row,self._printer.state,values,token)):
+                raise ValueError('motion_consent_context_changed')
+            program=consent
         return queue,program,stamp
     def _preflight(self,returning=False):
         self._return_requested=returning
@@ -146,6 +161,9 @@ class MaintenanceMotionController:
         if row is None:
             return False,'motion_adapter_unavailable'
         self._row=row
+        self._consented_program=None
+        self._confirm_attempts=0
+        self._refresh_reason=None
         self._program=None
         self._measurement=None
         self._evidence=()
@@ -153,8 +171,14 @@ class MaintenanceMotionController:
     def confirm(self):
         if self.phase!='await_confirmation':
             return False,'not_waiting_for_motion_consent'
+        self._confirm_attempts+=1
         if not self._safe(self._queue) or monotonic()>=self._deadline:
+            self._consented_program=self._program
+            self._refresh_reason='motion_confirmation_evidence_expired'
             return self._preflight(self._return_requested)
+        return self._dispatch()
+
+    def _dispatch(self):
         p=self._program
         def guard():
             if self._phase not in ('await_confirmation','running') or not self._safe(self._queue):
@@ -180,6 +204,7 @@ class MaintenanceMotionController:
     def _finish(self,status,reason,restored=False):
         result=MotionResult(self.feature_id,self._row.device,status,reason,restored,self._evidence)
         self._phase=self._future=self._command=None
+        self._consented_program=None
         return result
     def _shutdown(self,reason):
         if self.phase!='stopping':
@@ -221,6 +246,7 @@ class MaintenanceMotionController:
             except Exception as exc:
                 code=str(exc) if isinstance(exc,ValueError) else ''
                 safe_codes={
+                    'motion_consent_context_changed',
                     'home_xyz_before_motion_test','move_away_from_axis_limits',
                     'clear_mesh_before_motion_test','raise_z_for_xy_clearance',
                     'keep_xyz_motors_enabled','motion_requires_cold_idle_heaters',
@@ -236,6 +262,9 @@ class MaintenanceMotionController:
             self._phase='await_confirmation'
             self._future=None
             self._deadline=min(now+3,queue.observed_at+3)
+            if self._consented_program is not None:
+                self._consented_program=None
+                self._dispatch()
             return None
         # A completed read can already contain newer queue proof. Consume
         # that proof before judging the previous sample's age.

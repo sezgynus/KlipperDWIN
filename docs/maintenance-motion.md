@@ -172,3 +172,9 @@ age is sampled once per second rather than creating a new stage every tick.
 A second M03 start was rejected by the existing uncertainty lock; no replay.
 After verifying safe/OFF hardware and restarting the updated Petrel service,
 retest M03 alone.
+
+## Confirmation-screen retry correction
+
+The latest 17 October M03 trace returned the first two confirmations to preflight and Cancel selection after the 3-second evidence expired; only the third dispatched. This is a UI flow defect. Consent for the unchanged movement now survives a bounded 12-second read-only safety refresh. The screen shows Refreshing safety / Your confirmation is kept. Fresh queue, lifecycle, position, modes and the same program must pass before dispatch; changed context blocks. Cancel sends no motion. M06 outward and return still require separate consent. Failed commands are never replayed.
+
+The temporary recorder includes confirm_attempts, refresh_reason and an explicit confirmation_safety_refresh flow event; leaving the test page while pending is additionally flagged as left_test_while_pending. M03 physical acceptance is retained; physical validation of this UI correction is pending.

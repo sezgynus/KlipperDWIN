@@ -193,9 +193,27 @@ class TestRecorder(unittest.TestCase):
         self.assertEqual(event_log['to']['page'],'tests')
         self.assertEqual(event_log['to']['drawn']['selected_label'],'19')
         self.assertEqual(event_log['to']['physical']['phase'],'await_confirmation')
+        self.assertTrue(any(e['event']=='ui_anomaly' and
+            e['data']['code']=='left_test_while_pending' for e in unpack(self.trace)[1]))
         view.checkkey=43
         self.trace.ui(view)
         self.assertTrue([e for e in unpack(self.trace)[1] if e['event']=='ui'][-1]['data']['to']['pending_offscreen'])
+
+    def test_confirmation_refresh_is_explicit_in_ui_flow_log(self):
+        self.arm()
+        view=SimpleNamespace(checkkey=42,MaintenanceMenu=42,
+            _maintenance_page='pulse',_maintenance_selection=1)
+        self.trace.ui(view,'draw',title='Confirm clear path',
+                      entries=[('Cancel',),('Home XYZ',)])
+        self.fixture.c._phase='preflight'
+        self.fixture.c._confirm_attempts=1
+        self.fixture.c._refresh_reason='motion_confirmation_evidence_expired'
+        self.trace.ui(view,'draw',title='Refreshing safety',entries=[('Cancel checks',)])
+        flow=next(e for e in unpack(self.trace)[1] if e['event']=='ui_flow')
+        self.assertEqual(flow['data']['code'],'confirmation_safety_refresh')
+        self.assertEqual(flow['data']['physical']['confirm_attempts'],1)
+        self.assertEqual(flow['data']['physical']['refresh_reason'],
+                         'motion_confirmation_evidence_expired')
 
 
 class TestRecorderUI(unittest.TestCase):

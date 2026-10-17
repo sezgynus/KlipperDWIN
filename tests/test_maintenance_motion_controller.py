@@ -145,6 +145,62 @@ class MotionControllerTests(unittest.TestCase):
         self.assertEqual(self.c.phase,'preflight')
         self.assertEqual(self.commands,[])
 
+    def test_slow_m03_confirmation_keeps_consent_without_three_start_clicks(self):
+        self.arm('M03',None)
+        self.clock=4.
+        self.c.confirm()
+        self.assertTrue(self.c.refreshing_consent)
+        self.assertEqual(self.commands,[])
+        self.assertIn('Your confirmation is kept',self.c.live_text)
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.c.phase,'running')
+        self.assertEqual(len(self.commands),1)
+        self.assertEqual(self.commands[0][1]['script'],'G28\nM400')
+        self.assertEqual(self.c._confirm_attempts,1)
+
+    def test_cancel_during_consent_refresh_never_dispatches(self):
+        self.arm()
+        self.clock=4.
+        self.c.confirm()
+        result=self.c.cancel()
+        self.assertEqual(result.status,'ABORTED')
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.commands,[])
+        self.assertIsNone(self.c._consented_program)
+
+    def test_changed_position_during_consent_refresh_blocks_without_retargeting(self):
+        self.arm()
+        self.clock=4.
+        self.c.confirm()
+        self.data['status']['gcode_move']['position'][0]+=1.
+        self.worker.drain()
+        result=self.c.poll()
+        self.assertEqual(result.status,'BLOCKED')
+        self.assertEqual(result.reason,'motion_consent_context_changed')
+        self.assertEqual(self.commands,[])
+
+    def test_real_print_conflict_during_refresh_never_dispatches(self):
+        self.arm()
+        self.clock=4.
+        self.c.confirm()
+        self.data['status']['print_stats']['state']='printing'
+        self.worker.drain()
+        result=self.c.poll()
+        self.assertEqual(result.status,'BLOCKED')
+        self.assertEqual(self.commands,[])
+
+    def test_refresh_that_expires_before_ui_poll_never_dispatches(self):
+        self.arm()
+        self.clock=4.
+        self.c.confirm()
+        self.worker.drain()
+        self.clock=8.
+        result=self.c.poll()
+        self.assertEqual(result.status,'BLOCKED')
+        self.assertEqual(self.commands,[])
+
     def test_roundtrip_needs_user_observation_and_two_position_mode_reads(self):
         self.arm()
         self.assertTrue(self.c.confirm()[0])
@@ -156,7 +212,7 @@ class MotionControllerTests(unittest.TestCase):
         result=self.c.observe(True)
         self.assertEqual(result.status,'PASSED_USER')
         self.assertTrue(result.restore_verified)
-    def test_late_confirmation_only_refreshes_readonly_preflight(self):
+    def test_late_confirmation_refreshes_then_dispatches_same_consent_once(self):
         self.arm()
         self.clock=100000.
         self.assertIsNone(self.c.poll())
@@ -164,7 +220,11 @@ class MotionControllerTests(unittest.TestCase):
         self.assertEqual(self.commands,[])
         self.worker.drain()
         self.c.poll()
-        self.assertEqual(self.c.phase,'await_confirmation')
+        self.assertEqual(self.c.phase,'running')
+        self.assertEqual(len(self.commands),1)
+        self.assertEqual(self.c._confirm_attempts,1)
+        self.c.poll()
+        self.assertEqual(len(self.commands),1)
     def test_external_measurement_and_return_have_separate_consent(self):
         self.arm('M06')
         self.c.confirm()
@@ -186,8 +246,8 @@ class MotionControllerTests(unittest.TestCase):
         self.c.confirm()
         self.worker.drain()
         self.c.poll()
-        self.assertEqual(self.c.phase,'await_confirmation')
-        self.c.confirm()
+        self.assertEqual(self.c.phase,'running')
+        self.assertEqual(len(self.commands),2)
         self.data['status']['gcode_move']['position'][0]=50.
         self.verified()
         self.assertEqual(self.c.phase,'await_observation')

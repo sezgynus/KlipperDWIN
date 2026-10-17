@@ -152,7 +152,7 @@ def owner_snapshot(owner):
         out = {}
         for key in ('_phase','_action','_index','_step','_stop_reason','_blocked','_locked',
                     '_sent','_off_matches','_metric_ok','_measurement','_evidence','_metrics',
-                    '_pid_proof','_gpio_start','_restore','_last_read_point','_safety_reason','_queue_age_s'):
+                    '_pid_proof','_gpio_start','_restore','_last_read_point','_safety_reason','_queue_age_s','_confirm_attempts','_refresh_reason'):
             value = getattr(owner,key,None)
             if is_dataclass(value):
                 value = {f.name:getattr(value,f.name) for f in fields(value)}
@@ -303,6 +303,19 @@ class TestTrace:
                     value['input'] = {k:getattr(event,k,None) for k in
                         ('kind','value','epoch','ui_epoch','rate','accelerated_value')}
                 self.emit('ui',value)
+                if previous is not None:
+                    if (previous.get('page')=='pulse' and
+                            previous.get('phase')=='await_confirmation' and
+                            comparison.get('phase')=='preflight'):
+                        self.emit('ui_flow',{'code':'confirmation_safety_refresh',
+                            'from_title':(previous.get('drawn') or {}).get('title'),
+                            'to_title':(comparison.get('drawn') or {}).get('title'),
+                            'physical':state['physical']})
+                    if (previous.get('page')=='pulse' and
+                            (state['page']!='pulse' or not on_menu) and
+                            self.printer.maintenance_pulse.pending):
+                        self.emit('ui_anomaly',{'code':'left_test_while_pending',
+                            'from':previous,'to':state})
         except Exception:
             self.dropped += 1
 

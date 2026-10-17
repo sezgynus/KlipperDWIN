@@ -159,7 +159,7 @@ class MaintenanceViewMixin:
                         ('Stop: Klipper shutdown', self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None) for text in live))
                 if getattr(self.pd.maintenance_pulse, 'feature_id', '') in ('M03','M04','M05','M06','M12'):
-                    return 'Motion test', (
+                    return ('Refreshing safety' if getattr(self.pd.maintenance_pulse,'refreshing_consent',False) else 'Motion test'), (
                         ('Cancel checks' if phase == 'preflight' else 'Stop: Klipper shutdown', self.ICON_Back, None, None),
                         *((text[:26], self.ICON_Info, None, None) for text in self.pd.maintenance_pulse.live_text))
                 text = {'preflight': 'Safety checks...', 'running': 'Testing...',

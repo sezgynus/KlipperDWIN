@@ -128,3 +128,5 @@
 **P/R/E/S/O geliştirme kaydı (17 Ekim 2026):** Grup adaptörleri ve regresyonları eklendi; hiçbir yeni fiziksel kabul verilmedi. Probe Calibration, Bed Mesh ve Screws Tilt mevcut Leveling’de kalır. Koşullu profil/kaynak gereksinimleri sürer. Rehberler: [P](maintenance-probe_TR.md), [R](maintenance-resonance_TR.md), [E](maintenance-filament_TR.md), [S](maintenance-system_TR.md), [O](maintenance-auxiliary_TR.md). Genel bütünleştirme bu çalışmaya dahil değildir.
 
 **M03 fiziksel kabul (17 Ekim):** `a4ad65170ed04b649b0a1a58c9c55b53` oturumunda `observe(true)` #220, `PASSED_USER` #222 ve `restore_verified=true`. Son okuma: `homed_axes=xyz`, X=157.9, Y=141.5, Z=10 mm. 274 olayda kayıp/yazma hatası yok; güvenlik durdurması veya UI işleyici hatası kaydedilmedi.
+
+**M03 UI akış kusuru:** İlk iki onay (#97/#114) eskiyen 3 saniyelik güvenlik kanıtı nedeniyle ön kontrole dönüp seçimi Cancel'a sıfırladı; yalnız üçüncü onay (#129) hareketi başlattı. Fiziksel homing kabulü UI akışının kabulü değildir. Kullanıcı bildirimi üzerine aynı hareket onayını taze güvenlik kontrolünden sonra koruma ve belirgin akış tanılama eklendi; bu düzeltmenin fiziksel UI doğrulaması bekliyor.

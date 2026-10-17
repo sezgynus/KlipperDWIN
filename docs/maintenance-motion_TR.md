@@ -173,3 +173,9 @@ kuyruk yaşı yalnız saniyelik örneğe girer, her tick için yeni aşama üret
 M03'ün ikinci başlatma isteği mevcut belirsizlik kilidinde reddedildi;
 komut tekrar gönderilmedi. Güvenli/OFF durum doğrulandıktan ve güncel
 Petrel servisi başlatıldıktan sonra yalnız M03 yeniden denenmelidir.
+
+## Onay ekranına tekrar dönme düzeltmesi
+
+17 Ekim son M03 kaydında ilk iki onay, 3 saniyelik kanıt eskidiği için ön kontrole ve Cancel seçimine döndü; üçüncü onay hareketi başlattı. Bu bir UI akış kusurudur. Artık aynı hareket için verilen onay, en fazla 12 saniyelik salt-okunur güvenlik yenilemesi sırasında korunur. Ekran Refreshing safety / Your confirmation is kept gösterir. Taze kuyruk, yaşam döngüsü, konum, modlar ve aynı program tekrar doğrulanmadan komut gönderilmez; koşullar değişirse BLOCKED olur. İptal hareket göndermez. M06'nın ilk hareket ve dönüş onayları hâlâ ayrıdır. Komut hatası tekrar denenmez.
+
+Geçici kayıt confirm_attempts, refresh_reason ve confirmation_safety_refresh akış olayını içerir; test sürerken test sayfasından çıkış left_test_while_pending olarak ayrıca işaretlenir. M03 fiziksel kabulü korunur; bu UI düzeltmesinin fiziksel doğrulaması bekliyor.

@@ -39,7 +39,9 @@
       "write_errors": 0,
       "accepted_targets": [
         "Cartesian X/Y/Z homing"
-      ]
+      ],
+      "ui_confirmation_retries": 2,
+      "ui_flow_accepted": false
     }
   },
   "policy": {
@@ -411,7 +413,7 @@
       "reference": "confirmed",
       "status": "accepted",
       "adapter": "implemented",
-      "note": "Physical homing explicitly accepted after final XYZ readback; no runtime safety stop or UI handler error in the uploaded session.",
+      "note": "Physical homing accepted; UI confirmation retry defect reported by operator: first two confirmations refreshed preflight and reset selection. Consent-refresh correction awaits physical UI validation.",
       "acceptance": {
         "date": "2026-10-17",
         "source": "user_explicit_physical_observation",

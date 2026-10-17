@@ -82,7 +82,7 @@
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
 | [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament var/yok sensörü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensör testi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
+| [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensör testi | Adaptör askıda; elle MMU kapatma yasak | **BEKLİYOR** |
 
 ## Ek kanıt veya güvenli entegrasyon gerektirenler
 
@@ -90,7 +90,7 @@
 |---|---|---|---|---|---|
 | [ ] | F13 | `guarded fan/heater comparison` | Fan termal A/B karşılaştırması | Geliştirilecek | **KOŞULLU** |
 | [ ] | H15 | `co-located calibrated sensor pair` | Eşlenmiş sıcaklık sensörü sapması | Geliştirilecek | **KOŞULLU** |
-| [ ] | E12 | `Happy Hare gear and selector` | MMU mekanik tanılama | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
+| [ ] | E12 | `Happy Hare gear and selector` | MMU mekanik tanılama | Adaptör askıda; eksik mekanik doğrulama | **KOŞULLU** |
 | [ ] | O02 | `approved servo and deploy/stow path` | Güvenli servo hareketi | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
 | [ ] | O06 | `user-defined physical servicing` | Kılavuzlu bakım | Hazır; fiziksel kabul bekliyor | **KOŞULLU** |
 
@@ -218,3 +218,7 @@ Kullanıcı R grubunun tamamını açıkça kabul etti. `ff80258017ad4c1495e3fd1
 ## 18 Ekim 2026 — E grubu kısmi kullanıcı kabulleri
 
 Kullanıcı `d924a92a9df94f1b99645da43a7b14be` trace oturumunu göndererek tamamlanan E testlerinin kabul listesine işlenmesini açıkça istedi. İlgili oturum #903–1877 arasındadır (975 olay; kayıp/yazma hatası yok, bir dosya rotasyonu). ZIP içindeki `events.previous.jsonl` dosyasında eski oturumlar da bulunduğundan bunlar bu kabule karıştırılmadı. Test edilen imzalı HEAD: `ad061591`. **E01** run 9: komut edilen 5,0 mm; kullanıcı `observe(true)` #1131 ve kontrolcü `PASSED_USER` #1133. **E02** run 10: komut edilen 10,0 mm, kullanıcı tarafından girilen ölçüm 10,0 mm #1235, `observe(true)` #1249, `PASSED_USER` #1251, hesaplanan fark 0,0 mm; bağımsız otomatik uzunluk ölçümü iddia edilmez. **E07** run 12: komut edilen 5,0 mm, `observe(true)` #1360, `PASSED_USER` #1362. Üçünde de kanıtta `modal_restore_verified=true` mevcut, ancak kontrolcünün `restore_verified=false` sonucu korunmuştur; tüm fiziksel durumların geri yüklendiği iddia edilmez. E01'in eski preheat `BLOCKED` run 6 (#971) kaydı geçmişte korundu. **E03** run 7/8/11 (#1015/#1040/#1281), **E11** run 13 (#1392) ve koşullu **E12** run 14 (#1420) `BLOCKED / motion_requires_cold_idle_heaters` durumunda kaldı; kabul veya uydurma sensör geçişi eklenmedi. Daha önce kabul edilen S15/S16/S17 kayıtları değişmedi. **Güncel toplam: 62 kayıt / 46 ID — 54 KABUL, 2 BEKLİYOR, 5 KOŞULLU, 1 N/A.**
+
+## 18 Ekim 2026 — Elle MMU kapatma isteyen testler askıya alındı
+
+Kullanıcı tasarım kararıyla **E11 ve E12 çalıştırılabilir Maintenance testleri arasından çıkarıldı**. Eski E11 akışı MMU'nun elle kapatılmasını ve filament parçalarının elle takılıp çıkarılmasını istiyordu; güvenli otomatik geçiş ve MMU'nun özgün durumuna doğrulanmış dönüş uygulanmamıştı. E12'nin eski firmware durum okumaları da tüm mekanik işlemlerin kapsamlı testini kanıtlamıyordu. Test adaptörlerinin kayıtları ve doğrudan başlatma yetkisi kaldırıldı; donanım keşfi/katalog ve önceki `BLOCKED` trace korunuyor. E11 hâlâ **BEKLİYOR**, E12 **KOŞULLU**; yeni fiziksel kabul verilmedi. İleride hiçbir test kullanıcıdan alt sistemi elle açıp kapatmasını istemeyecek; güvenli otomatik geçiş ve doğrulanmış özgün duruma dönüş zorunludur. Toplam değişmedi: **54 KABUL, 2 BEKLİYOR, 5 KOŞULLU, 1 N/A**.

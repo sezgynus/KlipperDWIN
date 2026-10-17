@@ -15,7 +15,12 @@ from mmu_control import MMUState
 
 METHODS = {'E01':USER,'E02':EXTERNAL,'E03':USER,'E04':AUTOMATIC,
     'E05':AUTOMATIC,'E06':AUTOMATIC,'E07':USER,'E08':AUTOMATIC,
-    'E09':EXTERNAL,'E11':USER,'E12':USER,'E14':CALIBRATION}
+    'E09':EXTERNAL,'E14':CALIBRATION}
+# E11/E12 are deliberately not registered as runnable workflows. E11
+# requires manual MMU disable and physical sensor manipulation without a
+# verified disable/restore transaction; E12's mechanical acceptance is not
+# comprehensive. Keep capability discovery and historical trace evidence,
+# but do not expose or dispatch the unsafe/incomplete tests.
 EXTRUSION = frozenset(('E01','E02','E04','E07'))
 
 

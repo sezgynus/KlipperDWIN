@@ -139,6 +139,30 @@ class FilamentWorkflowTests(unittest.TestCase):
         self.assertIn(self.sensor,fields)
         self.assertLess(len(fields),10)
 
+    def test_mmu_workflows_parked_without_manual_disable_or_motion(self):
+        from dataclasses import replace
+        # The printer may advertise these genuine MMU capabilities. No
+        # runnable adapter is registered until an automatic, VERIFIED
+        # save-disable-restore protocol is implemented (and E12's checks
+        # cover the actual mechanical actions).
+        snapshot=self.p.maintenance.snapshot
+        modes=_add(_add(0,'E11',USER),'E12',USER)
+        self.p.maintenance.snapshot=replace(snapshot,global_modes=modes)
+        self.assertNotIn('E11',METHODS)
+        self.assertNotIn('E12',METHODS)
+        self.assertTrue(self.p.maintenance.snapshot.method('E11'))
+        self.assertTrue(self.p.maintenance.snapshot.method('E12'))
+        rows=self.owner.available()
+        self.assertIn('E03',[row.feature_id for row in rows])
+        self.assertNotIn('E11',[row.feature_id for row in rows])
+        self.assertNotIn('E12',[row.feature_id for row in rows])
+        self.assertEqual(self.owner.start('E11'),
+                         (False,'workflow_adapter_unavailable'))
+        self.assertEqual(self.owner.start('E12'),
+                         (False,'workflow_adapter_unavailable'))
+        self.assertEqual(self.worker.jobs,[])
+        self.assertEqual(self.commands,[])
+
     def test_no_mmu_action_cannot_be_reported_as_physical_pass(self):
         self.owner._row = SimpleNamespace(feature_id='E12',device=None)
         self.owner._phase = 'await_observation'

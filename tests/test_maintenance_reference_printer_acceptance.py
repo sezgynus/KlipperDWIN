@@ -48,6 +48,8 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertTrue(p['acceptance_per_target'])
         self.assertTrue(p['bilingual_docs_must_match'])
         self.assertTrue(p['no_master_merge_without_request'])
+        self.assertIs(p['manual_subsystem_disable_required_for_test'],False)
+        self.assertIs(p['automatic_subsystem_transition_requires_verified_restore'],True)
         self.assertTrue(data['entries'])
         keys = set()
         for entry in data['entries']:
@@ -284,6 +286,31 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertTrue(read_rows(doc)['R04','input_shaper X/Y'])
             self.assertIn('ff80258017ad4c1495e3fd1c64b17e7e',
                           doc.read_text(encoding='utf-8'))
+
+    def test_mmu_e11_e12_parked_without_fabricating_acceptance(self):
+        from maintenance_filament import METHODS
+        data=ledger()
+        entries={(e['feature_id'],e['target']):e for e in data['entries']}
+        parked=data['evidence']['parked_mmu_workflows_2026_10_18']
+        self.assertEqual(parked['feature_ids'],['E11','E12'])
+        self.assertIs(parked['hardware_discovery_retained'],True)
+        self.assertIs(parked['physical_acceptance'],False)
+        for key,status in (
+                (('E11','Happy Hare MMU gate sensors (4 gates)'),'pending'),
+                (('E12','Happy Hare gear and selector'),'conditional')):
+            item=entries[key]
+            self.assertEqual(item['adapter'],'not_implemented')
+            self.assertEqual(item['status'],status)
+            self.assertIsNone(item['acceptance'])
+            self.assertNotIn(key[0],METHODS)
+            self.assertFalse(read_rows(EN)[key])
+            self.assertFalse(read_rows(TR)[key])
+        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),54)
+        self.assertEqual(sum(e['status']=='pending' for e in data['entries']),2)
+        for doc in (EN,TR):
+            body=doc.read_text(encoding='utf-8')
+            self.assertIn('E11',body)
+            self.assertIn('E12',body)
 
     def test_e_group_partial_operator_acceptances_preserve_blocked_tests(self):
         data=ledger()
@@ -533,7 +560,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
 
     def test_remaining_unaccepted_group_implementation_never_grants_physical_acceptance(self):
         # P01/P03/P04 and R01/R03 gained explicit real-printer approval in later traces.
-        implemented = {'E03','E11','E12','O02','O06'}
+        implemented = {'E03','O02','O06'}
         for entry in ledger()['entries']:
             if entry['feature_id'] in implemented:
                 self.assertEqual(entry['adapter'],'implemented')

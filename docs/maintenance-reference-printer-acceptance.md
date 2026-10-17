@@ -82,7 +82,7 @@
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
 | [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament presence sensor | Ready; physical acceptance pending | **PENDING** |
-| [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensor diagnostics | Ready; physical acceptance pending | **PENDING** |
+| [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensor diagnostics | Adapter parked; manual MMU disable prohibited | **PENDING** |
 
 ## Requires additional evidence or a safe integration
 
@@ -90,7 +90,7 @@
 |---|---|---|---|---|---|
 | [ ] | F13 | `guarded fan/heater comparison` | Fan thermal A/B comparison | Not built | **CONDITIONAL** |
 | [ ] | H15 | `co-located calibrated sensor pair` | Paired temperature-sensor deviation | Not built | **CONDITIONAL** |
-| [ ] | E12 | `Happy Hare gear and selector` | MMU mechanical diagnostics | Ready; physical acceptance pending | **CONDITIONAL** |
+| [ ] | E12 | `Happy Hare gear and selector` | MMU mechanical diagnostics | Adapter parked; incomplete mechanical verification | **CONDITIONAL** |
 | [ ] | O02 | `approved servo and deploy/stow path` | Safe servo movement | Ready; physical acceptance pending | **CONDITIONAL** |
 | [ ] | O06 | `user-defined physical servicing` | Guided servicing | Ready; physical acceptance pending | **CONDITIONAL** |
 
@@ -222,3 +222,7 @@ The operator explicitly accepted the completed R group. Trace session `ff8025801
 ## 18 October 2026 — partial E-group operator acceptances
 
 The operator submitted trace `d924a92a9df94f1b99645da43a7b14be` and explicitly requested the executed E-group tests be accepted. The relevant recorded session covers seq #903–1877 (975 events; no dropped events or write errors; one file rotation). The ZIP also contains older sessions in `events.previous.jsonl`; those were excluded. The tested signed HEAD is `ad061591`. **E01** run 9: commanded 5.0 mm, operator `observe(true)` #1131 and controller `PASSED_USER` #1133. **E02** run 10: commanded 10.0 mm, user-entered measured 10.0 mm #1235, `observe(true)` #1249, `PASSED_USER` #1251 with computed 0.0 mm error; no independent automatic length metrology is claimed. **E07** run 12: commanded 5.0 mm, `observe(true)` #1360, `PASSED_USER` #1362. All three report `modal_restore_verified=true` inside evidence, but controller `restore_verified=false` (no blanket restoration claim). The earlier E01 preheat BLOCKED run 6 (#971) remains history. **E03** runs 7/8/11 (#1015/#1040/#1281), **E11** run 13 (#1392), and conditional **E12** run 14 (#1420) were `BLOCKED / motion_requires_cold_idle_heaters`; no acceptance or fabricated sensor transition was recorded. Existing S15/S16/S17 approvals remain unchanged. **Current total: 62 rows / 46 IDs — 54 ACCEPTED, 2 PENDING, 5 CONDITIONAL, 1 N/A.**
+
+## 18 October 2026 — MMU manual-disable tests parked
+
+Per operator policy, **E11 and E12 are not runnable Maintenance tests**. E11 formerly required manually disabling MMU and inserting/removing sensor fragments; no protected automatic transition + verified restoration of the prior MMU state was implemented. E12's previous readbacks do not establish full mechanical coverage. Their executable adapter registrations were removed, including direct controller start permission; capability discovery/catalog and earlier `BLOCKED` trace remain. E11 is still **PENDING**, E12 remains **CONDITIONAL**, with **no new physical acceptance**. Future tests must not mandate manual subsystem enable/disable; safe automatic state preservation and verified rollback are prerequisites. Current totals remain **54 ACCEPTED, 2 PENDING, 5 CONDITIONAL, 1 N/A**.

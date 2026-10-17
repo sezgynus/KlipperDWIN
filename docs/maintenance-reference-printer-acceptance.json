@@ -719,6 +719,21 @@
         }
       ],
       "evidence_boundary": "Only E01/E02/E07 have explicit observe(true) plus controller PASSED_USER. E02 10.0 mm is entered by the user, not independent automatic metrology. Modal restoration was reported, but top-level restore_verified stays false. E03/E11 remain pending and E12 conditional; their blocked attempts were not physically accepted. Already accepted S15/S16/S17 reruns in this session do not add new acceptance rows."
+    },
+    "parked_mmu_workflows_2026_10_18": {
+      "feature_ids": [
+        "E11",
+        "E12"
+      ],
+      "policy": "No operator-mandated MMU disable/enable for Maintenance tests. Tests remain unavailable until safe automatic and verifiably restored subsystem transitions are possible; E12 also requires per-action mechanical acceptance.",
+      "operator_approval": false,
+      "physical_acceptance": false,
+      "hardware_discovery_retained": true,
+      "previous_blocked_trace": "physical_trace_2026_10_18_filament_partial",
+      "ledger_status_unchanged": {
+        "E11": "pending",
+        "E12": "conditional"
+      }
     }
   },
   "policy": {
@@ -728,7 +743,9 @@
     "acceptance_per_target": true,
     "bilingual_docs_must_match": true,
     "mark_accepted_only_after_user_confirmation": true,
-    "no_master_merge_without_request": true
+    "no_master_merge_without_request": true,
+    "manual_subsystem_disable_required_for_test": false,
+    "automatic_subsystem_transition_requires_verified_restore": true
   },
   "entries": [
     {
@@ -2449,8 +2466,8 @@
       "method": "AU",
       "reference": "confirmed",
       "status": "pending",
-      "adapter": "implemented",
-      "note": "Happy Hare 4-gate sensor transitions require a safe MMU state. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
+      "adapter": "not_implemented",
+      "note": "Parked from executable Maintenance workflows: former sensor test required user to manually disable the MMU and handle filament fragments; no safe, verified automatic MMU state transition and restoration exists. Hardware discovery and the 2026-10-18 BLOCKED trace are retained; not physically accepted. Re-enable only after safe automatic control/verified original-state restoration where applicable and complete test contracts.",
       "acceptance": null
     },
     {
@@ -2460,8 +2477,8 @@
       "method": "AU",
       "reference": "conditional",
       "status": "conditional",
-      "adapter": "implemented",
-      "note": "Moving selector/gear requires dedicated MMU safety contract; not currently auto-runnable. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
+      "adapter": "not_implemented",
+      "note": "Parked from executable Maintenance workflows: grip/release/selector-home checks and a single user confirmation cannot represent a comprehensive, safe MMU mechanical acceptance. Hardware discovery and the 2026-10-18 BLOCKED trace are retained; not physically accepted. Re-enable only after safe automatic control/verified original-state restoration where applicable and complete test contracts.",
       "acceptance": null
     },
     {

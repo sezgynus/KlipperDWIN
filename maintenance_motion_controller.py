@@ -85,9 +85,10 @@ class MaintenanceMotionController:
         if self.feature_id!='M12' or self.phase!='await_observation':
             return ()
         phase=dict(self._evidence).get('trigger_phase','unknown')
-        return (self._row.device,'Trigger phase: '+str(phase),
-                'Pending config: YES','Saved to file: NO',
-                'Position/modes unchanged','No repeatability measure')
+        return (self._row.device, 'Homing cycles: '+str(self._program.homing_runs),
+                'Trigger phase: '+str(phase), 'Pending config: YES',
+                'Saved to file: NO', 'G-code modes restored',
+                'No independent accuracy measurement')
 
     @property
     def observation_prompt(self):
@@ -106,7 +107,8 @@ class MaintenanceMotionController:
         if p.feature_id=='M03':
             return ('Clear bed and homing path','Configured XYZ homing','Stop = Klipper shutdown')
         if p.feature_id=='M12':
-            return (p.device,'Uses past homing samples','Pending config; no save')
+            return (p.device,'10 random starts / selected-axis G28',
+                    'Z lifts once if needed; no SAVE_CONFIG')
         distance=-p.distance if p.returning else p.distance
         return ('%s %+.1f mm'%('XYZ'[p.axis],distance),
                 'Clear travel path / hands',
@@ -236,7 +238,8 @@ class MaintenanceMotionController:
                 return False
         try:
             self._command=self._printer.subscription.request('printer.gcode.script',
-                {'script':p.script},guard=guard,request_timeout=min(180.,p.deadline_s))
+                {'script':p.script},guard=guard,request_timeout=min(900. if p.feature_id=='M12' else 180.,
+                                                       p.deadline_s))
         except Exception:
             self._shutdown('motion_dispatch_unknown')
             return True,'motion_shutdown_requested'
@@ -321,7 +324,10 @@ class MaintenanceMotionController:
                     'axis_not_homed_for_phase','individual_motor_kinematics_profile_required',
                     'independent_multi_z_buzz_not_safe','clear_xyz_offsets_before_homing_test',
                     'motion_command_overridden','motion_kinematics_profile_required',
-                    'motion_transform_profile_required','insufficient_test_travel'}
+                    'motion_transform_profile_required','insufficient_test_travel',
+                    'phase_stepper_not_supported_for_kinematics',
+                    'insufficient_phase_calibration_travel','phase_homing_speed_invalid',
+                    'phase_calibration_duration_exceeds_transport_limit'}
                 reason=(code if code in safe_codes else 'motion_geometry_or_evidence_unverified')
                 return self._finish('BLOCKED','return_position_unverified_manual_recovery'
                                     if self._return_requested else reason)
@@ -404,7 +410,8 @@ class MaintenanceMotionController:
         else:
             if self.feature_id=='M12':
                 value=values['configfile']['save_config_pending_items']['endstop_phase '+self._row.device]['trigger_phase']
-                self._evidence=(('trigger_phase',value),)
+                self._evidence=(('homing_cycles',self._program.homing_runs),
+                                 ('trigger_phase',value))
             self._phase='await_observation'
         return None
     def begin_measurement(self):

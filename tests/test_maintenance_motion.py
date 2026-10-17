@@ -94,13 +94,65 @@ class MotionContractTests(unittest.TestCase):
         self.status['configfile']={'save_config_pending':False}
         self.status['endstop_phase']={'last_home':{'stepper_x':{'phase':4,'phases':64}}}
         p=compile_motion(self.row('M12'),self.state,self.status,TOKEN)
-        self.assertEqual(p.script,'ENDSTOP_PHASE_CALIBRATE STEPPER=stepper_x')
+        self.assertEqual(p.script.count('G28 X'),10)
+        self.assertNotIn('G28 Y',p.script)
+        self.assertEqual(p.script.count('G1 X'),10)
+        self.assertIn('ENDSTOP_PHASE_CALIBRATE STEPPER=stepper_x',p.script)
+        self.assertEqual(p.homing_runs,10)
         self.assertFalse(verify_motion(p,self.status))
         self.status['configfile']={'save_config_pending':True,'save_config_pending_items':{
             'endstop_phase stepper_x':{'trigger_phase':'7/64'}}}
         self.assertTrue(verify_motion(p,self.status))
         self.assertNotIn('SAVE_CONFIG',p.script)
 
+
+    def test_phase_y_with_pending_x_and_ten_safe_random_starts(self):
+        import re
+        self.state.settings['endstop_phase stepper_y']={}
+        self.status['endstop_phase']={'last_home':{'stepper_y':{'phase':2,'phases':64}}}
+        self.status['configfile']={'save_config_pending':True,
+            'save_config_pending_items':{'endstop_phase stepper_x':{'trigger_phase':'7/64'}}}
+        p=compile_motion(self.row('M12','stepper_y'),self.state,self.status,TOKEN)
+        self.assertEqual(p.script.count('G28 Y'),10)
+        self.assertNotIn('G28 X',p.script)
+        positions=list(map(float,re.findall(r'G1 Y([0-9.]+) F',p.script)))
+        self.assertEqual(len(positions),10)
+        self.assertEqual(len(set(positions)),10)
+        self.assertTrue(all(0<=x<=200 for x in positions))
+        self.assertNotIn('SAVE_CONFIG',p.script)
+        self.status['configfile']['save_config_pending_items'][
+            'endstop_phase stepper_y']={'trigger_phase':'9/64'}
+        self.assertTrue(verify_motion(p,self.status))
+
+    def test_phase_existing_target_pending_is_blocked(self):
+        self.state.settings['endstop_phase stepper_x']={}
+        self.status['endstop_phase']={'last_home':{'stepper_x':{'phase':4,'phases':64}}}
+        self.status['configfile']={'save_config_pending':True,
+            'save_config_pending_items':{'endstop_phase stepper_x':{'trigger_phase':'7/64'}}}
+        with self.assertRaisesRegex(ValueError,'existing_or_unknown_pending_config'):
+            compile_motion(self.row('M12'),self.state,self.status,TOKEN)
+
+    def test_phase_corexy_xy_is_unsafe_and_denied(self):
+        self.state.settings['printer']['kinematics']='corexy'
+        self.state.settings['endstop_phase stepper_x']={}
+        self.status['endstop_phase']={'last_home':{'stepper_x':{'phase':4,'phases':64}}}
+        self.status['configfile']={'save_config_pending':False}
+        with self.assertRaisesRegex(ValueError,'phase_stepper_not_supported_for_kinematics'):
+            compile_motion(self.row('M12'),self.state,self.status,TOKEN)
+
+    def test_phase_lifts_z_once_before_x_home_series(self):
+        self.state.settings['endstop_phase stepper_x']={}
+        self.status['configfile']={'save_config_pending':False}
+        self.status['endstop_phase']={'last_home':{'stepper_x':{'phase':4,'phases':64}}}
+        self.status['gcode_move']['position'][2]=0.
+        p=compile_motion(self.row('M12'),self.state,self.status,TOKEN)
+        self.assertEqual(p.script.count('G1 Z5.0000'),1)
+        self.assertEqual(p.script.count('G28 X'),10)
+        self.assertNotIn('G28 Z',p.script)
+        self.status['gcode_move']['position'][2]=5.
+        self.status['configfile']={'save_config_pending':True,'save_config_pending_items':{
+            'endstop_phase stepper_x':{'trigger_phase':'7/64'}}}
+        self.assertTrue(verify_motion(p,self.status))
     def test_small_mesh_bounds_prove_clear_without_fetching_matrix(self):
         self.state.settings['bed_mesh']={}
         self.status['bed_mesh']={'profile_name':'','mesh_min':[0.,0.],'mesh_max':[0.,0.]}

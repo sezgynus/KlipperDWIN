@@ -14,7 +14,7 @@ apply. No motor is enabled, homed or moved. No registers/config are written.
 Null driver monitor status is inconclusive; no temperature is synthesized.
 Klipper reports only nonzero drv_status fields; an empty mapping is distinct
 from null. Position is commanded state, not measured physical displacement.
-M12 diagnostics never calibrates or saves. Angle status is not shaft angle.
+Passive M12 diagnostics does not calibrate or save; the separate M12 per-stepper test calibrates without automatic saving. Angle status is not shaft angle.
 No physical acceptance changes. M02/M17 remain deliberately hidden.
 
 ## M01 and M10
@@ -195,3 +195,25 @@ Only a transport-confirmed guard_denied before socket send finishes with the spe
 ## M10/M12 evidence before review
 
 M10 and M12 no longer ask Observed before displaying their evidence. Read-only evidence rows appear first in the test screen, followed by review actions; clicking an evidence row does nothing. M10 shows the target driver, passive-read scope, fault count and a readable name for every active flag (or No fault flags reported), plus its motor-health limitation. M12 shows the target, actual trigger_phase fraction, Pending config: YES / Saved to file: NO and preserved position/modes, without a repeatability claim. The operator can read/scroll and select Result reviewed or reject with Not accepted. Review has no inactivity deadline and sends no new motion or SAVE_CONFIG. M10/M12 physical acceptance remains pending explicit informed operator approval.
+
+
+## M12: ten targeted phase-calibration homings (17 October 2026)
+
+M12 entries already exist per discovered physical stepper: no extra axis-selection
+screen is added. After the existing one-time consented preparatory XYZ homing
+if necessary, the chosen axis travels to ten independently randomized, distinct,
+in-bounds interior positions. Exactly ten selected-axis G28 commands (G28 X,
+G28 Y or G28 Z) accumulate Klipper's phase history. No bare G28 is sent in
+this calibration series. The final ENDSTOP_PHASE_CALIBRATE STEPPER=... computes
+the phase; automatic SAVE_CONFIG is never performed.
+
+To protect XY travel, the script lifts Z once to a safe 5mm clearance only
+when needed; no Z homing is repeated between samples. Existing temperature,
+mesh, safety, modal state, physical-endstop and printer-ownership guards remain.
+Config pending for another stepper is preserved; pending for the same target
+blocks another calibration. CoreXY XY endstop-phase calibration is not valid
+in Klipper and is rejected. Runtime is bounded against the 900s RPC ceiling.
+
+The review screen shows Homing cycles: 10 and the computed pending trigger
+phase. It does not claim independent metrological accuracy or automatically
+accept this test as physically passed.

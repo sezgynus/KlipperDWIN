@@ -15,7 +15,7 @@ homing/hareket yapılmaz. Register/config yazılmaz.
 Null sürücü monitor durumu sonuçsuzdur; sıcaklık üretilmez.
 Klipper drv_status içinde yalnız sıfır olmayan alanları bildirir; boş mapping
 ile null farklıdır. Konum komutlanan durumdur, fiziksel mesafe ölçümü değildir.
-M12 tanılaması kalibrasyon veya kayıt yapmaz. Angle durumu mil açısı değildir.
+Pasif M12 tanılaması kalibrasyon veya kayıt yapmaz; ayrı stepper bazlı M12 testi otomatik kaydetmeden kalibrasyon yapar. Angle durumu mil açısı değildir.
 Fiziksel kabul değişmez. M02/M17 bilerek gizli kalır.
 
 ## M01 ve M10
@@ -196,3 +196,27 @@ Yalnız iletişim katmanının socket gönderiminden önce kesin olarak guard_de
 ## M10/M12 sonuç önce, inceleme sonra
 
 M10 ve M12 artık veriyi göstermeden Observed sorusu sormaz. Sonuç bilgileri aynı test ekranının üstünde, inceleme düğmeleri altında gösterilir. Bilgi satırlarına basmak işlem yapmaz. M10 hedef sürücüyü, pasif okuma olduğunu, hata sayısını ve her aktif bayrağın okunabilir adını (veya No fault flags reported) gösterir; motor sağlığı testi olmadığı belirtilir. M12 hedefi, gerçek trigger_phase kesrini, Pending config: YES / Saved to file: NO bilgisini ve korunmuş konum/modları gösterir; tekrarlanabilirlik ölçümü iddiası yoktur. Kullanıcı listeyi okuyup Result reviewed seçebilir veya Not accepted ile reddedebilir. İnceleme ekranı süresizdir; yeni hareket veya SAVE_CONFIG göndermez. M10/M12 fiziksel kabulleri açık kullanıcı doğrulamasına kadar beklemede kalır.
+
+
+## M12: seçili eksende on kez faz kalibrasyonu homing'i (17 Ekim 2026)
+
+M12, keşfedilen fiziksel stepper başına zaten ayrı bir menü girdisidir; yeni
+eksen seçim ekranı eklenmez. Gerekirse başlangıçtaki mevcut, onaylı XYZ
+homing hazırlığı yalnız bir kez yapılır. Sonra seçilen eksen, güvenli
+sınırlar içinde rastgele üretilmiş birbirinden farklı on konuma gider.
+Her konumdan yalnız seçilen eksende G28 X, G28 Y veya G28 Z çalışır.
+Bu on döngüde tüm eksenleri birlikte home eden yalın G28 kullanılmaz.
+Sonunda ENDSTOP_PHASE_CALIBRATE STEPPER=... ile Klipper biriktirilmiş
+faz istatistiklerinden sonuç hesaplar. SAVE_CONFIG otomatik çalışmaz.
+
+XY hareketi için gerekli olduğunda Z başlangıçta yalnız bir kez 5mm güvenli
+açıklığa yükseltilir; döngüler arasında yeniden Z homing yapılmaz.
+Isıtıcı, mesh, güvenlik, G-code modları, fiziksel endstop ve test
+sahipliği kontrolleri korunur. Başka stepper'ın bekleyen yapılandırma
+değişikliği korunur; aynı hedefin bekleyen sonucu tekrar kalibrasyonu
+engeller. Klipper'da CoreXY X/Y için bu kalibrasyon geçersizdir ve
+reddedilir. Süre Moonraker'ın 900s RPC sınırına göre kontrol edilir.
+
+Sonuç ekranı Homing cycles: 10 ve hesaplanan bekleyen trigger_phase
+değerini gösterir. Bağımsız metrolojik doğruluk veya fiziksel kabul
+iddiasında bulunmaz.

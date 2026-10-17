@@ -3,6 +3,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 import math
 import re
+from random import SystemRandom
 
 _MOVE = ('M03', 'M04', 'M05', 'M06', 'M12')
 _TOKEN = re.compile(r'_PETREL_M_[a-f0-9]{32}\Z')
@@ -40,7 +41,7 @@ def idle_heaters(settings, status):
                 raise ValueError('motion_requires_cold_idle_heaters')
 
 
-def geometry(settings, status, homed=True, homing=False):
+def geometry(settings, status, homed=True, homing=False, allow_limit_positions=False):
     if not isinstance(settings, Mapping) or not isinstance(status, Mapping):
         raise ValueError('motion_evidence_unknown')
     printer = settings.get('printer', {})
@@ -80,7 +81,7 @@ def geometry(settings, status, homed=True, homing=False):
     if not number(velocity) or velocity <= 0:
         raise ValueError('motion_velocity_unknown')
     if homed:
-        if any(not lo+2 <= p <= hi-2 for lo, hi, p in zip(low, high, position)):
+        if not allow_limit_positions and any(not lo+2 <= p <= hi-2 for lo, hi, p in zip(low, high, position)):
             raise ValueError('move_away_from_axis_limits')
         if 'bed_mesh' in settings:
             mesh = status.get('bed_mesh')
@@ -119,6 +120,7 @@ class MotionProgram:
     deadline_s: float
     returning: bool = False
     phase_count: int | None = None
+    homing_runs: int = 0
 
 
 def _script(axis, distance, speed, token, roundtrip):
@@ -132,13 +134,26 @@ def _script(axis, distance, speed, token, roundtrip):
     return '\n'.join(lines)
 
 
+def phase_pending_allowed(cfg, device):
+    """A pending result for another stepper must not block this calibration."""
+    if not isinstance(cfg, Mapping):
+        return False
+    if cfg.get('save_config_pending') is False:
+        return True
+    items = cfg.get('save_config_pending_items')
+    return (cfg.get('save_config_pending') is True and
+            isinstance(items, Mapping) and bool(items) and
+            'endstop_phase '+device not in items)
+
+
 def compile_motion(row, state, status, token):
     feature, name = row.feature_id, row.device
     if feature not in _MOVE:
         raise ValueError('motion_feature_unavailable')
     settings = state.settings
-    position, low, high, velocity = geometry(settings, status, homed=feature not in ('M03', 'M12'),
-                                             homing=feature == 'M03')
+    position, low, high, velocity = geometry(settings, status, homed=feature != 'M03',
+                                             homing=feature == 'M03',
+                                             allow_limit_positions=feature == 'M12')
     modes = modal(status)
     if feature == 'M03':
         if name is not None:
@@ -149,20 +164,68 @@ def compile_motion(row, state, status, token):
     if feature == 'M12':
         if name not in _AXES or 'endstop_phase '+name not in settings:
             raise ValueError('phase_stepper_unverified')
+        axis = _AXES[name]
+        if settings['printer']['kinematics'] == 'corexy' and axis in (0, 1):
+            raise ValueError('phase_stepper_not_supported_for_kinematics')
         pin = settings.get(name, {}).get('endstop_pin', '')
-        if not pin or 'virtual_endstop' in pin:
+        if not isinstance(pin, str) or not pin or 'virtual_endstop' in pin:
             raise ValueError('phase_physical_endstop_required')
-        cfg = status.get('configfile', {})
-        if cfg.get('save_config_pending') is not False:
+        if any(abs(v)>1e-9 for v in modes[-4:-1]):
+            raise ValueError('clear_xyz_offsets_before_homing_test')
+        if not phase_pending_allowed(status.get('configfile'), name):
             raise ValueError('existing_or_unknown_pending_config')
         home = status.get('endstop_phase', {}).get('last_home', {}).get(name, {})
         phase, count = home.get('phase'), home.get('phases')
-        if type(phase) is not int or type(count) is not int or not 0 <= phase < count <= 4096:
+        if type(phase) is not int or type(count) is not int or not 0<=phase<count<=4096:
             raise ValueError('home_axis_before_phase_calibration')
         if name[-1] not in status['toolhead']['homed_axes']:
             raise ValueError('axis_not_homed_for_phase')
-        return MotionProgram(feature, name, 'ENDSTOP_PHASE_CALIBRATE STEPPER='+name,
-                             position, position, modes, None, 0., 12., phase_count=count)
+        span = high[axis]-low[axis]
+        margin = max(2., min(10., .08*span))
+        low_target, high_target = low[axis]+margin, high[axis]-margin
+        if high_target-low_target<10.:
+            raise ValueError('insufficient_phase_calibration_travel')
+        speed = min(40., velocity)
+        if axis==2:
+            speed = min(speed, settings['printer'].get('max_z_velocity', velocity))
+        homing_speed = settings[name].get('homing_speed',5.)
+        retract = settings[name].get('homing_retract_dist',5.)
+        if (not number(speed) or speed<=0 or not number(homing_speed)
+                or homing_speed<=0 or not number(retract) or retract<0):
+            raise ValueError('phase_homing_speed_invalid')
+        z_target = position[2]
+        z_speed = None
+        if axis in (0, 1) and position[2]<low[2]+5.:
+            z_target = low[2]+5.
+            z_speed = settings['printer'].get('max_z_velocity',velocity)
+            if not number(z_speed) or z_speed<=0 or z_target>high[2]-2.:
+                raise ValueError('raise_z_for_xy_clearance')
+            z_speed = min(5.,z_speed,velocity)
+        # This API has a maximum per-command timeout of 900 seconds.
+        deadline = (45. + 10*(1.2*span/homing_speed + 2*retract/homing_speed
+                               + span/speed + 8.)
+                    + ((z_target-position[2])/z_speed if z_speed else 0.))
+        if deadline>875.:
+            raise ValueError('phase_calibration_duration_exceeds_transport_limit')
+        rng = SystemRandom()
+        width = (high_target-low_target)/10.
+        targets = [low_target+(i+rng.uniform(.15,.85))*width
+                   for i in range(10)]
+        rng.shuffle(targets)
+        lines = ['SAVE_GCODE_STATE NAME='+token, 'G90', 'M220 S100']
+        if z_speed is not None:
+            lines += ['G1 Z%.4f F%.3f' % (z_target,z_speed*60.), 'M400']
+        letter='XYZ'[axis]
+        for target in targets:
+            lines += ['G1 %s%.4f F%.3f' % (letter,target,speed*60.),
+                      'M400', 'G28 '+letter, 'M400']
+        lines += ['ENDSTOP_PHASE_CALIBRATE STEPPER='+name,
+                  'RESTORE_GCODE_STATE NAME='+token+' MOVE=0']
+        expected=list(position)
+        expected[2]=z_target
+        return MotionProgram(feature,name,chr(10).join(lines),position,
+                             tuple(expected),modes,axis,0.,deadline,
+                             phase_count=count,homing_runs=10)
     if name not in _AXES:
         raise ValueError('primary_axis_stepper_required')
     axis = _AXES[name]
@@ -215,7 +278,11 @@ def verify_motion(program, status):
         low, high = vector(th['axis_minimum']), vector(th['axis_maximum'])
         if any(not lo <= p <= hi for lo,hi,p in zip(low,high,actual)):
             return False
-        if program.expected is not None and not position_matches(program.expected, actual):
+        if program.feature_id == 'M12':
+            if any(abs(actual[i]-program.expected[i])>.01
+                   for i in range(3) if i!=program.axis):
+                return False
+        elif program.expected is not None and not position_matches(program.expected, actual):
             return False
         if program.feature_id in ('M04', 'M05', 'M06'):
             enabled = status['stepper_enable']['steppers']
@@ -259,10 +326,11 @@ def dispatch_compatible(program,row,state,status,token):
         # Fresh queue/epoch/config guards are provided by the controller.
         # At dispatch verify current modes/position/homed axis/pending config
         # from the existing subscription, without requiring last_home there.
-        actual, low, high, velocity = geometry(state.settings,status,homed=False)
+        actual, low, high, velocity = geometry(
+            state.settings,status,homed=True,allow_limit_positions=True)
         cfg=status.get('configfile',{})
         return (program.device[-1] in status['toolhead']['homed_axes']
-                and cfg.get('save_config_pending') is False
+                and phase_pending_allowed(cfg,program.device)
                 and position_matches(program.original,actual)
                 and modes_match(program.modes,modal(status)))
     if program.returning:

@@ -356,18 +356,22 @@ class MotionControllerTests(unittest.TestCase):
         self.arm('M12')
         self.c.confirm()
         script=self.commands[0][1]['script']
-        self.assertEqual(script,'ENDSTOP_PHASE_CALIBRATE STEPPER=stepper_x')
+        self.assertEqual(script.count('G28 X'),10)
+        self.assertEqual(script.count('G1 X'),10)
+        self.assertIn('ENDSTOP_PHASE_CALIBRATE STEPPER=stepper_x',script)
         self.data['status']['configfile']={'save_config_pending':True,
             'save_config_pending_items':{'endstop_phase stepper_x':{'trigger_phase':'7/64'}}}
         self.verified()
         self.assertEqual(self.c.phase,'await_observation')
         self.assertIn('Trigger phase: 7/64',self.c.observation_details)
+        self.assertIn('Homing cycles: 10',self.c.observation_details)
         self.assertIn('Pending config: YES',self.c.observation_details)
         self.assertIn('Saved to file: NO',self.c.observation_details)
         self.assertEqual(len(self.commands),1)  # Review did not send SAVE_CONFIG.
         result=self.c.observe(True)
         self.assertEqual(result.status,'OBSERVED_USER')
         self.assertFalse(result.restore_verified)
+        self.assertIn(('homing_cycles',10),result.evidence)
     def test_live_dispatch_geometry_rejection_keeps_specific_diagnostic(self):
         self.arm('M04')
         # On-demand preflight was valid; the subscription dispatch snapshot
@@ -427,8 +431,9 @@ class MotionControllerTests(unittest.TestCase):
         del self.data['status']['endstop_phase']
         self.assertTrue(self.c.confirm()[0])
         self.assertFalse(self.command.done())
-        self.assertEqual(self.commands[0][1]['script'],
-                         'ENDSTOP_PHASE_CALIBRATE STEPPER=stepper_x')
+        self.assertEqual(self.commands[0][1]['script'].count('G28 X'),10)
+        self.assertIn('ENDSTOP_PHASE_CALIBRATE STEPPER=stepper_x',
+                      self.commands[0][1]['script'])
 
     def test_motion_snapshot_epoch_change_never_retargets_old_command(self):
         self.arm()

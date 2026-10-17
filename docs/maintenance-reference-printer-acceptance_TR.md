@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **54 adet** referans yazıcı yeteneği kullanıcı tarafından kabul edilmiştir: 50 Maintenance hedefi ve dört mevcut Leveling işlevi. Leveling kabulü Maintenance adaptörü oluşturmaz. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **55 adet** referans yazıcı yeteneği kullanıcı tarafından kabul edilmiştir: 51 Maintenance hedefi ve dört mevcut Leveling işlevi. Leveling kabulü Maintenance adaptörü oluşturmaz. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 54 KABUL, 2 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 55 KABUL, 1 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Kabul türleri:** Termal karakterizasyonda *test prosedürünün kabulü*, yazıcının termal performans kriterini geçmesi demek değildir. H07/H08 Extruder sonuçları `FAILED_METRIC` olarak korunur; doğru ölçüm ve güvenli tamamlanma sayesinde prosedürler kabul edilir.
 
@@ -76,12 +76,12 @@
 | [x] | E07 | `extruder + MMU filament path` | Filament yolu hareketi | 5 mm sürme / PASSED_USER | **KABUL** |
 | [x] | E02 | `extruder measured length` | Ölçülmüş ekstrüzyon mesafesi | 10 mm girildi; hesaplanan fark 0 mm | **KABUL** |
 | [x] | E01 | `extruder filament path` | Kaba filament ekstrüzyonu | 5 mm filament sürme / PASSED_USER | **KABUL** |
+| [x] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament var/yok sensörü | Kullanıcı doğruladı; yeni trace paylaşılmadı | **KABUL** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament var/yok sensörü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensör testi | Adaptör askıda; elle MMU kapatma yasak | **BEKLİYOR** |
 
 ## Ek kanıt veya güvenli entegrasyon gerektirenler
@@ -222,3 +222,7 @@ Kullanıcı `d924a92a9df94f1b99645da43a7b14be` trace oturumunu göndererek tamam
 ## 18 Ekim 2026 — Elle MMU kapatma isteyen testler askıya alındı
 
 Kullanıcı tasarım kararıyla **E11 ve E12 çalıştırılabilir Maintenance testleri arasından çıkarıldı**. Eski E11 akışı MMU'nun elle kapatılmasını ve filament parçalarının elle takılıp çıkarılmasını istiyordu; güvenli otomatik geçiş ve MMU'nun özgün durumuna doğrulanmış dönüş uygulanmamıştı. E12'nin eski firmware durum okumaları da tüm mekanik işlemlerin kapsamlı testini kanıtlamıyordu. Test adaptörlerinin kayıtları ve doğrudan başlatma yetkisi kaldırıldı; donanım keşfi/katalog ve önceki `BLOCKED` trace korunuyor. E11 hâlâ **BEKLİYOR**, E12 **KOŞULLU**; yeni fiziksel kabul verilmedi. İleride hiçbir test kullanıcıdan alt sistemi elle açıp kapatmasını istemeyecek; güvenli otomatik geçiş ve doğrulanmış özgün duruma dönüş zorunludur. Toplam değişmedi: **54 KABUL, 2 BEKLİYOR, 5 KOŞULLU, 1 N/A**.
+
+## 18 Ekim 2026 — E03 kullanıcı gözlemiyle fiziksel kabul
+
+Kullanıcı referans yazıcıdaki E03 filament var/yok sensörü testinin olması gerektiği gibi çalıştığını açıkça doğruladı ve kabulünü istedi. `filament_switch_sensor mmu_gate_sensor` hedefi **KABUL** edildi; sonuç `OBSERVED_USER` (yalnız kullanıcı gözlemi) olarak kaydedildi. Doğrulanmamış bir firmware `PASSED` sonucu yazılmadı. Yeni trace paylaşılmadı; yok → var → yok geçişlerinin ayrı sensör okumaları, son ekran/kontrolcü çıktısı ve sensörün özgün etkin durumuna dönüşü bağımsız doğrulanmadı (`restore_verified=false`). Önceki E03 `motion_requires_cold_idle_heaters` BLOCKED denemeleri (#1015/#1040/#1281) tarihçede aynen korundu. E11 bekleyen/askıda, E12 koşullu/askıda. **Güncel toplam: 62 kayıt / 46 ID — 55 KABUL, 1 BEKLİYOR, 5 KOŞULLU, 1 N/A.**

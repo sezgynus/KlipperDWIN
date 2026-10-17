@@ -734,6 +734,23 @@
         "E11": "pending",
         "E12": "conditional"
       }
+    },
+    "operator_followup_2026_10_18_e03": {
+      "date": "2026-10-18",
+      "feature_id": "E03",
+      "target": "filament_switch_sensor mmu_gate_sensor",
+      "source": "user_explicit_physical_observation",
+      "observation": "E03 worked as intended; operator expressly approved physical acceptance.",
+      "new_instrumented_trace_available": false,
+      "controller_result_reported": false,
+      "restore_verified": false,
+      "previous_blocked_trace": "physical_trace_2026_10_18_filament_partial",
+      "historic_blocked_result_seqs": [
+        1015,
+        1040,
+        1281
+      ],
+      "evidence_boundary": "Prior ZIP contains only E03 BLOCKED attempts. This acceptance is a later explicit physical user observation, not a new event trace. Do not infer sensor transition timestamps, controller PASSED, restore verification or the signed printer HEAD."
     }
   },
   "policy": {
@@ -2425,10 +2442,20 @@
       "title": "Filament presence sensor",
       "method": "AU",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "MMU gate switch sensor dynamically visible through Klipper. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Operator explicitly confirmed that the E03 physical filament-presence sensor test behaved as intended on the reference printer. This follow-up is a user observation without a newly uploaded trace. The earlier motion_requires_cold_idle_heaters BLOCKED attempts remain historical; controller PASS, individual sensor samples and verified restore were not independently confirmed.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "controller_result_reported": false,
+        "restore_verified": false,
+        "observation": "Operator explicitly confirmed the E03 filament-presence sensor test worked as intended on the physical printer and approved it for acceptance. No new instrumented trace, latest LCD controller outcome, individual absent-present-absent transition timestamps or verified sensor enabled-state restoration were supplied.",
+        "acceptance_surface": "maintenance",
+        "new_instrumented_trace_available": false,
+        "physical_test_reported": true
+      }
     },
     {
       "feature_id": "E07",

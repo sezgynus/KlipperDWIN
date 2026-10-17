@@ -6,9 +6,9 @@
 
 **Evidence boundary:** the independent 121-ID hardware reference from 15 Oct 2026, the 16 Oct 2026 discovery log and explicit user observations. The log confirms **54 discovered features**, but no serialized list of their exact IDs was preserved. Here, `confirmed` means confirmed by the independent capability reference, **not** an exact complete dump of the 54 currently observed IDs. `conditional` entries are not currently authorized, discoverable test commands.
 
-**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Fifty-four** reference-printer capabilities have operator approval: 50 Maintenance test targets and four existing Leveling workflows. Leveling acceptance does not implement a Maintenance adapter. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
+**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Fifty-five** reference-printer capabilities have operator approval: 51 Maintenance test targets and four existing Leveling workflows. Leveling acceptance does not implement a Maintenance adapter. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **62 rows / 46 IDs** — 54 ACCEPTED, 2 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+**Per-device tracking:** **62 rows / 46 IDs** — 55 ACCEPTED, 1 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
 
 **Acceptance semantics:** For grouped thermal characterization, acceptance certifies that the *test procedure* worked; it does not mean the printer met every thermal performance threshold. Extruder H07/H08 remain `FAILED_METRIC` and are never rewritten to PASS.
 
@@ -76,12 +76,12 @@
 | [x] | E07 | `extruder + MMU filament path` | Filament path motion | 5 mm feed / PASSED_USER | **ACCEPTED** |
 | [x] | E02 | `extruder measured length` | Measured extrusion distance | 10 mm entered; 0 mm computed error | **ACCEPTED** |
 | [x] | E01 | `extruder filament path` | Coarse filament extrusion | 5 mm feed / PASSED_USER | **ACCEPTED** |
+| [x] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament presence sensor | User verified procedure; no new trace | **ACCEPTED** |
 
 ## Reference-confirmed hardware — remaining adapter/acceptance pending
 
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
-| [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament presence sensor | Ready; physical acceptance pending | **PENDING** |
 | [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensor diagnostics | Adapter parked; manual MMU disable prohibited | **PENDING** |
 
 ## Requires additional evidence or a safe integration
@@ -226,3 +226,7 @@ The operator submitted trace `d924a92a9df94f1b99645da43a7b14be` and explicitly r
 ## 18 October 2026 — MMU manual-disable tests parked
 
 Per operator policy, **E11 and E12 are not runnable Maintenance tests**. E11 formerly required manually disabling MMU and inserting/removing sensor fragments; no protected automatic transition + verified restoration of the prior MMU state was implemented. E12's previous readbacks do not establish full mechanical coverage. Their executable adapter registrations were removed, including direct controller start permission; capability discovery/catalog and earlier `BLOCKED` trace remain. E11 is still **PENDING**, E12 remains **CONDITIONAL**, with **no new physical acceptance**. Future tests must not mandate manual subsystem enable/disable; safe automatic state preservation and verified rollback are prerequisites. Current totals remain **54 ACCEPTED, 2 PENDING, 5 CONDITIONAL, 1 N/A**.
+
+## 18 October 2026 — E03 operator follow-up acceptance
+
+The operator explicitly confirmed that the E03 filament-presence sensor test worked as intended on the reference printer and approved it. The target `filament_switch_sensor mmu_gate_sensor` is therefore **ACCEPTED**, recorded as `OBSERVED_USER` (user observation only), **not** a fabricated firmware `PASSED`. No new instrumented trace was attached. Individual absent → present → absent sensor values, new LCD/controller outcome and original sensor-enable restoration were not independently verified (`restore_verified=false`). The previous E03 `motion_requires_cold_idle_heaters` BLOCKED attempts (#1015/#1040/#1281) stay in historical evidence unchanged. E11 remains pending/parked; E12 remains conditional/parked. **Current active total: 62 rows / 46 IDs — 55 ACCEPTED, 1 PENDING, 5 CONDITIONAL, 1 N/A.**

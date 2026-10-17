@@ -81,6 +81,15 @@ class MaintenanceMotionController:
     def measurement_value(self):
         return self._measurement if self._measurement is not None else abs(self._program.distance) if self._program is not None else 0.
     @property
+    def observation_details(self):
+        if self.feature_id!='M12' or self.phase!='await_observation':
+            return ()
+        phase=dict(self._evidence).get('trigger_phase','unknown')
+        return (self._row.device,'Trigger phase: '+str(phase),
+                'Pending config: YES','Saved to file: NO',
+                'Position/modes unchanged','No repeatability measure')
+
+    @property
     def observation_prompt(self):
         return {'M03':'Homing completed safely?', 'M04':'Correct motor and return?',
                 'M05':'Correct axis and return?', 'M06':'Travel measured and back?',

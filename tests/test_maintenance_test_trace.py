@@ -271,6 +271,32 @@ class TestRecorder(unittest.TestCase):
 
 
 class TestRecorderUI(unittest.TestCase):
+    def test_diagnostic_evidence_precedes_review_and_info_rows_are_inert(self):
+        from test_capabilities import display,snapshot
+        for feature,details in (
+                ('M10',('tmc2208 stepper_x','Reported faults: 0','No fault flags reported')),
+                ('M12',('stepper_x','Trigger phase: 7/64','Pending config: YES','Saved to file: NO'))):
+            with self.subTest(feature=feature):
+                d=display(snapshot())
+                d._maintenance_page='pulse'
+                d.pd.maintenance_pulse=SimpleNamespace(phase='await_observation',
+                    feature_id=feature,observation_details=details)
+                d.pd.observe_maintenance_physical=Mock(return_value=SimpleNamespace(status='OBSERVED_USER'))
+                d.get_encoder_state=Mock(return_value=d.ENCODER_DIFF_ENTER)
+                d._maintenance_show=Mock()
+                title,rows=d._maintenance_rows()
+                self.assertEqual(tuple(r[0] for r in rows[:len(details)]),details)
+                self.assertEqual(rows[-1][0],'Result reviewed')
+                for selected in range(len(details)):
+                    d._maintenance_selection=selected
+                    d.HMI_Maintenance_Menu()
+                d.pd.observe_maintenance_physical.assert_not_called()
+                d._maintenance_selection=len(details)+1
+                d.HMI_Maintenance_Menu()
+                d.pd.observe_maintenance_physical.assert_called_once_with(True)
+                d._maintenance_show.assert_called_once_with('result')
+
+
     def test_auto_homing_is_announced_before_any_motion(self):
         from test_capabilities import display,snapshot
         d=display(snapshot())

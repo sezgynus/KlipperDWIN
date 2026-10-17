@@ -361,6 +361,10 @@ class MotionControllerTests(unittest.TestCase):
             'save_config_pending_items':{'endstop_phase stepper_x':{'trigger_phase':'7/64'}}}
         self.verified()
         self.assertEqual(self.c.phase,'await_observation')
+        self.assertIn('Trigger phase: 7/64',self.c.observation_details)
+        self.assertIn('Pending config: YES',self.c.observation_details)
+        self.assertIn('Saved to file: NO',self.c.observation_details)
+        self.assertEqual(len(self.commands),1)  # Review did not send SAVE_CONFIG.
         result=self.c.observe(True)
         self.assertEqual(result.status,'OBSERVED_USER')
         self.assertFalse(result.restore_verified)

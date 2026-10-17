@@ -60,6 +60,21 @@ class MaintenanceSwitchController:
         return 'Fault read and state seen?' if self.feature_id == 'M10' else 'Switch responded correctly?'
 
     @property
+    def observation_details(self):
+        if self.feature_id!='M10' or self.phase!='await_observation':
+            return ()
+        labels={'ot':'Overtemperature','otpw':'Temperature warning',
+                's2ga':'Short to GND: phase A','s2gb':'Short to GND: phase B',
+                's2vsa':'Short to supply: phase A','s2vsb':'Short to supply: phase B',
+                't120':'Temperature flag: 120C','t143':'Temperature flag: 143C',
+                't150':'Temperature flag: 150C','t157':'Temperature flag: 157C'}
+        return (self._row.device,'Passive read; no movement',
+                'Reported faults: '+str(len(self._faults)),
+                *(labels[flag] for flag in self._faults),
+                *(('No fault flags reported',) if not self._faults else ()),
+                'Not a motor health test')
+
+    @property
     def live_text(self):
         return (self._last,) if self._last else ()
 

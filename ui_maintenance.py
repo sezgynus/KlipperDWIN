@@ -136,6 +136,13 @@ class MaintenanceViewMixin:
                     + tuple(('%d: %d/255' % (i + 1, val), self.ICON_FanSpeed, None, None)
                             for i, val in enumerate(levels)))
             if phase == 'await_observation':
+                details=getattr(self.pd.maintenance_pulse,'observation_details',())
+                if details:
+                    feature=self.pd.maintenance_pulse.feature_id
+                    return ('Review driver faults' if feature=='M10' else 'Review phase result'), (
+                        *((str(text)[:26], self.ICON_Info, None, None) for text in details),
+                        ('Not accepted', self.ICON_Back, None, None),
+                        ('Result reviewed', self.ICON_Info, None, None))
                 question = getattr(self.pd.maintenance_pulse,
                                    'observation_prompt', None) or 'Did it work?'
                 return question[:27], (('Not observed', self.ICON_Back, None, None),
@@ -334,8 +341,13 @@ class MaintenanceViewMixin:
                 if accepted:
                     self._maintenance_show('pulse')
             elif phase == 'await_observation':
+                details=getattr(self.pd.maintenance_pulse,'observation_details',())
+                if details and selected<len(details):
+                    return  # Evidence rows are read-only, never implicit consent.
                 seen = (selected if getattr(self.pd.maintenance_pulse, 'feature_id', None) == 'F12'
                         else selected == 1)
+                if details:
+                    seen=selected==len(details)+1
                 outcome = self.pd.observe_maintenance_physical(seen)
                 if outcome is not None:
                     self._maintenance_result = outcome

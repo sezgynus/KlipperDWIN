@@ -97,6 +97,27 @@ class SwitchTests(unittest.TestCase):
         self.assertEqual(self.c.observe(True).status,'OBSERVED_USER')
         self.assertTrue(all(not path.startswith('/printer/gcode') for path in self.paths))
 
+    def test_driver_fault_details_are_available_before_acknowledgment(self):
+        self.flags={'ot':1,'s2ga':1}
+        self.c.start('M10','tmc2208 stepper_x')
+        self.worker.drain()
+        self.assertIsNone(self.c.poll())
+        self.assertEqual(self.c.phase,'await_observation')
+        details=self.c.observation_details
+        self.assertIn('tmc2208 stepper_x',details)
+        self.assertIn('Reported faults: 2',details)
+        self.assertIn('Overtemperature',details)
+        self.assertIn('Short to GND: phase A',details)
+        self.assertIn('Not a motor health test',details)
+        self.assertEqual(self.c.observe(True).status,'FAILED_USER')
+
+    def test_no_fault_read_is_shown_before_acknowledgment(self):
+        self.c.start('M10','tmc2208 stepper_x')
+        self.worker.drain()
+        self.c.poll()
+        self.assertIn('No fault flags reported',self.c.observation_details)
+        self.assertIn('Passive read; no movement',self.c.observation_details)
+
     def test_cancel_and_disconnect_do_not_send_motion(self):
         self.c.start('M01','stepper_x')
         self.assertEqual(self.c.cancel().status,'ABORTED')

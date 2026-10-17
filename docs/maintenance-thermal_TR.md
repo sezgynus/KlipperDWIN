@@ -23,7 +23,11 @@ Genel ısıtıcılar açık uygulama profili gerektirir; hazne sıcaklığı tah
 Salt derleyici, süreli bekleme sonrasına OFF ekler. SAVE_CONFIG yoktur.
 
 ## Fiziksel controller
-Self Tests artık standart ısıtıcı başına H01/H05/H06/H07/H08/H09/H13 sunar.
+Self Tests artık her standart ısıtıcı için tek bir **Thermal Characterization**
+(H01) satırı sunar. Tek ısıtma/bekleme/OFF/soğuma döngüsünden H01/H05/H06/
+H07/H08/H09/H13 ölçümleri ve ayrı ayrı kullanıcı onaylı sonuçlar çıkar.
+Yedi kimlik katalogda, trace ve geçmiş kayıtlarında bağımsız kalır; yalnız
+fiziksel test oturumları birleştirilir. H02/H03/H04 PID ayrı kalır.
 Seçim salt-okunur ön kontroldür; ayrı onay mevcut tamamlanma takipli WebSocket
 RPC üzerinden tam 120 sn ısıt/bekle/OFF programını gönderir.
 Durum/kuyruk okumaları yalnız test sırasında yaklaşık saniyede bir ortak sınırlı
@@ -174,3 +178,16 @@ Klipper sıcaklık sınırları kullanılır. Bu düzenleme H02/H03 PID salını
 hedef üstündeki geçerli ölçümlerini kapsar. H07'nin 5 C aşım ölçütü sonuç
 değerlendirmesidir; sıcaklık denetim eşiği değildir. Diğer çalışma güvenliği,
 OFF doğrulaması ve operatör onayı değişmedi. CI fiziksel kabul sayılmaz.
+
+## Birleşik termal karakterizasyon (17 Ekim 2026)
+Keşfedilmiş her ısıtıcı için tek H01 seçimi, sınırlandırılmış bir sıcaklık
+serisini ölçer ve yedi bağımsız ölçütü değerlendirir. Kullanıcı ısıtmadan
+önce bir kez onay verir; OFF ve soğuma doğrulandıktan sonra tek fiziksel
+gözlem yanıtı verir. Her özellik kendi durumuna ve sayısal kanıtına sahiptir.
+Ölçüm penceresi eksikse INCONCLUSIVE, ölçülen kriter sağlanmadıysa
+FAILED_METRIC, kullanıcı gözlemi olumsuzsa FAILED_USER yazılır.
+Toplu sonuç özet durum taşır; geçmişe ortak zaman damgasıyla yedi ayrı
+özellik kaydı tek worker yazımıyla aktarılır. Trace, yedi alt sonucun
+kimlik ve kanıtlarını tek sonuç olayı altında saklar. CI fiziksel kabul
+JSON'unu değiştirmez. LCD'de yedi durum/ölçüm çifti kaydırılarak incelenir,
+Back önceki Self Tests satırına döner. Mevcut 120 sn bekleme otomatik uzatılmaz.

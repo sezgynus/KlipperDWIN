@@ -25,7 +25,11 @@ require an explicit application profile; no chamber temperature is guessed.
 The pure compiler includes OFF after its finite dwell. No SAVE_CONFIG.
 
 ## Physical controller
-Self Tests now offers H01/H05/H06/H07/H08/H09/H13 per standard heater.
+Self Tests now offers one **Thermal Characterization** entry (H01) per standard
+heater. One finite heating/dwell/OFF/cooling run produces separate H01/H05/H06/
+H07/H08/H09/H13 metrics and operator-reviewed results. These seven identifiers
+remain independent in the catalog, trace and history; only their physical
+actuation is consolidated. H02/H03/H04 PID remain separate.
 Selection is read-only preflight; a separate confirmation sends the exact
 120 s heat/dwell/OFF script through the existing completion WebSocket RPC.
 Status/queue reads use the existing bounded worker, approximately once per
@@ -155,3 +159,17 @@ reports measured overshoot and evaluates its 5 C criterion as a test metric,
 not as a heater-stop threshold. This change does not alter Klipper firmware
 limits, live print/operation guards, off verification, cancellation or
 uncertain-operation shutdown behavior. CI is not physical acceptance.
+
+## Grouped thermal characterization (17 October 2026)
+A single H01 selection for each discovered heater captures one bounded
+thermal trajectory and evaluates seven independent conditions. A user sees
+one consent before heating and one physical-observation confirmation after
+verified OFF/cooling. Each resulting feature has its own status and primary
+numeric evidence. Missing measurement windows remain INCONCLUSIVE; measured
+criterion failures are FAILED_METRIC, not a printer emergency stop. A negative
+operator observation is FAILED_USER. The parent result reports an aggregate;
+the history stores seven sibling feature records with one shared timestamp
+and one bounded worker write. Trace emits one result event with seven
+component identities and evidence; no acceptance JSON is updated by CI.
+The LCD scrolls seven status/evidence pairs and returns to the original
+Self Tests row. The existing 120 s dwell is not extended automatically.

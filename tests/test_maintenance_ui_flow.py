@@ -72,6 +72,39 @@ class MaintenanceUIFlows(unittest.TestCase):
         # The label must not trigger a second confirmation on its own.
         d.pd.client.get.assert_not_called()
 
+    def test_grouped_thermal_row_and_seven_read_only_results(self):
+        d = self.setup_view()
+        d._maintenance_page = 'tests'
+        plan = (SimpleNamespace(feature_id='H01',device='extruder'),
+                SimpleNamespace(feature_id='H03',device='heater_bed'))
+        d.pd.maintenance_guided_plan = Mock(return_value=plan)
+        title, rows = d._maintenance_rows()
+        self.assertEqual(title, 'Self Tests')
+        self.assertEqual(rows[1][0], 'Thermal extruder')
+        self.assertEqual(rows[2][0], 'H03 heater_bed')
+        d._maintenance_page = 'pulse'
+        d.pd.maintenance_pulse.phase = 'await_confirmation'
+        d.pd.maintenance_pulse.feature_id = 'H01'
+        d.pd.maintenance_pulse.live_text = ('Target 60.0 C',)
+        title, rows = d._maintenance_rows()
+        self.assertEqual(title, 'Confirm thermal group')
+        self.assertEqual(rows[1][0], 'Run 7 thermal checks')
+        children = tuple(SimpleNamespace(feature_id=f,status='PASSED_USER',
+                             evidence=((metric,1.2),))
+            for f, metric in (('H01','rise_c'),('H05','heating_c_per_s'),
+                              ('H06','time_to_target_s'),('H07','overshoot_c'),
+                              ('H08','stability_peak_to_peak_c'),
+                              ('H09','cooling_c_per_s'),('H13','rise_c')))
+        d._maintenance_result = SimpleNamespace(
+            status='PASSED_USER',reason='thermal_group_seven_independent_results',
+            components=children,evidence=())
+        d._maintenance_page = 'result'
+        title, rows = d._maintenance_rows()
+        self.assertEqual(title,'Result')
+        self.assertEqual(len([row for row in rows if 'PASSED_USER' in row[0]]),8)
+        for f in ('H01','H05','H06','H07','H08','H09','H13'):
+            self.assertTrue(any(row[0].startswith(f+' PASSED_USER') for row in rows))
+
     def test_new_auxiliary_controllers_use_their_own_live_confirmation(self):
         d = self.setup_view()
         d._maintenance_page = 'pulse'

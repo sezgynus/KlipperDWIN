@@ -35,7 +35,9 @@ class MaintenanceViewMixin:
             self._maintenance_test_rows = options
             entries = [back]
             for item in options:
-                label = item.feature_id + ' ' + (item.device or 'global')
+                label = ('Thermal ' + (item.device or 'heater')
+                         if item.feature_id == 'H01' else
+                         item.feature_id + ' ' + (item.device or 'global'))
                 entries.append((label[:26], self.ICON_FanSpeed
                                 if item.feature_id.startswith('F') else
                                 self.ICON_CaseLight, None, None))
@@ -84,7 +86,7 @@ class MaintenanceViewMixin:
                           'M06': 'Move measured 10mm', 'M12': 'Calibrate phase (no save)', 'F02': 'Run speed steps',
                           'F12': 'Run PWM sweep',
                           'O04': 'Run color sequence'}.get(
-                              feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
+                              feature_id, 'Run PID (no save)' if feature_id in ('H02', 'H03', 'H04') else 'Run 7 thermal checks' if feature_id == 'H01' else 'Run thermal test' if feature_id and feature_id.startswith('H') else 'Run short pulse')
                 if feature_id and (feature_id.startswith(('P','R','E')) or feature_id in ('S15','S16','S17','O01','O02','O06')):
                     return 'Confirm '+feature_id, (
                         ('Cancel', self.ICON_Back, None, None),
@@ -93,7 +95,7 @@ class MaintenanceViewMixin:
                           for text in self.pd.maintenance_pulse.live_text))
                 if feature_id and feature_id.startswith('H'):
                     live = getattr(self.pd.maintenance_pulse, 'live_text', ())
-                    return 'Confirm HEAT test', (
+                    return 'Confirm thermal group' if feature_id == 'H01' else 'Confirm HEAT test', (
                         ('Cancel', self.ICON_Back, None, None),
                         (action, self.ICON_FanSpeed, None, None),
                         *((text[:26], self.ICON_Info, None, None) for text in live[:1]),
@@ -206,15 +208,30 @@ class MaintenanceViewMixin:
             if 'SHUTDOWN_UNCONFIRMED' in reason:
                 entries.extend((('CHECK PRINTER SAFETY NOW', self.ICON_Info, None, None),
                                 ('Use physical power switch', self.ICON_Info, None, None)))
+            for child in getattr(outcome, 'components', ())[:7]:
+                # Rows remain read-only. ENTER on Back returns to the same
+                # heater selection; encoder scrolling exposes all results.
+                name = str(child.feature_id)
+                state = str(child.status)
+                entries.append(((name + ' ' + state)[:25],
+                                self.ICON_Info, None, None))
+                evidence = getattr(child, 'evidence', ())
+                primary = next((pair for pair in evidence
+                                if pair[0] not in ('samples', 'span_s')), None)
+                if primary is not None:
+                    key, value = primary
+                    entries.append(((name + ' ' + str(key) + ': ' + str(value))[:25],
+                                    self.ICON_Info, None, None))
             if reason == 'f12_kick_start_active':
                 entries.extend((
                     ('Set kick_start_time: 0', self.ICON_Info, None, None),
                     ('RESTART Klipper', self.ICON_Info, None, None)))
             elif reason == 'f12_kick_start_unknown':
                 entries.append(('Check fan config', self.ICON_Info, None, None))
-            for key, value in getattr(outcome, 'evidence', ())[:32]:
-                entries.append(((str(key) + ': ' + str(value))[:25],
-                                self.ICON_Info, None, None))
+            if not getattr(outcome, 'components', ()):
+                for key, value in getattr(outcome, 'evidence', ())[:32]:
+                    entries.append(((str(key) + ': ' + str(value))[:25],
+                                    self.ICON_Info, None, None))
             return 'Result', tuple(entries)
         return 'Maintenance', (back,)
 

@@ -91,6 +91,42 @@ class ThermalControllerTests(unittest.TestCase):
         self.assertEqual(result.status, 'PASSED_USER')
         self.assertTrue(result.restore_verified)
         self.assertGreater(dict(result.evidence)['rise_c'], 5)
+        self.assertEqual([item.feature_id for item in result.components],
+                         ['H01','H05','H06','H07','H08','H09','H13'])
+        self.assertTrue(all(item.status == 'PASSED_USER'
+                            and item.restore_verified for item in result.components))
+        self.assertEqual([name for name, _ in self.requests],
+                         ['printer.gcode.script'])
+
+    def test_combined_thermal_report_does_not_fail_other_metrics_on_overshoot(self):
+        self.armed()
+        self.assertTrue(self.c.confirm()[0])
+        for t in range(2, 159, 2):
+            self.clock = t
+            v = self.data['status']['extruder']
+            v['temperature'] = 70. if t == 64 else min(60., 25+t)
+            if t >= 120:
+                v.update(target=0., power=0., temperature=60-(t-120)*.2)
+                if not self.heat.done():
+                    self.heat.set_result('ok')
+            self.assertIsNone(self.c.poll())
+            if self.worker.jobs:
+                self.worker.drain()
+                self.assertIsNone(self.c.poll())
+            if self.c.phase == 'await_observation':
+                break
+        self.assertEqual(self.c.phase, 'await_observation')
+        result = self.c.observe(True)
+        self.assertEqual(result.status, 'FAILED_METRIC')
+        parts = {part.feature_id: part for part in result.components}
+        self.assertEqual(len(parts), 7)
+        self.assertEqual(parts['H07'].status, 'FAILED_METRIC')
+        self.assertEqual(dict(parts['H07'].evidence)['overshoot_c'], 10.)
+        self.assertEqual(parts['H01'].status, 'PASSED_USER')
+        self.assertEqual(parts['H05'].status, 'PASSED_USER')
+        self.assertEqual(parts['H09'].status, 'PASSED_USER')
+        self.assertEqual([name for name, _ in self.requests],
+                         ['printer.gcode.script'])
 
     def test_unlimited_wait_one_click_refreshes_then_starts_heat(self):
         self.armed()

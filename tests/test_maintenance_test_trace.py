@@ -84,6 +84,23 @@ class TestRecorder(unittest.TestCase):
         self.assertTrue(any(e['event']=='result' and e['data']['reason']==result.reason for e in events))
         self.assertEqual(len(self.fixture.requests),2)
 
+    def test_bundled_thermal_trace_links_all_seven_feature_results(self):
+        self.arm()
+        owner = self.fixture.c
+        owner._phase = 'await_observation'
+        from maintenance_heater import THERMAL_GROUP, THERMAL_PRIMARY
+        owner._component_metrics = tuple(
+            (name, True, True, ((THERMAL_PRIMARY[name], 1.2),))
+            for name in THERMAL_GROUP)
+        result = self.p.maintenance_pulse.observe(True)
+        self.assertEqual(len(result.components), 7)
+        _, events = unpack(self.trace)
+        item = next(e for e in events if e['event'] == 'result')
+        self.assertEqual([c['feature_id'] for c in item['data']['components']],
+                         list(THERMAL_GROUP))
+        self.assertTrue(all(c['restore_verified']
+                            for c in item['data']['components']))
+
     def test_long_wait_remains_waiting_and_stop_restores_original_owners(self):
         pulse,reader = self.p.maintenance_pulse,self.p.maintenance_reader
         client,printer = self.fixture.c._client,self.fixture.c._printer

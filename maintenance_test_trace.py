@@ -492,8 +492,15 @@ class OwnerProxy(Proxy):
                 self._last,self._sample_at = transition,monotonic()+1.
             if result is not None:
                 if hasattr(result,'reason') and hasattr(result,'feature_id'):
-                    trace.emit('result',{k:getattr(result,k,None) for k in
-                        ('feature_id','device','status','reason','restore_verified','evidence')},context)
+                    payload = {k:getattr(result,k,None) for k in
+                        ('feature_id','device','status','reason','restore_verified','evidence')}
+                    children = getattr(result, 'components', ())
+                    if children:
+                        payload['components'] = [
+                            {k:getattr(child,k,None) for k in
+                             ('feature_id','device','status','reason','restore_verified','evidence')}
+                            for child in children[:7]]
+                    trace.emit('result',payload,context)
                 elif key!='poll':
                     trace.emit('action_return',{'name':key,'value':result},context)
             return result

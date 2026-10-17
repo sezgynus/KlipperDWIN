@@ -45,6 +45,16 @@ class ThermalResult:
     reason: str
     restore_verified: bool = False
     evidence: tuple = ()
+    components: tuple = ()
+
+
+# These catalog IDs share one finite H01 heating/cooling observation.
+# PID calibration H02/H03/H04 stays independent.
+THERMAL_GROUP = ('H01', 'H05', 'H06', 'H07', 'H08', 'H09', 'H13')
+THERMAL_PRIMARY = {'H01': 'rise_c', 'H05': 'heating_c_per_s',
+                   'H06': 'time_to_target_s', 'H07': 'overshoot_c',
+                   'H08': 'stability_peak_to_peak_c',
+                   'H09': 'cooling_c_per_s', 'H13': 'rise_c'}
 
 
 class MaintenanceHeaterController:
@@ -62,6 +72,7 @@ class MaintenanceHeaterController:
         self._pid_saw_power = self._pid_reached = False
         self._metric_ok = False
         self._metrics = ()
+        self._component_metrics = ()
         self._refreshing_consent = False
 
     @property
@@ -154,7 +165,7 @@ class MaintenanceHeaterController:
         self._row, self._phase = row, 'preflight'
         self._series = ThermalSeries()
         self._off_matches = 0
-        self._metrics = self._pid_proof = ()
+        self._metrics = self._pid_proof = self._component_metrics = ()
         self._pid_saw_power = self._pid_reached = False
         self._contract = self._command = None
         self._refreshing_consent = False
@@ -169,9 +180,9 @@ class MaintenanceHeaterController:
             return False, 'thermal_worker_rejected'
         return True, 'thermal_preflight_queued'
 
-    def _finish(self, status, reason, restored=False):
+    def _finish(self, status, reason, restored=False, components=()):
         result = ThermalResult(self.feature_id, self._row.device, status, reason,
-                               restored, self._metrics)
+                               restored, self._metrics, components)
         _LOG.info('Thermal result feature=%s heater=%s status=%s reason=%s restored=%s',
                   self.feature_id, self._row.device, status, reason, restored)
         self._phase = None
@@ -425,6 +436,21 @@ class MaintenanceHeaterController:
                     self._metrics = self._pid_proof + (('heated_to_target_band', self._pid_reached),)
                 else:
                     self._metric_ok, self._metrics = self._series.evaluate(self.feature_id, self._contract.target)
+                    if self.feature_id == THERMAL_GROUP[0]:
+                        # Calculate all seven criteria once from the *same*
+                        # bounded trajectory. No additional actuation or reads.
+                        measures = []
+                        for feature in THERMAL_GROUP:
+                            passed, metrics = self._series.evaluate(feature, self._contract.target)
+                            primary = THERMAL_PRIMARY[feature]
+                            measured = dict(metrics)
+                            # Missing primary evidence is inconclusive, not a
+                            # failed measured performance criterion.
+                            evidence = tuple(pair for pair in metrics
+                                             if pair[0] in (primary, 'samples', 'span_s'))
+                            measures.append((feature, passed, primary in measured,
+                                             evidence))
+                        self._component_metrics = tuple(measures)
             except ValueError:
                 return self._finish('INCONCLUSIVE', 'thermal_measurement_incomplete', True)
             self._phase = 'await_observation'
@@ -433,6 +459,25 @@ class MaintenanceHeaterController:
     def observe(self, seen):
         if self.phase != 'await_observation' or type(seen) is not bool:
             return None
+        if self.feature_id == THERMAL_GROUP[0] and self._component_metrics:
+            children = []
+            for feature, passed, has_evidence, evidence in self._component_metrics:
+                status = ('FAILED_USER' if not seen else
+                          'INCONCLUSIVE' if not has_evidence else
+                          'PASSED_USER' if passed else 'FAILED_METRIC')
+                reason = ('user_not_observed' if not seen else
+                          'thermal_metric_incomplete' if not has_evidence else
+                          'thermal_metric_and_user_observation' if passed else
+                          'thermal_metric_not_satisfied')
+                children.append(ThermalResult(feature, self._row.device,
+                                              status, reason, True, evidence))
+            outcomes = tuple(children)
+            status = ('FAILED_USER' if not seen else
+                      'INCONCLUSIVE' if any(c.status == 'INCONCLUSIVE' for c in outcomes) else
+                      'FAILED_METRIC' if any(c.status == 'FAILED_METRIC' for c in outcomes) else
+                      'PASSED_USER')
+            return self._finish(status, 'thermal_group_seven_independent_results',
+                                True, outcomes)
         return self._finish(
             'PASSED_USER' if seen and self._metric_ok else 'FAILED_USER' if not seen else 'INCONCLUSIVE',
             'thermal_metric_and_user_observation' if self._metric_ok else 'thermal_metric_not_satisfied',
@@ -469,7 +514,12 @@ class MaintenancePhysicalRouter:
         return any(owner.pending for owner in self._owners)
 
     def available(self):
-        return tuple(row for owner in self._owners for row in owner.available())
+        rows = tuple(row for owner in self._owners for row in owner.available())
+        # One visible thermal characterization entry per heater, while the
+        # seven original discovery/catalog IDs remain independently tracked.
+        grouped = {row.device for row in rows if row.feature_id == THERMAL_GROUP[0]}
+        return tuple(row for row in rows if row.feature_id not in THERMAL_GROUP[1:]
+                     or row.device not in grouped)
 
     def start(self, feature_id, device=None, **kwargs):
         if self.pending:

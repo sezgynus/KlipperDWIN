@@ -56,28 +56,41 @@ class MaintenanceBook:
         self._names = ()
 
     def record(self,result,method,state,plan=None):
-        feature = getattr(result,'feature_id','')
-        if not re.fullmatch(r'[FHM PRESO][0-9]{2}'.replace(' ',''),str(feature)):
+        # A single thermal operation can produce seven independent feature
+        # results. Persist them together in one bounded worker transaction.
+        children = getattr(result, 'components', ())
+        outcomes = children if children else (result,)
+        if len(outcomes) > 7:
             return
-        status = getattr(result,'status',None) or 'OBSERVED'
-        item = {'feature':feature,'device':safe_scalar(getattr(result,'device',None)),
-                'method':method,'status':safe_scalar(status),
-                'reason':safe_scalar(getattr(result,'reason','')),
-                'timestamp':time(),'epoch':getattr(plan,'epoch',state.epoch),
-                'config_marker':getattr(plan,'config_marker',id(state.settings)),
-                'firmware':safe_scalar(state.software_version),'evidence':[]}
-        for key,value in getattr(result,'evidence',())[:16]:
-            cleaned = safe_scalar(value)
-            if cleaned is not None and isinstance(key,str) and re.fullmatch(r'[A-Za-z0-9_.]{1,48}',key):
-                item['evidence'].append((key,cleaned))
+        stamp = time()
+        marker = getattr(plan, 'config_marker', id(state.settings))
+        items = []
+        for outcome in outcomes:
+            feature = getattr(outcome, 'feature_id', '')
+            if not re.fullmatch(r'[FHM PRESO][0-9]{2}'.replace(' ',''), str(feature)):
+                return
+            status = getattr(outcome, 'status', None) or 'OBSERVED'
+            item = {'feature':feature,'device':safe_scalar(getattr(outcome,'device',None)),
+                    'method':method,'status':safe_scalar(status),
+                    'reason':safe_scalar(getattr(outcome,'reason','')),
+                    'timestamp':stamp,'epoch':getattr(plan,'epoch',state.epoch),
+                    'config_marker':marker,
+                    'firmware':safe_scalar(state.software_version),'evidence':[]}
+            for key,value in getattr(outcome, 'evidence', ())[:16]:
+                cleaned = safe_scalar(value)
+                if cleaned is not None and isinstance(key,str) and re.fullmatch(r'[A-Za-z0-9_.]{1,48}',key):
+                    item['evidence'].append((key,cleaned))
+            items.append(item)
         def work():
-            item['config_digest'] = (hashlib.sha256(json.dumps(state.settings,sort_keys=True,default=str).encode()).hexdigest()
-                if item['config_marker']==id(state.settings) else None)
+            digest = (hashlib.sha256(json.dumps(state.settings,sort_keys=True,default=str).encode()).hexdigest()
+                      if marker == id(state.settings) else None)
+            for item in items:
+                item['config_digest'] = digest
             data = read_json('maintenance-history.json',{'version':1,'records':[]})
             records = data.get('records')
             if not isinstance(records,list) or len(records)>64:
                 raise ValueError('maintenance_history_invalid')
-            write_json('maintenance-history.json',{'version':1,'records':(records+[item])[-64:]})
+            write_json('maintenance-history.json',{'version':1,'records':(records+items)[-64:]})
         try:
             self._worker.submit(work,queue_timeout=8)
         except Exception:

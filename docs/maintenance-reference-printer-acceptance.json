@@ -42,6 +42,37 @@
       ],
       "ui_confirmation_retries": 2,
       "ui_flow_accepted": false
+    },
+    "physical_trace_2026_10_17_followup": {
+      "session": "b04c94981b594e06b991b254996a34a0",
+      "head": "bae5c429bd4af3c529dd38eaaa21a2ed41f8ef16",
+      "events": 330,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "rotations": 1,
+      "m03": {
+        "run": 1,
+        "confirm_seq": 96,
+        "refresh_seq": 102,
+        "dispatch_seq": 105,
+        "observe_seq": 191,
+        "result_seq": 193,
+        "confirm_attempts": 1,
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "ui_flow": "single_confirmation_refresh_then_dispatch"
+      },
+      "m04_stepper_x": {
+        "run": 2,
+        "confirm_seq": 222,
+        "dispatch_seq": 231,
+        "error_seq": 233,
+        "shutdown_seq": 235,
+        "result_seq": 241,
+        "controller_result": "INCONCLUSIVE",
+        "restore_verified": false,
+        "root_cause": "unknown_original_transport_error_detail_not_retained"
+      }
     }
   },
   "policy": {
@@ -413,7 +444,7 @@
       "reference": "confirmed",
       "status": "accepted",
       "adapter": "implemented",
-      "note": "Physical homing accepted; UI confirmation retry defect reported by operator: first two confirmations refreshed preflight and reset selection. Consent-refresh correction awaits physical UI validation.",
+      "note": "Physical homing accepted. Follow-up trace b04c94981b594e06b991b254996a34a0 verifies single-confirmation safety refresh and dispatch after the UI retry correction.",
       "acceptance": {
         "date": "2026-10-17",
         "source": "user_explicit_physical_observation",
@@ -445,7 +476,7 @@
       "reference": "confirmed",
       "status": "pending",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
+      "note": "Physical acceptance pending. Follow-up run 2 ended INCONCLUSIVE after command Future error and Petrel-requested shutdown. Original error detail was discarded; command submission alone does not prove wire dispatch or a Klipper-side fault.",
       "acceptance": null
     },
     {

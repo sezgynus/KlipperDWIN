@@ -45,6 +45,21 @@ class CompletionTransportTests(unittest.TestCase):
             self.assertFalse(client._completion_requests)
             self.assertFalse(client._pending_requests)
 
+    def test_server_error_keeps_code_and_safe_category_without_private_message(self):
+        client=self.make()
+        future=client.request('printer.gcode.script',{'script':'STEPPER_BUZZ STEPPER=stepper_x'})
+        client._drain_outbound()
+        self.assertEqual(future.dispatch_stage,'send_attempted')
+        packet=json.loads(client._socket.send.call_args.args[0])
+        client._notification({'id':packet['id'],'error':{
+            'code':400,'message':'Unknown command: private/path api_key=secret'}})
+        error=future.exception()
+        self.assertEqual(error.diagnostic_code,'klipper_unknown_command')
+        self.assertEqual(error.rpc_code,400)
+        self.assertEqual(future.dispatch_stage,'server_error')
+        self.assertNotIn('secret',str(error))
+        self.assertNotIn('private',str(error))
+
     def test_queue_guard_rechecks_state_before_any_socket_write(self):
         client = self.make()
         valid = [True]
@@ -53,6 +68,7 @@ class CompletionTransportTests(unittest.TestCase):
         valid[0] = False
         client._drain_outbound()
         client._socket.send.assert_not_called()
+        self.assertEqual(future.dispatch_stage,'guard_denied')
         with self.assertRaises(MoonrakerError):
             future.result()
         self.assertFalse(client._completion_requests)

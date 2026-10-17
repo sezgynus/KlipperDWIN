@@ -49,6 +49,7 @@ class MaintenanceMotionController:
         self._consented_program=None
         self._confirm_attempts=0
         self._refresh_reason=None
+        self._dispatch_guard_reason=None
 
     @property
     def refreshing_consent(self):
@@ -181,13 +182,27 @@ class MaintenanceMotionController:
     def _dispatch(self):
         p=self._program
         def guard():
-            if self._phase not in ('await_confirmation','running') or not self._safe(self._queue):
+            if self._phase not in ('await_confirmation','running'):
+                self._dispatch_guard_reason='motion_phase_changed'
+                return False
+            if not self._safe(self._queue):
+                self._dispatch_guard_reason='motion_dispatch_safety_denied'
                 return False
             try:
                 state=live_safety_context(self._printer,self._queue).state
-                return dispatch_compatible(p,self._row,state,state.status,
+                allowed=dispatch_compatible(p,self._row,state,state.status,
                     '_PETREL_M_'+uuid.uuid4().hex)
-            except Exception:
+                self._dispatch_guard_reason=('allowed' if allowed else 'motion_program_changed')
+                return allowed
+            except Exception as exc:
+                codes={'motion_velocity_unknown','keep_xyz_motors_enabled',
+                       'motion_requires_cold_idle_heaters','clear_mesh_before_motion_test',
+                       'home_xyz_before_motion_test','motion_status_missing',
+                       'gcode_modes_unknown','gcode_factors_unknown',
+                       'motion_limits_or_position_invalid','motion_coordinates_unknown',
+                       'move_away_from_axis_limits','raise_z_for_xy_clearance'}
+                self._dispatch_guard_reason=(str(exc) if isinstance(exc,ValueError)
+                    and str(exc) in codes else 'motion_dispatch_evidence_unverified')
                 return False
         try:
             self._command=self._printer.subscription.request('printer.gcode.script',

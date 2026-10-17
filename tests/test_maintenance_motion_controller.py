@@ -288,6 +288,16 @@ class MotionControllerTests(unittest.TestCase):
         result=self.c.observe(True)
         self.assertEqual(result.status,'OBSERVED_USER')
         self.assertFalse(result.restore_verified)
+    def test_live_dispatch_geometry_rejection_keeps_specific_diagnostic(self):
+        self.arm('M04')
+        # On-demand preflight was valid; the subscription dispatch snapshot
+        # can still be incomplete. Expose that cause without relaxing guard.
+        self.data['status']['toolhead'].pop('max_velocity')
+        self.c.confirm()
+        self.assertTrue(self.c._command.done())
+        self.assertEqual(self.c._dispatch_guard_reason,'motion_velocity_unknown')
+        self.assertIsNotNone(self.c._command.exception())
+
     def test_command_failure_is_not_retried(self):
         self.arm()
         self.c.confirm()

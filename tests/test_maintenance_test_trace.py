@@ -124,6 +124,38 @@ class TestRecorder(unittest.TestCase):
         self.assertIs(call.call_args.kwargs['guard'],guard)
         call.assert_called_once()
 
+    def test_rpc_guard_and_server_errors_retain_safe_diagnostics(self):
+        from moonraker_client import MoonrakerError
+        self.trace.start()
+        for message,stage,expected in (
+                ('Printer state changed before command dispatch','guard_denied','rpc_guard_denied'),
+                ('Moonraker command failed; check printer','server_error','moonraker_server_error')):
+            future=Future()
+            future.dispatch_stage=stage
+            error=MoonrakerError(message)
+            if stage=='server_error':
+                error.rpc_code=400
+            future.set_exception(error)
+            SubscriptionProxy(SimpleNamespace(request=Mock(return_value=future)),self.trace).request(
+                'printer.gcode.script',{'script':'M400'})
+            event=[e for e in unpack(self.trace)[1] if e['event']=='rpc_error'][-1]
+            self.assertEqual(event['data']['code'],expected)
+            self.assertEqual(event['data']['dispatch_stage'],stage)
+            if stage=='server_error':
+                self.assertEqual(event['data']['rpc_code'],400)
+
+    def test_motion_read_records_motor_mesh_and_velocity_guard_evidence(self):
+        from maintenance_test_trace import measurements
+        values=measurements({'result':{'status':{
+            'toolhead':{'max_velocity':300},
+            'stepper_enable':{'steppers':{'stepper_x':True,'stepper_y':True,'stepper_z':True}},
+            'bed_mesh':{'profile_name':'','mesh_min':[0,0],'mesh_max':[0,0],
+                        'mesh_matrix':[[1]*100]*100}}}})
+        self.assertEqual(values['toolhead']['max_velocity'],300)
+        self.assertTrue(values['stepper_enable']['steppers']['stepper_x'])
+        self.assertEqual(values['bed_mesh']['mesh_min'],[0,0])
+        self.assertNotIn('mesh_matrix',values['bed_mesh'])
+
     def test_static_mmu_errors_and_spaced_ui_labels_survive_without_paths(self):
         from maintenance_test_trace import error_info,measurements
         self.assertEqual(error_info(ValueError('Unload filament first'))['code'],'mmu_unload_filament_first')

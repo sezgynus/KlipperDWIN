@@ -25,6 +25,7 @@ TEXT = re.compile(r'[A-Za-z0-9_ .,:>+%=?()/\[\]-]{0,240}')
 STATUS_FIELDS = frozenset(('temperature target power speed value enabled state is_active '
     'is_paused filament_detected position homed_axes axis_minimum axis_maximum '
     'absolute_coordinates absolute_extrude speed_factor extrude_factor homing_origin '
+    'steppers profile_name mesh_min mesh_max max_velocity '
     'z_position last_query last_z_result pressure force raw_force tare_offset '
     'diameter width humidity rpm pulse_width color_data can_extrude '
     'save_config_pending queue_state eventtime frequency acceleration drv_status '
@@ -100,10 +101,32 @@ _MMU_ERRORS = {
     "Unsupported MMU operation": "mmu_unsupported_mmu_operation",
 }
 
+_RPC_ERRORS = {
+    'Moonraker command failed; check printer':'moonraker_server_error',
+    'Printer state changed before command dispatch':'rpc_guard_denied',
+    'Printer connection changed before command dispatch':'rpc_connection_changed',
+    'Connection changed during dispatch guard':'rpc_connection_changed_during_guard',
+    'Moonraker subscription is not ready':'rpc_subscription_not_ready',
+    'Moonraker request timed out':'rpc_request_timeout',
+    'WebSocket command dispatch failed':'rpc_dispatch_failed',
+    'Subscription command queue is full':'rpc_queue_full',
+    'Too many outstanding Moonraker requests':'rpc_pending_limit',
+}
+
 def error_info(exc):
     message = str(exc)
-    return {'type':type(exc).__name__, 'code':_MMU_ERRORS.get(message,message)
-            if message in _MMU_ERRORS or re.fullmatch(r'[a-z][a-z0-9_]{0,159}',message) else 'details_omitted'}
+    code=_RPC_ERRORS.get(message,_MMU_ERRORS.get(message))
+    diagnostic=getattr(exc,'diagnostic_code',None)
+    if diagnostic in {'moonraker_server_error','klipper_unknown_command',
+                      'klipper_unknown_stepper','klipper_home_required',
+                      'klipper_move_out_of_range','klipper_not_ready'}:
+        code=diagnostic
+    out={'type':type(exc).__name__, 'code':code or
+         (message if re.fullmatch(r'[a-z][a-z0-9_]{0,159}',message) else 'details_omitted')}
+    rpc_code=getattr(exc,'rpc_code',None)
+    if type(rpc_code) is int:
+        out['rpc_code']=rpc_code
+    return out
 
 
 def measurements(reply):
@@ -152,7 +175,7 @@ def owner_snapshot(owner):
         out = {}
         for key in ('_phase','_action','_index','_step','_stop_reason','_blocked','_locked',
                     '_sent','_off_matches','_metric_ok','_measurement','_evidence','_metrics',
-                    '_pid_proof','_gpio_start','_restore','_last_read_point','_safety_reason','_queue_age_s','_confirm_attempts','_refresh_reason'):
+                    '_pid_proof','_gpio_start','_restore','_last_read_point','_safety_reason','_queue_age_s','_confirm_attempts','_refresh_reason','_dispatch_guard_reason'):
             value = getattr(owner,key,None)
             if is_dataclass(value):
                 value = {f.name:getattr(value,f.name) for f in fields(value)}
@@ -518,7 +541,9 @@ def traced_request(trace,call,method,payload,args,kwargs):
             else:
                 error = done.exception()
                 trace.emit('rpc_error' if error else 'rpc_complete',
-                    error_info(error) if error else {'cleanup_complete':getattr(done,'cleanup_complete',None)},context)
+                    dict(error_info(error),dispatch_stage=getattr(done,'dispatch_stage',None)) if error else
+                    {'cleanup_complete':getattr(done,'cleanup_complete',None),
+                     'dispatch_stage':getattr(done,'dispatch_stage',None)},context)
         except Exception:
             trace.dropped += 1
     try:

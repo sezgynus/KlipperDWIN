@@ -143,8 +143,43 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertFalse(p04['automatic_lift_physically_retested'])
         self.assertEqual(trace['p04_first_attempt']['controller_result'],'BLOCKED')
         self.assertEqual(len(data['entries']),62)
-        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),42)
-        self.assertEqual(sum(e['status']=='pending' for e in data['entries']),14)
+        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),44)
+        self.assertEqual(sum(e['status']=='pending' for e in data['entries']),12)
+
+    def test_r01_r03_acceptance_has_real_numeric_evidence_without_granting_r02_r04(self):
+        d=ledger()
+        entries={(e['feature_id'],e['target']):e for e in d['entries']}
+        t=d['evidence']['physical_trace_2026_10_17_resonance']
+        self.assertEqual(t['session'],'070d7f8524944245bec7259f58e3f6a3')
+        self.assertEqual(t['tested_signed_head'],
+                         '15476fa89b70012d503ae25baf1f0b0a1b13e981')
+        self.assertEqual(t['last_seq'],672)
+        self.assertEqual((t['dropped_events'],t['write_errors'],t['rotations']),
+                         (0,0,1))
+        self.assertEqual(t['p04']['controller_result'],'PASSED')
+        self.assertEqual(t['p04']['homing_command'],'G28')
+        self.assertFalse(t['p04']['automatic_low_z_lift_exercised'])
+        p04=entries['P04','probe']['acceptance']
+        self.assertFalse(p04['measurement']['automatic_lift_physically_retested'])
+        self.assertFalse(p04['followup_trace']['new_automatic_low_z_lift_tested'])
+        for feature,seq in (('R01',387),('R03',535)):
+            row=entries[feature,'adxl345']
+            self.assertEqual(row['status'],'accepted')
+            a=row['acceptance']
+            self.assertEqual(a['source'],'user_explicit_physical_observation')
+            self.assertEqual(a['controller_result'],'PASSED')
+            self.assertFalse(a['restore_verified'])
+            self.assertEqual(a['tested_signed_head'],t['tested_signed_head'])
+            self.assertEqual(a['trace']['result_seq'],seq)
+            for axis in ('axis_x','axis_y','axis_z'):
+                self.assertIsInstance(a['measurement'][axis],float)
+        for feature,target in (('R02','resonance_tester X'),
+                               ('R02','resonance_tester Y'),
+                               ('R04','input_shaper X/Y')):
+            self.assertEqual(entries[feature,target]['status'],'pending')
+            self.assertIsNone(entries[feature,target]['acceptance'])
+        self.assertEqual(t['excluded']['r02']['controller_result'],'ABORTED')
+        self.assertEqual(t['excluded']['r04']['controller_result'],'ABORTED')
 
     def test_f12_operator_acceptance_tracks_adaptive_search_without_invented_pwm(self):
         data = ledger()
@@ -165,9 +200,9 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(by_target[('F04', 'fan_generic (not installed)')]
                          ['status'], 'not_applicable')
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'accepted']), 42)
+                              if e['status'] == 'accepted']), 44)
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'pending']), 14)
+                              if e['status'] == 'pending']), 12)
 
     def test_thermal_group_procedure_acceptance_preserves_performance_failures(self):
         data = ledger()
@@ -212,8 +247,8 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(trace['heating_cooling_runs'],2)
         self.assertEqual(trace['dropped_events'],0)
         self.assertEqual(trace['write_errors'],0)
-        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),42)
-        self.assertEqual(sum(e['status']=='pending' for e in data['entries']),14)
+        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),44)
+        self.assertEqual(sum(e['status']=='pending' for e in data['entries']),12)
         h03 = next(e for e in data['entries'] if e['feature_id']=='H03'
                    and e['target']=='heater_bed')
         self.assertEqual(h03['status'],'accepted')
@@ -226,7 +261,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             body=path.read_text(encoding='utf-8')
             self.assertIn('115e392',body)
             self.assertIn('FAILED_METRIC',body)
-            self.assertIn('42',body)
+            self.assertIn('44',body)
 
     def test_h02_real_pid_calibration_is_accepted_but_h03_remains_blocked(self):
         data = ledger()
@@ -302,8 +337,8 @@ class ReferenceAcceptanceTests(unittest.TestCase):
                           trace['rotations']),(0,0,1))
         self.assertTrue(trace['h03']['metric_ok'])
         self.assertTrue(trace['h03']['restore_verified'])
-        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),42)
-        self.assertEqual(sum(e['status']=='pending' for e in data['entries']),14)
+        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),44)
+        self.assertEqual(sum(e['status']=='pending' for e in data['entries']),12)
         reference_physical={'H01','H02','H03','H05','H06','H07','H08','H09','H13'}
         physical = [entry for entry in data['entries']
                     if entry['feature_id'] in reference_physical]
@@ -317,7 +352,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             body=doc.read_text(encoding='utf-8')
             self.assertIn('8fa2b04372d94b7ca60e6d443fc098a8',body)
             self.assertIn('16/16',body)
-            self.assertIn('42',body)
+            self.assertIn('44',body)
 
     def test_m_implementation_never_grants_physical_acceptance(self):
         items=[e for e in ledger()['entries'] if e['feature_id'].startswith('M')
@@ -332,8 +367,8 @@ class ReferenceAcceptanceTests(unittest.TestCase):
                 self.assertIsNone(item['acceptance'])
 
     def test_remaining_unaccepted_group_implementation_never_grants_physical_acceptance(self):
-        # P01/P03/P04 gained explicit real-printer approval in a later trace.
-        implemented = {'R01','R02','R03','R04','E01','E02','E03','E07','E11',
+        # P01/P03/P04 and R01/R03 gained explicit real-printer approval in later traces.
+        implemented = {'R02','R04','E01','E02','E03','E07','E11',
                        'E12','O02','O06'}
         for entry in ledger()['entries']:
             if entry['feature_id'] in implemented:
@@ -497,7 +532,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(diagnostic[0]['output']['stepper_y.phase'],'58/64')
         self.assertIn('last_home',diagnostic[0]['scope'])
         self.assertNotIn('diagnostic_observations',rows['M12','endstop_phase X'])
-        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),42)
+        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),44)
         for document in (EN,TR):
             body=document.read_text(encoding='utf-8')
             self.assertIn('M12/Y Diagnostics',body)
@@ -525,7 +560,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
              'tmc2208 stepper_z','tmc2208 extruder'})
         self.assertTrue(all(item['register']=='DRV_STATUS'
                             and item['fault_count']==0 for item in readings))
-        self.assertEqual(sum(item['status']=='accepted' for item in active),42)
+        self.assertEqual(sum(item['status']=='accepted' for item in active),44)
         for doc in (EN,TR):
             body=doc.read_text(encoding='utf-8')
             self.assertIn('m07_informational_diagnostics',body)

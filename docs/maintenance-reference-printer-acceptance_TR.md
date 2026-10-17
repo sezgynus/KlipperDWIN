@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **42 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **44 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 42 KABUL, 14 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 44 KABUL, 12 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Kabul türleri:** Termal karakterizasyonda *test prosedürünün kabulü*, yazıcının termal performans kriterini geçmesi demek değildir. H07/H08 Extruder sonuçları `FAILED_METRIC` olarak korunur; doğru ölçüm ve güvenli tamamlanma sayesinde prosedürler kabul edilir.
 
@@ -64,6 +64,8 @@
 | [x] | P01 | `probe` | Prob tetikleme | Üç taze durum okuması; servo geri toplama tamamlandı | **KABUL** |
 | [x] | P03 | `probe` | Prob tekrarlanabilirliği | 10 ölçüm; aralık 0,0175 mm, σ=0,004644 mm | **KABUL** |
 | [x] | P04 | `probe` | Tek prob ölçümü | İlk düşük Z denemesi BLOCKED; Z kaldırılınca PASSED | **KABUL (ölçüm)** |
+| [x] | R01 | `adxl345` | İvmeölçer verisi | ACCELEROMETER_QUERY; üç eksen ölçümü doğrulandı | **KABUL** |
+| [x] | R03 | `adxl345` | İvmeölçer gürültü tabanı | MEASURE_AXES_NOISE 2 sn; XYZ PSD ölçüldü | **KABUL** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
@@ -73,10 +75,8 @@
 | [ ] | P07 | `bed_mesh (probe)` | Otomatik tabla mesh | Leveling’de; Maintenance dışında | **BEKLİYOR** |
 | [ ] | P08 | `bed_mesh (manual)` | Manuel tabla mesh | Leveling’de; Maintenance dışında | **BEKLİYOR** |
 | [ ] | P11 | `screws_tilt_adjust` | Vida tilt ayarı | Leveling’de; Maintenance dışında | **BEKLİYOR** |
-| [ ] | R01 | `adxl345` | İvmeölçer verisi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | R02 | `resonance_tester X` | Eksen rezonansı | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | R02 | `resonance_tester Y` | Eksen rezonansı | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | R03 | `adxl345` | İvmeölçer gürültü tabanı | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | R04 | `input_shaper X/Y` | Input shaper kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | E01 | `extruder filament path` | Kaba filament ekstrüzyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | E02 | `extruder measured length` | Ölçülmüş ekstrüzyon mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -113,6 +113,8 @@
 | P01 / `probe` | Kullanıcı açıkça üç durum geçişinin ve prob geri toplamasının çalıştığını doğruladı. | `PASSED` | `true` |
 | P03 / `probe` | Kullanıcı 10 ölçümlü testi kabul etti; aralık 0,0175 mm, σ 0,004644 mm. | `PASSED` | `false` (gerekli geri yükleme kanıtı yok) |
 | P04 / `probe` | İlk Z=2,964 mm denemesi BLOCKED; kullanıcı Z'yi 52,964 mm'ye kaldırdıktan sonra ölçüm −0,025 mm ile tamamlandı. Yeni otomatik Z yükseltme ayrıca fiziksel doğrulama bekliyor. | `PASSED` | `false` (Z konum geri yüklemesi iddia edilmez) |
+| R01 / `adxl345` | Kullanıcı testin tamamlandığını bildirdi; kontrolcü PASSED, XYZ sayısal ivme değerleri görüldü. Bağımsız kalibrasyon iddiası yok. | `PASSED` | `false` (salt okuma) |
+| R03 / `adxl345` | Kullanıcı testin tamamlandığını bildirdi; kontrolcü PASSED, üç eksende sayısal gürültü PSD değerleri görüldü. Gürültü kalite eşiği iddia edilmez. | `PASSED` | `false` (salt okuma) |
 
 ## Sıradaki uygulama
 
@@ -191,8 +193,12 @@ sonucunu verdi. H03 fiziksel test prosedürü kabul edildi.
 `SAVE_CONFIG` çağrılmadı; kalıcı kaydetme doğrulanmadı.
 Önceki H03 BLOCKED denemesi geçmişte korunur.
 **Referans yazıcıda H grubunun 16/16 prosedürü kabul edildi.
-Güncel toplam: 62 kayıt, 42 KABUL, 14 BEKLİYOR, 5 KOŞULLU, 1 N/A.**
+Güncel toplam: 62 kayıt, 44 KABUL, 12 BEKLİYOR, 5 KOŞULLU, 1 N/A.**
 
 ## P grubu fiziksel kabulü ve P04 hazırlığı (17 Ekim 2026)
 
 Kullanıcı P01, P03 ve P04'ün gerçek yazıcıda geçtiğini açıkça bildirdi. Trace `2d899dbe5dcc42e6a5e6a020df941369` (693 olay, 0 kayıp/yazma hatası) korunur. P04'ün eski kodunda Z=2,964 mm konumundaki ilk ön kontrol `raise_z_before_probe_test` ile BLOCKED olmuş, kullanıcı Z'yi 52,964 mm'ye yükselttikten sonra tek ölçüm başarıyla alınmıştır. Tek ölçüm prosedürü KABUL'dür; yeni otomatik Z kaldırma hazırlığı bu kayıt sırasında çalıştırılmamıştır ve ayrı fiziksel tekrar gerektirir.
+
+## R01/R03 fiziksel kabulü ve P04 tekrar testi (17 Ekim 2026)
+
+Kullanıcı P04, R01 ve R03 testlerini gerçek yazıcıda yaptığını bildirdi. `070d7f8524944245bec7259f58e3f6a3` oturumunda 672 olay, 0 kayıp/yazma hatası ve 1 rotasyon vardır; imzalı HEAD `15476fa8`. P04/PASSED #303, R01/PASSED #387 ve R03/PASSED #535 doğrulandı. P04 önce `G28` #119 ile homing yaptı, sonra `PROBE` #287 ile Z=-0,015 mm okudu. Yeni bağımsız düşük-Z yükseltme adımı **çalıştırılmadı**. R01 üç eksende sayısal ivme, R03 iki saniyelik MEASURE_AXES_NOISE üzerinden üç PSD verisi sağladı. R02 #457 ve R04 #431 kullanıcı tarafından iptal edildi/ABORTED; kabul verilmedi. R01/R03 sonuçları mutlak sensör kalibrasyonu veya geri yükleme iddiası taşımaz.

@@ -527,6 +527,61 @@
         "standard_deviation_mm": 0.004644
       },
       "qualification": "User explicitly stated P01, P03 and P04 passed. Earlier P04 was blocked by a preflight-only low-Z guard; auto-lift improvement was not present or physically tested in this trace."
+    },
+    "physical_trace_2026_10_17_resonance": {
+      "session": "070d7f8524944245bec7259f58e3f6a3",
+      "tested_signed_head": "15476fa89b70012d503ae25baf1f0b0a1b13e981",
+      "first_seq": 1,
+      "last_seq": 672,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "rotations": 1,
+      "p04": {
+        "run": 1,
+        "homing_command": "G28",
+        "homing_dispatch_seq": 119,
+        "probe_dispatch_seq": 287,
+        "result_seq": 303,
+        "controller_result": "PASSED",
+        "measured_z_mm": -0.015,
+        "automatic_low_z_lift_exercised": false
+      },
+      "r01": {
+        "run": 2,
+        "dispatch_seq": 372,
+        "result_seq": 387,
+        "controller_result": "PASSED",
+        "acceleration_mm_s2": {
+          "x": -1850.514855,
+          "y": -8364.327145,
+          "z": -4903.011187
+        }
+      },
+      "r03": {
+        "run": 6,
+        "dispatch_seq": 514,
+        "result_seq": 535,
+        "controller_result": "PASSED",
+        "noise_psd": {
+          "x": 19.122206,
+          "y": 17.65123,
+          "z": 41.822396
+        },
+        "measurement_time_s": 2
+      },
+      "excluded": {
+        "r02": {
+          "run": 4,
+          "result_seq": 457,
+          "controller_result": "ABORTED"
+        },
+        "r04": {
+          "run": 3,
+          "result_seq": 431,
+          "controller_result": "ABORTED"
+        }
+      },
+      "evidence_boundary": "The operator reported running P04/R01/R03; all three showed controller PASSED with numeric firmware evidence. P04's preparation was XYZ homing, not the newly added low-Z automatic lift. R02/R04 were cancelled without physical acceptance."
     }
   },
   "policy": {
@@ -1867,6 +1922,17 @@
           "measured_z_mm": -0.025,
           "earlier_blocked_z_mm": 2.964,
           "automatic_lift_physically_retested": false
+        },
+        "followup_trace": {
+          "session": "070d7f8524944245bec7259f58e3f6a3",
+          "run": 1,
+          "homing_dispatch_seq": 119,
+          "probe_dispatch_seq": 287,
+          "result_seq": 303,
+          "controller_result": "PASSED",
+          "measured_z_mm": -0.015,
+          "preparation": "guarded_G28_XYZ_homing",
+          "new_automatic_low_z_lift_tested": false
         }
       }
     },
@@ -1920,10 +1986,29 @@
       "title": "Accelerometer reading",
       "method": "AI",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "ADXL345 exists; live readings must still be proved. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Real-printer sensor test reported by operator and completed with numeric firmware evidence; no axis movement or saved configuration. R02/R04 remain pending.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED",
+        "restore_verified": false,
+        "observation": "Operator reported completing R01 on the actual reference printer. The ACCELEROMETER_QUERY completed and controller PASSED with all three finite acceleration components (no independent metrology or orientation proof).",
+        "tested_signed_head": "15476fa89b70012d503ae25baf1f0b0a1b13e981",
+        "trace": {
+          "session": "070d7f8524944245bec7259f58e3f6a3",
+          "run": 2,
+          "dispatch_seq": 372,
+          "result_seq": 387
+        },
+        "measurement": {
+          "unit": "mm/s²",
+          "axis_x": -1850.514855,
+          "axis_y": -8364.327145,
+          "axis_z": -4903.011187
+        }
+      }
     },
     {
       "feature_id": "R02",
@@ -1953,10 +2038,30 @@
       "title": "Accelerometer noise floor",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Real-printer sensor test reported by operator and completed with numeric firmware evidence; no axis movement or saved configuration. R02/R04 remain pending.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED",
+        "restore_verified": false,
+        "observation": "Operator reported completing R03 on the actual reference printer. The MEASURE_AXES_NOISE command completed after a two-second capture and controller PASSED with finite PSD values on X/Y/Z (not a measured pass/fail noise threshold).",
+        "tested_signed_head": "15476fa89b70012d503ae25baf1f0b0a1b13e981",
+        "trace": {
+          "session": "070d7f8524944245bec7259f58e3f6a3",
+          "run": 6,
+          "dispatch_seq": 514,
+          "result_seq": 535
+        },
+        "measurement": {
+          "unit": "PSD (Klipper reported)",
+          "axis_x": 19.122206,
+          "axis_y": 17.65123,
+          "axis_z": 41.822396,
+          "measure_time_s": 2
+        }
+      }
     },
     {
       "feature_id": "R04",

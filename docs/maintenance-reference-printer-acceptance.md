@@ -6,9 +6,9 @@
 
 **Evidence boundary:** the independent 121-ID hardware reference from 15 Oct 2026, the 16 Oct 2026 discovery log and explicit user observations. The log confirms **54 discovered features**, but no serialized list of their exact IDs was preserved. Here, `confirmed` means confirmed by the independent capability reference, **not** an exact complete dump of the 54 currently observed IDs. `conditional` entries are not currently authorized, discoverable test commands.
 
-**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Forty-two** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
+**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Forty-four** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **62 rows / 46 IDs** — 42 ACCEPTED, 14 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+**Per-device tracking:** **62 rows / 46 IDs** — 44 ACCEPTED, 12 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
 
 **Acceptance semantics:** For grouped thermal characterization, acceptance certifies that the *test procedure* worked; it does not mean the printer met every thermal performance threshold. Extruder H07/H08 remain `FAILED_METRIC` and are never rewritten to PASS.
 
@@ -64,6 +64,8 @@
 | [x] | P01 | `probe` | Probe trigger response | Three fresh state readings; final stow finished | **ACCEPTED** |
 | [x] | P03 | `probe` | Probe repeatability | 10 samples; range 0.0175 mm, σ=0.004644 mm | **ACCEPTED** |
 | [x] | P04 | `probe` | Single probe measurement | Initial low-Z attempt BLOCKED; PASSED after manual Z lift | **ACCEPTED (measurement)** |
+| [x] | R01 | `adxl345` | Accelerometer reading | ACCELEROMETER_QUERY; all XYZ values observed | **ACCEPTED** |
+| [x] | R03 | `adxl345` | Accelerometer noise floor | MEASURE_AXES_NOISE 2 s; XYZ PSD measured | **ACCEPTED** |
 
 ## Reference-confirmed hardware — adapter/acceptance pending
 
@@ -73,10 +75,8 @@
 | [ ] | P07 | `bed_mesh (probe)` | Automatic bed mesh | Existing Leveling; excluded here | **PENDING** |
 | [ ] | P08 | `bed_mesh (manual)` | Manual bed mesh | Existing Leveling; excluded here | **PENDING** |
 | [ ] | P11 | `screws_tilt_adjust` | Screws tilt adjustment | Existing Leveling; excluded here | **PENDING** |
-| [ ] | R01 | `adxl345` | Accelerometer reading | Ready; physical acceptance pending | **PENDING** |
 | [ ] | R02 | `resonance_tester X` | Axis resonance measurement | Ready; physical acceptance pending | **PENDING** |
 | [ ] | R02 | `resonance_tester Y` | Axis resonance measurement | Ready; physical acceptance pending | **PENDING** |
-| [ ] | R03 | `adxl345` | Accelerometer noise floor | Ready; physical acceptance pending | **PENDING** |
 | [ ] | R04 | `input_shaper X/Y` | Input shaper calibration | Ready; physical acceptance pending | **PENDING** |
 | [ ] | E01 | `extruder filament path` | Coarse filament extrusion | Ready; physical acceptance pending | **PENDING** |
 | [ ] | E02 | `extruder measured length` | Measured extrusion distance | Ready; physical acceptance pending | **PENDING** |
@@ -113,6 +113,8 @@
 | P01 / `probe` | Operator explicitly confirmed three state transitions and completed probe deactivation. | `PASSED` | `true` |
 | P03 / `probe` | Operator explicitly accepted the ten-sample measurement; range 0.0175 mm, σ 0.004644 mm. | `PASSED` | `false` (no restoration claim) |
 | P04 / `probe` | First attempt at Z=2.964 mm was BLOCKED; after moving Z to 52.964 mm the probe measured −0.025 mm. New automatic Z-lift preparation has not yet been physically retested. | `PASSED` | `false` (Z position is not restored) |
+| R01 / `adxl345` | User reported completion; controller PASSED, numeric XYZ acceleration components observed; no independent calibration claim. | `PASSED` | `false` (read-only test) |
+| R03 / `adxl345` | User reported completion; controller PASSED, numeric X/Y/Z noise PSD observed; no quality threshold claimed. | `PASSED` | `false` (read-only test) |
 
 ## Next implementation
 
@@ -195,8 +197,12 @@ is not claimed. The earlier H03 `BLOCKED` attempt is retained
 in history and does not override the later successful run.
 **All 16/16 H-group physical procedures on this reference printer
 have operator acceptance. Current totals: 62 rows / 46 IDs —
-42 ACCEPTED, 14 PENDING, 5 CONDITIONAL, 1 N/A.**
+44 ACCEPTED, 12 PENDING, 5 CONDITIONAL, 1 N/A.**
 
 ## P-group operator acceptance and P04 preparation (17 October 2026)
 
 The operator explicitly reported real-printer PASS for P01, P03 and P04. Trace `2d899dbe5dcc42e6a5e6a020df941369` contains 693 events with no drops or write errors. P04's prior implementation BLOCKED the first preflight at Z=2.964 mm with `raise_z_before_probe_test`; after the operator manually raised Z to 52.964 mm the single probe reading completed successfully. Physical acceptance applies to the single-measurement procedure, **not yet** to the new automatic Z-lift preparation, which needs its own physical re-test.
+
+## Resonance R01/R03 physical acceptance follow-up (17 October 2026)
+
+The operator reported executing P04, R01 and R03 on the real printer. Trace `070d7f8524944245bec7259f58e3f6a3` (672 events, no drops/write errors, one rotation; signed head `15476fa8`) confirms P04/PASSED #303, R01/PASSED #387 and R03/PASSED #535. P04 auto-homed with `G28` #119 before `PROBE` #287 and measured Z=-0.015 mm; the new separate low-Z lift was **not** exercised. R01 returned finite XYZ acceleration; R03 completed a two-second MEASURE_AXES_NOISE with three PSD values. R02 #457 and R04 #431 were operator-cancelled/ABORTED and are still pending. No motion/restore or absolute sensor-accuracy claims are inferred from R01/R03.

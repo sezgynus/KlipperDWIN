@@ -637,6 +637,88 @@
         }
       },
       "evidence_boundary": "The operator explicitly accepted the completed R group. R02 X/Y have actual TEST_RESONANCES execution, PASSED and observe(true); R04 X/Y have Klipper-native SHAPER_CALIBRATE OBSERVED with signed-head trace. Klipper recommendations are not independent mechanical-quality assessments, and persistent SAVE_CONFIG / restore is not verified. Earlier aborted/blocked attempts stay in history."
+    },
+    "physical_trace_2026_10_18_filament_partial": {
+      "session": "d924a92a9df94f1b99645da43a7b14be",
+      "tested_signed_head": "ad0615911960e627dcec70722b84cc5c4a8b88c4",
+      "session_first_seq": 903,
+      "session_last_seq": 1877,
+      "manifest_last_seq": 1877,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "rotations": 1,
+      "trace_scope": "Uploaded ZIP includes archived earlier sessions in events.previous.jsonl. Use only session d924... events #903–1877 for this filament acceptance; sequence numbers in earlier sessions must not be mixed.",
+      "accepted": {
+        "E01": {
+          "run": 9,
+          "observe_seq": 1131,
+          "result_seq": 1133,
+          "controller_result": "PASSED_USER",
+          "commanded_mm": 5,
+          "modal_restore_verified": true,
+          "full_restore_verified": false
+        },
+        "E02": {
+          "run": 10,
+          "measurement_entry_seq": 1235,
+          "observe_seq": 1249,
+          "result_seq": 1251,
+          "controller_result": "PASSED_USER",
+          "commanded_mm": 10,
+          "operator_entered_measured_mm": 10,
+          "computed_error_mm": 0,
+          "modal_restore_verified": true,
+          "full_restore_verified": false
+        },
+        "E07": {
+          "run": 12,
+          "observe_seq": 1360,
+          "result_seq": 1362,
+          "controller_result": "PASSED_USER",
+          "commanded_mm": 5,
+          "modal_restore_verified": true,
+          "full_restore_verified": false
+        }
+      },
+      "blocked": [
+        {
+          "feature_id": "E01",
+          "run": 6,
+          "result_seq": 971,
+          "reason": "preheat_active_extruder_before_test"
+        },
+        {
+          "feature_id": "E03",
+          "run": 7,
+          "result_seq": 1015,
+          "reason": "motion_requires_cold_idle_heaters"
+        },
+        {
+          "feature_id": "E03",
+          "run": 8,
+          "result_seq": 1040,
+          "reason": "motion_requires_cold_idle_heaters"
+        },
+        {
+          "feature_id": "E03",
+          "run": 11,
+          "result_seq": 1281,
+          "reason": "motion_requires_cold_idle_heaters"
+        },
+        {
+          "feature_id": "E11",
+          "run": 13,
+          "result_seq": 1392,
+          "reason": "motion_requires_cold_idle_heaters"
+        },
+        {
+          "feature_id": "E12",
+          "run": 14,
+          "result_seq": 1420,
+          "reason": "motion_requires_cold_idle_heaters"
+        }
+      ],
+      "evidence_boundary": "Only E01/E02/E07 have explicit observe(true) plus controller PASSED_USER. E02 10.0 mm is entered by the user, not independent automatic metrology. Modal restoration was reported, but top-level restore_verified stays false. E03/E11 remain pending and E12 conditional; their blocked attempts were not physically accepted. Already accepted S15/S16/S17 reruns in this session do not add new acceptance rows."
     }
   },
   "policy": {
@@ -2265,10 +2347,28 @@
       "title": "Coarse filament extrusion",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "On the reference printer the filament workflow was observed after a commanded 5 mm feed. Physical operator approval and PASSED_USER were captured in the signed-head trace; modal G-code restore reported true, but full controller restore was not verified.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": false,
+        "observation": "Operator executed the real-printer E01 filament-feed procedure, observed the commanded 5.0 mm physical filament motion and explicitly selected observe(true). The controller reported PASSED_USER after reporting modal G-code restoration. No independent flow/length metrology or complete heater/physical restoration is claimed.",
+        "tested_signed_head": "ad0615911960e627dcec70722b84cc5c4a8b88c4",
+        "trace": {
+          "session": "d924a92a9df94f1b99645da43a7b14be",
+          "run": 9,
+          "observe_seq": 1131,
+          "result_seq": 1133
+        },
+        "measurement": {
+          "commanded_mm": 5,
+          "modal_restore_verified": true,
+          "independent_automatic_measurement": false
+        }
+      }
     },
     {
       "feature_id": "E02",
@@ -2276,10 +2376,31 @@
       "title": "Measured extrusion distance",
       "method": "E",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "On the reference printer the E02 commanded 10 mm and operator entered 10 mm as the externally measured result; Petrel computed 0 mm error but no independent automatic measurement was available. Physical operator approval and PASSED_USER were captured in the signed-head trace; modal G-code restore reported true, but full controller restore was not verified.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": false,
+        "observation": "Operator ran the E02 real-printer filament extrusion distance procedure, entered an externally measured 10.0 mm feed for the commanded 10.0 mm and explicitly selected observe(true). The controller reported PASSED_USER and a computed 0.0 mm difference. The entered length is an operator measurement, not an automated sensor reading; complete physical/thermal restore is not verified.",
+        "tested_signed_head": "ad0615911960e627dcec70722b84cc5c4a8b88c4",
+        "trace": {
+          "session": "d924a92a9df94f1b99645da43a7b14be",
+          "run": 10,
+          "observe_seq": 1249,
+          "result_seq": 1251,
+          "measurement_entry_seq": 1235
+        },
+        "measurement": {
+          "commanded_mm": 10,
+          "modal_restore_verified": true,
+          "operator_entered_measured_mm": 10,
+          "computed_error_mm": 0,
+          "independent_automatic_measurement": false
+        }
+      }
     },
     {
       "feature_id": "E03",
@@ -2298,10 +2419,28 @@
       "title": "Filament path motion",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "On the reference printer the filament workflow was observed after a commanded 5 mm feed. Physical operator approval and PASSED_USER were captured in the signed-head trace; modal G-code restore reported true, but full controller restore was not verified.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": false,
+        "observation": "Operator executed the real-printer E07 filament-feed procedure, observed the commanded 5.0 mm physical filament motion and explicitly selected observe(true). The controller reported PASSED_USER after reporting modal G-code restoration. No independent flow/length metrology or complete heater/physical restoration is claimed.",
+        "tested_signed_head": "ad0615911960e627dcec70722b84cc5c4a8b88c4",
+        "trace": {
+          "session": "d924a92a9df94f1b99645da43a7b14be",
+          "run": 12,
+          "observe_seq": 1360,
+          "result_seq": 1362
+        },
+        "measurement": {
+          "commanded_mm": 5,
+          "modal_restore_verified": true,
+          "independent_automatic_measurement": false
+        }
+      }
     },
     {
       "feature_id": "E11",

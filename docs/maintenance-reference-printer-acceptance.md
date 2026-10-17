@@ -6,9 +6,9 @@
 
 **Evidence boundary:** the independent 121-ID hardware reference from 15 Oct 2026, the 16 Oct 2026 discovery log and explicit user observations. The log confirms **54 discovered features**, but no serialized list of their exact IDs was preserved. Here, `confirmed` means confirmed by the independent capability reference, **not** an exact complete dump of the 54 currently observed IDs. `conditional` entries are not currently authorized, discoverable test commands.
 
-**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Fifty-one** reference-printer capabilities have operator approval: 47 Maintenance test targets and four existing Leveling workflows. Leveling acceptance does not implement a Maintenance adapter. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
+**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Fifty-four** reference-printer capabilities have operator approval: 50 Maintenance test targets and four existing Leveling workflows. Leveling acceptance does not implement a Maintenance adapter. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **62 rows / 46 IDs** — 51 ACCEPTED, 5 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+**Per-device tracking:** **62 rows / 46 IDs** — 54 ACCEPTED, 2 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
 
 **Acceptance semantics:** For grouped thermal characterization, acceptance certifies that the *test procedure* worked; it does not mean the printer met every thermal performance threshold. Extruder H07/H08 remain `FAILED_METRIC` and are never rewritten to PASS.
 
@@ -73,15 +73,15 @@
 | [x] | R02 | `resonance_tester X` | Axis resonance measurement | TEST_RESONANCES; Klipper PSD recorded, operator confirmed | **ACCEPTED** |
 | [x] | R02 | `resonance_tester Y` | Axis resonance measurement | TEST_RESONANCES; Klipper PSD recorded, operator confirmed | **ACCEPTED** |
 | [x] | R04 | `input_shaper X/Y` | Klipper input shaper calibration | X: 3hump_ei 137.6 Hz; Y: MZV 42.2 Hz; unsaved | **ACCEPTED** |
+| [x] | E07 | `extruder + MMU filament path` | Filament path motion | 5 mm feed / PASSED_USER | **ACCEPTED** |
+| [x] | E02 | `extruder measured length` | Measured extrusion distance | 10 mm entered; 0 mm computed error | **ACCEPTED** |
+| [x] | E01 | `extruder filament path` | Coarse filament extrusion | 5 mm feed / PASSED_USER | **ACCEPTED** |
 
 ## Reference-confirmed hardware — remaining adapter/acceptance pending
 
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
-| [ ] | E01 | `extruder filament path` | Coarse filament extrusion | Ready; physical acceptance pending | **PENDING** |
-| [ ] | E02 | `extruder measured length` | Measured extrusion distance | Ready; physical acceptance pending | **PENDING** |
 | [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament presence sensor | Ready; physical acceptance pending | **PENDING** |
-| [ ] | E07 | `extruder + MMU filament path` | Filament path motion | Ready; physical acceptance pending | **PENDING** |
 | [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensor diagnostics | Ready; physical acceptance pending | **PENDING** |
 
 ## Requires additional evidence or a safe integration
@@ -218,3 +218,7 @@ The operator physically repeated P04 and confirmed its automatic safe-Z lift wor
 ## 18 October 2026 — R-group complete on the reference printer
 
 The operator explicitly accepted the completed R group. Trace session `ff80258017ad4c1495e3fd1c64b17e7e`, signed HEAD `ad061591`, comprises 902 events without dropped events, write errors or rotations. R02 X used `TEST_RESONANCES` (#121), operator `observe(true)` (#177), controller `PASSED` (#179). R02 Y used `TEST_RESONANCES` (#260), `observe(true)` (#305), `PASSED` (#307). Both validate that Klipper recorded PSD data; **Petrel does not rate the spectrum or compute shaper settings**. Klipper-native R04 X `SHAPER_CALIBRATE` (#355) gave `OBSERVED` (#439): **3hump_ei / 137.6 Hz**. The initial R04 Y attempt was `BLOCKED` (#519) due to `existing_pending_config`; its later retry, after fresh XYZ homing (#598), ran `SHAPER_CALIBRATE` (#769) and gave `OBSERVED` (#854): **MZV / 42.2 Hz**. This single R04 ledger target accepts both axis procedures; `restore_verified=false`, `saved=false`. No `SAVE_CONFIG` was sent, no persistence or independent mechanical optimality is claimed. Historical R01/R03 acceptances and earlier cancelled resonance attempts remain intact. **Current active tally: 62 rows / 46 IDs — 51 ACCEPTED, 5 PENDING, 5 CONDITIONAL, 1 N/A.**
+
+## 18 October 2026 — partial E-group operator acceptances
+
+The operator submitted trace `d924a92a9df94f1b99645da43a7b14be` and explicitly requested the executed E-group tests be accepted. The relevant recorded session covers seq #903–1877 (975 events; no dropped events or write errors; one file rotation). The ZIP also contains older sessions in `events.previous.jsonl`; those were excluded. The tested signed HEAD is `ad061591`. **E01** run 9: commanded 5.0 mm, operator `observe(true)` #1131 and controller `PASSED_USER` #1133. **E02** run 10: commanded 10.0 mm, user-entered measured 10.0 mm #1235, `observe(true)` #1249, `PASSED_USER` #1251 with computed 0.0 mm error; no independent automatic length metrology is claimed. **E07** run 12: commanded 5.0 mm, `observe(true)` #1360, `PASSED_USER` #1362. All three report `modal_restore_verified=true` inside evidence, but controller `restore_verified=false` (no blanket restoration claim). The earlier E01 preheat BLOCKED run 6 (#971) remains history. **E03** runs 7/8/11 (#1015/#1040/#1281), **E11** run 13 (#1392), and conditional **E12** run 14 (#1420) were `BLOCKED / motion_requires_cold_idle_heaters`; no acceptance or fabricated sensor transition was recorded. Existing S15/S16/S17 approvals remain unchanged. **Current total: 62 rows / 46 IDs — 54 ACCEPTED, 2 PENDING, 5 CONDITIONAL, 1 N/A.**

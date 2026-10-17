@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **51 adet** referans yazıcı yeteneği kullanıcı tarafından kabul edilmiştir: 47 Maintenance hedefi ve dört mevcut Leveling işlevi. Leveling kabulü Maintenance adaptörü oluşturmaz. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **54 adet** referans yazıcı yeteneği kullanıcı tarafından kabul edilmiştir: 50 Maintenance hedefi ve dört mevcut Leveling işlevi. Leveling kabulü Maintenance adaptörü oluşturmaz. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 51 KABUL, 5 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 54 KABUL, 2 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Kabul türleri:** Termal karakterizasyonda *test prosedürünün kabulü*, yazıcının termal performans kriterini geçmesi demek değildir. H07/H08 Extruder sonuçları `FAILED_METRIC` olarak korunur; doğru ölçüm ve güvenli tamamlanma sayesinde prosedürler kabul edilir.
 
@@ -73,15 +73,15 @@
 | [x] | R02 | `resonance_tester X` | Eksen rezonansı | TEST_RESONANCES; Klipper PSD ve kullanıcı onayı | **KABUL** |
 | [x] | R02 | `resonance_tester Y` | Eksen rezonansı | TEST_RESONANCES; Klipper PSD ve kullanıcı onayı | **KABUL** |
 | [x] | R04 | `input_shaper X/Y` | Klipper input shaper kalibrasyonu | X: 3hump_ei 137,6 Hz; Y: MZV 42,2 Hz; kaydedilmedi | **KABUL** |
+| [x] | E07 | `extruder + MMU filament path` | Filament yolu hareketi | 5 mm sürme / PASSED_USER | **KABUL** |
+| [x] | E02 | `extruder measured length` | Ölçülmüş ekstrüzyon mesafesi | 10 mm girildi; hesaplanan fark 0 mm | **KABUL** |
+| [x] | E01 | `extruder filament path` | Kaba filament ekstrüzyonu | 5 mm filament sürme / PASSED_USER | **KABUL** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | E01 | `extruder filament path` | Kaba filament ekstrüzyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | E02 | `extruder measured length` | Ölçülmüş ekstrüzyon mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament var/yok sensörü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | E07 | `extruder + MMU filament path` | Filament yolu hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | E11 | `Happy Hare MMU gate sensors (4 gates)` | MMU gate sensör testi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 
 ## Ek kanıt veya güvenli entegrasyon gerektirenler
@@ -214,3 +214,7 @@ Kullanıcı P04'ü yeniden deneyerek otomatik güvenli Z yükseltmesinin çalı�
 ## 18 Ekim 2026 — Referans yazıcıda R grubu tamamlandı
 
 Kullanıcı R grubunun tamamını açıkça kabul etti. `ff80258017ad4c1495e3fd1c64b17e7e` trace oturumu, imzalı HEAD `ad061591`: 902 olay, sıfır kayıp/yazma hatası/rotasyon. R02 X `TEST_RESONANCES` (#121) çalıştırdı; kullanıcı `observe(true)` (#177), kontrolcü `PASSED` (#179) bildirdi. R02 Y `TEST_RESONANCES` (#260), `observe(true)` (#305), `PASSED` (#307) ile tamamlandı. İki kabul de Klipper'ın PSD verisini kaydettiğini kanıtlar; **Petrel spektrumu puanlamaz veya shaper hesaplamaz**. Klipper'ın R04 X `SHAPER_CALIBRATE` (#355) sonucu `OBSERVED` (#439): **3hump_ei / 137,6 Hz**. R04 Y'nin ilk denemesi `existing_pending_config` sebebiyle `BLOCKED` (#519); yeni XYZ homing (#598) ardından `SHAPER_CALIBRATE` (#769) ile tekrarlandığında `OBSERVED` (#854): **MZV / 42,2 Hz**. Tek R04 kabul satırı her iki eksenin prosedürünü kapsar; `restore_verified=false`, `saved=false`. `SAVE_CONFIG` çalıştırılmadı, kalıcı kaydetme veya bağımsız en iyi mekanik ayar doğrulaması iddia edilmez. Önceki R01/R03 kabul kayıtları ve iptal edilmiş rezonans denemeleri korunur. **Güncel toplam: 62 kayıt / 46 ID — 51 KABUL, 5 BEKLİYOR, 5 KOŞULLU, 1 N/A.**
+
+## 18 Ekim 2026 — E grubu kısmi kullanıcı kabulleri
+
+Kullanıcı `d924a92a9df94f1b99645da43a7b14be` trace oturumunu göndererek tamamlanan E testlerinin kabul listesine işlenmesini açıkça istedi. İlgili oturum #903–1877 arasındadır (975 olay; kayıp/yazma hatası yok, bir dosya rotasyonu). ZIP içindeki `events.previous.jsonl` dosyasında eski oturumlar da bulunduğundan bunlar bu kabule karıştırılmadı. Test edilen imzalı HEAD: `ad061591`. **E01** run 9: komut edilen 5,0 mm; kullanıcı `observe(true)` #1131 ve kontrolcü `PASSED_USER` #1133. **E02** run 10: komut edilen 10,0 mm, kullanıcı tarafından girilen ölçüm 10,0 mm #1235, `observe(true)` #1249, `PASSED_USER` #1251, hesaplanan fark 0,0 mm; bağımsız otomatik uzunluk ölçümü iddia edilmez. **E07** run 12: komut edilen 5,0 mm, `observe(true)` #1360, `PASSED_USER` #1362. Üçünde de kanıtta `modal_restore_verified=true` mevcut, ancak kontrolcünün `restore_verified=false` sonucu korunmuştur; tüm fiziksel durumların geri yüklendiği iddia edilmez. E01'in eski preheat `BLOCKED` run 6 (#971) kaydı geçmişte korundu. **E03** run 7/8/11 (#1015/#1040/#1281), **E11** run 13 (#1392) ve koşullu **E12** run 14 (#1420) `BLOCKED / motion_requires_cold_idle_heaters` durumunda kaldı; kabul veya uydurma sensör geçişi eklenmedi. Daha önce kabul edilen S15/S16/S17 kayıtları değişmedi. **Güncel toplam: 62 kayıt / 46 ID — 54 KABUL, 2 BEKLİYOR, 5 KOŞULLU, 1 N/A.**

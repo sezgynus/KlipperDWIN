@@ -331,8 +331,9 @@ class ReferenceAcceptanceTests(unittest.TestCase):
                 self.assertEqual(item['status'],'pending')
                 self.assertIsNone(item['acceptance'])
 
-    def test_remaining_group_implementation_never_grants_physical_acceptance(self):
-        implemented = {'P01','P03','P04','R01','R02','R03','R04','E01','E02','E03','E07','E11',
+    def test_remaining_unaccepted_group_implementation_never_grants_physical_acceptance(self):
+        # P01/P03/P04 gained explicit real-printer approval in a later trace.
+        implemented = {'R01','R02','R03','R04','E01','E02','E03','E07','E11',
                        'E12','O02','O06'}
         for entry in ledger()['entries']:
             if entry['feature_id'] in implemented:
@@ -355,11 +356,16 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertEqual(evidence['trace']['session'],'dec3042495ca4ab78b58b947e2b3c73a')
             self.assertEqual((evidence['trace']['run'],evidence['trace']['observe_seq'],
                               evidence['trace']['result_seq']),(run,observed,result))
-        # Firmware measurement PASSED alone does not grant physical acceptance.
+        # The old S15/S16/S17 session's probe measurements alone did not
+        # grant acceptance. The operator explicitly approved them later in
+        # their own P-group physical trace; do not rewrite that history.
         for item in ledger()['entries']:
             if item['feature_id'] in ('P03','P04'):
-                self.assertEqual(item['status'],'pending')
-                self.assertIsNone(item['acceptance'])
+                self.assertEqual(item['status'],'accepted')
+                self.assertEqual(item['acceptance']['source'],
+                                 'user_explicit_physical_observation')
+                self.assertEqual(item['acceptance']['trace']['session'],
+                                 '2d899dbe5dcc42e6a5e6a020df941369')
 
     def test_registered_endstop_fix_has_per_axis_operator_acceptance(self):
         rows = {e['target']:e for e in ledger()['entries'] if e['feature_id']=='M01'}

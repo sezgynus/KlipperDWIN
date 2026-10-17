@@ -27,7 +27,7 @@ class SwitchTests(unittest.TestCase):
         if path=='/server/info':
             return {'result':{'components':[]}}
         if path=='/printer/query_endstops/status':
-            return {'result':{'x':self.value}}
+            return {'result':{'stepper_x':self.value,'stepper_y':'open','stepper_z':'TRIGGERED'}}
         return {'result':{'status':{'tmc2208 stepper_x':{'drv_status':self.flags}}}}
 
     def click(self):
@@ -53,6 +53,23 @@ class SwitchTests(unittest.TestCase):
         result=self.c.observe(True)
         self.assertEqual(result.status,'PASSED_USER')
         self.assertTrue(result.restore_verified)
+
+    def test_legacy_short_axis_alias_and_conflicts_are_explicit(self):
+        for reply,expected in (
+                ({'x':'open'},'await_press'),
+                ({'stepper_x':'open','x':'open'},'await_press'),
+                ({'stepper_x':'TRIGGERED','x':'open'},None),
+                ({'stepper_x':None,'x':'open'},None),
+                ({'stepper_y':'open'},None)):
+            with self.subTest(reply=reply):
+                self.c._phase = None
+                original = self.get
+                self.client.get = lambda path: {'result':reply} if path=='/printer/query_endstops/status' else original(path)
+                self.c.start('M01','stepper_x')
+                outcome = self.click()
+                self.assertEqual(self.c.phase,expected)
+                if expected is None:
+                    self.assertEqual(outcome.status,'INCONCLUSIVE')
 
     def test_virtual_endstop_cannot_be_queried_as_physical(self):
         self.p.state=PrinterState.from_snapshot(dict(self.data,settings={'stepper_x':{'endstop_pin':'tmc2208_stepper_x:virtual_endstop'}}))

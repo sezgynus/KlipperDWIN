@@ -6,13 +6,15 @@
 
 **Evidence boundary:** the independent 121-ID hardware reference from 15 Oct 2026, the 16 Oct 2026 discovery log and explicit user observations. The log confirms **54 discovered features**, but no serialized list of their exact IDs was preserved. Here, `confirmed` means confirmed by the independent capability reference, **not** an exact complete dump of the 54 currently observed IDs. `conditional` entries are not currently authorized, discoverable test commands.
 
-**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Six** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
+**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Nine** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **70 rows / 48 IDs** — 6 ACCEPTED, 55 PENDING, 8 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+**Per-device tracking:** **70 rows / 48 IDs** — 9 ACCEPTED, 55 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
 
 **Mandatory after each user-approved test:** set only that target's JSON `status` to `accepted`; record date, operator observation, controller outcome and `restore_verified` in `acceptance`; check only the corresponding target in both EN/TR tables in the same signed commit. Add relevant regressions; verify the full CI suite on the **bot-signed HEAD**. Never mark an item done because of a config line, HTTP success, G-code OK, simulated CI or an informational read. Never merge `master` without explicit request.
 
 **Excluded:** informational-only S01/S02/S03/S05/S08/S10 and H11/H14/M09/P09 etc are not physical PASS. No RPM measurement without the part-fan tachometer. The Z endstop is virtual, not a pressable Z switch. Servo probe is not BLTouch. R02 maps X/Y only. The temporary PFAB percentage-display sensor is excluded from this *reference fixture*, never from generic discovery.
+
+**17 Oct trace acceptance:** S15 physical encoder (both directions + click), S16 five colors and S17 10/50/100% backlight each have explicit `observe(true)`, `PASSED_USER` and controller restore evidence. Session `dec3042495ca4ab78b58b947e2b3c73a`. P03/P04 automatic measurements were also recorded; physical acceptance was not granted. [Detailed trace review](maintenance-acceptance-2026-10-17.md).
 
 ## User-approved physical checks
 
@@ -24,6 +26,9 @@
 | [x] | S18 | `pwm_cycle_time Buzzer` | Audible output observation | Available | **ACCEPTED** |
 | [x] | O03 | `output_pin case_light` | Safe auxiliary output | Available | **ACCEPTED** |
 | [x] | O04 | `neopixel mmu_leds` | LED output observation | Available | **ACCEPTED (red → green → blue → white)** |
+| [x] | S15 | `Petrel encoder` | Petrel encoder diagnostics | Operator observed; restore verified | **ACCEPTED** |
+| [x] | S16 | `DWIN LCD` | Petrel LCD diagnostics | Operator observed; restore verified | **ACCEPTED** |
+| [x] | S17 | `DWIN backlight` | Backlight observation | Operator observed; restore verified | **ACCEPTED** |
 
 ## Reference-confirmed hardware — adapter/acceptance pending
 
@@ -92,9 +97,6 @@
 | [ ] | F13 | `guarded fan/heater comparison` | Fan thermal A/B comparison | Not built | **CONDITIONAL** |
 | [ ] | H15 | `co-located calibrated sensor pair` | Paired temperature-sensor deviation | Not built | **CONDITIONAL** |
 | [ ] | E12 | `Happy Hare gear and selector` | MMU mechanical diagnostics | Ready; physical acceptance pending | **CONDITIONAL** |
-| [ ] | S15 | `Petrel encoder` | Petrel encoder diagnostics | Ready; physical acceptance pending | **CONDITIONAL** |
-| [ ] | S16 | `DWIN LCD` | Petrel LCD diagnostics | Ready; physical acceptance pending | **CONDITIONAL** |
-| [ ] | S17 | `DWIN backlight` | Backlight observation | Ready; physical acceptance pending | **CONDITIONAL** |
 | [ ] | O02 | `approved servo and deploy/stow path` | Safe servo movement | Ready; physical acceptance pending | **CONDITIONAL** |
 | [ ] | O06 | `user-defined physical servicing` | Guided servicing | Ready; physical acceptance pending | **CONDITIONAL** |
 

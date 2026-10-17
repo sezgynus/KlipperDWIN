@@ -96,7 +96,16 @@ class MaintenanceSwitchController:
                 raise ValueError('physical_switch_unverified')
             reply = self._client.get('/printer/query_endstops/status')
             result = reply.get('result') if isinstance(reply, Mapping) else None
-            value = result.get(row.device[-1]) if isinstance(result, Mapping) else None
+            # Klipper returns registered names (stepper_x); some versions
+            # expose the documented short axis alias (x). Never prefer a
+            # contradictory alias or silently accept an invalid primary value.
+            if not isinstance(result, Mapping):
+                raise ValueError('endstop_state_unknown')
+            keys = (row.device, row.device[-1])
+            values = [result[k] for k in keys if k in result]
+            if len(values)==2 and values[0]!=values[1]:
+                raise ValueError('endstop_state_conflicting')
+            value = values[0] if values else None
             if value not in ('open', 'TRIGGERED'):
                 raise ValueError('endstop_state_unknown')
             return evidence, value

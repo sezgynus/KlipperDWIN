@@ -21,13 +21,14 @@ MAX_PENDING = 128
 MAX_FILE = 4 * 1024 * 1024
 MAX_EXPORT = 10 * 1024 * 1024
 PRIVATE = re.compile(r'password|secret|token|api.?key|filename|file_path|ssid|hostname|address|serial', re.I)
-TEXT = re.compile(r'[A-Za-z0-9_ .,:>+%=?()\[\]-]{0,240}')
+TEXT = re.compile(r'[A-Za-z0-9_ .,:>+%=?()/\[\]-]{0,240}')
 STATUS_FIELDS = frozenset(('temperature target power speed value enabled state is_active '
     'is_paused filament_detected position homed_axes axis_minimum axis_maximum '
     'absolute_coordinates absolute_extrude speed_factor extrude_factor homing_origin '
     'z_position last_query last_z_result pressure force raw_force tare_offset '
     'diameter width humidity rpm pulse_width color_data can_extrude '
-    'save_config_pending queue_state eventtime frequency acceleration').split())
+    'save_config_pending queue_state eventtime frequency acceleration drv_status '
+    'filament filament_pos grip locked action homed gate tool sync_drive').split())
 
 
 def clean(value, depth=0):
@@ -38,7 +39,8 @@ def clean(value, depth=0):
     if type(value) in (int, float):
         return value if math.isfinite(value) else None
     if isinstance(value, str):
-        return value if len(value)<=240 and TEXT.fullmatch(value) else '[omitted]'
+        return value if (len(value)<=240 and TEXT.fullmatch(value)
+                         and not re.search(r'(?<! )/|/(?! )',value)) else '[omitted]'
     if isinstance(value, (tuple, list)):
         return [clean(v,depth+1) for v in value[:32]
                 if not (isinstance(v,(tuple,list)) and len(v)==2
@@ -49,10 +51,59 @@ def clean(value, depth=0):
     return None
 
 
+# Exact Petrel MMU guard messages only; arbitrary exception text stays private.
+_MMU_ERRORS = {
+    "MMU unavailable": "mmu_mmu_unavailable",
+    "Wait for MMU operation": "mmu_wait_for_mmu_operation",
+    "Acknowledge MMU result first": "mmu_acknowledge_mmu_result_first",
+    "MMU disabled or unknown": "mmu_mmu_disabled_or_unknown",
+    "MMU busy or recovery needed": "mmu_mmu_busy_or_recovery_needed",
+    "Another operation is active": "mmu_another_operation_is_active",
+    "Print state unknown": "mmu_print_state_unknown",
+    "Printing; monitoring only": "mmu_printing_monitoring_only",
+    "Use recovery during a pause": "mmu_use_recovery_during_a_pause",
+    "MMU lock state unknown": "mmu_mmu_lock_state_unknown",
+    "Invalid gate": "mmu_invalid_gate",
+    "Unload filament first": "mmu_unload_filament_first",
+    "Known filament position required": "mmu_known_filament_position_required",
+    "Choose a different known MMU enable state": "mmu_choose_a_different_known_mmu_enable_state",
+    "Known MMU driver states required": "mmu_known_mmu_driver_states_required",
+    "Choose a valid MMU unit": "mmu_choose_a_valid_mmu_unit",
+    "Validated multiple units required": "mmu_validated_multiple_units_required",
+    "Known unit LED state required": "mmu_known_unit_led_state_required",
+    "Unsupported LED exit mode": "mmu_unsupported_led_exit_mode",
+    "Choose a different supported exit mode": "mmu_choose_a_different_supported_exit_mode",
+    "Choose a different known LED state": "mmu_choose_a_different_known_led_state",
+    "Select an available gate first": "mmu_select_an_available_gate_first",
+    "Mapped available gate required": "mmu_mapped_available_gate_required",
+    "Tool mapping changed": "mmu_tool_mapping_changed",
+    "Unload the current gate": "mmu_unload_the_current_gate",
+    "Unload current filament first": "mmu_unload_current_filament_first",
+    "Select bypass first": "mmu_select_bypass_first",
+    "Choose actual tool/gate/state": "mmu_choose_actual_tool_gate_state",
+    "MMU is not locked": "mmu_mmu_is_not_locked",
+    "Complete valid tool map required": "mmu_complete_valid_tool_map_required",
+    "Complete EndlessSpool state required": "mmu_complete_endlessspool_state_required",
+    "Spoolman mode blocks local assignment": "mmu_spoolman_mode_blocks_local_assignment",
+    "Known spool IDs and valid assignment required": "mmu_known_spool_ids_and_valid_assignment_required",
+    "Known filament temperature required": "mmu_known_filament_temperature_required",
+    "Select an MMU gate first": "mmu_select_an_mmu_gate_first",
+    "Single homing selector required": "mmu_single_homing_selector_required",
+    "Valid tool map required": "mmu_valid_tool_map_required",
+    "Known active unit and gate required": "mmu_known_active_unit_and_gate_required",
+    "Home selector before drive operations": "mmu_home_selector_before_drive_operations",
+    "Grip-capable selector telemetry required": "mmu_grip_capable_selector_telemetry_required",
+    "Selector cannot release filament": "mmu_selector_cannot_release_filament",
+    "Loaded filament and known sync state required": "mmu_loaded_filament_and_known_sync_state_required",
+    "Always-gripped unit cannot unsync": "mmu_always_gripped_unit_cannot_unsync",
+    "Recover and unlock first": "mmu_recover_and_unlock_first",
+    "Unsupported MMU operation": "mmu_unsupported_mmu_operation",
+}
+
 def error_info(exc):
     message = str(exc)
-    return {'type':type(exc).__name__, 'code':message
-            if re.fullmatch(r'[a-z][a-z0-9_]{0,159}',message) else 'details_omitted'}
+    return {'type':type(exc).__name__, 'code':_MMU_ERRORS.get(message,message)
+            if message in _MMU_ERRORS or re.fullmatch(r'[a-z][a-z0-9_]{0,159}',message) else 'details_omitted'}
 
 
 def measurements(reply):

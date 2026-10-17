@@ -124,6 +124,19 @@ class TestRecorder(unittest.TestCase):
         self.assertIs(call.call_args.kwargs['guard'],guard)
         call.assert_called_once()
 
+    def test_static_mmu_errors_and_spaced_ui_labels_survive_without_paths(self):
+        from maintenance_test_trace import error_info,measurements
+        self.assertEqual(error_info(ValueError('Unload filament first'))['code'],'mmu_unload_filament_first')
+        self.assertEqual(error_info(ValueError('secret token=123'))['code'],'details_omitted')
+        self.assertEqual(clean('Red seen / next'),'Red seen / next')
+        for value in ('/etc/private','home/pi/private','http://secret.local'):
+            self.assertEqual(clean(value),'[omitted]')
+        self.assertEqual(measurements({'result':{'status':{
+            'tmc2208 stepper_x':{'drv_status':None},
+            'mmu':{'filament':'unloaded','gate':0,'locked':False,'password':'never'}
+        }}})['tmc2208 stepper_x'],{'drv_status':None})
+        self.assertNotIn('password',measurements({'result':{'status':{'mmu':{'password':'never'}}}})['mmu'])
+
     def test_zip_includes_unsaved_tail_is_read_only_and_sanitizes_secrets(self):
         self.trace.emit('example',{'password':'bad','filename':'private.gcode',
             'evidence':(('api_key','bad'),('temperature',60.)),

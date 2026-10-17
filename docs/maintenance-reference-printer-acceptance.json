@@ -7,7 +7,19 @@
     "live_log_date": "2026-10-16",
     "live_feature_count": 54,
     "exact_live_id_inventory_recorded": false,
-    "qualification": "The 54-feature READY log is a count, not an exact list; confirmed/conditional entries here come from the independent 121-ID hardware reference, plus user-observed physical acceptances."
+    "qualification": "The 54-feature READY log is a count, not an exact list; confirmed/conditional entries here come from the independent 121-ID hardware reference, plus user-observed physical acceptances.",
+    "physical_trace_2026_10_17": {
+      "session": "dec3042495ca4ab78b58b947e2b3c73a",
+      "head": "32a8e14991e6d1d308909602084ab2e1f7b7d815",
+      "events": 2844,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "accepted_features": [
+        "S15",
+        "S16",
+        "S17"
+      ]
+    }
   },
   "policy": {
     "working_branch": "feature/maintenance-test-engine",
@@ -760,10 +772,29 @@
       "title": "Petrel encoder diagnostics",
       "method": "AU",
       "reference": "conditional",
-      "status": "conditional",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Physical encoder installed but no verified maintenance instrumentation yet. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Physical operator acceptance recorded 2026-10-17 from the uploaded temporary test trace; subsequent cancelled reopens do not erase completed acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator selected observe(true) after new physical encoder events in both directions and a button press; GPIO deltas +2/-3/1.",
+        "trace": {
+          "session": "dec3042495ca4ab78b58b947e2b3c73a",
+          "head": "32a8e14991e6d1d308909602084ab2e1f7b7d815",
+          "run": 48,
+          "observe_seq": 2274,
+          "result_seq": 2276
+        },
+        "measurements": {
+          "gpio_positive_steps": 2,
+          "gpio_negative_steps": 3,
+          "gpio_button_presses": 1
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "S16",
@@ -771,10 +802,28 @@
       "title": "Petrel LCD diagnostics",
       "method": "AU",
       "reference": "conditional",
-      "status": "conditional",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "DWIN LCD exists but checksum/visual diagnostics contract not implemented. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Physical operator acceptance recorded 2026-10-17 from the uploaded temporary test trace; subsequent cancelled reopens do not erase completed acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator confirmed all five red/green/blue/white/black stages and selected observe(true) after panel restore; visual observation only.",
+        "trace": {
+          "session": "dec3042495ca4ab78b58b947e2b3c73a",
+          "head": "32a8e14991e6d1d308909602084ab2e1f7b7d815",
+          "run": 50,
+          "observe_seq": 2491,
+          "result_seq": 2493
+        },
+        "measurements": {
+          "observed_stages": 5,
+          "settings_saved": false
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "S17",
@@ -782,10 +831,28 @@
       "title": "Backlight observation",
       "method": "U",
       "reference": "conditional",
-      "status": "conditional",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Brightness control exists but Maintenance self-test integration not implemented. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Physical operator acceptance recorded 2026-10-17 from the uploaded temporary test trace; subsequent cancelled reopens do not erase completed acceptance.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator confirmed 10/50/100 percent stages and selected observe(true) after runtime restore; repeated successful run 51 retained as trace evidence.",
+        "trace": {
+          "session": "dec3042495ca4ab78b58b947e2b3c73a",
+          "head": "32a8e14991e6d1d308909602084ab2e1f7b7d815",
+          "run": 53,
+          "observe_seq": 2762,
+          "result_seq": 2764
+        },
+        "measurements": {
+          "observed_stages": 3,
+          "settings_saved": false
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "S18",

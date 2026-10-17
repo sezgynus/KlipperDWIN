@@ -111,7 +111,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(by_target[('F04', 'fan_generic (not installed)')]
                          ['status'], 'not_applicable')
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'accepted']), 6)
+                              if e['status'] == 'accepted']), 9)
         self.assertEqual(len([e for e in data['entries']
                               if e['status'] == 'pending']), 55)
 
@@ -138,7 +138,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
 
     def test_remaining_group_implementation_never_grants_physical_acceptance(self):
         implemented = {'P01','P03','P04','R01','R02','R03','R04','E01','E02','E03','E07','E11',
-                       'E12','S15','S16','S17','O02','O06'}
+                       'E12','O02','O06'}
         for entry in ledger()['entries']:
             if entry['feature_id'] in implemented:
                 self.assertEqual(entry['adapter'],'implemented')
@@ -147,6 +147,24 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             if entry['feature_id'] in {'P05','P07','P08','P11'}:
                 self.assertEqual(entry['adapter'],'not_implemented')
                 self.assertIn('Leveling',entry['note'])
+
+    def test_panel_acceptance_requires_uploaded_explicit_observation_and_restore(self):
+        expected = {'S15':(48,2274,2276),'S16':(50,2491,2493),'S17':(53,2762,2764)}
+        rows = {e['feature_id']:e for e in ledger()['entries'] if e['feature_id'] in expected}
+        for feature,(run,observed,result) in expected.items():
+            item = rows[feature]
+            self.assertEqual(item['status'],'accepted')
+            evidence = item['acceptance']
+            self.assertEqual(evidence['controller_result'],'PASSED_USER')
+            self.assertTrue(evidence['restore_verified'])
+            self.assertEqual(evidence['trace']['session'],'dec3042495ca4ab78b58b947e2b3c73a')
+            self.assertEqual((evidence['trace']['run'],evidence['trace']['observe_seq'],
+                              evidence['trace']['result_seq']),(run,observed,result))
+        # Firmware measurement PASSED alone does not grant physical acceptance.
+        for item in ledger()['entries']:
+            if item['feature_id'] in ('P03','P04'):
+                self.assertEqual(item['status'],'pending')
+                self.assertIsNone(item['acceptance'])
 
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}

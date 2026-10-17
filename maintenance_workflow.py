@@ -179,11 +179,18 @@ class FirmwareWorkflow:
         values, stamp = query(self._client, self.fields())
         self.validate(values, action)
         script = self.script(action, values)
-        if (not isinstance(script, str) or not script or len(script) > 4096
-                or any(line.split()[0] == 'SAVE_CONFIG' for line in script.splitlines() if line.strip())):
+        if not isinstance(script, str) or not script or len(script) > 4096:
             raise ValueError('workflow_script_invalid')
+        # Preserve the exact user-configured script sent to Klipper. Only
+        # tokenize non-comment commands for preflight safety checks; Moonraker
+        # may retain blank lines from multiline [probe] G-code settings.
         for line in script.splitlines():
-            command = line.split()[0].lower()
+            words = line.split('#', 1)[0].split()
+            if not words:
+                continue
+            command = words[0].lower()
+            if command == 'save_config':
+                raise ValueError('workflow_script_invalid')
             if any(str(k).lower() == 'gcode_macro '+command for k in self._printer.state.settings):
                 raise ValueError('workflow_command_overridden')
         return queue, values, stamp, script

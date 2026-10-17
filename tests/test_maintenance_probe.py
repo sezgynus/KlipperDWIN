@@ -224,6 +224,49 @@ class ProbeWorkflowTests(unittest.TestCase):
         self.assertEqual(len(self.commands),4)
         self.assertNotIn('SAVE_CONFIG',str(self.commands))
 
+    def test_p01_multiline_config_keeps_blank_lines_and_comments_verbatim(self):
+        # Klipper/Moonraker can preserve leading and empty lines in
+        # [probe] activate_gcode and deactivate_gcode settings.
+        activate = ('\n'
+                    '    # Deploy using the operator-defined servo\n'
+                    '    SET_SERVO SERVO=probe_servo ANGLE=35 # deploy\n'
+                    '\n'
+                    '    G4 P500\n'
+                    '    SET_SERVO SERVO=probe_servo WIDTH=0\n')
+        deactivate = ('\n'
+                      '    # Retract using the same user settings\n'
+                      '    SET_SERVO SERVO=probe_servo ANGLE=103 # retract\n'
+                      '\n'
+                      '    G4 P500\n'
+                      '    SET_SERVO SERVO=probe_servo WIDTH=0\n')
+        self.set_probe_hooks(activate, deactivate)
+        self.arm()
+        self.dispatch()
+        self.assertEqual(self.commands[0][1]['script'],
+                         activate + '\nQUERY_PROBE')
+        self.assertIsNone(self.complete(('probe: open',)))
+        for state in ('TRIGGERED','open'):
+            self.assertTrue(self.owner.choose(0)[0])
+            self.worker.drain()
+            self.owner.poll()
+            self.assertIsNone(self.complete(('probe: '+state,)))
+        self.worker.drain()
+        self.owner.poll()
+        self.assertEqual(self.commands[-1][1]['script'], deactivate)
+        result = self.complete()
+        self.assertEqual(result.status, 'PASSED')
+        self.assertTrue(result.restore_verified)
+
+    def test_p01_blank_lines_cannot_hide_save_config_command(self):
+        self.set_probe_hooks('\n # comment\n\n save_config # not allowed\n',
+                             '\nSET_SERVO SERVO=probe_servo WIDTH=0\n')
+        self.assertTrue(self.owner.start('P01')[0])
+        self.worker.drain()
+        result = self.owner.poll()
+        self.assertEqual(result.status, 'BLOCKED')
+        self.assertEqual(result.reason, 'workflow_script_invalid')
+        self.assertEqual(self.commands, [])
+
     def test_p01_cancel_after_activation_runs_deactivate_first(self):
         self.set_probe_hooks('SET_SERVO SERVO=probe_servo ANGLE=35',
                              'SET_SERVO SERVO=probe_servo ANGLE=103')

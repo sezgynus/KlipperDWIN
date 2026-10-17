@@ -493,16 +493,50 @@ class PrinterData:
         self.maintenance_pulse.close()
         self.maintenance_reader.close()
         self.maintenance.clear()
+        # TEMPORARY MAINTENANCE TEST TRACE: preserve shutdown tail.
+        trace = getattr(self,'maintenance_test_trace',None)
+        if trace is not None:
+            trace.stop()
         self.subscription.close()
         self._read_worker.close()
         self._maintenance_worker.close()
         self.spoolman_client.close()
         self.client.close()
+        if trace is not None:
+            trace.flush()
+
+    # BEGIN TEMPORARY MAINTENANCE TEST TRACE
+    def toggle_maintenance_test_recording(self):
+        if self.maintenance_pulse.pending or self.maintenance_reader.pending:
+            return False
+        trace = getattr(self,'maintenance_test_trace',None)
+        if trace is not None and trace.active:
+            trace.stop()
+        else:
+            if trace is None:
+                from maintenance_test_trace import TestTrace
+                trace = self.maintenance_test_trace = TestTrace(self)
+            trace.start()
+            trace.tick(self.state)
+        return True
+
+    def maintenance_test_recording_label(self):
+        trace = getattr(self,'maintenance_test_trace',None)
+        return trace.label if trace is not None else 'Start test recording'
+
+    def export_maintenance_test_recording(self):
+        trace = getattr(self,'maintenance_test_trace',None)
+        return trace.exported() if trace is not None else None
+    # END TEMPORARY MAINTENANCE TEST TRACE
 
     def _note_maintenance_state(self,state):
         book = getattr(self,'maintenance_book',None)
         if book is not None:
             book.note(state)
+        # TEMPORARY MAINTENANCE TEST TRACE
+        trace = getattr(self,'maintenance_test_trace',None)
+        if trace is not None:
+            trace.tick(state)
 
     def maintenance_integrations(self,state):
         services = ['maintenance.records','maintenance.usage_counters','maintenance.report_export']

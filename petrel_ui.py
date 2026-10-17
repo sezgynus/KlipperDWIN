@@ -402,7 +402,8 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
                 self._remote_display = RemoteDisplayServer(
                     self._emulator, self._remote_input,
                     port=self._remote_options[1], host=self._remote_options[2],
-                    report_provider=self.pd.maintenance_book.exported)
+                    report_provider=self.pd.maintenance_book.exported,
+                    trace_provider=self.pd.export_maintenance_test_recording)
             except (OSError, RuntimeError, ValueError):
                 # The normal physical LCD must remain functional even if
                 # The chosen interface is unavailable or port 8088 is occupied.
@@ -1354,7 +1355,28 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
             future.add_done_callback(lambda _done: self._loop.post(InputEvent(
                 'live_jog_flush', 0, snapshot['epoch'], getattr(self, '_uart_epoch', 0))))
 
-    def _process_input(self, event):
+    # BEGIN TEMPORARY MAINTENANCE TEST TRACE
+    def _process_input(self,event):
+        self._trace_maintenance_ui('input_before',event)
+        try:
+            return self._process_input_untraced(event)
+        except Exception as error:
+            trace = getattr(self.pd,'maintenance_test_trace',None)
+            if trace is not None and trace.active:
+                trace.emit('ui_handler_error',{'type':type(error).__name__})
+            raise
+        finally:
+            self._trace_maintenance_ui('input_after',event)
+
+    def EachMomentUpdate(self):
+        try:
+            return self._each_moment_update_untraced()
+        finally:
+            # Includes recovery screens and all early returns.
+            self._trace_maintenance_ui('tick')
+    # END TEMPORARY MAINTENANCE TEST TRACE
+
+    def _process_input_untraced(self, event):
         if event.kind == 'power_on':
             if not self._closed:
                 self.pd.power_on_if_off()
@@ -3415,7 +3437,7 @@ class PetrelDisplay(RecoveryViewMixin, PrintFocusMixin, PowerShortcutMixin, Buzz
     # --------------------------------------------------------------#
     # --------------------------------------------------------------#
 
-    def EachMomentUpdate(self):
+    def _each_moment_update_untraced(self):
         self._poll_case_light_live()
         self._sync_case_light_tracking()
         self._poll_case_light_state()

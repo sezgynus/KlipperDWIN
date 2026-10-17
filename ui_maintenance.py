@@ -7,6 +7,13 @@ from types import SimpleNamespace
 
 
 class MaintenanceViewMixin:
+    # BEGIN TEMPORARY MAINTENANCE TEST TRACE
+    def _trace_maintenance_ui(self,kind='tick',event=None,title=None,entries=None):
+        trace = getattr(self.pd,'maintenance_test_trace',None)
+        if trace is not None and trace.active:
+            trace.ui(self,kind,event,title,entries)
+    # END TEMPORARY MAINTENANCE TEST TRACE
+
     def _maintenance_back_home(self):
         self._maintenance_page = 'root'
         self._maintenance_selection = 0
@@ -21,7 +28,8 @@ class MaintenanceViewMixin:
         back = ('Back', self.ICON_Back, None, None)
         if page == 'root':
             return 'Maintenance', (back, ('Self Tests', self.ICON_FanSpeed, None, None),
-                                   ('Diagnostics', self.ICON_Info, None, None))
+                                   ('Diagnostics', self.ICON_Info, None, None),
+                                   (self.pd.maintenance_test_recording_label(), self.ICON_Info, None, None))
         if page == 'tests':
             options = tuple(self.pd.maintenance_guided_plan())
             self._maintenance_test_rows = options
@@ -199,6 +207,7 @@ class MaintenanceViewMixin:
         self._maintenance_selection = max(0, min(
             getattr(self, '_maintenance_selection', 0), len(entries) - 1))
         self._draw_list_menu(title, entries, self._maintenance_selection)
+        self._trace_maintenance_ui('draw',title=title,entries=entries)
         if color is not None:
             self.lcd.draw_rectangle(1,color,16,150,255,460)
 
@@ -239,6 +248,10 @@ class MaintenanceViewMixin:
                 self._maintenance_show('tests')
             elif selected == 2:
                 self._maintenance_show('diagnostics')
+            elif selected == 3:
+                # TEMPORARY MAINTENANCE TEST TRACE: no test dispatch.
+                self.pd.toggle_maintenance_test_recording()
+                self._maintenance_show('root',3)
             return
         if page in ('tests', 'diagnostics'):
             if selected == 0:

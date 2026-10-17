@@ -49,6 +49,23 @@ class MaintenanceProbeController(FirmwareWorkflow):
         self._dimension = None
         self._initial_force = None
         self._measured = set()
+        self._p01_active = False
+        self._p01_cancel_requested = False
+
+    def _p01_hook(self, name):
+        """Read the configured, exact Klipper G-code text; never infer servo settings."""
+        config = self._printer.state.settings.get('probe',
+                 self._printer.state.settings.get('bltouch', {}))
+        if not isinstance(config, Mapping):
+            raise ValueError('probe_config_unavailable')
+        script = config.get(name, '')
+        if not isinstance(script, str):
+            raise ValueError('probe_gcode_invalid')
+        # Moonraker's gcode.script executes G-code, not Klipper's Jinja
+        # TemplateWrapper. Do not send unrendered templates as commands.
+        if '{' in script or '}' in script:
+            raise ValueError('probe_template_requires_native_execution')
+        return script
 
     @property
     def moving(self):
@@ -122,6 +139,23 @@ class MaintenanceProbeController(FirmwareWorkflow):
         return super().choose(selected)
 
     def cancel(self):
+        if self.feature_id == 'P01' and self._p01_active:
+            if self._action == 'deactivate':
+                # A cleanup already in progress must not be interrupted.
+                return None
+            self._p01_cancel_requested = True
+            if self.phase in ('running', 'verifying'):
+                # Wait for the in-flight QUERY_PROBE to finish before stowing.
+                return None
+            if self._future is not None:
+                self._future.cancel()
+            self._schedule('deactivate', True)
+            return None
+        if self.feature_id == 'P01' and self.phase in ('running','verifying'):
+            # Even if activate+query is still in flight, it may have deployed.
+            # Do not drop the owner while Klipper is executing that script.
+            self._p01_cancel_requested = True
+            return None
         if self.phase == 'workflow' and self.feature_id == 'P19':
             self._cancel_after_stow = True
             self._schedule('stow', True)
@@ -135,6 +169,7 @@ class MaintenanceProbeController(FirmwareWorkflow):
         self._cancel_after_stow = False
         self._stage, self._dimension, self._initial_force = 0, None, None
         self._measured = set()
+        self._p01_active = self._p01_cancel_requested = False
         return super().start(*args, **kwargs)
 
     def fields(self):
@@ -157,6 +192,11 @@ class MaintenanceProbeController(FirmwareWorkflow):
 
     def validate(self, values, action):
         super().validate(values,action)
+        if self.feature_id == 'P01' and action == 'start':
+            activate = self._p01_hook('activate_gcode')
+            deactivate = self._p01_hook('deactivate_gcode')
+            if bool(activate.strip()) != bool(deactivate.strip()):
+                raise ValueError('probe_activate_deactivate_pair_required')
         if self.feature_id in ('P03','P04'):
             th = values['toolhead']
             low, high = vector(th['axis_minimum']), vector(th['axis_maximum'])
@@ -192,7 +232,15 @@ class MaintenanceProbeController(FirmwareWorkflow):
         if action in ('accept','adjusted'):
             return action.upper()
         if f == 'P01':
-            return 'QUERY_PROBE'
+            if action == 'start':
+                activate = self._p01_hook('activate_gcode')
+                # Send the exact configured activate_gcode before first read.
+                return activate + '\nQUERY_PROBE' if activate.strip() else 'QUERY_PROBE'
+            if action == 'deactivate':
+                return self._p01_hook('deactivate_gcode')
+            if action == 'query':
+                return 'QUERY_PROBE'
+            raise ValueError('probe_action_invalid')
         if f == 'P02':
             return 'LOAD_CELL_TEST_TAP TAPS=1 TIMEOUT=60'
         if f == 'P03':
@@ -236,6 +284,21 @@ class MaintenanceProbeController(FirmwareWorkflow):
                 return self._finish('INCONCLUSIVE','manual_abort_unconfirmed')
             return self._finish('ABORTED','owned_calibration_aborted_no_save')
         if f == 'P01':
+            if self._action == 'deactivate':
+                self._p01_active = False
+                if self._p01_cancel_requested:
+                    return self._finish('ABORTED','probe_deactivated_after_cancel',
+                        (('deactivate_gcode_completed',True),), True)
+                return self._finish('PASSED','probe_open_triggered_open',
+                    (('transitions','open > TRIGGERED > open'),
+                     ('deactivate_gcode_completed',True)), True)
+            if self._action == 'start':
+                self._p01_active = bool(self._p01_hook('activate_gcode').strip())
+            if self._p01_cancel_requested:
+                if self._p01_active:
+                    self._schedule('deactivate',True)
+                    return None
+                return self._finish('ABORTED','probe_cancelled_before_activation')
             states = re.findall(r'probe:\s*(open|TRIGGERED)', '\n'.join(lines))
             expected = ('open','TRIGGERED','open')[self._stage]
             if not states or states[-1] != expected:
@@ -243,6 +306,9 @@ class MaintenanceProbeController(FirmwareWorkflow):
                 return None
             self._stage += 1
             if self._stage == 3:
+                if self._p01_active:
+                    self._schedule('deactivate',True)
+                    return None
                 return self._finish('PASSED','probe_open_triggered_open',
                     (('transitions','open > TRIGGERED > open'),), True)
             self._phase = 'workflow'

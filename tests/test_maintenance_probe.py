@@ -82,6 +82,17 @@ class ProbeWorkflowTests(unittest.TestCase):
             self.command.set_result('ok')
         return self.command
 
+    def set_probe_hooks(self, activate, deactivate):
+        # Simulates Moonraker's real configfile.settings snapshot,
+        # not a fixture-specific servo name embedded in Petrel.
+        from dataclasses import replace
+        from printer_state import PrinterState
+        self.raw['settings']['probe'] = {
+            'pin':'PB1','activate_gcode':activate,'deactivate_gcode':deactivate}
+        self.p.state = PrinterState.from_snapshot(self.raw)
+        self.p.maintenance.snapshot = replace(self.p.maintenance.snapshot,
+                        config_marker=id(self.p.state.settings))
+
     def arm(self,feature='P01'):
         self.assertTrue(self.owner.start(feature)[0])
         self.worker.drain()
@@ -180,6 +191,104 @@ class ProbeWorkflowTests(unittest.TestCase):
             result = self.complete(('probe: '+state,))
         self.assertEqual(result.status,'PASSED')
         self.assertEqual(dict(result.evidence)['transitions'],'open > TRIGGERED > open')
+
+    def test_p01_dispatches_exact_configured_gcode_and_restores_after_three_reads(self):
+        activate = ('SET_SERVO SERVO=probe_servo ANGLE=35   # deploy\\n'
+                    'G4 P500\\n'
+                    'SET_SERVO SERVO=probe_servo WIDTH=0')
+        deactivate = ('SET_SERVO SERVO=probe_servo ANGLE=103  # retract\\n'
+                      'G4 P500\\n'
+                      'SET_SERVO SERVO=probe_servo WIDTH=0')
+        self.set_probe_hooks(activate, deactivate)
+        self.arm()
+        self.dispatch()
+        self.assertEqual(self.commands[0][1]['script'], activate+'\\nQUERY_PROBE')
+        self.assertIsNone(self.complete(('probe: open',)))
+        for state in ('TRIGGERED','open'):
+            self.assertTrue(self.owner.choose(0)[0])
+            self.worker.drain()
+            self.assertIsNone(self.owner.poll())
+            self.assertEqual(self.commands[-1][1]['script'],'QUERY_PROBE')
+            self.assertIsNone(self.complete(('probe: '+state,)))
+        # No PASS until the user's own deactivate_gcode has completed.
+        self.assertEqual(self.owner.phase,'preflight')
+        self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.commands[-1][1]['script'],deactivate)
+        result = self.complete()
+        self.assertEqual(result.status,'PASSED')
+        self.assertTrue(result.restore_verified)
+        self.assertEqual(dict(result.evidence)['transitions'],
+                         'open > TRIGGERED > open')
+        self.assertTrue(dict(result.evidence)['deactivate_gcode_completed'])
+        self.assertEqual(len(self.commands),4)
+        self.assertNotIn('SAVE_CONFIG',str(self.commands))
+
+    def test_p01_cancel_after_activation_runs_deactivate_first(self):
+        self.set_probe_hooks('SET_SERVO SERVO=probe_servo ANGLE=35',
+                             'SET_SERVO SERVO=probe_servo ANGLE=103')
+        self.arm()
+        self.dispatch()
+        self.complete(('probe: open',))
+        self.assertIsNone(self.owner.cancel())
+        self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.commands[-1][1]['script'],
+                         'SET_SERVO SERVO=probe_servo ANGLE=103')
+        result = self.complete()
+        self.assertEqual(result.status,'ABORTED')
+        self.assertTrue(result.restore_verified)
+        self.assertEqual(result.reason,'probe_deactivated_after_cancel')
+        self.assertEqual(len(self.commands),2)
+
+    def test_p01_cancel_during_activation_waits_then_deactivates(self):
+        self.set_probe_hooks('SET_SERVO SERVO=probe_servo WIDTH=0',
+                             'SET_SERVO SERVO=probe_servo ANGLE=103')
+        self.arm()
+        self.dispatch()
+        self.assertIsNone(self.owner.cancel())
+        self.assertEqual(len(self.commands),1)
+        self.assertIsNone(self.complete(('probe: open',)))
+        self.worker.drain()
+        self.assertIsNone(self.owner.poll())
+        self.assertEqual(self.commands[-1][1]['script'],
+                         'SET_SERVO SERVO=probe_servo ANGLE=103')
+        result = self.complete()
+        self.assertEqual(result.status,'ABORTED')
+        self.assertTrue(result.restore_verified)
+
+    def test_p01_wrong_probe_status_waits_and_cancel_restores(self):
+        self.set_probe_hooks('SET_SERVO SERVO=probe_servo ANGLE=35',
+                             'SET_SERVO SERVO=probe_servo ANGLE=103')
+        self.arm()
+        self.dispatch()
+        self.assertIsNone(self.complete(('probe: TRIGGERED',)))
+        self.assertEqual(self.owner._stage,0)
+        self.assertEqual(self.owner.phase,'workflow')
+        self.owner.cancel()
+        self.worker.drain()
+        self.owner.poll()
+        self.assertEqual(self.commands[-1][1]['script'],
+                         'SET_SERVO SERVO=probe_servo ANGLE=103')
+        self.assertEqual(self.complete().status,'ABORTED')
+
+    def test_p01_rejects_half_configured_hooks_or_raw_jinja(self):
+        for activate,deactivate,reason in (
+                ('SET_SERVO SERVO=p ANGLE=90','',
+                 'probe_activate_deactivate_pair_required'),
+                ('','SET_SERVO SERVO=p WIDTH=0',
+                 'probe_activate_deactivate_pair_required'),
+                ('{% if printer.toolhead.homed_axes %}SET_SERVO{% endif %}',
+                 'SET_SERVO SERVO=p WIDTH=0',
+                 'probe_template_requires_native_execution')):
+            with self.subTest(reason=reason, activate=activate):
+                self.set_probe_hooks(activate,deactivate)
+                self.assertTrue(self.owner.start('P01')[0])
+                self.worker.drain()
+                result=self.owner.poll()
+                self.assertEqual(result.status,'BLOCKED')
+                self.assertEqual(result.reason,reason)
+                self.assertEqual(self.commands,[])
 
     def test_worker_pressure_never_reuses_a_completed_command_or_preflight(self):
         self.arm()

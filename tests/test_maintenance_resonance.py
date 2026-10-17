@@ -105,6 +105,13 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertIn('TEST_RESONANCES',self.commands[0][1]['script'])
         self.assertEqual(len(self.commands),1)
 
+    def _replace_pending_safety_read(self, work):
+        """Replace the task already submitted to the bounded fake worker."""
+        current = self.owner._safety_future
+        self.assertIsNotNone(current)
+        self.assertIs(self.worker.jobs[-1][1], current)
+        self.worker.jobs[-1] = (work, current)
+
     def test_r02_queue_refresh_delay_does_not_trigger_false_emergency_stop(self):
         self._running_r02()
         # Reproduce the real 3.07-second gap during the long command.
@@ -133,7 +140,7 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self.assertIsNone(self.owner.poll())
         future.done.assert_called_once()
         self.assertEqual(self.owner.phase,'running')
-        self.assertEqual(self.owner._safety_reason,'queue_unknown')
+        self.assertEqual(self.owner._safety_reason,'allowed')
         self.assertGreater(self.owner._queue_age_s,3.)
         self.assertEqual(self.owner._refresh_reason,'queue_refresh_unconsumed')
         self.assertEqual([x[0] for x in self.commands],['printer.gcode.script'])
@@ -159,8 +166,8 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self._running_r02()
         self.clock += 3.07
         self.assertIsNone(self.owner.poll())
-        with patch.object(self.owner,'runtime_evidence',return_value=None):
-            self.worker.drain()
+        self._replace_pending_safety_read(lambda:None)
+        self.worker.drain()
         self.assertIsNone(self.owner.poll())
         self.assertEqual(self.owner.phase,'running')
         self.assertEqual(self.owner._refresh_reason,'queue_read_retry')
@@ -179,8 +186,10 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self._running_r02()
         self.clock += 3.07
         self.assertIsNone(self.owner.poll())
-        with patch.object(self.owner,'runtime_evidence',side_effect=RuntimeError('offline')):
-            self.worker.drain()
+        def failed_read():
+            raise RuntimeError('offline')
+        self._replace_pending_safety_read(failed_read)
+        self.worker.drain()
         self.assertIsNone(self.owner.poll())
         self.assertEqual(self.owner.phase,'running')
         self.assertEqual(self.owner._refresh_reason,'queue_read_retry')
@@ -203,10 +212,10 @@ class ResonanceWorkflowTests(unittest.TestCase):
         self._running_r02()
         self.clock += 3.07
         self.assertIsNone(self.owner.poll())
-        with patch.object(self.owner,'runtime_evidence',side_effect=lambda:QueueEvidence(
+        self._replace_pending_safety_read(lambda:QueueEvidence(
                 self.owner._row.epoch,self.owner._row.config_marker,
-                self.clock,True,'ready',False)):
-            self.worker.drain()
+                self.clock,True,'ready',False))
+        self.worker.drain()
         self.assertIsNone(self.owner.poll())
         self.assertEqual(self.owner.phase,'stopping')
         self.assertEqual(self.owner._safety_reason,'queue_pending_or_busy')

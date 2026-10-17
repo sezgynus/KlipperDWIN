@@ -40,6 +40,9 @@ def clean(value, depth=0):
     if type(value) in (int, float):
         return value if math.isfinite(value) else None
     if isinstance(value, str):
+        phase=re.fullmatch(r'([0-9]{1,4})/([0-9]{1,4})',value)
+        if phase and 0<=int(phase[1])<int(phase[2])<=4096:
+            return value
         return value if (len(value)<=240 and TEXT.fullmatch(value)
                          and not re.search(r'(?<! )/|/(?! )',value)) else '[omitted]'
     if isinstance(value, (tuple, list)):

@@ -90,6 +90,67 @@
       "result_seq": 303,
       "controller_result": "INCONCLUSIVE",
       "physical_acceptance": false
+    },
+    "physical_trace_2026_10_17_motion_batch": {
+      "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+      "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+      "events": 2545,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "accepted_targets": [
+        {
+          "feature_id": "M04",
+          "target": "stepper_x"
+        },
+        {
+          "feature_id": "M04",
+          "target": "stepper_y"
+        },
+        {
+          "feature_id": "M04",
+          "target": "stepper_z"
+        },
+        {
+          "feature_id": "M05",
+          "target": "axis X"
+        },
+        {
+          "feature_id": "M05",
+          "target": "axis Y"
+        },
+        {
+          "feature_id": "M05",
+          "target": "axis Z"
+        },
+        {
+          "feature_id": "M06",
+          "target": "axis X"
+        },
+        {
+          "feature_id": "M06",
+          "target": "axis Y"
+        },
+        {
+          "feature_id": "M06",
+          "target": "axis Z"
+        },
+        {
+          "feature_id": "M12",
+          "target": "endstop_phase X"
+        },
+        {
+          "feature_id": "M10",
+          "target": "tmc2208 stepper_x"
+        },
+        {
+          "feature_id": "M10",
+          "target": "tmc2208 stepper_y"
+        },
+        {
+          "feature_id": "M10",
+          "target": "tmc2208 stepper_z"
+        }
+      ]
     }
   },
   "policy": {
@@ -491,10 +552,45 @@
       "title": "Stepper coarse movement",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Physical acceptance pending. Latest trace verifies automatic homing, then definitive pre-send guard rejection clear_mesh_before_motion_test. Cleared-mesh placeholder and unnecessary shutdown for confirmed pre-send rejection corrected; physical retest pending.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 3,
+          "observe_seq": 553,
+          "result_seq": 555
+        }
+      },
+      "retest_required": false,
+      "previous_attempts": [
+        {
+          "date": "2026-10-17",
+          "source": "user_explicit_physical_observation",
+          "controller_result": "FAILED_USER",
+          "restore_verified": true,
+          "trace": {
+            "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+            "run": 1,
+            "observe_seq": 326,
+            "result_seq": 328
+          },
+          "observation": "Controller recorded FAILED_USER from accidental Not observed selection; operator explicitly invalidated this selection. Later runs 2 and 3 accepted the target.",
+          "operator_correction": {
+            "date": "2026-10-17",
+            "accidental_selection": true,
+            "exclude_from_physical_failure": true,
+            "observation": "Operator explicitly clarified that Not observed was selected accidentally and must be disregarded."
+          }
+        }
+      ]
     },
     {
       "feature_id": "M04",
@@ -502,10 +598,24 @@
       "title": "Stepper coarse movement",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 4,
+          "observe_seq": 675,
+          "result_seq": 677
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M04",
@@ -513,10 +623,24 @@
       "title": "Stepper coarse movement",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 5,
+          "observe_seq": 794,
+          "result_seq": 796
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M05",
@@ -524,10 +648,24 @@
       "title": "Axis coarse travel",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 7,
+          "observe_seq": 966,
+          "result_seq": 968
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M05",
@@ -535,10 +673,24 @@
       "title": "Axis coarse travel",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 9,
+          "observe_seq": 1115,
+          "result_seq": 1117
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M05",
@@ -546,10 +698,24 @@
       "title": "Axis coarse travel",
       "method": "U",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 12,
+          "observe_seq": 1308,
+          "result_seq": 1310
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M06",
@@ -557,10 +723,30 @@
       "title": "Measured axis travel",
       "method": "E",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 13,
+          "observe_seq": 1498,
+          "result_seq": 1500
+        },
+        "measurements": {
+          "commanded_mm": 10,
+          "operator_entered_mm": 10,
+          "error_mm": 0,
+          "measurement_source": "operator_report_not_independent_metrology"
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M06",
@@ -568,10 +754,30 @@
       "title": "Measured axis travel",
       "method": "E",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 14,
+          "observe_seq": 1701,
+          "result_seq": 1703
+        },
+        "measurements": {
+          "commanded_mm": 10,
+          "operator_entered_mm": 10,
+          "error_mm": 0,
+          "measurement_source": "operator_report_not_independent_metrology"
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M06",
@@ -579,10 +785,30 @@
       "title": "Measured axis travel",
       "method": "E",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED_USER",
+        "restore_verified": true,
+        "observation": "Operator explicitly accepted physical movement and return after controller restoration readback.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 15,
+          "observe_seq": 1935,
+          "result_seq": 1937
+        },
+        "measurements": {
+          "commanded_mm": 10,
+          "operator_entered_mm": 10,
+          "error_mm": 0,
+          "measurement_source": "operator_report_not_independent_metrology"
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M07",
@@ -634,10 +860,29 @@
       "title": "TMC driver fault diagnostics",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 23,
+          "observe_seq": 2355,
+          "result_seq": 2357
+        },
+        "measurements": {
+          "fault_count": 0,
+          "faults": "none",
+          "motor_health_verified": false
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M10",
@@ -645,10 +890,29 @@
       "title": "TMC driver fault diagnostics",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 24,
+          "observe_seq": 2394,
+          "result_seq": 2396
+        },
+        "measurements": {
+          "fault_count": 0,
+          "faults": "none",
+          "motor_health_verified": false
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M10",
@@ -656,10 +920,29 @@
       "title": "TMC driver fault diagnostics",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
-      "acceptance": null
+      "note": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 25,
+          "observe_seq": 2452,
+          "result_seq": 2454
+        },
+        "measurements": {
+          "fault_count": 0,
+          "faults": "none",
+          "motor_health_verified": false
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M10",
@@ -678,10 +961,29 @@
       "title": "Endstop phase calibration",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Implemented exact configured physical-stepper phase calibration from existing homing history; pending config only, no automatic SAVE_CONFIG. Pending operator acceptance.",
-      "acceptance": null
+      "note": "Operator observed phase calibration; pending config deliberately retained without SAVE_CONFIG. Numerical trigger phase was omitted by the old trace sanitizer.",
+      "acceptance": {
+        "date": "2026-10-17",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator observed phase calibration; pending config deliberately retained without SAVE_CONFIG. Numerical trigger phase was omitted by the old trace sanitizer.",
+        "trace": {
+          "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+          "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+          "run": 16,
+          "observe_seq": 2019,
+          "result_seq": 2021
+        },
+        "measurements": {
+          "pending_config": true,
+          "saved": false,
+          "trigger_phase_recorded": false
+        }
+      },
+      "retest_required": false
     },
     {
       "feature_id": "M12",

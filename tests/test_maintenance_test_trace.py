@@ -156,6 +156,15 @@ class TestRecorder(unittest.TestCase):
         self.assertEqual(values['bed_mesh']['mesh_min'],[0,0])
         self.assertNotIn('mesh_matrix',values['bed_mesh'])
 
+    def test_numeric_trigger_phase_survives_without_allowing_paths(self):
+        self.assertEqual(clean('7/64'),'7/64')
+        self.assertEqual(clean('0/4096'),'0/4096')
+        for value in ('64/64','0/0','7/9999','/etc/private','home/pi/private'):
+            self.assertEqual(clean(value),'[omitted]')
+        from maintenance_test_trace import owner_snapshot
+        owner=SimpleNamespace(_evidence=(('trigger_phase','7/64'),))
+        self.assertEqual(owner_snapshot(owner)['evidence'],[['trigger_phase','7/64']])
+
     def test_static_mmu_errors_and_spaced_ui_labels_survive_without_paths(self):
         from maintenance_test_trace import error_info,measurements
         self.assertEqual(error_info(ValueError('Unload filament first'))['code'],'mmu_unload_filament_first')

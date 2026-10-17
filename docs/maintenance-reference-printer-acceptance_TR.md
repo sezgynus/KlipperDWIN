@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **12 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **25 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 12 KABUL, 52 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 25 KABUL, 39 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -32,6 +32,19 @@
 | [x] | M01 | `physical X endstop` | Fiziksel endstop basma/bırakma | Kullanıcı onayı; serbest durum doğrulandı | **KABUL** |
 | [x] | M01 | `physical Y endstop` | Fiziksel endstop basma/bırakma | Kullanıcı onayı; serbest durum doğrulandı | **KABUL** |
 | [x] | M03 | `Cartesian X/Y/Z homing` | Homing tamamlanması | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M04 | `stepper_x` | Step motoru kaba hareketi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M04 | `stepper_y` | Step motoru kaba hareketi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M04 | `stepper_z` | Step motoru kaba hareketi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M05 | `axis X` | Eksen kaba hareketi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M05 | `axis Y` | Eksen kaba hareketi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M05 | `axis Z` | Eksen kaba hareketi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M06 | `axis X` | Haricî ölçümle eksen mesafesi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M06 | `axis Y` | Haricî ölçümle eksen mesafesi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M06 | `axis Z` | Haricî ölçümle eksen mesafesi | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
+| [x] | M12 | `endstop_phase X` | Endstop phase kalibrasyonu | Kullanıcı gözlemi; sınırlı sonuç | **KABUL** |
+| [x] | M10 | `tmc2208 stepper_x` | TMC hata bitleri | Kullanıcı gözlemi; sınırlı sonuç | **KABUL** |
+| [x] | M10 | `tmc2208 stepper_y` | TMC hata bitleri | Kullanıcı gözlemi; sınırlı sonuç | **KABUL** |
+| [x] | M10 | `tmc2208 stepper_z` | TMC hata bitleri | Kullanıcı gözlemi; sınırlı sonuç | **KABUL** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
@@ -53,24 +66,11 @@
 | [ ] | H09 | `heater_bed` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `extruder` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | M04 | `stepper_x` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M04 | `stepper_y` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M04 | `stepper_z` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M05 | `axis X` | Eksen kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M05 | `axis Y` | Eksen kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M05 | `axis Z` | Eksen kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M06 | `axis X` | Haricî ölçümle eksen mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M06 | `axis Y` | Haricî ölçümle eksen mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M06 | `axis Z` | Haricî ölçümle eksen mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M07 | `tmc2208 stepper_x` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M07 | `tmc2208 stepper_y` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M07 | `tmc2208 stepper_z` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M07 | `tmc2208 extruder` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 stepper_x` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 stepper_y` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 stepper_z` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M10 | `tmc2208 extruder` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M12 | `endstop_phase X` | Endstop phase kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M12 | `endstop_phase Y` | Endstop phase kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P01 | `probe` | Prob tetikleme | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -123,7 +123,7 @@
 
 **H uygulama durumu:** Referans yazıcının 16 fiziksel H hedefinin adaptörleri hazır; hiçbirinin fiziksel kabulü henüz yapılmadı. Toplu test sırası ve H01–H18 kapsamı için [termal rehber](maintenance-thermal_TR.md).
 
-**M uygulama durumu:** 22 doğrulanmış M hedefinde adaptör mevcut; M01 fiziksel X/Y endstopları ve M03 XYZ homing kabul edildi. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
+**M uygulama durumu:** 22 doğrulanmış M hedefinde adaptör mevcut; 16 hedef kullanıcı tarafından kabul edildi. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
 
 **P/R/E/S/O geliştirme kaydı (17 Ekim 2026):** Grup adaptörleri ve regresyonları eklendi; hiçbir yeni fiziksel kabul verilmedi. Probe Calibration, Bed Mesh ve Screws Tilt mevcut Leveling’de kalır. Koşullu profil/kaynak gereksinimleri sürer. Rehberler: [P](maintenance-probe_TR.md), [R](maintenance-resonance_TR.md), [E](maintenance-filament_TR.md), [S](maintenance-system_TR.md), [O](maintenance-auxiliary_TR.md). Genel bütünleştirme bu çalışmaya dahil değildir.
 
@@ -134,3 +134,7 @@
 **Sonraki kayıt (17 Ekim, `b04c94981b594e06b991b254996a34a0`):** 330 sıralı olay, kayıp/yazma hatası yok; dönen iki dosya birlikte incelendi. M03 tek onay #96 → güvenlik yenileme #102 → gönderim isteği #105 → kullanıcı gözlemi #191 → PASSED_USER #193, geri yükleme doğru. Sonuçtan Self Tests'e dönüş Back girdisiyle #197'de gerçekleşti. M04 X de tek onayla yenilendi; #231 komut isteği, #233 genel Future hatası, #235 Petrel güvenlik durdurması, #241 INCONCLUSIVE. Genel hata metni nedeniyle tel üzerinden gönderim/Klipper cevabı ile gönderim öncesi guard reddi ayırt edilemiyor; kök neden kesin değil. M04 kabul edilmedi. Tanılama artık gönderim aşaması, son guard nedeni, güvenli sunucu hata kategorisi/kodu, motor etkinliği ve sınırlı mesh/hız verilerini tutar. Sonraki fiziksel denemeye kadar M04 çalışma düzeltmesi doğrulanmış sayılmaz.
 
 **Otomatik homing kaydı (17 Ekim):** `8bf95a8e7cc6431c99ede09170b26605`, HEAD `4e2f713`, 448 olay, kayıp/yazma hatası yok. M04/X tek onay #120 ile gerekli homing'i tamamlayıp asıl teste geçti. #295, gönderim öncesi guard reddini ve clear_mesh_before_motion_test nedenini kesinleştirdi; test komutu socket'e yazılmadı. Sonraki #297 shutdown Petrel tarafından gereksiz istendi, #303 INCONCLUSIVE oldu. Boş [[]] mesh gösterimi ve kesin gönderim öncesi reddin shutdown'a dönüşmesi düzeltildi. M04 kabul verilmedi; önceki M03 kabulü değişmedi.
+
+**Hareket toplu kabulü (17 Ekim):** `3e8f0231f5a84e8eaeae6944aba6951d`, HEAD `537e037`: 2545 kesintisiz olay, kayıp/yazma hatası yok. M04/M05/M06 X/Y/Z (9 hedef) açık gözlem + PASSED_USER + geri yükleme doğrulamasıyla kabul edildi. M06'da kullanıcı her eksene 10 mm girdi ve ayrı dönüş onayı verdi; bu bağımsız metroloji değildir. M12/X OBSERVED_USER ile kabul edildi; pending config kasıtlı kaldı, kaydedilmedi, sayısal faz eski sanitizer tarafından gizlendi. M10 X/Y/Z açık gözlem ve 0 raporlanan hata ile kabul edildi; motor sağlığı PASS'i değildir. İlk M04/X Not observed seçiminin yanlışlıkla yapıldığı kullanıcı tarafından açıklandı; fiziksel başarısızlık sayılmaz. Sonraki iki açık kabul geçerlidir. M05/Z bir kez kullanıcı tarafından hareket öncesi iptal edildi, sonra kabul edildi. M01/X yeniden geçti; önceki kabul değişmedi. M12/Y ve M10/extruder kabul edilmedi. Komut hatası/shutdown yok; tüm test ekranı çıkışları sonuç sayfasına gitti.
+
+Sayısal trigger_phase kaybı düzeltildi: logger artık yalnız geçerli `0 <= faz < toplam <= 4096` biçimindeki kesri korur; dosya yolları hâlâ çıkarılır. Geçmişte gizlenmiş faz değeri uydurulmaz.

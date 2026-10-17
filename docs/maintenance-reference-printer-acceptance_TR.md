@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **11 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **12 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 11 KABUL, 53 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 12 KABUL, 52 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -31,6 +31,7 @@
 | [x] | S17 | `DWIN backlight` | LCD arka ışık testi | Kullanıcı gördü; restore doğrulandı | **KABUL** |
 | [x] | M01 | `physical X endstop` | Fiziksel endstop basma/bırakma | Kullanıcı onayı; serbest durum doğrulandı | **KABUL** |
 | [x] | M01 | `physical Y endstop` | Fiziksel endstop basma/bırakma | Kullanıcı onayı; serbest durum doğrulandı | **KABUL** |
+| [x] | M03 | `Cartesian X/Y/Z homing` | Homing tamamlanması | Kullanıcı gözlemi; geri yükleme doğrulandı | **KABUL** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
@@ -52,7 +53,6 @@
 | [ ] | H09 | `heater_bed` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `extruder` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | M03 | `Cartesian X/Y/Z homing` | Homing tamamlanması | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M04 | `stepper_x` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M04 | `stepper_y` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M04 | `stepper_z` | Step motoru kaba hareketi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -123,6 +123,8 @@
 
 **H uygulama durumu:** Referans yazıcının 16 fiziksel H hedefinin adaptörleri hazır; hiçbirinin fiziksel kabulü henüz yapılmadı. Toplu test sırası ve H01–H18 kapsamı için [termal rehber](maintenance-thermal_TR.md).
 
-**M uygulama durumu:** 22 doğrulanmış M hedefinde adaptör mevcut; fiziksel kabul henüz yok. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
+**M uygulama durumu:** 22 doğrulanmış M hedefinde adaptör mevcut; M01 fiziksel X/Y endstopları ve M03 XYZ homing kabul edildi. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
 
 **P/R/E/S/O geliştirme kaydı (17 Ekim 2026):** Grup adaptörleri ve regresyonları eklendi; hiçbir yeni fiziksel kabul verilmedi. Probe Calibration, Bed Mesh ve Screws Tilt mevcut Leveling’de kalır. Koşullu profil/kaynak gereksinimleri sürer. Rehberler: [P](maintenance-probe_TR.md), [R](maintenance-resonance_TR.md), [E](maintenance-filament_TR.md), [S](maintenance-system_TR.md), [O](maintenance-auxiliary_TR.md). Genel bütünleştirme bu çalışmaya dahil değildir.
+
+**M03 fiziksel kabul (17 Ekim):** `a4ad65170ed04b649b0a1a58c9c55b53` oturumunda `observe(true)` #220, `PASSED_USER` #222 ve `restore_verified=true`. Son okuma: `homed_axes=xyz`, X=157.9, Y=141.5, Z=10 mm. 274 olayda kayıp/yazma hatası yok; güvenlik durdurması veya UI işleyici hatası kaydedilmedi.

@@ -6,9 +6,9 @@
 
 **Evidence boundary:** the independent 121-ID hardware reference from 15 Oct 2026, the 16 Oct 2026 discovery log and explicit user observations. The log confirms **54 discovered features**, but no serialized list of their exact IDs was preserved. Here, `confirmed` means confirmed by the independent capability reference, **not** an exact complete dump of the 54 currently observed IDs. `conditional` entries are not currently authorized, discoverable test commands.
 
-**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Eleven** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
+**Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Twelve** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **70 rows / 48 IDs** — 11 ACCEPTED, 53 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+**Per-device tracking:** **70 rows / 48 IDs** — 12 ACCEPTED, 52 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
 
 **Mandatory after each user-approved test:** set only that target's JSON `status` to `accepted`; record date, operator observation, controller outcome and `restore_verified` in `acceptance`; check only the corresponding target in both EN/TR tables in the same signed commit. Add relevant regressions; verify the full CI suite on the **bot-signed HEAD**. Never mark an item done because of a config line, HTTP success, G-code OK, simulated CI or an informational read. Never merge `master` without explicit request.
 
@@ -31,6 +31,7 @@
 | [x] | S17 | `DWIN backlight` | Backlight observation | Operator observed; restore verified | **ACCEPTED** |
 | [x] | M01 | `physical X endstop` | Physical endstop press/release | Operator observed; released state verified | **ACCEPTED** |
 | [x] | M01 | `physical Y endstop` | Physical endstop press/release | Operator observed; released state verified | **ACCEPTED** |
+| [x] | M03 | `Cartesian X/Y/Z homing` | Homing completion | Operator observed; restore verified | **ACCEPTED** |
 
 ## Reference-confirmed hardware — adapter/acceptance pending
 
@@ -52,7 +53,6 @@
 | [ ] | H09 | `heater_bed` | Cooling rate | Available; batch acceptance pending | **PENDING** |
 | [ ] | H13 | `extruder` | Heater response warning | Available; batch acceptance pending | **PENDING** |
 | [ ] | H13 | `heater_bed` | Heater response warning | Available; batch acceptance pending | **PENDING** |
-| [ ] | M03 | `Cartesian X/Y/Z homing` | Homing completion | Available; physical acceptance pending | **PENDING** |
 | [ ] | M04 | `stepper_x` | Stepper coarse movement | Available; physical acceptance pending | **PENDING** |
 | [ ] | M04 | `stepper_y` | Stepper coarse movement | Available; physical acceptance pending | **PENDING** |
 | [ ] | M04 | `stepper_z` | Stepper coarse movement | Available; physical acceptance pending | **PENDING** |
@@ -123,6 +123,8 @@
 
 **H implementation status:** All 16 reference physical H targets have adapters; none has physical acceptance yet. See the [thermal guide](maintenance-thermal.md) for final batch order and H01–H18 scope.
 
-**M implementation status:** Adapters exist for 22 confirmed M targets; no physical acceptance yet. M07 is INFORMATION only, not a motor-health PASS. H acceptance states are unchanged by this development. [Motion guide](maintenance-motion.md).
+**M implementation status:** Adapters exist for 22 confirmed M targets; physical X/Y M01 endstops and M03 XYZ homing are accepted. M07 is INFORMATION only, not a motor-health PASS. H acceptance states are unchanged by this development. [Motion guide](maintenance-motion.md).
 
 **P/R/E/S/O implementation record (17 October 2026):** Group adapters and regressions were added; no new physical acceptance was granted. Probe Calibration, Bed Mesh and Screws Tilt remain in existing Leveling. Conditional profile/source requirements remain. Guides: [P](maintenance-probe.md), [R](maintenance-resonance.md), [E](maintenance-filament.md), [S](maintenance-system.md), [O](maintenance-auxiliary.md). Overall integration is outside this work.
+
+**M03 physical acceptance (17 October):** session `a4ad65170ed04b649b0a1a58c9c55b53`, `observe(true)` #220, `PASSED_USER` #222 and `restore_verified=true`. Final readback: `homed_axes=xyz`, X=157.9, Y=141.5, Z=10 mm. All 274 events were retained without write errors; no safety shutdown or UI handler error was recorded.

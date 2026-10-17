@@ -111,9 +111,9 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(by_target[('F04', 'fan_generic (not installed)')]
                          ['status'], 'not_applicable')
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'accepted']), 11)
+                              if e['status'] == 'accepted']), 12)
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'pending']), 53)
+                              if e['status'] == 'pending']), 52)
 
     def test_h_implementation_does_not_grant_physical_acceptance(self):
         targets = [e for e in ledger()['entries']
@@ -133,7 +133,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(len(items),22)
         for item in items:
             self.assertEqual(item['adapter'],'implemented')
-            if item['feature_id']=='M01':
+            if item['feature_id'] in ('M01','M03'):
                 self.assertEqual(item['status'],'accepted')
             else:
                 self.assertEqual(item['status'],'pending')
@@ -183,6 +183,20 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertEqual(trace['session'],'2de3566ce59d476cb020ad83dd5360bf')
             self.assertEqual((trace['run'],trace['observe_seq'],trace['result_seq']),
                              (run,observed,result))
+
+    def test_m03_acceptance_requires_explicit_observation_and_final_xyz_readback(self):
+        item = next(e for e in ledger()['entries'] if e['feature_id'] == 'M03')
+        self.assertEqual(item['target'], 'Cartesian X/Y/Z homing')
+        self.assertEqual(item['status'], 'accepted')
+        evidence = item['acceptance']
+        self.assertEqual(evidence['controller_result'], 'PASSED_USER')
+        self.assertTrue(evidence['restore_verified'])
+        self.assertEqual(evidence['trace']['session'], 'a4ad65170ed04b649b0a1a58c9c55b53')
+        self.assertEqual(evidence['trace']['head'], '4deca8ee79a4b3f4c8cd154869e796f46bb42981')
+        self.assertEqual((evidence['trace']['run'], evidence['trace']['observe_seq'],
+                          evidence['trace']['result_seq']), (1, 220, 222))
+        self.assertEqual(evidence['measurements']['homed_axes'], 'xyz')
+        self.assertEqual(evidence['measurements']['position_xyz'], [157.9, 141.5, 10])
 
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}

@@ -349,6 +349,11 @@ class MaintenanceMotionController:
             try:
                 self._command.result()
             except Exception:
+                if getattr(self._command,'dispatch_stage',None)=='guard_denied':
+                    # The transport rejected before any socket send. There
+                    # is no uncertain movement to stop or automatically retry.
+                    return self._finish('BLOCKED',self._dispatch_guard_reason or
+                                        'motion_dispatch_guard_denied')
                 return self._shutdown('motion_script_failed_or_ambiguous')
             if self.phase=='running':
                 self._phase='verifying'

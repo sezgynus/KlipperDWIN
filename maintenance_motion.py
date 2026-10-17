@@ -84,10 +84,20 @@ def geometry(settings, status, homed=True, homing=False):
             raise ValueError('move_away_from_axis_limits')
         if 'bed_mesh' in settings:
             mesh = status.get('bed_mesh')
-            if not isinstance(mesh, Mapping) or mesh.get('profile_name') or mesh.get('mesh_matrix'):
+            if not isinstance(mesh, Mapping) or mesh.get('profile_name') != '':
                 raise ValueError('clear_mesh_before_motion_test')
-            if 'mesh_matrix' not in mesh:
-                if vector(mesh.get('mesh_min'), 2) != vector(mesh.get('mesh_max'), 2):
+            # Klipper's cleared status has zero bounds and mesh_matrix=[[]].
+            # Both the small HTTP preflight and full frozen subscription
+            # must apply the same contract. A flat numeric mesh is active.
+            if (vector(mesh.get('mesh_min'),2)!=(0.,0.) or
+                    vector(mesh.get('mesh_max'),2)!=(0.,0.)):
+                raise ValueError('clear_mesh_before_motion_test')
+            if 'mesh_matrix' in mesh:
+                matrix=mesh['mesh_matrix']
+                empty=(isinstance(matrix,(tuple,list)) and
+                       (len(matrix)==0 or (len(matrix)==1 and
+                        isinstance(matrix[0],(tuple,list)) and len(matrix[0])==0)))
+                if not empty:
                     raise ValueError('clear_mesh_before_motion_test')
         enabled = status.get('stepper_enable', {}).get('steppers', {})
         if not isinstance(enabled, Mapping) or any(enabled.get('stepper_'+a) is not True for a in 'xyz'):

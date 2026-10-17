@@ -73,6 +73,23 @@
         "restore_verified": false,
         "root_cause": "unknown_original_transport_error_detail_not_retained"
       }
+    },
+    "physical_trace_2026_10_17_auto_home": {
+      "session": "8bf95a8e7cc6431c99ede09170b26605",
+      "head": "4e2f71395637e9d5d2d6084772255f52b10b9907",
+      "events": 448,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "feature_id": "M04",
+      "target": "stepper_x",
+      "confirm_seq": 120,
+      "preparation": "homing_verified",
+      "rpc_error_seq": 295,
+      "dispatch_stage": "guard_denied",
+      "dispatch_guard_reason": "clear_mesh_before_motion_test",
+      "result_seq": 303,
+      "controller_result": "INCONCLUSIVE",
+      "physical_acceptance": false
     }
   },
   "policy": {
@@ -476,7 +493,7 @@
       "reference": "confirmed",
       "status": "pending",
       "adapter": "implemented",
-      "note": "Physical acceptance pending. Follow-up run 2 ended INCONCLUSIVE after command Future error and Petrel-requested shutdown. Original error detail was discarded; command submission alone does not prove wire dispatch or a Klipper-side fault.",
+      "note": "Physical acceptance pending. Latest trace verifies automatic homing, then definitive pre-send guard rejection clear_mesh_before_motion_test. Cleared-mesh placeholder and unnecessary shutdown for confirmed pre-send rejection corrected; physical retest pending.",
       "acceptance": null
     },
     {

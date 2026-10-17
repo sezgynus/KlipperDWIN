@@ -109,3 +109,32 @@ class MotionContractTests(unittest.TestCase):
         self.status['bed_mesh']['mesh_max']=[200.,200.]
         with self.assertRaises(ValueError):
             compile_motion(self.row(),self.state,self.status,TOKEN)
+
+class ClearedMeshRepresentationTests(unittest.TestCase):
+    setUp=MotionContractTests.setUp
+    row=MotionContractTests.row
+    def test_http_and_frozen_subscription_empty_mesh_have_same_dispatch_result(self):
+        from copy import deepcopy
+        from types import MappingProxyType
+        from maintenance_motion import dispatch_compatible
+        self.state.settings['bed_mesh']={}
+        self.status['bed_mesh']={'profile_name':'','mesh_min':[0,0],'mesh_max':[0,0]}
+        row=self.row('M04')
+        program=compile_motion(row,self.state,self.status,TOKEN)
+        live=deepcopy(self.status)
+        live['bed_mesh']=MappingProxyType({'profile_name':'','mesh_min':(0,0),
+            'mesh_max':(0,0),'mesh_matrix':((),)})
+        self.assertTrue(dispatch_compatible(program,row,self.state,live,TOKEN))
+
+    def test_actual_flat_mesh_unknown_matrix_or_missing_bounds_are_not_clear(self):
+        self.state.settings['bed_mesh']={}
+        for mesh in (
+                {'profile_name':'','mesh_min':[0,0],'mesh_max':[200,200],'mesh_matrix':[[]]},
+                {'profile_name':'','mesh_min':[0,0],'mesh_max':[0,0],'mesh_matrix':[[0.]]},
+                {'profile_name':'','mesh_min':[0,0],'mesh_max':[0,0],'mesh_matrix':None},
+                {'profile_name':'','mesh_matrix':[[]]},
+                {'mesh_min':[0,0],'mesh_max':[0,0],'mesh_matrix':[[]]}):
+            with self.subTest(mesh=mesh):
+                self.status['bed_mesh']=mesh
+                with self.assertRaises(ValueError):
+                    compile_motion(self.row(),self.state,self.status,TOKEN)

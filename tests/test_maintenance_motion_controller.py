@@ -374,6 +374,41 @@ class MotionControllerTests(unittest.TestCase):
         self.assertEqual(self.c._dispatch_guard_reason,'motion_velocity_unknown')
         self.assertIsNotNone(self.c._command.exception())
 
+    def test_definitive_pre_send_guard_rejection_never_emergency_stops(self):
+        from moonraker_client import MoonrakerError
+        self.arm('M04')
+        def denied(*args,**kwargs):
+            future=Future()
+            future.dispatch_stage='guard_denied'
+            self.c._dispatch_guard_reason='clear_mesh_before_motion_test'
+            future.set_exception(MoonrakerError('Printer state changed before command dispatch'))
+            return future
+        self.p.subscription.request=denied
+        self.c.confirm()
+        result=self.c.poll()
+        self.assertEqual(result.status,'BLOCKED')
+        self.assertEqual(result.reason,'clear_mesh_before_motion_test')
+        self.assertFalse(self.c._blocked)
+        self.assertEqual(self.commands,[])
+        self.assertFalse(self.c.pending)
+
+    def test_cleared_mesh_placeholder_allows_buzz_after_http_preflight(self):
+        from printer_state import PrinterState
+        from dataclasses import replace
+        self.data['settings']['bed_mesh']={}
+        self.data['status']['bed_mesh']={'profile_name':'','mesh_min':[0,0],
+            'mesh_max':[0,0],'mesh_matrix':[[]]}
+        self.p.state=PrinterState.from_snapshot(self.data)
+        self.p.maintenance.snapshot=replace(self.p.maintenance.snapshot,
+            config_marker=id(self.p.state.settings))
+        self.arm('M04')
+        self.c.confirm()
+        self.assertFalse(self.command.done())
+        self.verified()
+        self.assertEqual(self.c.phase,'await_observation')
+        self.assertEqual(self.c.observe(True).status,'PASSED_USER')
+        self.assertEqual(len(self.commands),1)
+
     def test_command_failure_is_not_retried(self):
         self.arm()
         self.c.confirm()

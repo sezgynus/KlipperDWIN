@@ -13,3 +13,17 @@ A successful information read has `ReadResult.status=None`, meaning **observed t
 **Integration still pending:** An owner must instantiate this facility with an existing worker/client, provide *genuine* current queue/operation checks, and use the plan/view model in the DWIN UI. A caller must not set the positive SafetyContext flags without checking real state. This stage adds no automatic startup work or changed UI hot path. More advanced TMC fault and active hardware tests need driver-specific evidence and separate approval.
 
 `tests/test_maintenance_executor.py` covers valid/missing/invalid payloads, method selection, cancellation, queued reads, external printing, epoch drift and shared worker ownership in GitHub Actions CI.
+
+## Current M07 implementation: homing-independent direct register diagnostics
+
+The paragraphs above describe the original GET-only stage. Current M07
+Diagnostics issues `DUMP_TMC STEPPER=<verified name> REGISTER=DRV_STATUS` on
+explicit request for supported TMC chips. Klipper's `notify_gcode_response`
+is correlated using the existing Moonraker connection, a fresh response
+cursor and RPC completion. Historical lines, ambiguous/double replies,
+missing data and communication errors never become a fault-free result.
+No motor enable/homing/movement or register writing occurs. Exact TMC2208
+bit masks yield a bounded fault summary; other supported chips show only
+the raw register. TMC2660 keeps its passive fallback because selecting its
+read register writes RDSEL. M07 remains informational; M10 stays reserved.
+GitHub CI covers normal GET and direct register/failure paths; no local tests.

@@ -10,11 +10,13 @@ M07/M08/M09 (sürücü durum/sıcaklık/akım), M11 (enable durumu),
 M12 (son homing fazı), M13 (yalnız angle sürücüsü sıcaklık telemetrisi),
 M14 (komutlanan toolhead durumu) ve M16 (bilinen carriage modları)
 kullanıcı isteğiyle Diagnostics altında okunur. Mevcut kuyruk/yaşam döngüsü/
-oturum kontrolleri ve sınırlı read worker kullanılır. Motor açılmaz,
-homing/hareket yapılmaz. Register/config yazılmaz.
-Null sürücü monitor durumu sonuçsuzdur; sıcaklık üretilmez.
-Klipper drv_status içinde yalnız sıfır olmayan alanları bildirir; boş mapping
-ile null farklıdır. Konum komutlanan durumdur, fiziksel mesafe ölçümü değildir.
+oturum kontrolleri korunur. M07, desteklenen TMC'lerin register'larını
+istek üzerine Klipper DUMP_TMC ve mevcut Moonraker WebSocket'iyle doğrudan okur;
+homing öncesinde ve sürücü enable kapalıyken de çalışır. Motor etkinleştirme,
+homing/hareket veya register/config yazma komutu gönderilmez. Diğer
+tanılamalar sınırlandırılmış GET kullanır. Kayıp/hatalı register cevabı
+hatasız sürücü kanıtı değil, bilinmeyen/iletişim hatası sonucudur;
+sıcaklık uydurulmaz. Konum komutlanan durumdur, fiziksel mesafe ölçümü değildir.
 Pasif M12 tanılaması kalibrasyon veya kayıt yapmaz; ayrı stepper bazlı M12 testi otomatik kaydetmeden kalibrasyon yapar. Angle durumu mil açısı değildir.
 Fiziksel kabul değişmez. M02/M17 bilerek gizli kalır.
 
@@ -24,12 +26,19 @@ durumlar Moonraker'ın gerçek endstop endpoint'inden açık kullanıcı eylemiy
 okunur. Hareket ve last_query tekrar kullanımı yoktur. Sorular süresizdir;
 uyuşmayan durum açıkça yeniden okunabilir. Sanal/sensorless endstop'lar hariçtir.
 Son gözlem geçişlerden ayrıdır; serbest okuma geri yükleme kanıtıdır.
-M07, Diagnostics altından TMC sürücü monitor durumunu motoru açmadan ve
-DUMP_TMC göndermeden okur. TMC2208 için mevcut pasif tanılamaya yapılandırılmış
-fault_count/faults özeti eklenmiştir. Null veya geçersiz monitor bilinmeyendir;
-geçerli boş veri yalnız o anda raporlanmış hata yok demektir, motor sağlığı
-kanıtı değildir. Standstill hata sayılmaz. PASS/FAIL veya fiziksel kullanıcı
-kabulü üretilmez. M10 gizli ve boş katalog numarasıdır; diğer ID'ler değişmez.
+M07 desteklenen TMC'lerde artık önbellekteki drv_status alanına bağımlı değildir.
+Kullanıcı seçtiğinde `DUMP_TMC STEPPER=<doğrulanmış-stepper> REGISTER=DRV_STATUS`
+komutunu bir kez gönderir; G28, motor enable ve yapılandırma/register yazımı yoktur.
+Klipper'ın gerçek register yanıtı G-code RPC sonucunda değil,
+`notify_gcode_response` bildiriminde gelir. Petrel mevcut sınırlı yanıt
+imlecini ve komut tamamlanmasını kullanır, eski/kayıp/belirsiz yanıtı reddeder.
+TMC2208 için ham bitlerden fault_count, faults, standstill, akım ölçeği,
+stealth ve varsa açık-yük göstergeleri çıkarılır. Standstill ve açık-yük
+motor sağlığı PASS/FAIL değildir; kayıp/hatalı okuma hatasız sayılamaz.
+Desteklenen diğer TMC'lerde 2208 hata bit maskesi uydurulmadan ham değer
+gösterilir. TMC2660'ın READRSP seçiminde register yazımı gerektiğinden bu çip
+eski pasif durum okumasında kalır. Fiziksel kabul üretilmez. M10 boş/gizli,
+diğer ID'ler aynı numarada kalır.
 
 ## Hareket sözleşmeleri
 Cartesian/CoreXY koordinat hareketi gerçek XYZ homing, yapılandırılmış sınırlar,
@@ -91,7 +100,7 @@ Yalnız fiziksel doğrulama kabul sağlayabilir.
 | M04 | Ana Cartesian motor buzz; bağımsız çoklu Z/bağlı motor buzzing yok |
 | M05 | Desteklenen koordinat XYZ 1 mm gidip dönüş |
 | M06 | Harici gerçek 10 mm mesafe girişi ve ayrı onaylı dönüş |
-| M07 | Diagnostics içinde pasif sürücü durumu ve TMC2208 hata özeti; motor sağlığı PASS'i yok |
+| M07 | Homing öncesinde gerçek TMC register okuması; TMC2208 hata özeti; motor sağlığı PASS'i yok |
 | M08 | Keşfedilmişse yalnız gerçekten raporlanan sürücü sıcaklığı |
 | M09 | Raporlanan akım ayarı; ölçülmüş sargı akımı değil |
 | M10 | Ayrılmış, gizli, boş ID; diğer numaralar kaydırılmadı |
@@ -119,8 +128,9 @@ Test yazıcının sahibiyken kuyruktan baskı/harici hareket başlatma. Yerel Pe
 hareket guard'ları rakip sahipli işlemleri reddeder; bu yazılım rezervasyonu
 harici istemcileri kilitlemez.
 
-M07'yi gerçekten sürücü monitor verisi varken oku; kapalı/null
-sonuçsuzdur, sağlık onayı veya otomatik motor açma nedeni değildir.
+M07 desteklenen sürücülerde homing veya motor enable gerektirmeden
+register sorgular. Fiziksel çip/UART/SPI okunamıyorsa sonuç bilinmiyor/hata
+olarak kalır; motor açma önerilmez ve PASS üretilmez.
 M12 en son: mevcut stepper test girdisinde ilgili ekseni rastgele on
 başlangıç konumundan home et, hesaplanan bekleyen trigger_phase değerini
 incele ve kaydet. Başka stepper'ın bekleyen kalibrasyonu ikinci ekseni

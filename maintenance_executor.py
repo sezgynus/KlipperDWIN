@@ -1,7 +1,8 @@
 """Bounded on-demand Maintenance information reads, not physical self-tests.
 
-Only explicitly supported GET endpoints are used. No new thread, Moonraker
-client or socket is created: callers supply the existing bounded read worker.
+All information uses bounded GET except M07's opt-in direct DUMP_TMC register
+query, whose reply arrives on the existing Moonraker subscription. No new
+thread, client or socket is created; no homing or motor enable is required.
 Informational data NEVER generates a PASSED hardware-test result.
 """
 from concurrent.futures import CancelledError
@@ -15,6 +16,7 @@ from maintenance_auxiliary_info import FIELDS as AUXILIARY_FIELDS, path_for as a
 from maintenance_system import FIELDS as SYSTEM_FIELDS, LOCAL as SYSTEM_LOCAL, path_for as system_path, read_fields as system_fields
 from maintenance_filament_info import FIELDS as FILAMENT_FIELDS, path_for as filament_path, read_fields as filament_fields
 from maintenance_motion_info import FIELDS as MOTION_FIELDS, path_for as motion_path, read_fields as motion_fields
+from maintenance_tmc_direct import direct_query, register_evidence, register_error
 from maintenance_discovery import INFORMATION, MaintenanceSnapshot
 from maintenance_planner import AdapterRegistration, PlannedTest
 from maintenance_safety import MaintenanceSafetyCoordinator
@@ -146,13 +148,16 @@ class MaintenanceReadExecutor:
     """One active bounded read; poll on the UI owner, no callback side effects."""
 
     __slots__ = ('_worker', '_client', '_safety', '_context', '_snapshot',
-                 '_active', '_future', '_deadline', '_closed', '_local_reader')
+                 '_active', '_future', '_deadline', '_closed', '_local_reader',
+                 '_subscription', '_direct_cursor')
 
     def __init__(self, worker, client, context_provider, snapshot_provider,
-                 safety=None, local_reader=None):
+                 safety=None, local_reader=None, subscription=None):
         if not callable(context_provider) or not callable(snapshot_provider):
             raise ValueError('Fresh context and snapshot providers are required')
         self._local_reader = local_reader
+        self._subscription = subscription
+        self._direct_cursor = None
         self._worker = worker
         self._client = client
         self._context = context_provider
@@ -174,7 +179,8 @@ class MaintenanceReadExecutor:
         """Admit one explicit INFORMATION adapter; return (accepted, reason).
 
         Caller must ensure real queue/operation checks in context_provider.
-        Only a bounded GET is ever scheduled; no physical actuation.
+        M07 uses on-demand direct register read via the existing subscription;
+        other information uses bounded GET. No motor actuation.
         """
         if self._closed or self.pending:
             return False, 'executor_busy_or_closed'
@@ -217,6 +223,35 @@ class MaintenanceReadExecutor:
             self._safety.end(session)
             return False, 'information_source_unverified'
 
+        if row.feature_id == 'M07' and direct_query(row.device) is not None:
+            subscription = self._subscription
+            if not (callable(getattr(subscription, 'responses_since', None))
+                    and callable(getattr(subscription, 'request', None))):
+                self._safety.end(session)
+                return False, 'direct_register_transport_unavailable'
+            try:
+                cursor, _ = subscription.responses_since(None)
+                if type(cursor) is not int or cursor < 0:
+                    raise ValueError('untrusted_cursor')
+                def guard():
+                    try:
+                        fresh_snapshot, fresh_context = self._context_and_snapshot()
+                        return self._safety.guard(
+                            session, fresh_snapshot, fresh_context).allowed
+                    except Exception:
+                        return False
+                future = subscription.request(
+                    'printer.gcode.script', {'script': direct_query(row.device)},
+                    guard=guard, request_timeout=timeout)
+            except Exception:
+                self._safety.end(session)
+                return False, 'direct_register_transport_unavailable'
+            self._active = (session, row)
+            self._future = future
+            self._direct_cursor = cursor
+            self._deadline = monotonic() + timeout
+            return True, 'scheduled'
+
         def work():
             # Recheck immediately before GET; a queued job must not run stale.
             try:
@@ -246,8 +281,12 @@ class MaintenanceReadExecutor:
         self._active = None
         self._future = None
         self._deadline = 0.0
+        was_direct = self._direct_cursor is not None
+        self._direct_cursor = None
         return ReadResult(row.feature_id, row.device, status,
-                          (_ENDPOINTS.get(row.feature_id) or ('petrel:diagnostics' if row.feature_id in SYSTEM_LOCAL else '/printer/objects/query')), observed_at,
+                          ('printer.gcode.script:DUMP_TMC' if was_direct else
+                           _ENDPOINTS.get(row.feature_id) or
+                           ('petrel:diagnostics' if row.feature_id in SYSTEM_LOCAL else '/printer/objects/query')), observed_at,
                           tuple(evidence), reason)
 
     def poll(self):
@@ -263,6 +302,31 @@ class MaintenanceReadExecutor:
         if decision is None or not decision.allowed:
             self._future.cancel()
             return self._finish('ABORTED', 'unsafe_or_stale_session')
+        if self._direct_cursor is not None:
+            try:
+                latest, messages = self._subscription.responses_since(self._direct_cursor)
+                if type(latest) is not int or latest - self._direct_cursor > 256:
+                    return self._finish('INCONCLUSIVE', 'register_response_history_gap')
+            except Exception:
+                return self._finish('ERROR', 'register_response_unavailable')
+            if self._future.done():
+                try:
+                    self._future.result()
+                except CancelledError:
+                    return self._finish('ABORTED', 'cancelled')
+                except Exception:
+                    return self._finish('ERROR', 'tmc_register_read_failed')
+                if register_error(messages):
+                    return self._finish('ERROR', 'tmc_communication_error')
+                evidence = register_evidence(messages, row.device)
+                if evidence:
+                    return self._finish(None, 'observed_information', evidence, time())
+            if monotonic() > self._deadline:
+                self._future.cancel()
+                return self._finish('INCONCLUSIVE' if self._future.done() else 'ERROR',
+                                    'register_output_missing' if self._future.done() else
+                                    'tmc_register_timeout')
+            return None
         if monotonic() > self._deadline:
             self._future.cancel()
             return self._finish('ERROR', 'timeout')

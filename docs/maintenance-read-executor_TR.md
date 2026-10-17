@@ -13,3 +13,17 @@ Başarılı bilgi okumasında `ReadResult.status=None` kullanılır: **telemetri
 **Entegrasyon henüz yapılmadı:** Uygulama yöneticisi bu altyapıyı mevcut worker/client ile oluşturmalı, *gerçek* kuyruk ve diğer operasyon kontrollerini sağlamalı, DWIN UI'da plan modelini kullanmalıdır. Gerçek kontrol yapılmadan SafetyContext bayrakları pozitif verilmemelidir. Bu aşama açılış iş yükü veya UI sıcak yolunu değiştirmez. TMC hata bitleri ve aktif donanım testleri, sürücüye özel kanıt ve ayrıca güvenlik onayı gerektirir.
 
 `tests/test_maintenance_executor.py`, geçerli/eksik/geçersiz yanıtları, yöntem seçimini, iptali, sıradaki okumayı, dış baskı başlangıcını, epoch değişimini ve paylaşılan worker sahipliğini GitHub Actions CI'da kapsar.
+
+## Güncel M07 uygulaması: homing bağımsız doğrudan register tanılaması
+
+Yukarıdaki bölüm ilk salt-okunur GET altyapısının tarihsel kapsamını açıklar. Güncel
+M07 Diagnostics, desteklenen TMC çiplerinde yalnız kullanıcının talebi üzerine
+`DUMP_TMC STEPPER=<doğrulanmış isim> REGISTER=DRV_STATUS` çalıştırır.
+Klipper'ın `notify_gcode_response` çıktısı mevcut Moonraker bağlantısında
+komut tamamlanması ve yeni yanıt imleciyle değerlendirilir. Önceki konsol
+satırları, belirsiz/çift cevap, iletişim hatası ve kayıp yanıt hatasız
+sürücü sonucu üretmez. Motor enable/homing/hareket/register yazımı yoktur.
+TMC2208'de doğrulanmış bit maskeleri çözülür; diğer desteklenen çiplerde
+ham register gösterilir. TMC2660, yan etkili register-seçimi nedeniyle eski
+pasif yolda kalır. M07 bilgi tanılamasıdır; M10 ayrılmış/boş kalır.
+CI hem normal GET hem doğrudan kayıt/iletişim hata akışını sınar; yerel test yoktur.

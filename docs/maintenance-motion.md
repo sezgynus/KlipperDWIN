@@ -9,11 +9,14 @@ Failed/cancelled homing never starts the original test; active cancellation requ
 M07/M08/M09 (driver status/temperature/current), M11 (enable state),
 M12 (last homing phase), M13 (angle-driver temperature telemetry only),
 M14 (commanded toolhead state) and M16 (known carriage modes) are opt-in
-Diagnostics. Existing queue/lifecycle/session guards and bounded read worker
-apply. No motor is enabled, homed or moved. No registers/config are written.
-Null driver monitor status is inconclusive; no temperature is synthesized.
-Klipper reports only nonzero drv_status fields; an empty mapping is distinct
-from null. Position is commanded state, not measured physical displacement.
+Diagnostics. Existing queue/lifecycle/session guards remain mandatory.
+No motor is enabled, homed or moved. M07 directly reads supported driver
+registers on demand via Klipper's DUMP_TMC and the already connected Moonraker
+WebSocket; this works even before homing while the driver is disabled.
+No register/config writes are issued. Other diagnostics still use bounded GET.
+A missing/failed register reply is an unknown/communication-error result,
+never no-fault evidence. No temperature is synthesized. Position is commanded
+state, not measured physical displacement.
 Passive M12 diagnostics does not calibrate or save; the separate M12 per-stepper test calibrates without automatic saving. Angle status is not shaft angle.
 No physical acceptance changes. M02/M17 remain deliberately hidden.
 
@@ -23,13 +26,20 @@ released through Moonraker's authoritative endstop endpoint. No motion or
 last_query reuse. Each operator prompt is unlimited; mismatched state can be
 explicitly retried. Virtual/sensorless endstops are excluded. Final observation
 is separate from transitions; released readback is the restoration evidence.
-M07 reads structured TMC driver monitor status through Diagnostics without
-enabling motors or issuing DUMP_TMC. TMC2208 receives an exact-schema
-fault_count/faults summary in this existing read-only diagnostic. A null monitor
-or malformed status is unknown, while an empty valid status means no faults
-reported at this instant, not proven motor health. Standstill is not a fault.
-There is no operator PASS/FAIL or physical acceptance. M10 remains an unused,
-hidden catalog ID; all other IDs retain their numbering.
+M07 no longer relies on cached drv_status for supported TMC chips:
+it issues exactly `DUMP_TMC STEPPER=<verified-stepper> REGISTER=DRV_STATUS` on
+explicit selection, without G28, motor enable or a printer-configuration write.
+Klipper returns a raw register line through `notify_gcode_response` rather than
+the G-code RPC result. Petrel uses its existing bounded response cursor and
+completion acknowledgement, rejects stale, missing or ambiguous replies, and
+extracts bounded structured evidence. For TMC2208, the raw bit masks are decoded
+to fault_count, faults, standstill, current scale, stealth and optional open-load
+indicators. Standstill and open load are not motor-health PASS/FAIL; null/failed
+reads are not reported clear. Other supported TMC models show the raw register
+without borrowing 2208-specific fault masks. TMC2660 retains its passive
+status fallback because its READRSP selection performs a register write.
+This information-only path never produces physical acceptance. M10 stays unused
+and hidden, and all other IDs keep their numbering.
 
 ## Motion contracts
 Cartesian/CoreXY coordinated motion is bounded by actual XYZ homing, configured
@@ -90,7 +100,7 @@ can establish acceptance.
 | M04 | Primary Cartesian motor buzz, no independent multi-Z/coupled buzzing |
 | M05 | Supported coordinated XYZ 1 mm roundtrip |
 | M06 | External actual 10 mm travel entry, separately consented return |
-| M07 | Passive driver status and TMC2208 fault summary in Diagnostics; no motor-health PASS |
+| M07 | On-demand actual TMC register read even before homing; TMC2208 fault summary; no motor-health PASS |
 | M08 | Real reported driver temperature only, if discovered |
 | M09 | Reported current settings, not measured winding current |
 | M10 | Reserved, hidden, unused; no renumbering |
@@ -118,8 +128,9 @@ objects on the bed. Do not start a queued print or issue external motion while
 a test owns the printer. Local Petrel motion guards reject competing owned
 operations; external clients cannot be locked by this software reservation.
 
-Read M07 while driver monitor data actually exists; disabled/null is
-inconclusive, not a clean bill of health and not a reason to auto-enable motors.
+M07's direct register read needs neither homing nor an enabled motor on
+supported chips. If the physical chip/UART/SPI is not readable, the result
+remains unavailable/error rather than suggesting motor activation or PASS.
 M12 last: run the existing per-stepper entry for ten random-start homings
 of that axis, review and record the computed pending trigger_phase. A pending
 calibration for another stepper does not block the second axis; SAVE_CONFIG

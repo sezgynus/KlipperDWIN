@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from maintenance_discovery import MaintenanceSnapshot, INFORMATION, _add
+from maintenance_discovery import MaintenanceSnapshot, DeviceCapabilities, AUTOMATIC, INFORMATION, _add
 from maintenance_planner import build_plan, visible_plan
 from maintenance_executor import (
     MaintenanceReadExecutor, read_only_adapters, _read_fields,
@@ -185,6 +185,119 @@ class ReadExecutorTests(unittest.TestCase):
             (('eth0.rx_bytes', 50), ('eth0.tx_bytes', 20)))
         self.assertEqual(_read_fields('S01', {'error': 'unauthorized'}), ())
         self.assertEqual(_read_fields('S02', {'result': {'cpu_temp': True}}), ())
+
+
+class DriverSubscription:
+    def __init__(self):
+        self.history=[]
+        self.serial=0
+        self.calls=[]
+        self.done=Future()
+        self.guard=None
+    def responses_since(self, cursor):
+        return self.serial, tuple(self.history[cursor:] if cursor is not None else ())
+    def request(self, method, params, guard=None, request_timeout=None):
+        self.calls.append((method, params, request_timeout))
+        self.guard=guard
+        return self.done
+    def reply(self, text, done=True):
+        self.history.append(text)
+        self.serial+=1
+        if done:
+            self.done.set_result('ok')
+
+
+class DirectTmcReadTests(unittest.TestCase):
+    context = ReadExecutorTests.context
+    def setUp(self):
+        ReadExecutorTests.setUp(self)
+        self.driver='tmc2208 stepper_x'
+        self.state.objects=(self.driver,)
+        self.snapshot=MaintenanceSnapshot(
+            33,
+            (DeviceCapabilities(self.driver,'driver',
+                _add(0,'M07',AUTOMATIC | INFORMATION)),),
+            config_marker=id(self.settings))
+        self.subscription=DriverSubscription()
+
+    def executor(self):
+        return MaintenanceReadExecutor(self.worker,self.client,
+            self.context,lambda:self.snapshot,subscription=self.subscription)
+
+    def row(self):
+        return next(r for r in visible_plan(build_plan(
+            self.snapshot,read_only_adapters())) if r.feature_id=='M07')
+
+    def test_homing_not_required_and_disabled_driver_has_direct_register(self):
+        # Only READY/idle safety matters; no toolhead.homed_axes in context.
+        exe=self.executor()
+        self.assertEqual(exe.start(self.row()),(True,'scheduled'))
+        self.assertFalse(self.worker.tasks)
+        self.assertEqual(self.client.requests,[])
+        method,params,timeout=self.subscription.calls[0]
+        self.assertEqual(method,'printer.gcode.script')
+        self.assertEqual(params,{'script':'DUMP_TMC STEPPER=stepper_x REGISTER=DRV_STATUS'})
+        self.assertEqual(timeout,3.0)
+        self.assertTrue(self.subscription.guard())
+        self.assertIsNone(exe.poll())
+        self.subscription.reply('DRV_STATUS: c0120000 cs_actual=18 stealth=1 stst=1')
+        result=exe.poll()
+        self.assertIsNone(result.status)
+        self.assertEqual(result.reason,'observed_information')
+        self.assertIn(('register_hex','C0120000'),result.evidence)
+        self.assertIn(('fault_count',0),result.evidence)
+        self.assertIn(('standstill',1),result.evidence)
+        self.assertEqual(result.source,'printer.gcode.script:DUMP_TMC')
+
+    def test_stale_console_lines_are_not_reused_as_driver_evidence(self):
+        self.subscription.history=['DRV_STATUS: c0120000']
+        self.subscription.serial=1
+        exe=self.executor()
+        self.assertTrue(exe.start(self.row())[0])
+        self.subscription.reply('unrelated console reply')
+        self.assertIsNone(exe.poll())
+        exe._deadline=0
+        result=exe.poll()
+        self.assertEqual(result.status,'INCONCLUSIVE')
+        self.assertEqual(result.reason,'register_output_missing')
+        self.assertFalse(any(k=='fault_count' for k,_ in result.evidence))
+
+    def test_uart_read_failure_is_not_reported_as_clean(self):
+        exe=self.executor()
+        self.assertTrue(exe.start(self.row())[0])
+        self.subscription.reply('Unable to read tmc uart stepper_x register DRV_STATUS')
+        result=exe.poll()
+        self.assertEqual(result.status,'ERROR')
+        self.assertEqual(result.reason,'tmc_communication_error')
+        self.assertEqual(result.evidence,())
+
+    def test_rpc_failure_and_stale_state_never_emit_fault_free_evidence(self):
+        exe=self.executor()
+        self.assertTrue(exe.start(self.row())[0])
+        self.subscription.done.set_exception(RuntimeError('UART disconnected'))
+        self.assertEqual(exe.poll().reason,'tmc_register_read_failed')
+        self.subscription=DriverSubscription()
+        exe=self.executor()
+        self.assertTrue(exe.start(self.row())[0])
+        self.state.status['print_stats']['state']='printing'
+        self.assertFalse(self.subscription.guard())
+        self.assertEqual(exe.poll().status,'ABORTED')
+
+    def test_concurrent_driver_responses_are_ambiguous(self):
+        exe=self.executor()
+        self.assertTrue(exe.start(self.row())[0])
+        self.subscription.reply('DRV_STATUS: c0120000',done=False)
+        self.subscription.reply('DRV_STATUS: c0000000',done=True)
+        exe._deadline=0
+        self.assertEqual(exe.poll().status,'INCONCLUSIVE')
+
+    def test_cancel_disowns_late_register_reply(self):
+        exe=self.executor()
+        self.assertTrue(exe.start(self.row())[0])
+        self.assertEqual(exe.cancel().status,'ABORTED')
+        self.subscription.reply('DRV_STATUS: c0120000',done=False)
+        self.assertIsNone(exe.poll())
+
 
 
 if __name__ == '__main__':

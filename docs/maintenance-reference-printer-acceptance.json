@@ -1089,7 +1089,24 @@
           "independent_metrology": false
         }
       },
-      "retest_required": false
+      "retest_required": false,
+      "diagnostic_observations": [
+        {
+          "date": "2026-10-17",
+          "source": "user_supplied_lcd_screenshot",
+          "source_type": "petrel_diagnostics_information_read",
+          "feature_id": "M12",
+          "target": "stepper_y",
+          "status": "observed_information",
+          "verified": true,
+          "output": {
+            "stepper_y.phase": "58/64"
+          },
+          "reported_lcd_time": "19:18",
+          "operator_context": "Prior Diagnostics M12/Y read returned INCONCLUSIVE because Y had not been homed in that session; operator homed Y and explicitly confirmed successful repeat read.",
+          "scope": "Current last_home diagnostic phase only. Not ten-homing ENDSTOP_PHASE_CALIBRATE result, not SAVE_CONFIG, and not a new physical test acceptance."
+        }
+      ]
     },
     {
       "feature_id": "P01",

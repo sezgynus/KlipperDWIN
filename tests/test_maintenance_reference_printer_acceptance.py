@@ -281,6 +281,31 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertTrue(rows['M12','endstop_phase X']['previous_acceptances'][-1]['invalidated'])
         self.assertFalse(any(feature=='M10' for feature,target in rows))
 
+    def test_m12_y_homed_diagnostic_is_separate_from_existing_calibration_acceptance(self):
+        data=ledger()
+        rows={(e['feature_id'],e['target']):e for e in data['entries']}
+        y=rows['M12','endstop_phase Y']
+        self.assertEqual(y['status'],'accepted')
+        self.assertEqual(y['acceptance']['measurements']['homing_cycles'],10)
+        self.assertEqual(y['acceptance']['measurements']['trigger_phase'],'33/64')
+        self.assertFalse(y['acceptance']['measurements']['saved'])
+        diagnostic=y['diagnostic_observations']
+        self.assertEqual(len(diagnostic),1)
+        self.assertEqual(diagnostic[0]['feature_id'],'M12')
+        self.assertEqual(diagnostic[0]['target'],'stepper_y')
+        self.assertEqual(diagnostic[0]['source'],'user_supplied_lcd_screenshot')
+        self.assertEqual(diagnostic[0]['status'],'observed_information')
+        self.assertIs(diagnostic[0]['verified'],True)
+        self.assertEqual(diagnostic[0]['output']['stepper_y.phase'],'58/64')
+        self.assertIn('last_home',diagnostic[0]['scope'])
+        self.assertNotIn('diagnostic_observations',rows['M12','endstop_phase X'])
+        self.assertEqual(sum(e['status']=='accepted' for e in data['entries']),23)
+        for document in (EN,TR):
+            body=document.read_text(encoding='utf-8')
+            self.assertIn('M12/Y Diagnostics',body)
+            self.assertIn('58/64',body)
+            self.assertIn('33/64',body)
+
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}
         confirmed = [('F01', 'fan'), ('S18', 'pwm_cycle_time Buzzer'),

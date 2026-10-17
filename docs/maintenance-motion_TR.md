@@ -149,3 +149,27 @@ yukarı ve mekanik açıdan açık bir konuma getirin; motorlar açık kalsın.
 M04/M05/M06 ardından çalıştırılır. Aktif mesh varsa testin istediği mevcut normal
 mesh temizleme akışını kullanın. M12'yi homing geçmişi oluştuktan sonra en sona bırakın;
 bekleyen config varken yeni kalibrasyon başlatılmaz.
+
+## 17 Ekim M03 aktif kuyruk kanıtı düzeltmesi
+
+Oturum `69bd4367df274301b8e2f3275b493378`, HEAD `b60d729`: 448 olay,
+kayıp/yazma hatası yok. M03 ön kontrolü geçti; G28+M400 gönderildi, yaklaşık
+0,23 saniye sonra aktif güvenlik kontrolü shutdown istedi. Fiziksel kabul verilmedi.
+
+Son kuyruk okuması monotonik 580503,541; gönderim 580506,430;
+ilk aktif kontrol 580506,657 idi. Kanıt gönderimde yaklaşık 2,89 saniyelik,
+ilk kontrolde 3,12 saniyelikti. Kontrolcü ilk taze okumayı toplamadan
+eski kabul kanıtının 3 saniyelik süresini aktif teste uyguluyordu.
+
+Yeni davranış: ilk aktif okuma hemen planlanır; bitmiş worker sonucundaki
+taze kuyruk kanıtı eski kanıtın yaşından önce değerlendirilir.
+Başlatma/gönderim sınırı 3 saniye kalır. Aktif komutta mevcut 5 saniyelik
+okuma watchdog'u kuyruk tazeliği için de kullanılır; termal kontrolcüyle aynıdır.
+Print/SD/pause/MMU/diğer-owner ve epoch kontrolleri her tick'te canlı kalır.
+5 saniyeyi aşan/bilinmeyen kanıt veya gerçek çakışma yine acil shutdown verir.
+Kayıt, kesin `safety_reason` ve `queue_age_s` değerlerini de tutar;
+kuyruk yaşı yalnız saniyelik örneğe girer, her tick için yeni aşama üretmez.
+
+M03'ün ikinci başlatma isteği mevcut belirsizlik kilidinde reddedildi;
+komut tekrar gönderilmedi. Güvenli/OFF durum doğrulandıktan ve güncel
+Petrel servisi başlatıldıktan sonra yalnız M03 yeniden denenmelidir.

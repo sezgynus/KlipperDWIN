@@ -148,3 +148,27 @@ and a mechanically clear path; keep motors enabled.
 Then run M04/M05/M06. If a mesh is active, use the existing normal mesh-clear flow
 required by the test. Leave M12 until homing history exists and run it last;
 new calibration is refused while config changes are pending.
+
+## 17 October M03 active queue-evidence correction
+
+Session `69bd4367df274301b8e2f3275b493378`, HEAD `b60d729`: 448 events,
+no drops/write errors. M03 passed preflight and sent G28+M400; the active
+safety check requested shutdown about 0.23 seconds later. No physical acceptance.
+
+Last queue read: monotonic 580503.541; dispatch: 580506.430;
+first active check: 580506.657. Evidence was about 2.89 seconds old at dispatch,
+3.12 seconds at the first check. The controller applied the 3-second admission
+age to the active command before collecting its first fresh read.
+
+The first active read is now scheduled immediately. A completed worker result's
+fresh queue evidence is consumed before the previous sample's age is judged.
+Admission/dispatch stay at 3 seconds. Active commands use the existing 5-second
+read-watchdog bound for queue freshness too, matching the thermal controller.
+Print/SD/pause/MMU/other-owner and epoch checks remain live each tick.
+Unknown or older-than-5-second evidence and real conflicts still emergency-stop.
+Recording includes exact `safety_reason` and `queue_age_s`;
+age is sampled once per second rather than creating a new stage every tick.
+
+A second M03 start was rejected by the existing uncertainty lock; no replay.
+After verifying safe/OFF hardware and restarting the updated Petrel service,
+retest M03 alone.

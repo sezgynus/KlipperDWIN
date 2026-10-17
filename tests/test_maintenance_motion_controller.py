@@ -89,6 +89,62 @@ class MotionControllerTests(unittest.TestCase):
         self.assertEqual(result.reason,'home_xyz_before_motion_test')
         self.assertEqual(self.commands,[])
 
+    def test_confirmation_at_2_9_seconds_does_not_shutdown_before_first_refresh(self):
+        # Reproduce the physical trace: dispatch at 2.9 s, first poll at 3.12 s.
+        self.arm()
+        self.clock=2.9
+        self.assertTrue(self.c.confirm()[0])
+        self.assertEqual(len(self.commands),1)
+        self.clock=3.12
+        self.assertIsNone(self.c.poll())
+        self.assertEqual(self.c.phase,'running')
+        self.assertTrue(self.worker.jobs)
+        self.worker.drain()
+        self.c.poll()
+        self.assertEqual(self.c.phase,'running')
+        self.assertEqual(len(self.commands),1)
+        self.assertEqual(self.c._safety_reason,'allowed')
+
+    def test_completed_fresh_queue_proof_precedes_old_proof_expiration(self):
+        self.arm()
+        self.c.confirm()
+        self.clock=.3
+        self.c.poll()
+        # Completed HTTP evidence is waiting when UI consumes it at 5.1 s.
+        self.clock=4.9
+        self.worker.drain()
+        self.clock=5.1
+        self.c.poll()
+        self.assertEqual(self.c.phase,'running')
+        self.assertEqual(len(self.commands),1)
+        self.assertAlmostEqual(self.c._queue_age_s,.2)
+
+    def test_real_print_conflict_and_missing_queue_proof_still_shutdown(self):
+        self.arm()
+        self.c.confirm()
+        self.data['status']['print_stats']['state']='printing'
+        self.clock=.1
+        self.c.poll()
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
+        self.assertEqual(self.c._safety_reason,'print_not_idle')
+        self.assertIn('print_not_idle',self.c.poll().reason)
+
+    def test_active_stale_queue_still_stops_at_the_read_watchdog_bound(self):
+        self.arm()
+        self.c.confirm()
+        self.clock=5.01
+        self.c.poll()
+        self.assertEqual(self.commands[-1][0],'printer.emergency_stop')
+        self.assertEqual(self.c._safety_reason,'queue_unknown')
+        self.assertEqual(self.c.phase,'stopping')
+
+    def test_late_confirm_still_requires_fresh_admission_without_dispatch(self):
+        self.arm()
+        self.clock=3.01
+        self.c.confirm()
+        self.assertEqual(self.c.phase,'preflight')
+        self.assertEqual(self.commands,[])
+
     def test_roundtrip_needs_user_observation_and_two_position_mode_reads(self):
         self.arm()
         self.assertTrue(self.c.confirm()[0])

@@ -44,6 +44,8 @@ class MaintenanceMotionController:
         self._measurement=None
         self._outward=None
         self._evidence=()
+        self._safety_reason=None
+        self._queue_age_s=None
 
     @property
     def pending(self):
@@ -90,9 +92,9 @@ class MaintenanceMotionController:
                     and id(self._printer.state.settings)==row.config_marker)
         except Exception:
             return False
-    def _safe(self,queue):
+    def _safe(self,queue,*,queue_max_age=3.):
         return self._current() and precheck(self._printer.maintenance.snapshot,
-                    live_safety_context(self._printer,queue)).allowed
+                    live_safety_context(self._printer,queue,queue_max_age=queue_max_age)).allowed
     def _read(self):
         row=self._row
         queue=read_queue_evidence(self._client,row.epoch,row.config_marker)
@@ -171,7 +173,7 @@ class MaintenanceMotionController:
             return True,'motion_shutdown_requested'
         self._phase='running'
         self._deadline=monotonic()+p.deadline_s+4
-        self._next=monotonic()+.3
+        self._next=monotonic()
         self._future=None
         self._matches=0
         return True,'guarded_motion_queued'
@@ -235,8 +237,26 @@ class MaintenanceMotionController:
             self._future=None
             self._deadline=min(now+3,queue.observed_at+3)
             return None
-        if not self._safe(self._queue):
+        # A completed read can already contain newer queue proof. Consume
+        # that proof before judging the previous sample's age.
+        if self._future is not None and self._future.done():
+            try:
+                self._queue=self._future.result()[0]
+            except Exception:
+                return self._shutdown('motion_read_or_safety_unknown')
+        self._queue_age_s=(now-self._queue.observed_at
+                           if self._queue is not None else None)
+        if not self._current():
+            self._safety_reason='lifecycle_changed'
             return self._shutdown('motion_safety_or_lifecycle_changed')
+        # Admission and dispatch stay at 3 s. Once a finite command is sent,
+        # use the existing 5 s read-watchdog bound, as in thermal workflows.
+        # Subscription print/SD/pause/MMU/other-owner checks remain live.
+        decision=precheck(self._printer.maintenance.snapshot,
+                         live_safety_context(self._printer,self._queue,queue_max_age=5.))
+        self._safety_reason=decision.reason
+        if not decision.allowed:
+            return self._shutdown('motion_runtime_'+decision.reason)
         if self._command.done():
             try:
                 self._command.result()
@@ -262,7 +282,7 @@ class MaintenanceMotionController:
             return None
         try:
             queue,values,stamp=self._future.result()
-            if not self._safe(queue) or stamp<=self._last_stamp:
+            if not self._safe(queue,queue_max_age=5.) or stamp<=self._last_stamp:
                 raise ValueError('motion_read_stale')
             self._queue,self._last_stamp=queue,stamp
         except Exception:

@@ -152,7 +152,7 @@ def owner_snapshot(owner):
         out = {}
         for key in ('_phase','_action','_index','_step','_stop_reason','_blocked','_locked',
                     '_sent','_off_matches','_metric_ok','_measurement','_evidence','_metrics',
-                    '_pid_proof','_gpio_start','_restore','_last_read_point'):
+                    '_pid_proof','_gpio_start','_restore','_last_read_point','_safety_reason','_queue_age_s'):
             value = getattr(owner,key,None)
             if is_dataclass(value):
                 value = {f.name:getattr(value,f.name) for f in fields(value)}
@@ -443,7 +443,7 @@ class OwnerProxy(Proxy):
                 trace.emit('action_error',{'name':key,'error':error_info(exc)},context)
                 raise
             snapshot = owner_snapshot(self._target)
-            transition = {k:v for k,v in snapshot.items() if k not in ('live_text','last_read_point')}
+            transition = {k:v for k,v in snapshot.items() if k not in ('live_text','last_read_point','queue_age_s')}
             changed = transition!=self._last
             if changed or (getattr(self._target,'pending',False) and monotonic()>=self._sample_at):
                 trace.emit('stage' if changed else 'sample',snapshot,context)

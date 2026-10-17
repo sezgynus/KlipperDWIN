@@ -8,7 +8,7 @@
 
 **Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **23 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **66 kayıt / 47 ID** — 23 KABUL, 37 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 23 KABUL, 33 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -64,10 +64,6 @@
 | [ ] | H09 | `heater_bed` | Soğuma hızı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `extruder` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H13 | `heater_bed` | Isıtıcı tepki uyarısı | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
-| [ ] | M07 | `tmc2208 stepper_x` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M07 | `tmc2208 stepper_y` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M07 | `tmc2208 stepper_z` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M07 | `tmc2208 extruder` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P01 | `probe` | Prob tetikleme | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P04 | `probe` | Tek prob ölçümü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -119,7 +115,7 @@
 
 **H uygulama durumu:** Referans yazıcının 16 fiziksel H hedefinin adaptörleri hazır; hiçbirinin fiziksel kabulü henüz yapılmadı. Toplu test sırası ve H01–H18 kapsamı için [termal rehber](maintenance-thermal_TR.md).
 
-**M uygulama durumu:** 18 doğrulanmış M hedefinde adaptör mevcut; 14 hedef kullanıcı tarafından kabul edildi. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
+**M uygulama durumu:** 14 doğrulanmış M fiziksel hedefinde adaptör mevcut; 14 hedef kullanıcı tarafından kabul edildi. M07'nin dört cihazı yalnız Diagnostics kapsamındadır ve fiziksel kabul listesinde değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
 
 **P/R/E/S/O geliştirme kaydı (17 Ekim 2026):** Grup adaptörleri ve regresyonları eklendi; hiçbir yeni fiziksel kabul verilmedi. Probe Calibration, Bed Mesh ve Screws Tilt mevcut Leveling’de kalır. Koşullu profil/kaynak gereksinimleri sürer. Rehberler: [P](maintenance-probe_TR.md), [R](maintenance-resonance_TR.md), [E](maintenance-filament_TR.md), [S](maintenance-system_TR.md), [O](maintenance-auxiliary_TR.md). Genel bütünleştirme bu çalışmaya dahil değildir.
 
@@ -144,3 +140,5 @@ M10 yalnız TMC2208 drv_status hata/sıcaklık uyarı bayraklarını okur; harek
 **M12/Y Diagnostics doğrulaması (17 Ekim 2026, LCD 19:18):** Kullanıcı, Y eksenini home ettikten sonra salt okunur M12/Y tanılamasının başarıyla çalıştığını açıkça doğruladı. Önceki `INCONCLUSIVE / no_valid_evidence` sonucu, o oturumda Y için homing geçmişi olmamasından kaynaklandı. Ekran görüntüsünde `OBSERVED`, `observed information`, `stepper_y.phase: 58/64` görülüyor. Bu değer mevcut `last_home` tanılama sonucudur; **yeni bir on homing'li M12 kalibrasyonu değildir ve önceki kabul edilmiş bekleyen `33/64` trigger_phase değerinin yerine geçmez**. M12/Y fiziksel kabulü korunur, kabul toplamları değişmez. Ekran görüntüsüyle doğrulanan tanılama, JSON'da M12/Y `diagnostic_observations` alanına ayrıca işlendi.
 
 **M10 ayrılmış ID (17 Ekim 2026):** M10, yanlış sınıflandırılmış bir Self Test olduğu için gizli ve boş bırakıldı. Diğer numaralar kaydırılmadı. Sürücü hata durumu M07 Diagnostics altında salt okunur bilgi olarak sunulur, motor sağlığı PASS'i verilmez. M10 X/Y/Z önceki geçersiz kullanıcı gözlemleri ve Extruder bekleyen kaydı JSON geçmiş arşivinde korunur; aktif kabul çizelgesinde M10 satırı yoktur. Güncel durum: 66 kayıt, 23 kabul, 37 bekleyen, 5 koşullu, 1 uygulanamaz.
+
+**M07 fiziksel kabul listesinden çıkarıldı (17 Ekim 2026):** X/Y/Z/Extruder için dört `M07` kaydı, Self Test değil salt okunur Diagnostics oldukları için aktif fiziksel kabul çizelgesinden çıkarıldı. Ayrı JSON `evidence.m07_informational_diagnostics` kaydı doğrudan `DRV_STATUS` okumalarını, kullanıcı doğrulamasını ve önceki dört bekleyen satırı arşivler. Yeni fiziksel PASS üretilmedi, mevcut 23 kabul ve M12 kayıtları değişmedi. Güncel toplam: **62 kayıt / 46 ID — 23 KABUL, 33 BEKLİYOR, 5 KOŞULLU, 1 N/A.**

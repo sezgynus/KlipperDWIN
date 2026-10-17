@@ -112,9 +112,9 @@ can establish acceptance.
 | M16 | Supported reported carriage mode fields; no carriage activation |
 | M17 | Deliberately hidden raw force/register-write pseudo-test |
 
-The 18 active confirmed reference M ledger targets retain adapters; M07's four rows
-are INFORMATION adapters, not functional motor tests. All remain physically
-pending; no F/H acceptance was modified. Other driver fault schemas and generic
+The 14 active confirmed reference M physical targets retain adapters and their
+operator acceptances. Four M07 driver targets are informational Diagnostics
+outside the physical acceptance ledger; no physical PASS is inferred. Other driver fault schemas and generic
 manual steppers are not exposed as physical tests just because discovered.
 
 Field order: M01 X/Y with the printer stationary and switches accessible;

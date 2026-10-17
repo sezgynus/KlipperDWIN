@@ -112,9 +112,9 @@ Yalnız fiziksel doğrulama kabul sağlayabilir.
 | M16 | Desteklenen raporlanmış carriage mod alanları; carriage aktivasyonu yok |
 | M17 | Ham force/register yazma pseudo-test'i bilerek gizli |
 
-Referans M çizelgesindeki 18 etkin doğrulanmış hedefin adaptörü mevcut; dört M07
-satırı bilgi adaptörüdür, işlevsel motor testi değildir. Hepsi fiziksel kabul
-bekliyor; F/H kabul durumları değiştirilmedi. Diğer sürücü hata şemaları ve
+Referans M fiziksel kabul çizelgesindeki 14 doğrulanmış hedefin adaptörü ve kullanıcı
+kabulü korunur. Dört M07 sürücü hedefi fiziksel kabul çizelgesinin dışındaki
+bilgilendirici Diagnostics kayıtlarıdır; fiziksel PASS sayılmaz. Diğer sürücü hata şemaları ve
 genel manual_stepper'lar keşfedildi diye fiziksel test olarak sunulmaz.
 
 Saha sırası: Yazıcı sabitken ve switch'ler erişilebilirken M01 X/Y;

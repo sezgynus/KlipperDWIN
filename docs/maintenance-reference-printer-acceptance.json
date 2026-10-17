@@ -300,6 +300,86 @@
           "acceptance": null
         }
       ]
+    },
+    "m07_informational_diagnostics": {
+      "date": "2026-10-17",
+      "reason": "M07 is a read-only on-demand TMC driver register diagnostic, not a physical Self Test. Previously listed four pending hardware acceptance targets are archived and excluded from active physical acceptance tracking.",
+      "validation": "Operator ran M07 before homing with all drivers disabled after implementing direct DUMP_TMC register read. Four TMC2208 results reported register values and zero active fault flags. Successful information reads do not certify motor health or create hardware PASS.",
+      "method": "INFORMATION",
+      "controller_result": "observed_information",
+      "motor_health_verified": false,
+      "readings": [
+        {
+          "target": "tmc2208 stepper_x",
+          "register": "DRV_STATUS",
+          "value": "80120000",
+          "fault_count": 0
+        },
+        {
+          "target": "tmc2208 stepper_y",
+          "register": "DRV_STATUS",
+          "value": "C0120000",
+          "fault_count": 0
+        },
+        {
+          "target": "tmc2208 stepper_z",
+          "register": "DRV_STATUS",
+          "value": "C00B0000",
+          "fault_count": 0
+        },
+        {
+          "target": "tmc2208 extruder",
+          "register": "DRV_STATUS",
+          "value": "C0150000",
+          "fault_count": 0
+        }
+      ],
+      "retired_physical_acceptance_entries": [
+        {
+          "feature_id": "M07",
+          "target": "tmc2208 stepper_x",
+          "title": "TMC driver status",
+          "method": "AI",
+          "reference": "confirmed",
+          "status": "pending",
+          "adapter": "implemented",
+          "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
+          "acceptance": null
+        },
+        {
+          "feature_id": "M07",
+          "target": "tmc2208 stepper_y",
+          "title": "TMC driver status",
+          "method": "AI",
+          "reference": "confirmed",
+          "status": "pending",
+          "adapter": "implemented",
+          "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
+          "acceptance": null
+        },
+        {
+          "feature_id": "M07",
+          "target": "tmc2208 stepper_z",
+          "title": "TMC driver status",
+          "method": "AI",
+          "reference": "confirmed",
+          "status": "pending",
+          "adapter": "implemented",
+          "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
+          "acceptance": null
+        },
+        {
+          "feature_id": "M07",
+          "target": "tmc2208 extruder",
+          "title": "TMC driver status",
+          "method": "AI",
+          "reference": "confirmed",
+          "status": "pending",
+          "adapter": "implemented",
+          "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
+          "acceptance": null
+        }
+      ]
     }
   },
   "policy": {
@@ -958,50 +1038,6 @@
         }
       },
       "retest_required": false
-    },
-    {
-      "feature_id": "M07",
-      "target": "tmc2208 stepper_x",
-      "title": "TMC driver status",
-      "method": "AI",
-      "reference": "confirmed",
-      "status": "pending",
-      "adapter": "implemented",
-      "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
-      "acceptance": null
-    },
-    {
-      "feature_id": "M07",
-      "target": "tmc2208 stepper_y",
-      "title": "TMC driver status",
-      "method": "AI",
-      "reference": "confirmed",
-      "status": "pending",
-      "adapter": "implemented",
-      "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
-      "acceptance": null
-    },
-    {
-      "feature_id": "M07",
-      "target": "tmc2208 stepper_z",
-      "title": "TMC driver status",
-      "method": "AI",
-      "reference": "confirmed",
-      "status": "pending",
-      "adapter": "implemented",
-      "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
-      "acceptance": null
-    },
-    {
-      "feature_id": "M07",
-      "target": "tmc2208 extruder",
-      "title": "TMC driver status",
-      "method": "AI",
-      "reference": "confirmed",
-      "status": "pending",
-      "adapter": "implemented",
-      "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
-      "acceptance": null
     },
     {
       "feature_id": "M12",

@@ -113,7 +113,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(len([e for e in data['entries']
                               if e['status'] == 'accepted']), 23)
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'pending']), 37)
+                              if e['status'] == 'pending']), 33)
 
     def test_h_implementation_does_not_grant_physical_acceptance(self):
         targets = [e for e in ledger()['entries']
@@ -130,7 +130,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
     def test_m_implementation_never_grants_physical_acceptance(self):
         items=[e for e in ledger()['entries'] if e['feature_id'].startswith('M')
                and e['reference']=='confirmed']
-        self.assertEqual(len(items),18)
+        self.assertEqual(len(items),14)
         for item in items:
             self.assertEqual(item['adapter'],'implemented')
             if item['feature_id'] in ('M01','M03','M04','M05','M06','M12'):
@@ -305,6 +305,34 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertIn('M12/Y Diagnostics',body)
             self.assertIn('58/64',body)
             self.assertIn('33/64',body)
+
+    def test_m07_informational_diagnostics_are_not_physical_acceptance(self):
+        data=ledger()
+        active=data['entries']
+        self.assertEqual(len(active),62)
+        self.assertEqual(len({item['feature_id'] for item in active}),46)
+        self.assertFalse(any(item['feature_id']=='M07' for item in active))
+        archive=data['evidence']['m07_informational_diagnostics']
+        self.assertEqual(archive['method'],'INFORMATION')
+        self.assertEqual(archive['controller_result'],'observed_information')
+        self.assertIs(archive['motor_health_verified'],False)
+        previous=archive['retired_physical_acceptance_entries']
+        self.assertEqual(len(previous),4)
+        self.assertTrue(all(item['feature_id']=='M07'
+                            and item['status']=='pending'
+                            and item['acceptance'] is None for item in previous))
+        readings=archive['readings']
+        self.assertEqual({item['target'] for item in readings},
+            {'tmc2208 stepper_x','tmc2208 stepper_y',
+             'tmc2208 stepper_z','tmc2208 extruder'})
+        self.assertTrue(all(item['register']=='DRV_STATUS'
+                            and item['fault_count']==0 for item in readings))
+        self.assertEqual(sum(item['status']=='accepted' for item in active),23)
+        for doc in (EN,TR):
+            body=doc.read_text(encoding='utf-8')
+            self.assertIn('m07_informational_diagnostics',body)
+            self.assertNotIn('| [ ] | M07 |',body)
+            self.assertIn('M12',body)
 
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}

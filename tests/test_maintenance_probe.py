@@ -193,16 +193,16 @@ class ProbeWorkflowTests(unittest.TestCase):
         self.assertEqual(dict(result.evidence)['transitions'],'open > TRIGGERED > open')
 
     def test_p01_dispatches_exact_configured_gcode_and_restores_after_three_reads(self):
-        activate = ('SET_SERVO SERVO=probe_servo ANGLE=35   # deploy\\n'
-                    'G4 P500\\n'
+        activate = ('SET_SERVO SERVO=probe_servo ANGLE=35   # deploy\n'
+                    'G4 P500\n'
                     'SET_SERVO SERVO=probe_servo WIDTH=0')
-        deactivate = ('SET_SERVO SERVO=probe_servo ANGLE=103  # retract\\n'
-                      'G4 P500\\n'
+        deactivate = ('SET_SERVO SERVO=probe_servo ANGLE=103  # retract\n'
+                      'G4 P500\n'
                       'SET_SERVO SERVO=probe_servo WIDTH=0')
         self.set_probe_hooks(activate, deactivate)
         self.arm()
         self.dispatch()
-        self.assertEqual(self.commands[0][1]['script'], activate+'\\nQUERY_PROBE')
+        self.assertEqual(self.commands[0][1]['script'], activate+'\nQUERY_PROBE')
         self.assertIsNone(self.complete(('probe: open',)))
         for state in ('TRIGGERED','open'):
             self.assertTrue(self.owner.choose(0)[0])

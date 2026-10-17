@@ -205,8 +205,11 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             'head':'1b6511db3ab45a3f9b3afc30c2c5364f836c356f',
             'run':1,'confirm_seq':72,'dispatch_seq':81,
             'completion_seq':1352,'observe_seq':1595,'result_seq':1597})
-        self.assertEqual(h03['status'],'pending')
-        self.assertIsNone(h03['acceptance'])
+        # This record tests the earlier H02 session, where an H03 attempt
+        # was correctly BLOCKED before dispatch. The later H03 physical
+        # acceptance is a separate run and must not rewrite that history.
+        self.assertEqual(h03['status'],'accepted')
+        self.assertEqual(h03['acceptance']['controller_result'],'PASSED_USER')
         trace = data['evidence']['physical_trace_2026_10_17_h02_pid']
         self.assertEqual(trace['events'],1720)
         self.assertEqual((trace['dropped_events'],trace['write_errors'],

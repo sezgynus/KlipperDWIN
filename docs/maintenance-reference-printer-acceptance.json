@@ -1905,7 +1905,7 @@
       "reference": "confirmed",
       "status": "accepted",
       "adapter": "implemented",
-      "note": "Single probe measurement accepted after operator manually raised Z; automatic low-Z lift added later and awaits independent physical re-test.",
+      "note": "Previously accepted single probe measurement; operator retested and accepted automatic low-Z lift on 2026-10-18. Earlier instrumented traces did not exercise the lift.",
       "acceptance": {
         "date": "2026-10-17",
         "source": "user_explicit_physical_observation",
@@ -1921,7 +1921,7 @@
           "starting_z_mm": 52.964,
           "measured_z_mm": -0.025,
           "earlier_blocked_z_mm": 2.964,
-          "automatic_lift_physically_retested": false
+          "automatic_lift_physically_retested": true
         },
         "followup_trace": {
           "session": "070d7f8524944245bec7259f58e3f6a3",
@@ -1933,6 +1933,14 @@
           "measured_z_mm": -0.015,
           "preparation": "guarded_G28_XYZ_homing",
           "new_automatic_low_z_lift_tested": false
+        },
+        "automatic_lift_followup": {
+          "date": "2026-10-18",
+          "source": "user_explicit_physical_observation",
+          "controller_result": "OBSERVED_USER",
+          "restore_verified": false,
+          "observation": "Operator explicitly repeated P04 on the reference printer and confirmed that the guarded automatic Z lift works; no new instrumented trace, numerical lift measurement or independent restoration readback was supplied.",
+          "new_instrumented_trace_available": false
         }
       }
     },
@@ -1942,10 +1950,19 @@
       "title": "Probe Z-offset wizard",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "not_implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Existing Leveling function; excluded from Maintenance scope by operator instruction.",
-      "acceptance": null
+      "note": "Existing Leveling feature explicitly approved by operator on 2026-10-18; excluded from Maintenance catalog execution. No standalone Maintenance adapter is implemented.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator explicitly confirmed the existing Probe Z-offset wizard workflow was already functioning in Petrel's Leveling menu and approved its acceptance. This is not evidence of a new Maintenance test run, an LCD PASSED result, or an independent restore readback.",
+        "acceptance_surface": "leveling",
+        "maintenance_adapter_excluded": true,
+        "new_instrumented_trace_available": false
+      }
     },
     {
       "feature_id": "P07",
@@ -1953,10 +1970,19 @@
       "title": "Automatic bed mesh",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "not_implemented",
-      "note": "Existing 8x8 bed mesh; existing Petrel mesh UI should be reused. Existing Leveling function; excluded from Maintenance scope by operator instruction.",
-      "acceptance": null
+      "note": "Existing Leveling feature explicitly approved by operator on 2026-10-18; excluded from Maintenance catalog execution. No standalone Maintenance adapter is implemented.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator explicitly confirmed the existing Automatic bed mesh workflow was already functioning in Petrel's Leveling menu and approved its acceptance. This is not evidence of a new Maintenance test run, an LCD PASSED result, or an independent restore readback.",
+        "acceptance_surface": "leveling",
+        "maintenance_adapter_excluded": true,
+        "new_instrumented_trace_available": false
+      }
     },
     {
       "feature_id": "P08",
@@ -1964,10 +1990,19 @@
       "title": "Manual bed mesh",
       "method": "UK",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "not_implemented",
-      "note": "Manual mesh is not automatic probe accuracy. Existing Leveling function; excluded from Maintenance scope by operator instruction.",
-      "acceptance": null
+      "note": "Existing Leveling feature explicitly approved by operator on 2026-10-18; excluded from Maintenance catalog execution. No standalone Maintenance adapter is implemented.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator explicitly confirmed the existing Manual bed mesh workflow was already functioning in Petrel's Leveling menu and approved its acceptance. This is not evidence of a new Maintenance test run, an LCD PASSED result, or an independent restore readback.",
+        "acceptance_surface": "leveling",
+        "maintenance_adapter_excluded": true,
+        "new_instrumented_trace_available": false
+      }
     },
     {
       "feature_id": "P11",
@@ -1975,10 +2010,19 @@
       "title": "Screws tilt adjustment",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "not_implemented",
-      "note": "Four corner screw-tilt configuration; reuse existing UI. Existing Leveling function; excluded from Maintenance scope by operator instruction.",
-      "acceptance": null
+      "note": "Existing Leveling feature explicitly approved by operator on 2026-10-18; excluded from Maintenance catalog execution. No standalone Maintenance adapter is implemented.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED_USER",
+        "restore_verified": false,
+        "observation": "Operator explicitly confirmed the existing Screws tilt adjustment workflow was already functioning in Petrel's Leveling menu and approved its acceptance. This is not evidence of a new Maintenance test run, an LCD PASSED result, or an independent restore readback.",
+        "acceptance_surface": "leveling",
+        "maintenance_adapter_excluded": true,
+        "new_instrumented_trace_available": false
+      }
     },
     {
       "feature_id": "R01",

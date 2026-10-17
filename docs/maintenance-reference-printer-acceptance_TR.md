@@ -6,9 +6,9 @@
 
 **Kanıt sınırı:** 15 Ekim 2026 tarihli bağımsız 121-ID cihaz referansı, 16 Ekim 2026 Moonraker/Petrel keşif günlüğü ve açık kullanıcı gözlemleri. Günlükte **54 keşfedilmiş özellik** bulunduğu doğrulanmıştır, ancak bunların **tek tek ID dökümü** mevcut değildir. Aşağıdaki `confirmed` kayıtlar bağımsız referansla doğrulanmış *potansiyel yeteneklerdir*, canlı 54-ID listesinin eksiksiz kaydı olduğu iddia edilmez. `conditional` maddeler şu an çalıştırılabilir keşif olarak kabul edilmez.
 
-**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **48 adet** referans yazıcı yeteneği kullanıcı tarafından kabul edilmiştir: 44 Maintenance testi ve dört mevcut Leveling işlevi. Leveling kabulü Maintenance adaptörü oluşturmaz. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
+**Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **51 adet** referans yazıcı yeteneği kullanıcı tarafından kabul edilmiştir: 47 Maintenance hedefi ve dört mevcut Leveling işlevi. Leveling kabulü Maintenance adaptörü oluşturmaz. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 48 KABUL, 8 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **62 kayıt / 46 ID** — 51 KABUL, 5 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Kabul türleri:** Termal karakterizasyonda *test prosedürünün kabulü*, yazıcının termal performans kriterini geçmesi demek değildir. H07/H08 Extruder sonuçları `FAILED_METRIC` olarak korunur; doğru ölçüm ve güvenli tamamlanma sayesinde prosedürler kabul edilir.
 
@@ -70,14 +70,14 @@
 | [x] | P11 | `screws_tilt_adjust` | Vida tilt ayarı | Mevcut Leveling; Maintenance adaptörü yok | **KABUL (Leveling)** |
 | [x] | R01 | `adxl345` | İvmeölçer verisi | ACCELEROMETER_QUERY; üç eksen ölçümü doğrulandı | **KABUL** |
 | [x] | R03 | `adxl345` | İvmeölçer gürültü tabanı | MEASURE_AXES_NOISE 2 sn; XYZ PSD ölçüldü | **KABUL** |
+| [x] | R02 | `resonance_tester X` | Eksen rezonansı | TEST_RESONANCES; Klipper PSD ve kullanıcı onayı | **KABUL** |
+| [x] | R02 | `resonance_tester Y` | Eksen rezonansı | TEST_RESONANCES; Klipper PSD ve kullanıcı onayı | **KABUL** |
+| [x] | R04 | `input_shaper X/Y` | Klipper input shaper kalibrasyonu | X: 3hump_ei 137,6 Hz; Y: MZV 42,2 Hz; kaydedilmedi | **KABUL** |
 
 ## Fiziksel test için hazır donanım — adaptör/kabul bekleyenler
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | R02 | `resonance_tester X` | Eksen rezonansı | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | R02 | `resonance_tester Y` | Eksen rezonansı | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | R04 | `input_shaper X/Y` | Input shaper kalibrasyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | E01 | `extruder filament path` | Kaba filament ekstrüzyonu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | E02 | `extruder measured length` | Ölçülmüş ekstrüzyon mesafesi | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | E03 | `filament_switch_sensor mmu_gate_sensor` | Filament var/yok sensörü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -210,3 +210,7 @@ Kullanıcı P04, R01 ve R03 testlerini gerçek yazıcıda yaptığını bildirdi
 ## 18 Ekim 2026 — mevcut Leveling kabulleri ve P04 Z yükseltme tekrarı
 
 Kullanıcı P04'ü yeniden deneyerek otomatik güvenli Z yükseltmesinin çalıştığını doğruladı. Bu yeni gözlemdir; eski trace kayıtları değiştirilmedi ve yükseltme içermiyordu. P05, P07, P08 ve P11 önceden çalışan Leveling işlevleri olarak kabul edildi. Maintenance çalıştırma kapsamı ve adaptörleri dışında kalırlar. Yeni Leveling test trace'i, LCD PASS veya restore okuması iddia edilmez.
+
+## 18 Ekim 2026 — Referans yazıcıda R grubu tamamlandı
+
+Kullanıcı R grubunun tamamını açıkça kabul etti. `ff80258017ad4c1495e3fd1c64b17e7e` trace oturumu, imzalı HEAD `ad061591`: 902 olay, sıfır kayıp/yazma hatası/rotasyon. R02 X `TEST_RESONANCES` (#121) çalıştırdı; kullanıcı `observe(true)` (#177), kontrolcü `PASSED` (#179) bildirdi. R02 Y `TEST_RESONANCES` (#260), `observe(true)` (#305), `PASSED` (#307) ile tamamlandı. İki kabul de Klipper'ın PSD verisini kaydettiğini kanıtlar; **Petrel spektrumu puanlamaz veya shaper hesaplamaz**. Klipper'ın R04 X `SHAPER_CALIBRATE` (#355) sonucu `OBSERVED` (#439): **3hump_ei / 137,6 Hz**. R04 Y'nin ilk denemesi `existing_pending_config` sebebiyle `BLOCKED` (#519); yeni XYZ homing (#598) ardından `SHAPER_CALIBRATE` (#769) ile tekrarlandığında `OBSERVED` (#854): **MZV / 42,2 Hz**. Tek R04 kabul satırı her iki eksenin prosedürünü kapsar; `restore_verified=false`, `saved=false`. `SAVE_CONFIG` çalıştırılmadı, kalıcı kaydetme veya bağımsız en iyi mekanik ayar doğrulaması iddia edilmez. Önceki R01/R03 kabul kayıtları ve iptal edilmiş rezonans denemeleri korunur. **Güncel toplam: 62 kayıt / 46 ID — 51 KABUL, 5 BEKLİYOR, 5 KOŞULLU, 1 N/A.**

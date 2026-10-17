@@ -582,6 +582,61 @@
         }
       },
       "evidence_boundary": "The operator reported running P04/R01/R03; all three showed controller PASSED with numeric firmware evidence. P04's preparation was XYZ homing, not the newly added low-Z automatic lift. R02/R04 were cancelled without physical acceptance."
+    },
+    "physical_trace_2026_10_18_resonance_group": {
+      "session": "ff80258017ad4c1495e3fd1c64b17e7e",
+      "tested_signed_head": "ad0615911960e627dcec70722b84cc5c4a8b88c4",
+      "first_seq": 1,
+      "last_seq": 902,
+      "dropped_events": 0,
+      "write_errors": 0,
+      "rotations": 0,
+      "r02": {
+        "x": {
+          "run": 1,
+          "dispatch_seq": 121,
+          "observe_seq": 177,
+          "result_seq": 179,
+          "controller_result": "PASSED",
+          "data": "Klipper PSD recorded"
+        },
+        "y": {
+          "run": 2,
+          "dispatch_seq": 260,
+          "observe_seq": 305,
+          "result_seq": 307,
+          "controller_result": "PASSED",
+          "data": "Klipper PSD recorded"
+        }
+      },
+      "r04": {
+        "x": {
+          "run": 3,
+          "dispatch_seq": 355,
+          "result_seq": 439,
+          "controller_result": "OBSERVED",
+          "shaper": "3hump_ei",
+          "frequency_hz": 137.6,
+          "saved": false
+        },
+        "y": {
+          "run": 5,
+          "homing_dispatch_seq": 598,
+          "dispatch_seq": 769,
+          "result_seq": 854,
+          "controller_result": "OBSERVED",
+          "shaper": "mzv",
+          "frequency_hz": 42.2,
+          "saved": false
+        },
+        "earlier_y_blocked": {
+          "run": 4,
+          "result_seq": 519,
+          "controller_result": "BLOCKED",
+          "reason": "existing_pending_config"
+        }
+      },
+      "evidence_boundary": "The operator explicitly accepted the completed R group. R02 X/Y have actual TEST_RESONANCES execution, PASSED and observe(true); R04 X/Y have Klipper-native SHAPER_CALIBRATE OBSERVED with signed-head trace. Klipper recommendations are not independent mechanical-quality assessments, and persistent SAVE_CONFIG / restore is not verified. Earlier aborted/blocked attempts stay in history."
     }
   },
   "policy": {
@@ -2032,7 +2087,7 @@
       "reference": "confirmed",
       "status": "accepted",
       "adapter": "implemented",
-      "note": "Real-printer sensor test reported by operator and completed with numeric firmware evidence; no axis movement or saved configuration. R02/R04 remain pending.",
+      "note": "Real-printer sensor test reported by operator and completed with numeric firmware evidence; no axis movement or saved configuration. R02 X/Y and R04 X/Y were independently accepted on 2026-10-18; historical R01/R03 readings are unchanged.",
       "acceptance": {
         "date": "2026-10-17",
         "source": "user_explicit_physical_observation",
@@ -2060,10 +2115,32 @@
       "title": "Axis resonance measurement",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "ADXL345 assigned to X and Y only, not Z. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Reference-printer X-axis Klipper TEST_RESONANCES produced a validated resonance PSD; operator reviewed the result. No Petrel-generated mechanical quality score, input-shaper choice, or SAVE_CONFIG. Acceptance is for execution/PSD recording only.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED",
+        "restore_verified": false,
+        "observation": "Operator confirmed completion of the real-printer R02 X-axis test after the firmware TEST_RESONANCES run and selected Result reviewed. Petrel reported PASSED with Klipper PSD recorded. No numeric PSD peak was reported on the new UI, no mechanical quality assessment was made, and no restore verification is claimed.",
+        "tested_signed_head": "ad0615911960e627dcec70722b84cc5c4a8b88c4",
+        "trace": {
+          "session": "ff80258017ad4c1495e3fd1c64b17e7e",
+          "run": 1,
+          "dispatch_seq": 121,
+          "observe_seq": 177,
+          "result_seq": 179
+        },
+        "measurement": {
+          "axis": "X",
+          "device": "adxl345",
+          "command": "TEST_RESONANCES",
+          "klipper_psd_recorded": true,
+          "shaper_recommendation_computed": false,
+          "save_config_sent": false
+        }
+      }
     },
     {
       "feature_id": "R02",
@@ -2071,10 +2148,32 @@
       "title": "Axis resonance measurement",
       "method": "A",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "ADXL345 assigned to X and Y only, not Z. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Reference-printer Y-axis Klipper TEST_RESONANCES produced a validated resonance PSD; operator reviewed the result. No Petrel-generated mechanical quality score, input-shaper choice, or SAVE_CONFIG. Acceptance is for execution/PSD recording only.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "PASSED",
+        "restore_verified": false,
+        "observation": "Operator confirmed completion of the real-printer R02 Y-axis test after the firmware TEST_RESONANCES run and selected Result reviewed. Petrel reported PASSED with Klipper PSD recorded. No numeric PSD peak was reported on the new UI, no mechanical quality assessment was made, and no restore verification is claimed.",
+        "tested_signed_head": "ad0615911960e627dcec70722b84cc5c4a8b88c4",
+        "trace": {
+          "session": "ff80258017ad4c1495e3fd1c64b17e7e",
+          "run": 2,
+          "dispatch_seq": 260,
+          "observe_seq": 305,
+          "result_seq": 307
+        },
+        "measurement": {
+          "axis": "Y",
+          "device": "adxl345",
+          "command": "TEST_RESONANCES",
+          "klipper_psd_recorded": true,
+          "shaper_recommendation_computed": false,
+          "save_config_sent": false
+        }
+      }
     },
     {
       "feature_id": "R03",
@@ -2084,7 +2183,7 @@
       "reference": "confirmed",
       "status": "accepted",
       "adapter": "implemented",
-      "note": "Real-printer sensor test reported by operator and completed with numeric firmware evidence; no axis movement or saved configuration. R02/R04 remain pending.",
+      "note": "Real-printer sensor test reported by operator and completed with numeric firmware evidence; no axis movement or saved configuration. R02 X/Y and R04 X/Y were independently accepted on 2026-10-18; historical R01/R03 readings are unchanged.",
       "acceptance": {
         "date": "2026-10-17",
         "source": "user_explicit_physical_observation",
@@ -2113,10 +2212,52 @@
       "title": "Input shaper calibration",
       "method": "K",
       "reference": "confirmed",
-      "status": "pending",
+      "status": "accepted",
       "adapter": "implemented",
-      "note": "Reference-backed hardware capability; no physical operator acceptance recorded. Adapter implemented 2026-10-17; physical acceptance deferred; conditional profiles/sources remain required.",
-      "acceptance": null
+      "note": "Klipper-native SHAPER_CALIBRATE completed for both X and Y on the reference printer; verified native recommendations only, with no Petrel scoring and no SAVE_CONFIG. First Y preflight was BLOCKED by existing pending config, followed by successful retest after configuration epoch/homing.",
+      "acceptance": {
+        "date": "2026-10-18",
+        "source": "user_explicit_physical_observation",
+        "controller_result": "OBSERVED",
+        "restore_verified": false,
+        "observation": "Operator explicitly accepted the entire R group after completing R04 X and Y on the reference printer. Klipper SHAPER_CALIBRATE returned native input-shaper recommendations for both axes, without Petrel numerical ranking. X completed directly; initial Y preflight was blocked by an existing pending configuration, then Y was rerun after a fresh epoch and guarded XYZ homing. Both final results were OBSERVED. No SAVE_CONFIG was sent or persistent shaper configuration verified.",
+        "tested_signed_head": "ad0615911960e627dcec70722b84cc5c4a8b88c4",
+        "trace": {
+          "session": "ff80258017ad4c1495e3fd1c64b17e7e",
+          "successful_runs": [
+            {
+              "axis": "X",
+              "run": 3,
+              "dispatch_seq": 355,
+              "result_seq": 439
+            },
+            {
+              "axis": "Y",
+              "run": 5,
+              "homing_dispatch_seq": 598,
+              "dispatch_seq": 769,
+              "result_seq": 854
+            }
+          ],
+          "earlier_y_blocked": {
+            "run": 4,
+            "result_seq": 519,
+            "reason": "existing_pending_config"
+          }
+        },
+        "recommendations": {
+          "x": {
+            "shaper": "3hump_ei",
+            "frequency_hz": 137.6
+          },
+          "y": {
+            "shaper": "mzv",
+            "frequency_hz": 42.2
+          }
+        },
+        "saved": false,
+        "measurement_scope": "Klipper native recommendation and test procedure; no independent validation of optimal shaper or persistent settings"
+      }
     },
     {
       "feature_id": "E01",

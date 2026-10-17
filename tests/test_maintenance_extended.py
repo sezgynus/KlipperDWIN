@@ -155,7 +155,7 @@ class ExtendedTests(unittest.TestCase):
     def test_tmc_status_capability_not_hidden_when_driver_is_disabled(self):
         a = device('tmc2208 stepper_x')
         self.assertEqual(a.method('M07', 'tmc2208 stepper_x'), AUTOMATIC | INFORMATION)
-        self.assertEqual(a.method('M10', 'tmc2208 stepper_x'), AUTOMATIC)
+        self.assertEqual(a.method('M10', 'tmc2208 stepper_x'), NONE)
         self.assertEqual(a.method('M08', 'tmc2208 stepper_x'), NONE)
         self.assertEqual(a.method('M09', 'tmc2208 stepper_x'), NONE)
         b = device('tmc2209 stepper_x', {'run_current': .65},
@@ -163,7 +163,7 @@ class ExtendedTests(unittest.TestCase):
         self.assertEqual(b.method('M09', 'tmc2209 stepper_x'), INFORMATION)
         self.assertEqual(b.method('M08', 'tmc2209 stepper_x'), NONE)
         self.assertEqual(b.method('M07', 'tmc2209 stepper_x'), AUTOMATIC | INFORMATION)
-        self.assertEqual(b.method('M10', 'tmc2209 stepper_x'), AUTOMATIC)
+        self.assertEqual(b.method('M10', 'tmc2209 stepper_x'), NONE)
         self.assertEqual(device('tmc9999 stepper_x').method('M07', 'tmc9999 stepper_x'), NONE)
 
     def test_temperature_history_only_after_baseline(self):

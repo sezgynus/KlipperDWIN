@@ -28,7 +28,7 @@ class MaintenanceCatalogTests(unittest.TestCase):
     def test_hidden_ids_are_exact_and_fail_closed(self):
         hidden = {entry.feature_id for entry in CATALOG if entry.methods == NONE}
         self.assertEqual(hidden, ALWAYS_HIDDEN)
-        self.assertEqual(len(hidden), 7)
+        self.assertEqual(len(hidden), 8)
         self.assertTrue(all(definition_for(fid).safety_profile == 'hidden'
                             for fid in hidden))
         for key in ('F00', 'F14', 'P23', 'S21', 'Z01', 'F1', '', 'F01x', None):
@@ -51,6 +51,10 @@ class MaintenanceCatalogTests(unittest.TestCase):
         self.assertEqual(definition_for('H01').safety_profile, 'heater')
         self.assertEqual(definition_for('M07').scope, 'device')
         self.assertEqual(definition_for('M07').methods, AUTOMATIC | INFORMATION)
+        self.assertEqual(definition_for('M10').methods, NONE)
+        self.assertEqual(definition_for('M10').safety_profile, 'hidden')
+        self.assertEqual(definition_for('M11').feature_id, 'M11')
+        self.assertEqual(candidate_methods('M10', AUTOMATIC | INFORMATION), NONE)
         self.assertEqual(definition_for('M01').scope, 'mixed')
         self.assertEqual(definition_for('R02').scope, 'mixed')
         self.assertEqual(definition_for('R04').methods, CALIBRATION)

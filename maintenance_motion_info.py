@@ -61,6 +61,12 @@ def read_fields(feature, reply, device=None):
             if not isinstance(fields, Mapping) or len(fields) > 64:
                 return ()
             out = [('reported_nonzero_fields', len(fields))]
+            if isinstance(device, str) and device.startswith('tmc2208 '):
+                faults = tmc2208_faults(v)
+                if faults is None:
+                    return ()  # Unknown driver schema is not a clean result.
+                out.extend((('fault_count', len(faults)),
+                            ('faults', ','.join(faults) or 'none reported')))
             out.extend((k, fields[k]) for k in _FLAGS
                        if k in fields and type(fields[k]) in (bool, int) and 0 <= fields[k] <= 1)
         else:

@@ -80,43 +80,14 @@ class SwitchTests(unittest.TestCase):
         self.assertEqual(self.c.poll().status,'INCONCLUSIVE')
         self.assertNotIn('/printer/query_endstops/status',self.paths)
 
-    def test_disabled_driver_is_unknown_and_faults_cannot_pass(self):
-        self.flags=None
-        self.c.start('M10','tmc2208 stepper_x')
-        self.worker.drain()
-        self.assertEqual(self.c.poll().status,'INCONCLUSIVE')
-        self.flags={'ot':1}
-        self.c.start('M10','tmc2208 stepper_x')
-        self.worker.drain()
-        self.c.poll()
-        self.assertEqual(self.c.observe(True).status,'FAILED_USER')
-        self.flags={}
-        self.c.start('M10','tmc2208 stepper_x')
-        self.worker.drain()
-        self.c.poll()
-        self.assertEqual(self.c.observe(True).status,'OBSERVED_USER')
-        self.assertTrue(all(not path.startswith('/printer/gcode') for path in self.paths))
-
-    def test_driver_fault_details_are_available_before_acknowledgment(self):
-        self.flags={'ot':1,'s2ga':1}
-        self.c.start('M10','tmc2208 stepper_x')
-        self.worker.drain()
-        self.assertIsNone(self.c.poll())
-        self.assertEqual(self.c.phase,'await_observation')
-        details=self.c.observation_details
-        self.assertIn('tmc2208 stepper_x',details)
-        self.assertIn('Reported faults: 2',details)
-        self.assertIn('Overtemperature',details)
-        self.assertIn('Short to GND: phase A',details)
-        self.assertIn('Not a motor health test',details)
-        self.assertEqual(self.c.observe(True).status,'FAILED_USER')
-
-    def test_no_fault_read_is_shown_before_acknowledgment(self):
-        self.c.start('M10','tmc2208 stepper_x')
-        self.worker.drain()
-        self.c.poll()
-        self.assertIn('No fault flags reported',self.c.observation_details)
-        self.assertIn('Passive read; no movement',self.c.observation_details)
+    def test_reserved_m10_is_not_an_active_test_even_with_stale_discovery(self):
+        from maintenance_switches import switch_adapters, switch_plan
+        self.assertEqual([a.feature_id for a in switch_adapters()], ['M01'])
+        self.assertEqual([r.feature_id for r in switch_plan(self.p.maintenance.snapshot)],
+                         ['M01'])
+        self.assertEqual(self.c.start('M10','tmc2208 stepper_x'),
+                         (False,'motion_observer_unavailable'))
+        self.assertEqual(self.paths, [])
 
     def test_cancel_and_disconnect_do_not_send_motion(self):
         self.c.start('M01','stepper_x')

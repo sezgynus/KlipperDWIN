@@ -1,26 +1,24 @@
-"""Operator-paced physical endstop checks and passive TMC2208 fault reads."""
+"""Operator-paced physical endstop checks; no passive driver tests."""
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import monotonic
-from urllib.parse import quote
 from maintenance_catalog import definition_for
-from maintenance_discovery import USER, AUTOMATIC
+from maintenance_discovery import USER
 from maintenance_planner import AdapterRegistration, build_plan, visible_plan
 from maintenance_runtime import read_queue_evidence, live_safety_context
 from maintenance_safety import precheck
-from maintenance_motion_info import tmc2208_faults
 
 
 def switch_adapters():
-    return tuple(AdapterRegistration(f, method, 'maintenance.motion.'+f,
-        definition_for(f).evidence_contract, definition_for(f).safety_profile)
-        for f, method in (('M01', USER), ('M10', AUTOMATIC)))
+    return (AdapterRegistration('M01', USER, 'maintenance.motion.M01',
+        definition_for('M01').evidence_contract,
+        definition_for('M01').safety_profile),)
 
 
 def switch_plan(snapshot):
     return tuple(r for r in visible_plan(build_plan(snapshot, switch_adapters()))
-                 if (r.feature_id == 'M01' and r.device in ('stepper_x', 'stepper_y', 'stepper_z'))
-                 or (r.feature_id == 'M10' and isinstance(r.device, str) and r.device.startswith('tmc2208 ')))
+                 if r.feature_id == 'M01'
+                 and r.device in ('stepper_x', 'stepper_y', 'stepper_z'))
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +39,6 @@ class MaintenanceSwitchController:
         self._deadline = 0.
         self._step = 0
         self._last = ''
-        self._faults = None
 
     @property
     def pending(self):
@@ -57,22 +54,8 @@ class MaintenanceSwitchController:
 
     @property
     def observation_prompt(self):
-        return 'Fault read and state seen?' if self.feature_id == 'M10' else 'Switch responded correctly?'
+        return 'Switch responded correctly?'
 
-    @property
-    def observation_details(self):
-        if self.feature_id!='M10' or self.phase!='await_observation':
-            return ()
-        labels={'ot':'Overtemperature','otpw':'Temperature warning',
-                's2ga':'Short to GND: phase A','s2gb':'Short to GND: phase B',
-                's2vsa':'Short to supply: phase A','s2vsb':'Short to supply: phase B',
-                't120':'Temperature flag: 120C','t143':'Temperature flag: 143C',
-                't150':'Temperature flag: 150C','t157':'Temperature flag: 157C'}
-        return (self._row.device,'Passive read; no movement',
-                'Reported faults: '+str(len(self._faults)),
-                *(labels[flag] for flag in self._faults),
-                *(('No fault flags reported',) if not self._faults else ()),
-                'Not a motor health test')
 
     @property
     def live_text(self):
@@ -124,15 +107,7 @@ class MaintenanceSwitchController:
             if value not in ('open', 'TRIGGERED'):
                 raise ValueError('endstop_state_unknown')
             return evidence, value
-        reply = self._client.get('/printer/objects/query?'+quote(row.device, safe='')+'=drv_status')
-        result = reply.get('result') if isinstance(reply, Mapping) else None
-        status = result.get('status') if isinstance(result, Mapping) else None
-        if not isinstance(status, Mapping):
-            raise ValueError('driver_status_unknown')
-        faults = tmc2208_faults(status.get(row.device))
-        if faults is None:
-            raise ValueError('driver_monitor_disabled_or_unknown')
-        return evidence, faults
+        raise ValueError('unsupported_switch_feature')
 
     def _schedule(self):
         self._phase = 'preflight'
@@ -150,7 +125,7 @@ class MaintenanceSwitchController:
         row = next((r for r in self.available() if r.feature_id == feature_id and r.device == device), None)
         if row is None:
             return False, 'motion_observer_unavailable'
-        self._row, self._step, self._last, self._faults = row, 0, '', None
+        self._row, self._step, self._last = row, 0, ''
         if feature_id == 'M01':
             # Opening this screen never even queries the switch until the
             # operator explicitly says the released switch is ready.
@@ -184,11 +159,6 @@ class MaintenanceSwitchController:
         except Exception:
             return self._finish('INCONCLUSIVE', 'switch_or_driver_read_unavailable')
         self._future = None
-        if self.feature_id == 'M10':
-            self._faults = value
-            self._last = 'Faults: '+(','.join(value) if value else 'none reported')
-            self._phase = 'await_observation'
-            return None
         expected = ('open', 'TRIGGERED', 'open')[self._step]
         self._last = 'Read: '+value
         if value != expected:
@@ -204,11 +174,6 @@ class MaintenanceSwitchController:
     def observe(self, seen):
         if self.phase != 'await_observation' or type(seen) is not bool:
             return None
-        if self.feature_id == 'M10':
-            faults = self._faults
-            return self._finish('OBSERVED_USER' if seen and not faults else 'FAILED_USER',
-                'no_reported_fault_not_motor_health' if not faults else 'driver_fault_reported',
-                False, (('fault_count', len(faults)), ('faults', ','.join(faults) or 'none')))
         return self._finish('PASSED_USER' if seen else 'FAILED_USER',
             'physical_switch_open_triggered_open', True,
             (('transitions', 'open > TRIGGERED > open'),))

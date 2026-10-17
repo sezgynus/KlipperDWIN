@@ -18,18 +18,18 @@ ile null farklıdır. Konum komutlanan durumdur, fiziksel mesafe ölçümü değ
 Pasif M12 tanılaması kalibrasyon veya kayıt yapmaz; ayrı stepper bazlı M12 testi otomatik kaydetmeden kalibrasyon yapar. Angle durumu mil açısı değildir.
 Fiziksel kabul değişmez. M02/M17 bilerek gizli kalır.
 
-## M01 ve M10
+## M01 fiziksel endstop ve M07 pasif sürücü tanılaması
 M01 fiziksel ana eksen endstop'u başınadır: serbest, basılı tutulmuş, serbest
 durumlar Moonraker'ın gerçek endstop endpoint'inden açık kullanıcı eylemiyle
 okunur. Hareket ve last_query tekrar kullanımı yoktur. Sorular süresizdir;
 uyuşmayan durum açıkça yeniden okunabilir. Sanal/sensorless endstop'lar hariçtir.
 Son gözlem geçişlerden ayrıdır; serbest okuma geri yükleme kanıtıdır.
-M10 motor açmadan ve DUMP_TMC kullanmadan TMC2208'in yapısal monitor durumunu
-okur. Null monitor bilinmeyendir; standstill/açık yük işareti kısa devre/aşırı
-sıcaklık diye uydurulmaz. Geçerli boş, sıfır olmayan alanlar mapping'i raporlanan
-kritik/uyarı bayrağı yok demektir; motor sağlığı kanıtı değildir. Son operatör
-onayı OBSERVED_USER'dır, otomatik donanım PASS'i yoktur. Diğer çipler kendi
-hata şeması gerektirir. Mevcut F/H kabul kayıtları değişmez.
+M07, Diagnostics altından TMC sürücü monitor durumunu motoru açmadan ve
+DUMP_TMC göndermeden okur. TMC2208 için mevcut pasif tanılamaya yapılandırılmış
+fault_count/faults özeti eklenmiştir. Null veya geçersiz monitor bilinmeyendir;
+geçerli boş veri yalnız o anda raporlanmış hata yok demektir, motor sağlığı
+kanıtı değildir. Standstill hata sayılmaz. PASS/FAIL veya fiziksel kullanıcı
+kabulü üretilmez. M10 gizli ve boş katalog numarasıdır; diğer ID'ler değişmez.
 
 ## Hareket sözleşmeleri
 Cartesian/CoreXY koordinat hareketi gerçek XYZ homing, yapılandırılmış sınırlar,
@@ -91,10 +91,10 @@ Yalnız fiziksel doğrulama kabul sağlayabilir.
 | M04 | Ana Cartesian motor buzz; bağımsız çoklu Z/bağlı motor buzzing yok |
 | M05 | Desteklenen koordinat XYZ 1 mm gidip dönüş |
 | M06 | Harici gerçek 10 mm mesafe girişi ve ayrı onaylı dönüş |
-| M07 | Yalnız sürücü monitor BİLGİSİ; null bilinmeyen |
+| M07 | Diagnostics içinde pasif sürücü durumu ve TMC2208 hata özeti; motor sağlığı PASS'i yok |
 | M08 | Keşfedilmişse yalnız gerçekten raporlanan sürücü sıcaklığı |
 | M09 | Raporlanan akım ayarı; ölçülmüş sargı akımı değil |
-| M10 | Tam TMC2208 şemalı pasif hata/uyarı kontrolü ve kullanıcı gözlemi |
+| M10 | Ayrılmış, gizli, boş ID; diğer numaralar kaydırılmadı |
 | M11 | Motor enable bilgisi |
 | M12 | Fiziksel stepper başına rastgele başlangıçlı on hedefli homing ve bekleyen faz kalibrasyonu; pasif last_home tanılaması |
 | M13 | Mevcut angle sürücüsü sıcaklık durumu; mil açısı uydurulmaz |
@@ -103,7 +103,7 @@ Yalnız fiziksel doğrulama kabul sağlayabilir.
 | M16 | Desteklenen raporlanmış carriage mod alanları; carriage aktivasyonu yok |
 | M17 | Ham force/register yazma pseudo-test'i bilerek gizli |
 
-Referans M çizelgesindeki 22 doğrulanmış hedefin adaptörü mevcut; dört M07
+Referans M çizelgesindeki 18 etkin doğrulanmış hedefin adaptörü mevcut; dört M07
 satırı bilgi adaptörüdür, işlevsel motor testi değildir. Hepsi fiziksel kabul
 bekliyor; F/H kabul durumları değiştirilmedi. Diğer sürücü hata şemaları ve
 genel manual_stepper'lar keşfedildi diye fiziksel test olarak sunulmaz.
@@ -119,7 +119,7 @@ Test yazıcının sahibiyken kuyruktan baskı/harici hareket başlatma. Yerel Pe
 hareket guard'ları rakip sahipli işlemleri reddeder; bu yazılım rezervasyonu
 harici istemcileri kilitlemez.
 
-M10 ve M07'yi gerçekten sürücü monitor verisi varken uygula; kapalı/null
+M07'yi gerçekten sürücü monitor verisi varken oku; kapalı/null
 sonuçsuzdur, sağlık onayı veya otomatik motor açma nedeni değildir.
 M12 en son: mevcut stepper test girdisinde ilgili ekseni rastgele on
 başlangıç konumundan home et, hesaplanan bekleyen trigger_phase değerini
@@ -197,9 +197,9 @@ Geçici kayıt confirm_attempts, refresh_reason ve confirmation_safety_refresh a
 
 Yalnız iletişim katmanının socket gönderiminden önce kesin olarak guard_denied işaretlediği ret, özgül BLOCKED sonucu verir; shutdown veya otomatik tekrar göndermez. Gönderilmiş, sunucu hatalı, zaman aşımına uğramış ya da belirsiz hareketin mevcut acil durdurma davranışı korunur. Hazırlık homing'i bu kayıtta doğrulandı; M04 fiziksel kabulü henüz yok.
 
-## M10/M12 sonuç önce, inceleme sonra
+## M12 sonuç önce, inceleme sonra
 
-M10 ve M12 artık veriyi göstermeden Observed sorusu sormaz. Sonuç bilgileri aynı test ekranının üstünde, inceleme düğmeleri altında gösterilir. Bilgi satırlarına basmak işlem yapmaz. M10 hedef sürücüyü, pasif okuma olduğunu, hata sayısını ve her aktif bayrağın okunabilir adını (veya No fault flags reported) gösterir; motor sağlığı testi olmadığı belirtilir. M12 hedefi, Homing cycles: 10, hesaplanan trigger_phase kesri, Pending config: YES / Saved to file: NO durumu ve geri yüklenen G-code modlarını gösterir; bağımsız doğruluk ölçümü iddiası yoktur. Kullanıcı listeyi okuyup Result reviewed seçebilir veya Not accepted ile reddedebilir. İnceleme ekranı süresizdir; yeni hareket veya SAVE_CONFIG göndermez. M10/M12 fiziksel kabulleri açık kullanıcı doğrulamasına kadar beklemede kalır.
+M12 on homing kalibrasyonunun sonucunu kullanıcı incelemesinden önce gösterir. Kullanıcı bekleyen faz, kaydedilmemiş yapılandırma ve modları zaman sınırı olmadan inceleyebilir. Eski M10 Self Test/inceleme akışı kaldırıldı. Sürücü hata bilgisi M07 Diagnostics altında pasif okunur; motor sağlığı PASS veya FAIL sonucu üretilmez.
 
 
 ## M12: seçili eksende on kez faz kalibrasyonu homing'i (17 Ekim 2026)

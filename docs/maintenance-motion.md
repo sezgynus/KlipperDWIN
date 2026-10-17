@@ -17,18 +17,19 @@ from null. Position is commanded state, not measured physical displacement.
 Passive M12 diagnostics does not calibrate or save; the separate M12 per-stepper test calibrates without automatic saving. Angle status is not shaft angle.
 No physical acceptance changes. M02/M17 remain deliberately hidden.
 
-## M01 and M10
+## M01 physical endstop and M07 passive driver diagnostics
 M01 is per physical primary-axis endstop: explicitly query released, held,
 released through Moonraker's authoritative endstop endpoint. No motion or
 last_query reuse. Each operator prompt is unlimited; mismatched state can be
 explicitly retried. Virtual/sensorless endstops are excluded. Final observation
 is separate from transitions; released readback is the restoration evidence.
-M10 reads TMC2208's structured monitor without enabling motors or DUMP_TMC.
-Null monitor is unknown; standstill/open-load indications are not fabricated
-short/overtemperature faults. Valid empty nonzero-only status means no reported
-critical/warning flags, not proven motor health. Final operator acknowledgment
-is OBSERVED_USER, never automatic hardware PASS. Other chips need their own
-fault schema. No existing F/H acceptance changes.
+M07 reads structured TMC driver monitor status through Diagnostics without
+enabling motors or issuing DUMP_TMC. TMC2208 receives an exact-schema
+fault_count/faults summary in this existing read-only diagnostic. A null monitor
+or malformed status is unknown, while an empty valid status means no faults
+reported at this instant, not proven motor health. Standstill is not a fault.
+There is no operator PASS/FAIL or physical acceptance. M10 remains an unused,
+hidden catalog ID; all other IDs retain their numbering.
 
 ## Motion contracts
 Cartesian/CoreXY coordinated motion is bounded by actual XYZ homing, configured
@@ -89,10 +90,10 @@ can establish acceptance.
 | M04 | Primary Cartesian motor buzz, no independent multi-Z/coupled buzzing |
 | M05 | Supported coordinated XYZ 1 mm roundtrip |
 | M06 | External actual 10 mm travel entry, separately consented return |
-| M07 | Driver monitor INFORMATION only; null is unknown |
+| M07 | Passive driver status and TMC2208 fault summary in Diagnostics; no motor-health PASS |
 | M08 | Real reported driver temperature only, if discovered |
 | M09 | Reported current settings, not measured winding current |
-| M10 | TMC2208 exact-schema passive fault/warning check and user observation |
+| M10 | Reserved, hidden, unused; no renumbering |
 | M11 | Motor enable information |
 | M12 | Per physical stepper ten random-start targeted homings and pending phase calibration; passive last_home diagnostics |
 | M13 | Available angle-driver temperature status only; no invented shaft angle |
@@ -101,7 +102,7 @@ can establish acceptance.
 | M16 | Supported reported carriage mode fields; no carriage activation |
 | M17 | Deliberately hidden raw force/register-write pseudo-test |
 
-The 22 confirmed reference M ledger targets now have adapters; M07's four rows
+The 18 active confirmed reference M ledger targets retain adapters; M07's four rows
 are INFORMATION adapters, not functional motor tests. All remain physically
 pending; no F/H acceptance was modified. Other driver fault schemas and generic
 manual steppers are not exposed as physical tests just because discovered.
@@ -117,7 +118,7 @@ objects on the bed. Do not start a queued print or issue external motion while
 a test owns the printer. Local Petrel motion guards reject competing owned
 operations; external clients cannot be locked by this software reservation.
 
-Run M10 and M07 while driver monitor data actually exists; disabled/null is
+Read M07 while driver monitor data actually exists; disabled/null is
 inconclusive, not a clean bill of health and not a reason to auto-enable motors.
 M12 last: run the existing per-stepper entry for ten random-start homings
 of that axis, review and record the computed pending trigger_phase. A pending
@@ -193,9 +194,9 @@ Session `8bf95a8e7cc6431c99ede09170b26605` on 17 October completed preparatory h
 
 Only a transport-confirmed guard_denied before socket send finishes with the specific BLOCKED reason, without shutdown or replay. Sent, server-failed, timed-out or otherwise ambiguous motion retains emergency-stop handling. Preparatory homing was verified in this trace; M04 physical acceptance remains pending.
 
-## M10/M12 evidence before review
+## M12 evidence before review
 
-M10 and M12 no longer ask Observed before displaying their evidence. Read-only evidence rows appear first in the test screen, followed by review actions; clicking an evidence row does nothing. M10 shows the target driver, passive-read scope, fault count and a readable name for every active flag (or No fault flags reported), plus its motor-health limitation. M12 shows the target, Homing cycles: 10, computed trigger_phase fraction, Pending config: YES / Saved to file: NO and restored G-code modes, without an independent accuracy claim. The operator can read/scroll and select Result reviewed or reject with Not accepted. Review has no inactivity deadline and sends no new motion or SAVE_CONFIG. M10/M12 physical acceptance remains pending explicit informed operator approval.
+M12 shows its ten-homing calibration evidence before asking for user review. The operator can review the pending phase, unsaved configuration and modes without a deadline. The former M10 self-test/review path is removed. Driver fault information is available in M07 Diagnostics as a passive read with no motor-health PASS or FAIL.
 
 
 ## M12: ten targeted phase-calibration homings (17 October 2026)

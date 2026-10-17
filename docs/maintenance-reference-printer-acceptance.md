@@ -8,7 +8,7 @@
 
 **Strict separation:** installed hardware ≠ implemented adapter ≠ CI PASS ≠ real-printer user acceptance. **Twenty-three** hardware checks have operator approval. Revised F02 (2,000 ms/stage), four-color O04 and adaptive five-stage F12 were accepted on 16 Oct 2026. Older outcomes remain in JSON history; latest LCD outcome and electronic restoration readback were not separately reported. One accepted device/axis never propagates PASS to another target with the same feature ID.
 
-**Per-device tracking:** **70 rows / 48 IDs** — 23 ACCEPTED, 41 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
+**Per-device tracking:** **66 rows / 47 IDs** — 23 ACCEPTED, 37 PENDING, 5 CONDITIONAL, 1 N/A. **F12 adaptive search and its reported LCD PASS were accepted on the real reference printer; an exact PWM threshold was not provided. F02/O04 latest restoration was not separately verified.**
 
 **Mandatory after each user-approved test:** set only that target's JSON `status` to `accepted`; record date, operator observation, controller outcome and `restore_verified` in `acceptance`; check only the corresponding target in both EN/TR tables in the same signed commit. Add relevant regressions; verify the full CI suite on the **bot-signed HEAD**. Never mark an item done because of a config line, HTTP success, G-code OK, simulated CI or an informational read. Never merge `master` without explicit request.
 
@@ -48,9 +48,6 @@
 
 | Done | ID | Target | Feature | Adapter | Status |
 |---|---|---|---|---|---|
-| [ ] | M10 | `tmc2208 stepper_x` | TMC driver fault diagnostics | Await informed operator acceptance | **PENDING** |
-| [ ] | M10 | `tmc2208 stepper_y` | TMC driver fault diagnostics | Await informed operator acceptance | **PENDING** |
-| [ ] | M10 | `tmc2208 stepper_z` | TMC driver fault diagnostics | Await informed operator acceptance | **PENDING** |
 | [ ] | H01 | `extruder` | Heater warmup | Available; batch acceptance pending | **PENDING** |
 | [ ] | H01 | `heater_bed` | Heater warmup | Available; batch acceptance pending | **PENDING** |
 | [ ] | H02 | `extruder` | Extruder PID calibration | Available; batch acceptance pending | **PENDING** |
@@ -71,7 +68,6 @@
 | [ ] | M07 | `tmc2208 stepper_y` | TMC driver status | Available; physical acceptance pending | **PENDING** |
 | [ ] | M07 | `tmc2208 stepper_z` | TMC driver status | Available; physical acceptance pending | **PENDING** |
 | [ ] | M07 | `tmc2208 extruder` | TMC driver status | Available; physical acceptance pending | **PENDING** |
-| [ ] | M10 | `tmc2208 extruder` | TMC driver fault diagnostics | Available; physical acceptance pending | **PENDING** |
 | [ ] | P01 | `probe` | Probe trigger response | Ready; physical acceptance pending | **PENDING** |
 | [ ] | P03 | `probe` | Probe repeatability | Ready; physical acceptance pending | **PENDING** |
 | [ ] | P04 | `probe` | Single probe measurement | Ready; physical acceptance pending | **PENDING** |
@@ -123,7 +119,7 @@
 
 **H implementation status:** All 16 reference physical H targets have adapters; none has physical acceptance yet. See the [thermal guide](maintenance-thermal.md) for final batch order and H01–H18 scope.
 
-**M implementation status:** Adapters exist for 22 confirmed M targets; 14 targets have operator acceptance. M07 is INFORMATION only, not a motor-health PASS. H acceptance states are unchanged by this development. [Motion guide](maintenance-motion.md).
+**M implementation status:** Adapters exist for 18 confirmed M targets; 14 targets have operator acceptance. M07 is INFORMATION only, not a motor-health PASS. H acceptance states are unchanged by this development. [Motion guide](maintenance-motion.md).
 
 **P/R/E/S/O implementation record (17 October 2026):** Group adapters and regressions were added; no new physical acceptance was granted. Probe Calibration, Bed Mesh and Screws Tilt remain in existing Leveling. Conditional profile/source requirements remain. Guides: [P](maintenance-probe.md), [R](maintenance-resonance.md), [E](maintenance-filament.md), [S](maintenance-system.md), [O](maintenance-auxiliary.md). Overall integration is outside this work.
 
@@ -144,3 +140,5 @@ Numeric trigger_phase logging is corrected: only fractions satisfying `0 <= phas
 M10 only reads TMC2208 drv_status fault/thermal warning flags; no motion, load test or setting write occurs. Faults: none reported means only no flags reported at that instant. M12 uses existing homing phase statistics via ENDSTOP_PHASE_CALIBRATE to create pending trigger_phase; exact pending result and preserved position/modes are checked. SAVE_CONFIG is never sent; Observed does not persist settings. This is not an independent homing repeatability measurement. M12/Y was blocked to preserve the earlier pending setting.
 
 **Later M12 acceptance (17 October):** The operator explicitly accepted both ten-homing per-axis workflows. X session `2a74f7fe73914463b7798c7551b51c92`, run 1, phase `49/64`, `OBSERVED_USER` #1088; Y session `2fd812d7ffdb4c6e8b59275ef181b1b2`, run 2, phase `33/64`, `OBSERVED_USER` #771. The older invalidated X observation is preserved in JSON history. SAVE_CONFIG was not performed; accuracy has not been independently measured. The repeat-entry precheck issue was explicitly waived for acceptance. M10 remains pending. Updated totals: 23 accepted, 41 pending, 5 conditional, 1 N/A.
+
+**M10 reserved ID (17 October 2026):** M10 was misclassified as a Self Test and is now hidden and unused, without renumbering any other ID. Driver fault reporting is available as read-only M07 Diagnostics with no motor-health PASS. Prior invalidated M10 X/Y/Z observations and the pending extruder row are preserved in the JSON historical archive; no M10 rows remain in the active acceptance tracker. Current totals: 66 rows, 23 accepted, 37 pending, 5 conditional, 1 N/A.

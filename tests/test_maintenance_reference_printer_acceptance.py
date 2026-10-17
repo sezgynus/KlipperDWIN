@@ -113,7 +113,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
         self.assertEqual(len([e for e in data['entries']
                               if e['status'] == 'accepted']), 23)
         self.assertEqual(len([e for e in data['entries']
-                              if e['status'] == 'pending']), 41)
+                              if e['status'] == 'pending']), 37)
 
     def test_h_implementation_does_not_grant_physical_acceptance(self):
         targets = [e for e in ledger()['entries']
@@ -130,7 +130,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
     def test_m_implementation_never_grants_physical_acceptance(self):
         items=[e for e in ledger()['entries'] if e['feature_id'].startswith('M')
                and e['reference']=='confirmed']
-        self.assertEqual(len(items),22)
+        self.assertEqual(len(items),18)
         for item in items:
             self.assertEqual(item['adapter'],'implemented')
             if item['feature_id'] in ('M01','M03','M04','M05','M06','M12'):
@@ -200,9 +200,12 @@ class ReferenceAcceptanceTests(unittest.TestCase):
 
     def test_motion_batch_keeps_per_target_operator_evidence_and_limited_outcomes(self):
         expected=[["M04","stepper_x",3,553,555,True],["M04","stepper_y",4,675,677,True],["M04","stepper_z",5,794,796,True],["M05","axis X",7,966,968,True],["M05","axis Y",9,1115,1117,True],["M05","axis Z",12,1308,1310,True],["M06","axis X",13,1498,1500,True],["M06","axis Y",14,1701,1703,True],["M06","axis Z",15,1935,1937,True],["M12","endstop_phase X",16,2019,2021,False],["M10","tmc2208 stepper_x",23,2355,2357,False],["M10","tmc2208 stepper_y",24,2394,2396,False],["M10","tmc2208 stepper_z",25,2452,2454,False]]
-        rows={(e['feature_id'],e['target']):e for e in ledger()['entries']}
+        data=ledger()
+        rows={(e['feature_id'],e['target']):e for e in data['entries']}
+        archived={(e['feature_id'],e['target']):e
+                  for e in data['evidence']['retired_m10_entries']['entries']}
         for feature,target,run,observed,result,restored in expected:
-            item=rows[(feature,target)]
+            item=archived[(feature,target)] if feature=='M10' else rows[(feature,target)]
             if feature in ('M10','M12'):
                 if feature=='M10':
                     self.assertEqual(item['status'],'pending')
@@ -232,13 +235,26 @@ class ReferenceAcceptanceTests(unittest.TestCase):
                 self.assertFalse(evidence['measurements']['saved'])
                 self.assertFalse(evidence['measurements']['trigger_phase_recorded'])
         for key in (('M10','tmc2208 extruder'),):
-            self.assertEqual(rows[key]['status'],'pending')
-            self.assertIsNone(rows[key]['acceptance'])
+            self.assertEqual(archived[key]['status'],'pending')
+            self.assertIsNone(archived[key]['acceptance'])
         failed=rows[('M04','stepper_x')]['previous_attempts'][-1]
         self.assertEqual(failed['controller_result'],'FAILED_USER')
         self.assertEqual(failed['trace']['observe_seq'],326)
         self.assertTrue(failed['operator_correction']['accidental_selection'])
         self.assertTrue(failed['operator_correction']['exclude_from_physical_failure'])
+
+    def test_retired_m10_entries_are_archived_not_accepted(self):
+        data=ledger()
+        self.assertFalse(any(e['feature_id']=='M10' for e in data['entries']))
+        retired=data['evidence']['retired_m10_entries']['entries']
+        self.assertEqual(len(retired),4)
+        self.assertEqual({e['target'] for e in retired},
+            {'tmc2208 stepper_x','tmc2208 stepper_y',
+             'tmc2208 stepper_z','tmc2208 extruder'})
+        self.assertTrue(all(e['status']=='pending' and e['acceptance'] is None
+                            for e in retired))
+        self.assertTrue(all(e['previous_acceptances'][-1]['invalidated']
+                            for e in retired[:3]))
 
     def test_m12_operator_acceptance_keeps_unsaved_phase_and_history(self):
         rows={(e['feature_id'],e['target']):e for e in ledger()['entries']}
@@ -263,8 +279,7 @@ class ReferenceAcceptanceTests(unittest.TestCase):
             self.assertFalse(evidence['saved'])
             self.assertFalse(evidence['independent_metrology'])
         self.assertTrue(rows['M12','endstop_phase X']['previous_acceptances'][-1]['invalidated'])
-        for device in ('tmc2208 stepper_x','tmc2208 stepper_y','tmc2208 stepper_z'):
-            self.assertEqual(rows['M10',device]['status'],'pending')
+        self.assertFalse(any(feature=='M10' for feature,target in rows))
 
     def test_historical_physical_acceptances_are_preserved(self):
         by_target = {(e['feature_id'], e['target']): e for e in ledger()['entries']}

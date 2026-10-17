@@ -83,7 +83,7 @@ M06|Measured axis travel|device|E|external_distance_measurement|motion
 M07|TMC driver status|device|AI|fresh_driver_specific_status_registers|read_only
 M08|TMC driver temperature|device|AI|fresh_driver_temperature_reading|read_only
 M09|TMC configured current|device|I|reported_driver_current_setting|read_only
-M10|TMC driver fault diagnostics|device|A|fresh_driver_specific_fault_bits|read_only
+M10|Reserved unused ID|device|-|unavailable|hidden
 M11|Stepper enable state|global|I|reported_stepper_enable_state|read_only
 M12|Endstop phase calibration|mixed|IK|klipper_endstop_phase_evidence|calibration
 M13|Angle sensor status|global|I|reported_angle_sensor_state|read_only

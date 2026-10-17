@@ -175,6 +175,131 @@
         }
       ],
       "qualification": "Operator accepted both M12 tests. Repeat-entry precheck limitation explicitly excluded. SAVE_CONFIG not performed."
+    },
+    "retired_m10_entries": {
+      "date": "2026-10-17",
+      "reason": "M10 misclassified as Self Test and retired as reserved/unused ID. M07 read-only Diagnostics includes fault summary. Historical observations and pending attempts archived; no physical acceptance.",
+      "entries": [
+        {
+          "feature_id": "M10",
+          "target": "tmc2208 stepper_x",
+          "title": "TMC driver fault diagnostics",
+          "method": "A",
+          "reference": "confirmed",
+          "status": "pending",
+          "adapter": "implemented",
+          "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
+          "acceptance": null,
+          "retest_required": true,
+          "previous_acceptances": [
+            {
+              "date": "2026-10-17",
+              "source": "user_explicit_physical_observation",
+              "controller_result": "OBSERVED_USER",
+              "restore_verified": false,
+              "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+              "trace": {
+                "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+                "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+                "run": 23,
+                "observe_seq": 2355,
+                "result_seq": 2357
+              },
+              "measurements": {
+                "fault_count": 0,
+                "faults": "none",
+                "motor_health_verified": false
+              },
+              "invalidated": true,
+              "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
+              "invalidation_date": "2026-10-17"
+            }
+          ]
+        },
+        {
+          "feature_id": "M10",
+          "target": "tmc2208 stepper_y",
+          "title": "TMC driver fault diagnostics",
+          "method": "A",
+          "reference": "confirmed",
+          "status": "pending",
+          "adapter": "implemented",
+          "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
+          "acceptance": null,
+          "retest_required": true,
+          "previous_acceptances": [
+            {
+              "date": "2026-10-17",
+              "source": "user_explicit_physical_observation",
+              "controller_result": "OBSERVED_USER",
+              "restore_verified": false,
+              "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+              "trace": {
+                "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+                "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+                "run": 24,
+                "observe_seq": 2394,
+                "result_seq": 2396
+              },
+              "measurements": {
+                "fault_count": 0,
+                "faults": "none",
+                "motor_health_verified": false
+              },
+              "invalidated": true,
+              "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
+              "invalidation_date": "2026-10-17"
+            }
+          ]
+        },
+        {
+          "feature_id": "M10",
+          "target": "tmc2208 stepper_z",
+          "title": "TMC driver fault diagnostics",
+          "method": "A",
+          "reference": "confirmed",
+          "status": "pending",
+          "adapter": "implemented",
+          "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
+          "acceptance": null,
+          "retest_required": true,
+          "previous_acceptances": [
+            {
+              "date": "2026-10-17",
+              "source": "user_explicit_physical_observation",
+              "controller_result": "OBSERVED_USER",
+              "restore_verified": false,
+              "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
+              "trace": {
+                "session": "3e8f0231f5a84e8eaeae6944aba6951d",
+                "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
+                "run": 25,
+                "observe_seq": 2452,
+                "result_seq": 2454
+              },
+              "measurements": {
+                "fault_count": 0,
+                "faults": "none",
+                "motor_health_verified": false
+              },
+              "invalidated": true,
+              "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
+              "invalidation_date": "2026-10-17"
+            }
+          ]
+        },
+        {
+          "feature_id": "M10",
+          "target": "tmc2208 extruder",
+          "title": "TMC driver fault diagnostics",
+          "method": "A",
+          "reference": "confirmed",
+          "status": "pending",
+          "adapter": "implemented",
+          "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
+          "acceptance": null
+        }
+      ]
     }
   },
   "policy": {
@@ -876,125 +1001,6 @@
       "status": "pending",
       "adapter": "implemented",
       "note": "Implemented INFORMATION adapter for reported driver monitor only; no physical motor-health PASS. Pending operator acceptance.",
-      "acceptance": null
-    },
-    {
-      "feature_id": "M10",
-      "target": "tmc2208 stepper_x",
-      "title": "TMC driver fault diagnostics",
-      "method": "A",
-      "reference": "confirmed",
-      "status": "pending",
-      "adapter": "implemented",
-      "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
-      "acceptance": null,
-      "retest_required": true,
-      "previous_acceptances": [
-        {
-          "date": "2026-10-17",
-          "source": "user_explicit_physical_observation",
-          "controller_result": "OBSERVED_USER",
-          "restore_verified": false,
-          "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-          "trace": {
-            "session": "3e8f0231f5a84e8eaeae6944aba6951d",
-            "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
-            "run": 23,
-            "observe_seq": 2355,
-            "result_seq": 2357
-          },
-          "measurements": {
-            "fault_count": 0,
-            "faults": "none",
-            "motor_health_verified": false
-          },
-          "invalidated": true,
-          "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
-          "invalidation_date": "2026-10-17"
-        }
-      ]
-    },
-    {
-      "feature_id": "M10",
-      "target": "tmc2208 stepper_y",
-      "title": "TMC driver fault diagnostics",
-      "method": "A",
-      "reference": "confirmed",
-      "status": "pending",
-      "adapter": "implemented",
-      "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
-      "acceptance": null,
-      "retest_required": true,
-      "previous_acceptances": [
-        {
-          "date": "2026-10-17",
-          "source": "user_explicit_physical_observation",
-          "controller_result": "OBSERVED_USER",
-          "restore_verified": false,
-          "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-          "trace": {
-            "session": "3e8f0231f5a84e8eaeae6944aba6951d",
-            "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
-            "run": 24,
-            "observe_seq": 2394,
-            "result_seq": 2396
-          },
-          "measurements": {
-            "fault_count": 0,
-            "faults": "none",
-            "motor_health_verified": false
-          },
-          "invalidated": true,
-          "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
-          "invalidation_date": "2026-10-17"
-        }
-      ]
-    },
-    {
-      "feature_id": "M10",
-      "target": "tmc2208 stepper_z",
-      "title": "TMC driver fault diagnostics",
-      "method": "A",
-      "reference": "confirmed",
-      "status": "pending",
-      "adapter": "implemented",
-      "note": "Operator requested explanation before acceptance; previous Observed click is not informed physical acceptance. Await explicit confirmation after clarification.",
-      "acceptance": null,
-      "retest_required": true,
-      "previous_acceptances": [
-        {
-          "date": "2026-10-17",
-          "source": "user_explicit_physical_observation",
-          "controller_result": "OBSERVED_USER",
-          "restore_verified": false,
-          "observation": "Operator acknowledged passive fault diagnostics; no reported faults is not proof of motor health.",
-          "trace": {
-            "session": "3e8f0231f5a84e8eaeae6944aba6951d",
-            "head": "537e0373c6e83dc4ee5105e3b968f36eb1a8f361",
-            "run": 25,
-            "observe_seq": 2452,
-            "result_seq": 2454
-          },
-          "measurements": {
-            "fault_count": 0,
-            "faults": "none",
-            "motor_health_verified": false
-          },
-          "invalidated": true,
-          "invalidation_reason": "Operator clicked Observed without understanding the check; informed acceptance explicitly withheld.",
-          "invalidation_date": "2026-10-17"
-        }
-      ]
-    },
-    {
-      "feature_id": "M10",
-      "target": "tmc2208 extruder",
-      "title": "TMC driver fault diagnostics",
-      "method": "A",
-      "reference": "confirmed",
-      "status": "pending",
-      "adapter": "implemented",
-      "note": "Implemented guarded per-target motion/observation adapter; pending final physical operator acceptance. CI is not physical evidence.",
       "acceptance": null
     },
     {

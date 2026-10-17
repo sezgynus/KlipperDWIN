@@ -8,7 +8,7 @@
 
 **Temel ayrım:** Donanımın varlığı ≠ uygulanmış test adaptörü ≠ CI PASS ≠ gerçek yazıcıda kullanıcı kabulü. Önceki sürümler dahil açıkça doğrulanmış **23 adet** fiziksel test KABUL sayılır. **F02'nin 2 saniyelik kademeleri, O04'ün senkron dört renk testi ve F12'nin adaptif beş kademeli araması 16 Ekim 2026'da kullanıcı tarafından kabul edildi.** Önceki sonuçlar JSON geçmişinde korunmuştur; son LCD sonucu ve elektronik geri yükleme okuması ayrıca bildirilmedi. Bir cihaz veya eksen onaylanınca aynı ID altındaki diğer hedeflere PASS aktarılmaz.
 
-**Cihaz bazlı durum:** **70 kayıt / 48 ID** — 23 KABUL, 41 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
+**Cihaz bazlı durum:** **66 kayıt / 47 ID** — 23 KABUL, 37 BEKLİYOR, 5 KOŞULLU, 1 N/A. **F12'nin adaptif iterasyonları gerçek yazıcıda çalıştı ve LCD PASS bildirdi; kesin PWM eşiği paylaşılmadı. F02/O04 için son elektronik geri yükleme ayrıca doğrulanmadı.**
 
 **Her onaylanan testin ardından (zorunlu):** ilgili JSON kaydındaki hedefin `status` alanını `accepted` yap; `acceptance` içine tarih, kullanıcı kanıtı, yürütücü sonucu ve `restore_verified` ekle. Ardından bu TR/EN tablolarında **yalnız o hedefin** kutucuğunu `[x]` yap. Aynı commit'te ilgili regresyonları güncelle; bot imzası ve **imzalı HEAD** CI PASS almadan tamamlandı deme. Gerçek fiziksel kabul olmadan hiçbir satıra `[x]` konamaz. Kullanıcı açıkça istemedikçe `master` merge edilmez.
 
@@ -48,9 +48,6 @@
 
 | Yapıldı | ID | Hedef | Özellik | Adapter | Durum |
 |---|---|---|---|---|---|
-| [ ] | M10 | `tmc2208 stepper_x` | TMC hata bitleri | Açıklama sonrası kullanıcı kabulü bekliyor | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 stepper_y` | TMC hata bitleri | Açıklama sonrası kullanıcı kabulü bekliyor | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 stepper_z` | TMC hata bitleri | Açıklama sonrası kullanıcı kabulü bekliyor | **BEKLİYOR** |
 | [ ] | H01 | `extruder` | Isıtıcının sıcaklık yükseltmesi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H01 | `heater_bed` | Isıtıcının sıcaklık yükseltmesi | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
 | [ ] | H02 | `extruder` | Hotend PID kalibrasyonu | Hazır; toplu kabul bekliyor | **BEKLİYOR** |
@@ -71,7 +68,6 @@
 | [ ] | M07 | `tmc2208 stepper_y` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M07 | `tmc2208 stepper_z` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | M07 | `tmc2208 extruder` | TMC sürücü durumu | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
-| [ ] | M10 | `tmc2208 extruder` | TMC hata bitleri | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P01 | `probe` | Prob tetikleme | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P03 | `probe` | Prob tekrarlanabilirliği | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
 | [ ] | P04 | `probe` | Tek prob ölçümü | Hazır; fiziksel kabul bekliyor | **BEKLİYOR** |
@@ -123,7 +119,7 @@
 
 **H uygulama durumu:** Referans yazıcının 16 fiziksel H hedefinin adaptörleri hazır; hiçbirinin fiziksel kabulü henüz yapılmadı. Toplu test sırası ve H01–H18 kapsamı için [termal rehber](maintenance-thermal_TR.md).
 
-**M uygulama durumu:** 22 doğrulanmış M hedefinde adaptör mevcut; 14 hedef kullanıcı tarafından kabul edildi. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
+**M uygulama durumu:** 18 doğrulanmış M hedefinde adaptör mevcut; 14 hedef kullanıcı tarafından kabul edildi. M07 yalnız bilgi adaptörüdür, motor sağlığı PASS'i değildir. H kabul durumları bu geliştirmeyle değiştirilmedi. [Hareket rehberi](maintenance-motion_TR.md).
 
 **P/R/E/S/O geliştirme kaydı (17 Ekim 2026):** Grup adaptörleri ve regresyonları eklendi; hiçbir yeni fiziksel kabul verilmedi. Probe Calibration, Bed Mesh ve Screws Tilt mevcut Leveling’de kalır. Koşullu profil/kaynak gereksinimleri sürer. Rehberler: [P](maintenance-probe_TR.md), [R](maintenance-resonance_TR.md), [E](maintenance-filament_TR.md), [S](maintenance-system_TR.md), [O](maintenance-auxiliary_TR.md). Genel bütünleştirme bu çalışmaya dahil değildir.
 
@@ -144,3 +140,5 @@ Sayısal trigger_phase kaybı düzeltildi: logger artık yalnız geçerli `0 <= 
 M10 yalnız TMC2208 drv_status hata/sıcaklık uyarı bayraklarını okur; hareket, yük altında test veya ayar yazımı yapmaz. Faults: none reported yalnız o anda raporlanan bayrak yok demektir. M12 mevcut homing faz istatistiğinden ENDSTOP_PHASE_CALIBRATE ile bekleyen trigger_phase üretir; doğrulanmış pending sonuç ve aynı konum/modlar aranır. SAVE_CONFIG gönderilmez; Observed sonucu kalıcı kaydetmez. Bu, bağımsız homing tekrarlanabilirlik ölçümü değildir. M12/Y önceki bekleyen ayarı korumak için engellenmişti.
 
 **Son M12 kabulü (17 Ekim):** Kullanıcı eksen başına on homing akışını iki hedef için açıkça kabul etti. X oturumu `2a74f7fe73914463b7798c7551b51c92`, run 1, faz `49/64`, `OBSERVED_USER` #1088; Y oturumu `2fd812d7ffdb4c6e8b59275ef181b1b2`, run 2, faz `33/64`, `OBSERVED_USER` #771. Önceki geçersiz X onayı JSON geçmişinde korunmuştur. SAVE_CONFIG uygulanmadı; bağımsız hassasiyet ölçümü yapılmadı. Tekrar giriş ön kontrolü sorunu kabul bakımından açıkça göz ardı edildi. M10 hâlâ bekliyor. Yeni toplam: 23 kabul, 41 bekleyen, 5 koşullu, 1 N/A.
+
+**M10 ayrılmış ID (17 Ekim 2026):** M10, yanlış sınıflandırılmış bir Self Test olduğu için gizli ve boş bırakıldı. Diğer numaralar kaydırılmadı. Sürücü hata durumu M07 Diagnostics altında salt okunur bilgi olarak sunulur, motor sağlığı PASS'i verilmez. M10 X/Y/Z önceki geçersiz kullanıcı gözlemleri ve Extruder bekleyen kaydı JSON geçmiş arşivinde korunur; aktif kabul çizelgesinde M10 satırı yoktur. Güncel durum: 66 kayıt, 23 kabul, 37 bekleyen, 5 koşullu, 1 uygulanamaz.

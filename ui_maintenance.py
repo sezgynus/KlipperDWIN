@@ -139,7 +139,7 @@ class MaintenanceViewMixin:
                 details=getattr(self.pd.maintenance_pulse,'observation_details',())
                 if details:
                     feature=self.pd.maintenance_pulse.feature_id
-                    return ('Review driver faults' if feature=='M10' else 'Review phase result'), (
+                    return 'Review phase result', (
                         *((str(text)[:26], self.ICON_Info, None, None) for text in details),
                         ('Not accepted', self.ICON_Back, None, None),
                         ('Result reviewed', self.ICON_Info, None, None))

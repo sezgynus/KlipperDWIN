@@ -17,6 +17,23 @@ class MotionInformationTests(unittest.TestCase):
         self.assertIsNone(tmc2208_faults({'drv_status': {'unknown_schema': 1}}))
         self.assertEqual(tmc2208_faults({'drv_status': {'cs_actual': 10, 'stealth': 1}}), ())
 
+    def test_m07_driver_fault_summary_replaces_retired_m10(self):
+        driver='tmc2208 stepper_x'
+        def report(status):
+            return read_fields('M07',reply({driver:{'drv_status':status}}),driver)
+        clear=report({})
+        self.assertIn(('fault_count',0),clear)
+        self.assertIn(('faults','none reported'),clear)
+        warning=report({'otpw':1,'stst':1,'cs_actual':11})
+        self.assertIn(('fault_count',1),warning)
+        self.assertIn(('faults','otpw'),warning)
+        self.assertIn(('otpw',1),warning)
+        self.assertEqual(report(None),())
+        self.assertEqual(report({'unknown_schema':1}),())
+        other='tmc2209 stepper_x'
+        self.assertIn(('otpw',1),
+            read_fields('M07',reply({other:{'drv_status':{'otpw':1}}}),other))
+
     def test_reported_current_and_temperature_are_not_invented(self):
         v = reply({'tmc2208 stepper_x': {'run_current': .8, 'hold_current': .4, 'temperature': None}})
         self.assertEqual(read_fields('M08', v, 'tmc2208 stepper_x'), ())

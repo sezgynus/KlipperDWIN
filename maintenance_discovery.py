@@ -22,7 +22,7 @@ INFORMATION = 16    # Telemetry/history; not a functional test
 
 # IDs whose very premise is unmeasurable, unsafe, or a negative capability.
 # Their deliberate hidden state is PART of the complete 121-ID contract.
-ALWAYS_HIDDEN = frozenset(('M02', 'M17', 'R07', 'R08', 'E10', 'O07', 'O08'))
+ALWAYS_HIDDEN = frozenset(('M02', 'M10', 'M17', 'R07', 'R08', 'E10', 'O07', 'O08'))
 
 # Exactly five bits per feature. Device and global masks are immutable ints.
 _GROUPS = (('F', 13), ('H', 18), ('M', 17), ('P', 22),
@@ -305,7 +305,6 @@ def discover(state, services=()):
             # a READY sample with lack of a diagnostic capability. Only
             # a fresh non-null measurement can pass a runtime test.
             bits = _add(bits, 'M07', AUTOMATIC | INFORMATION)
-            bits = _add(bits, 'M10', AUTOMATIC)
             if (_is_number(_get(device_status, 'temperature')) or
                     'maintenance.driver_thermal_monitor:' + name in services):
                 bits = _add(bits, 'M08', AUTOMATIC | INFORMATION)
